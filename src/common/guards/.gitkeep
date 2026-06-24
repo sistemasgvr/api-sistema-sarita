@@ -1,0 +1,2 @@
+# Guards de autenticacion y autorizacion.
+# Ejemplo: validar JWT, roles o permisos antes de entrar a un endpoint.

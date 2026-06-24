@@ -96,3 +96,90 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+## Estructura del proyecto
+
+API NestJS que consume **funciones de PostgreSQL**. Cada módulo sigue el flujo: **controller → logic → model**.
+
+```
+src/
+├── config/          # Configuración de la aplicación
+├── database/        # Conexión y pool de PostgreSQL
+├── common/          # Código compartido entre módulos
+├── modules/         # Módulos por dominio/funcionalidad
+├── app.module.ts    # Módulo raíz
+└── main.ts          # Punto de entrada, Swagger y logs de arranque
+```
+
+### `src/config/`
+
+Variables y configuración centralizada. Aquí se definen los parámetros de conexión a PostgreSQL (`database.config.ts`) leídos desde el archivo `.env`.
+
+### `src/database/`
+
+Capa de acceso a la base de datos. Contiene el pool de conexiones (`database.service.ts`) y el helper `callFunction()` para invocar funciones PG. También verifica si la BD está conectada al iniciar la API.
+
+### `src/common/`
+
+Recursos reutilizables en toda la aplicación:
+
+| Carpeta / archivo | Propósito |
+|-------------------|-----------|
+| `dto/` | DTOs genéricos de respuesta para Swagger (`ApiResponseDto`, `ApiErrorResponseDto`) |
+| `filters/` | Filtros globales de excepciones. Formatea errores HTTP con la estructura estándar |
+| `guards/` | Guards de autenticación y autorización (JWT, roles, permisos) |
+| `helpers/` | Utilidades compartidas, como `ResponseHelper` para respuestas con `meta` de paginación |
+| `interceptors/` | Interceptores transversales. Envuelve respuestas exitosas en `{ success, message, data }` |
+| `interfaces/` | Interfaces TypeScript de las estructuras de respuesta de la API |
+
+### `src/modules/`
+
+Cada carpeta es un módulo independiente (ej. `ejemplo`, `usuarios`, etc.). Para crear uno nuevo, copia la estructura del módulo `ejemplo`:
+
+| Carpeta | Propósito |
+|---------|-----------|
+| `controllers/` | Endpoints HTTP (GET, POST, PATCH, DELETE). Recibe requests y delega a logic |
+| `logic/` | Lógica de negocio, validaciones y manejo de errores antes/después de llamar al model |
+| `models/` | Única capa que habla con PostgreSQL. Solo llama funciones de la BD (`fn_*`) |
+| `dto/` | Objetos de entrada/salida: crear, actualizar, filtros y respuestas documentadas en Swagger |
+| `*.module.ts` | Registra controller, logic y model del módulo |
+
+### `test/`
+
+Pruebas end-to-end de la aplicación.
+
+### Archivos en la raíz
+
+| Archivo | Propósito |
+|---------|-----------|
+| `.env.example` | Plantilla de variables de entorno (puerto, credenciales de BD) |
+| `nest-cli.json` | Configuración del CLI de NestJS |
+| `tsconfig.json` | Configuración de TypeScript |
+
+### Respuesta estándar de la API
+
+Todas las respuestas exitosas siguen este formato:
+
+```json
+{
+  "success": true,
+  "message": "Consulta exitosa",
+  "data": {}
+}
+```
+
+Los errores:
+
+```json
+{
+  "success": false,
+  "message": "Descripción del error",
+  "data": null,
+  "errors": null,
+  "statusCode": 400
+}
+```
+
+### Swagger
+
+Documentación interactiva disponible en `http://localhost:3000/api/docs` al iniciar el servidor.
