@@ -13,75 +13,75 @@
 --  MÓDULOS (grupos de tablas)
 --  --------------------------
 --  1. AUTH        → Usuarios, roles, permisos y sesiones
---  2. GENERALES   → Catálogos (gen_Lista/gen_ListaOpciones), sucursales, almacenes,
+--  2. GENERALES   → Catálogos (gen_lista/gen_lista_opciones), sucursales, almacenes,
 --                   vehículos, choferes, cuentas bancarias, documentos con vencimiento,
 --                   configuración SUNAT y servicios externos
---  3. CLIENTES    → Clientes y proveedores (misma tabla cli_Clientes), contactos,
+--  3. CLIENTES    → Clientes y proveedores (misma tabla cli_clientes), contactos,
 --                   direcciones de entrega y condiciones de pago
 --  4. PRODUCTOS   → Categorías, subcategorías, productos (gases, accesorios, servicios),
 --                   catálogo de precios con costo/flete/margen, stock por almacén y kardex
---  5. BALONES     → Maestro de balones/cilindros (bal_Balon) con trazabilidad completa:
+--  5. BALONES     → Maestro de balones/cilindros (bal_balon) con trazabilidad completa:
 --                   movimientos físicos, recargas en planta, préstamos, alquiler,
 --                   mantenimiento y garantías cobradas/devueltas
---  6. VENTAS      → Comprobantes de venta con ciclo FE-SUNAT completo (xmlFirmado,
---                   cdrRespuesta, NC/ND), detalle por línea con afectación IGV,
+--  6. VENTAS      → Comprobantes de venta con ciclo FE-SUNAT completo (xml_firmado,
+--                   cdr_respuesta, NC/ND), detalle por línea con afectación IGV,
 --                   cuotas de crédito y relación con GRE
 --  7. GRE         → Guías de Remisión Electrónica (remitente 09 / transportista 31)
 --                   con UBIGEO, motivo de traslado y ciclo XML/CDR SUNAT
---  8. FINANZAS    → Cuentas por cobrar y pagar (fin_Cuenta + fin_Pago),
---                   préstamos bancarios y cuotas (fin_PrestamoBanco)
+--  8. FINANZAS    → Cuentas por cobrar y pagar (fin_cuenta + fin_pago),
+--                   préstamos bancarios y cuotas (fin_prestamo_banco)
 --  9. COMPRAS     → Comprobantes de compra/gasto con clasificación contable de 3 niveles,
 --                   afectación de inventario y declaración SUNAT
 --
 --  FLUJOS DEL NEGOCIO
 --  ------------------
 --  A. VENTA DE GAS (cliente trae su propio balón)
---       ven_Comprobante + ven_ComprobanteDetalle + pro_Movimientos (salida gas)
+--       ven_comprobante + ven_comprobante_detalle + pro_movimientos (salida gas)
 --
 --  B. VENTA DE GAS + BALÓN EN PRÉSTAMO
---       bal_Prestamo (garantía cobrada → idComprobanteVenta) +
---       bal_PrestamoDetalle (cilindros entregados con GRE) +
---       ven_Comprobante (factura gas) + gre_GuiaRemision (salida)
---       Al devolver: fecha devolución en bal_PrestamoDetalle + GRE retorno
+--       bal_prestamo (garantía cobrada → id_comprobante_venta) +
+--       bal_prestamo_detalle (cilindros entregados con GRE) +
+--       ven_comprobante (factura gas) + gre_guia_remision (salida)
+--       Al devolver: fecha devolución en bal_prestamo_detalle + GRE retorno
 --
 --  C. VENTA DE GAS + VENTA DE BALÓN (cliente compra el cilindro)
---       ven_Comprobante con 2 líneas en ven_ComprobanteDetalle:
---         línea 1 → gas (esGas=TRUE), línea 2 → balón (idBalon → bal_Balon)
---       bal_Balon.idClienteUbicacion actualizado al cliente comprador
+--       ven_comprobante con 2 líneas en ven_comprobante_detalle:
+--         línea 1 → gas (es_gas=TRUE), línea 2 → balón (id_balon → bal_balon)
+--       bal_balon.id_cliente_ubicacion actualizado al cliente comprador
 --
 --  D. ALQUILER DE BALÓN
---       bal_Alquiler (tarifa diaria) + bal_AlquilerDetalle (cilindros) +
---       gre_GuiaRemision (entrega/retiro) +
---       ven_Comprobante periódico (idComprobanteVenta en bal_Alquiler)
+--       bal_alquiler (tarifa diaria) + bal_alquiler_detalle (cilindros) +
+--       gre_guia_remision (entrega/retiro) +
+--       ven_comprobante periódico (id_comprobante_venta en bal_alquiler)
 --
 --  E. MANTENIMIENTO / REVISIÓN DE BALÓN
---       bal_Mantenimiento + ven_Comprobante (servicio cobrado al cliente)
---       o com_ComprobanteCompra (servicio contratado a tercero)
+--       bal_mantenimiento + ven_comprobante (servicio cobrado al cliente)
+--       o com_comprobante_compra (servicio contratado a tercero)
 --
 --  F. RECARGA EN PLANTA (balones propios enviados al proveedor)
---       bal_MovimientoRecarga (lote + P.H. de la recarga) +
---       gre_GuiaRemision salida + gre_GuiaRemision retorno +
---       com_ComprobanteCompra (factura de la planta)
+--       bal_movimiento_recarga (lote + P.H. de la recarga) +
+--       gre_guia_remision salida + gre_guia_remision retorno +
+--       com_comprobante_compra (factura de la planta)
 --
 --  G. CORRECCIÓN / ANULACIÓN DE COMPROBANTE (NC / ND)
---       ven_Comprobante tipo 07/08 con idComprobanteOrigen apuntando al original
---       y idMotivoNota (01=Anulación, 07=Descuento, 08=Devolución, 13=Ajuste)
+--       ven_comprobante tipo 07/08 con id_comprobante_origen apuntando al original
+--       y id_motivo_nota (01=Anulación, 07=Descuento, 08=Devolución, 13=Ajuste)
 --
 --  H. FACTURACIÓN ELECTRÓNICA SUNAT
---       ven_Comprobante y gre_GuiaRemision almacenan:
---         xmlFirmado, cdrRespuesta, hashDocumento, ticketSunat, idEstadoSunat
---       gen_ConfiguracionSunat guarda credenciales SOL y certificado digital
---       idAfectacionIgv por línea vía gen_Lista (10 Gravado, 20 Exonerado, 30 Inafecto, 40 Exportación)
---       Ubigeo en gen_Distrito.codigoUbigeo para origen/destino de GREs
+--       ven_comprobante y gre_guia_remision almacenan:
+--         xml_firmado, cdr_respuesta, hash_documento, ticket_sunat, id_estado_sunat
+--       gen_configuracion_sunat guarda credenciales SOL y certificado digital
+--       id_afectacion_igv por línea vía gen_lista (10 Gravado, 20 Exonerado, 30 Inafecto, 40 Exportación)
+--       Ubigeo en gen_distrito.codigo_ubigeo para origen/destino de GREs
 --
 --  DECISIONES DE DISEÑO
 --  --------------------
 --  - Sin tablas snapshot ni columnas calculadas: todo se deriva con JOINs y vistas
---  - Clientes y proveedores en una sola tabla (cli_Clientes); rol determinado por contexto
+--  - Clientes y proveedores en una sola tabla (cli_clientes); rol determinado por contexto
 --  - Balón identificado por código único; lote solo en la recarga, no en el balón
---  - NC/ND como registros en ven_Comprobante (no tabla separada)
---  - gen_Chofer y gen_Vehiculo usados tanto para flota propia (idCliente NULL)
---    como para transportistas externos (idCliente → cli_Clientes)
+--  - NC/ND como registros en ven_comprobante (no tabla separada)
+--  - gen_chofer y gen_vehiculo usados tanto para flota propia (id_cliente NULL)
+--    como para transportistas externos (id_cliente → cli_clientes)
 -- ============================================================
 
 
@@ -89,73 +89,73 @@
 -- GRUPO 1: AUTENTICACIÓN Y USUARIOS
 -- ============================================================
 
-CREATE TABLE auth_Usuarios (
+CREATE TABLE auth_usuarios (
     id              SERIAL PRIMARY KEY,
-    nombre          VARCHAR(150) NOT NULL,
-    correo          VARCHAR(150) NOT NULL UNIQUE,
-    contrasena      VARCHAR(255) NOT NULL,
+    nombre          varchar(150) NOT NULL,
+    correo          varchar(150) NOT NULL UNIQUE,
+    contrasena      varchar(255) NOT NULL,
     estado          BOOLEAN NOT NULL DEFAULT TRUE,
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE auth_Roles (
+CREATE TABLE auth_roles (
     id              SERIAL PRIMARY KEY,
-    nombre          VARCHAR(100) NOT NULL,
-    descripcion     VARCHAR(255),
+    nombre          varchar(100) NOT NULL,
+    descripcion     varchar(255),
     estado          BOOLEAN NOT NULL DEFAULT TRUE,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE auth_Permisos (
+CREATE TABLE auth_permisos (
     id              SERIAL PRIMARY KEY,
-    nombre          VARCHAR(100) NOT NULL,
-    descripcion     VARCHAR(255),
+    nombre          varchar(100) NOT NULL,
+    descripcion     varchar(255),
     estado          BOOLEAN NOT NULL DEFAULT TRUE,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE auth_UsuariosRoles (
+CREATE TABLE auth_usuarios_roles (
     id              SERIAL PRIMARY KEY,
-    idUsuario       INT NOT NULL REFERENCES auth_Usuarios(id),
-    idRol           INT NOT NULL REFERENCES auth_Roles(id),
+    id_usuario       INT NOT NULL REFERENCES auth_usuarios(id),
+    id_rol           INT NOT NULL REFERENCES auth_roles(id),
     estado          BOOLEAN NOT NULL DEFAULT TRUE,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE auth_RolesPermisos (
+CREATE TABLE auth_roles_permisos (
     id              SERIAL PRIMARY KEY,
-    idRol           INT NOT NULL REFERENCES auth_Roles(id),
-    idPermiso       INT NOT NULL REFERENCES auth_Permisos(id),
+    id_rol           INT NOT NULL REFERENCES auth_roles(id),
+    id_permiso       INT NOT NULL REFERENCES auth_permisos(id),
     estado          BOOLEAN NOT NULL DEFAULT TRUE,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE auth_Sesiones (
+CREATE TABLE auth_sesiones (
     id              SERIAL PRIMARY KEY,
-    idUsuario       INT NOT NULL REFERENCES auth_Usuarios(id),
-    token           VARCHAR(512) NOT NULL,
-    ip              VARCHAR(45),
-    userAgent       VARCHAR(512),
-    fechaInicio     TIMESTAMP DEFAULT NOW(),
-    fechaFin        TIMESTAMP,
+    id_usuario       INT NOT NULL REFERENCES auth_usuarios(id),
+    token           varchar(512) NOT NULL,
+    ip              varchar(45),
+    user_agent       varchar(512),
+    fecha_inicio     TIMESTAMP DEFAULT NOW(),
+    fecha_fin        TIMESTAMP,
     estado          BOOLEAN NOT NULL DEFAULT TRUE,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 
@@ -163,169 +163,169 @@ CREATE TABLE auth_Sesiones (
 -- GRUPO 2: GENERALES / CATÁLOGOS BASE
 -- ============================================================
 
-CREATE TABLE gen_Pais (
+CREATE TABLE gen_pais (
     id              SERIAL PRIMARY KEY,
-    nombre          VARCHAR(100) NOT NULL,
+    nombre          varchar(100) NOT NULL,
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE gen_Departamento (
+CREATE TABLE gen_departamento (
     id              SERIAL PRIMARY KEY,
-    idPais          INT NOT NULL REFERENCES gen_Pais(id),
-    nombre          VARCHAR(100) NOT NULL,
+    id_pais          INT NOT NULL REFERENCES gen_pais(id),
+    nombre          varchar(100) NOT NULL,
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE gen_Provincia (
+CREATE TABLE gen_provincia (
     id              SERIAL PRIMARY KEY,
-    idDepartamento  INT NOT NULL REFERENCES gen_Departamento(id),
-    nombre          VARCHAR(100) NOT NULL,
+    id_departamento  INT NOT NULL REFERENCES gen_departamento(id),
+    nombre          varchar(100) NOT NULL,
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE gen_Distrito (
+CREATE TABLE gen_distrito (
     id              SERIAL PRIMARY KEY,
-    idProvincia     INT NOT NULL REFERENCES gen_Provincia(id),
-    nombre          VARCHAR(100) NOT NULL,
-    codigoUbigeo    VARCHAR(6),   -- SUNAT UBIGEO 6 dígitos (ej. 140101 = Chiclayo)
+    id_provincia     INT NOT NULL REFERENCES gen_provincia(id),
+    nombre          varchar(100) NOT NULL,
+    codigo_ubigeo    varchar(6),   -- SUNAT UBIGEO 6 dígitos (ej. 140101 = Chiclayo)
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 -- Lista maestra de opciones (equivalente a tablas de tipo/estado)
 -- Ejemplos de uso: TipoDocumento, TipoPersona, TipoCuenta, TipoMovimiento, etc.
-CREATE TABLE gen_Lista (
+CREATE TABLE gen_lista (
     id              SERIAL PRIMARY KEY,
-    nombre          VARCHAR(100) NOT NULL,
-    descripcion     VARCHAR(255),
+    nombre          varchar(100) NOT NULL,
+    descripcion     varchar(255),
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE gen_ListaOpciones (
+CREATE TABLE gen_lista_opciones (
     id              SERIAL PRIMARY KEY,
-    idLista         INT NOT NULL REFERENCES gen_Lista(id),
-    nombre          VARCHAR(150) NOT NULL,
-    descripcion     VARCHAR(255),
+    id_lista         INT NOT NULL REFERENCES gen_lista(id),
+    nombre          varchar(150) NOT NULL,
+    descripcion     varchar(255),
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 -- Sucursales de la empresa
-CREATE TABLE gen_Sucursal (
+CREATE TABLE gen_sucursal (
     id              SERIAL PRIMARY KEY,
-    codigo          VARCHAR(20) NOT NULL UNIQUE,
-    nombre          VARCHAR(150) NOT NULL,
-    direccion       VARCHAR(255),
-    idDepartamento  INT REFERENCES gen_Departamento(id),
-    idProvincia     INT REFERENCES gen_Provincia(id),
-    idDistrito      INT REFERENCES gen_Distrito(id),
-    telefono        VARCHAR(30),
+    codigo          varchar(20) NOT NULL UNIQUE,
+    nombre          varchar(150) NOT NULL,
+    direccion       varchar(255),
+    id_departamento  INT REFERENCES gen_departamento(id),
+    id_provincia     INT REFERENCES gen_provincia(id),
+    id_distrito      INT REFERENCES gen_distrito(id),
+    telefono        varchar(30),
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 -- Almacenes vinculados a sucursal
-CREATE TABLE gen_Almacen (
+CREATE TABLE gen_almacen (
     id              SERIAL PRIMARY KEY,
-    idSucursal      INT NOT NULL REFERENCES gen_Sucursal(id),
-    nombre          VARCHAR(150) NOT NULL,
-    ubicacion       VARCHAR(255),
-    descripcion     VARCHAR(255),
-    idDepartamento  INT REFERENCES gen_Departamento(id),
-    idProvincia     INT REFERENCES gen_Provincia(id),
-    idDistrito      INT REFERENCES gen_Distrito(id),
+    id_sucursal      INT NOT NULL REFERENCES gen_sucursal(id),
+    nombre          varchar(150) NOT NULL,
+    ubicacion       varchar(255),
+    descripcion     varchar(255),
+    id_departamento  INT REFERENCES gen_departamento(id),
+    id_provincia     INT REFERENCES gen_provincia(id),
+    id_distrito      INT REFERENCES gen_distrito(id),
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 -- Condiciones de pago (CONTADO, CREDITO 10 DIAS, etc.)
-CREATE TABLE gen_CondicionPago (
+CREATE TABLE gen_condicion_pago (
     id              SERIAL PRIMARY KEY,
-    codigo          VARCHAR(10) NOT NULL UNIQUE,
-    nombre          VARCHAR(100) NOT NULL,
-    diasCredito     INT NOT NULL DEFAULT 0,
+    codigo          varchar(10) NOT NULL UNIQUE,
+    nombre          varchar(100) NOT NULL,
+    dias_credito     INT NOT NULL DEFAULT 0,
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 -- Datos fiscales de la empresa (RUC, razón social)
-CREATE TABLE gen_Empresa (
+CREATE TABLE gen_empresa (
     id                  SERIAL PRIMARY KEY,
-    ruc                 VARCHAR(11) NOT NULL UNIQUE,
-    razonSocial         VARCHAR(255),
-    nombreComercial     VARCHAR(150) DEFAULT 'OXIGENO SARITA',
-    direccion           VARCHAR(255),
-    telefono            VARCHAR(30),
-    email               VARCHAR(150),
+    ruc                 varchar(11) NOT NULL UNIQUE,
+    razon_social         varchar(255),
+    nombre_comercial     varchar(150) DEFAULT 'OXIGENO SARITA',
+    direccion           varchar(255),
+    telefono            varchar(30),
+    email               varchar(150),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 -- Credenciales SUNAT / facturación electrónica (SOL)
-CREATE TABLE gen_ConfiguracionSunat (
+CREATE TABLE gen_configuracion_sunat (
     id                  SERIAL PRIMARY KEY,
-    idEmpresa           INT NOT NULL REFERENCES gen_Empresa(id),
-    usuarioSol          VARCHAR(50) NOT NULL,
-    claveSol            VARCHAR(255) NOT NULL,   -- cifrar en aplicación
-    certificadoDigital  VARCHAR(255),             -- ruta o referencia al .pfx
-    claveCertificado    VARCHAR(255),             -- cifrar en aplicación
-    idAmbiente          INT REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: AmbienteSunat) BETA, PRODUCCION
+    id_empresa           INT NOT NULL REFERENCES gen_empresa(id),
+    usuario_sol          varchar(50) NOT NULL,
+    clave_sol            varchar(255) NOT NULL,   -- cifrar en aplicación
+    certificado_digital  varchar(255),             -- ruta o referencia al .pfx
+    clave_certificado    varchar(255),             -- cifrar en aplicación
+    id_ambiente          INT REFERENCES gen_lista_opciones(id),  -- (gen_lista: AmbienteSunat) BETA, PRODUCCION
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 -- Credenciales de servicios externos (correo, WHEREX, etc.)
-CREATE TABLE gen_ConfiguracionServicio (
+CREATE TABLE gen_configuracion_servicio (
     id                  SERIAL PRIMARY KEY,
-    codigo              VARCHAR(50) NOT NULL UNIQUE,  -- CORREO, WHEREX...
-    nombre              VARCHAR(100) NOT NULL,
-    usuario             VARCHAR(150),
-    contrasena          VARCHAR(255),                 -- cifrar en aplicación
-    email               VARCHAR(150),
-    url                 VARCHAR(255),
-    observacion         VARCHAR(255),
+    codigo              varchar(50) NOT NULL UNIQUE,  -- CORREO, WHEREX...
+    nombre              varchar(100) NOT NULL,
+    usuario             varchar(150),
+    contrasena          varchar(255),                 -- cifrar en aplicación
+    email               varchar(150),
+    url                 varchar(255),
+    observacion         varchar(255),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 
@@ -333,157 +333,157 @@ CREATE TABLE gen_ConfiguracionServicio (
 -- GRUPO 3: CLIENTES Y PROVEEDORES
 -- ============================================================
 
-CREATE TABLE cli_Clientes (
+CREATE TABLE cli_clientes (
     id                  SERIAL PRIMARY KEY,
-    codigoInterno       VARCHAR(20) UNIQUE,        -- 141, 127, 0000002 (cuando no hay RUC/DNI)
-    razonSocial         VARCHAR(300),              -- nombre completo: LATERCER S.A.C., BANCES DE LA CRUZ...
-    idTipoCliente       INT REFERENCES gen_ListaOpciones(id),  -- Cliente, Paciente, Proveedor...
-    idTipoPersona       INT REFERENCES gen_ListaOpciones(id),  -- Natural / Jurídica
-    nombres             VARCHAR(200),
-    apellidoPaterno     VARCHAR(100),
-    apellidoMaterno     VARCHAR(100),
-    idTipoDocumento     INT REFERENCES gen_ListaOpciones(id),  -- RUC / DNI
-    numeroDocumento     VARCHAR(20) UNIQUE,        -- RUC/DNI; puede ser NULL si solo hay codigoInterno
-    direccion           VARCHAR(255),
-    referencia          VARCHAR(255),                -- referencia de ubicación
-    telefono            VARCHAR(30),
-    email               VARCHAR(150),
-    idDepartamento      INT REFERENCES gen_Departamento(id),
-    idProvincia         INT REFERENCES gen_Provincia(id),
-    idDistrito          INT REFERENCES gen_Distrito(id),
-    idPais              INT REFERENCES gen_Pais(id),
+    codigo_interno       varchar(20) UNIQUE,        -- 141, 127, 0000002 (cuando no hay RUC/DNI)
+    razon_social         varchar(300),              -- nombre completo: LATERCER S.A.C., BANCES DE LA CRUZ...
+    id_tipo_cliente       INT REFERENCES gen_lista_opciones(id),  -- Cliente, Paciente, Proveedor...
+    id_tipo_persona       INT REFERENCES gen_lista_opciones(id),  -- Natural / Jurídica
+    nombres             varchar(200),
+    apellido_paterno     varchar(100),
+    apellido_materno     varchar(100),
+    id_tipo_documento     INT REFERENCES gen_lista_opciones(id),  -- RUC / DNI
+    numero_documento     varchar(20) UNIQUE,        -- RUC/DNI; puede ser NULL si solo hay codigo_interno
+    direccion           varchar(255),
+    referencia          varchar(255),                -- referencia de ubicación
+    telefono            varchar(30),
+    email               varchar(150),
+    id_departamento      INT REFERENCES gen_departamento(id),
+    id_provincia         INT REFERENCES gen_provincia(id),
+    id_distrito          INT REFERENCES gen_distrito(id),
+    id_pais              INT REFERENCES gen_pais(id),
     -- Flags tributarios
-    esAgentePercepcion  BOOLEAN DEFAULT FALSE,
-    esBuenContribuyente BOOLEAN DEFAULT FALSE,
-    esAgenteRetenedor   BOOLEAN DEFAULT FALSE,
-    afectoRUS           BOOLEAN DEFAULT FALSE,
+    es_agente_percepcion  BOOLEAN DEFAULT FALSE,
+    es_buen_contribuyente BOOLEAN DEFAULT FALSE,
+    es_agente_retenedor   BOOLEAN DEFAULT FALSE,
+    afecto_rus           BOOLEAN DEFAULT FALSE,
     -- SUNAT (texto devuelto por consulta RUC; no es estado del comprobante electrónico)
-    situacionSunat      VARCHAR(50),   -- HABIDO, NO HABIDO
-    estadoContribuyenteSunat VARCHAR(50),  -- ACTIVO, BAJA, SUSPENSION TEMPORAL
-    observacion         VARCHAR(500),
+    situacion_sunat      varchar(50),   -- HABIDO, NO HABIDO
+    estado_contribuyente_sunat varchar(50),  -- ACTIVO, BAJA, SUSPENSION TEMPORAL
+    observacion         varchar(500),
     -- Control
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 -- Contactos del cliente (múltiples por cliente)
-CREATE TABLE cli_Contacto (
+CREATE TABLE cli_contacto (
     id              SERIAL PRIMARY KEY,
-    idCliente       INT NOT NULL REFERENCES cli_Clientes(id),
-    nombre          VARCHAR(150),
-    apellidoPaterno VARCHAR(100),
-    apellidoMaterno VARCHAR(100),
-    direccion       VARCHAR(255),
-    email           VARCHAR(150),
-    telefono1       VARCHAR(20),
-    telefono2       VARCHAR(20),
-    telefono3       VARCHAR(20),
-    esPrincipal     BOOLEAN DEFAULT FALSE,
+    id_cliente       INT NOT NULL REFERENCES cli_clientes(id),
+    nombre          varchar(150),
+    apellido_paterno varchar(100),
+    apellido_materno varchar(100),
+    direccion       varchar(255),
+    email           varchar(150),
+    telefono1       varchar(20),
+    telefono2       varchar(20),
+    telefono3       varchar(20),
+    es_principal     BOOLEAN DEFAULT FALSE,
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 -- Direcciones de entrega del cliente (para guías de remisión)
-CREATE TABLE cli_Direcciones (
+CREATE TABLE cli_direcciones (
     id              SERIAL PRIMARY KEY,
-    idCliente       INT NOT NULL REFERENCES cli_Clientes(id),
-    descripcion     VARCHAR(150),
-    direccion       VARCHAR(255) NOT NULL,
-    idDepartamento  INT REFERENCES gen_Departamento(id),
-    idProvincia     INT REFERENCES gen_Provincia(id),
-    idDistrito      INT REFERENCES gen_Distrito(id),
-    referencia      VARCHAR(255),
-    esPrincipal     BOOLEAN DEFAULT FALSE,
+    id_cliente       INT NOT NULL REFERENCES cli_clientes(id),
+    descripcion     varchar(150),
+    direccion       varchar(255) NOT NULL,
+    id_departamento  INT REFERENCES gen_departamento(id),
+    id_provincia     INT REFERENCES gen_provincia(id),
+    id_distrito      INT REFERENCES gen_distrito(id),
+    referencia      varchar(255),
+    es_principal     BOOLEAN DEFAULT FALSE,
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 -- Vehículos de la empresa y de clientes/proveedores (GRE, flota propia)
--- idCliente NULL = vehículo de la empresa | idCliente NOT NULL = del cliente/proveedor
-CREATE TABLE gen_Vehiculo (
+-- id_cliente NULL = vehículo de la empresa | id_cliente NOT NULL = del cliente/proveedor
+CREATE TABLE gen_vehiculo (
     id                      SERIAL PRIMARY KEY,
-    idCliente               INT REFERENCES cli_Clientes(id),
-    idTipoVehiculo          INT REFERENCES gen_ListaOpciones(id),  -- MOTOTAXI, CAMION, MOTO CARGUERA...
-    placa                   VARCHAR(20) NOT NULL,
-    placa2                  VARCHAR(20),                             -- remolque / segundo vehículo
-    marca                   VARCHAR(100),
-    marca2                  VARCHAR(100),
-    modelo                  VARCHAR(100),
+    id_cliente               INT REFERENCES cli_clientes(id),
+    id_tipo_vehiculo          INT REFERENCES gen_lista_opciones(id),  -- MOTOTAXI, CAMION, MOTO CARGUERA...
+    placa                   varchar(20) NOT NULL,
+    placa2                  varchar(20),                             -- remolque / segundo vehículo
+    marca                   varchar(100),
+    marca2                  varchar(100),
+    modelo                  varchar(100),
     anio                    INT,
-    color                   VARCHAR(50),
-    certificadoInscripcion  VARCHAR(50),
-    certificado2            VARCHAR(50),
+    color                   varchar(50),
+    certificado_inscripcion  varchar(50),
+    certificado2            varchar(50),
     estado                  INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion           TIMESTAMP DEFAULT NOW(),
-    fechaModificacion       TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
 );
 
 -- Choferes de la empresa y de clientes/proveedores
--- idCliente NULL = chofer de la empresa | idCliente NOT NULL = del cliente/proveedor
-CREATE TABLE gen_Chofer (
+-- id_cliente NULL = chofer de la empresa | id_cliente NOT NULL = del cliente/proveedor
+CREATE TABLE gen_chofer (
     id                  SERIAL PRIMARY KEY,
-    idCliente           INT REFERENCES cli_Clientes(id),
-    apellidoPaterno     VARCHAR(100),
-    apellidoMaterno     VARCHAR(100),
-    nombres             VARCHAR(150) NOT NULL,
-    idTipoDocumento     INT REFERENCES gen_ListaOpciones(id),  -- SUNAT: 1=DNI, 4=CE, 7=Pasaporte
-    numeroDocumento     VARCHAR(20),   -- DNI, CE, Pasaporte según idTipoDocumento
-    brevete             VARCHAR(30),
-    telefono            VARCHAR(20),
+    id_cliente           INT REFERENCES cli_clientes(id),
+    apellido_paterno     varchar(100),
+    apellido_materno     varchar(100),
+    nombres             varchar(150) NOT NULL,
+    id_tipo_documento     INT REFERENCES gen_lista_opciones(id),  -- SUNAT: 1=DNI, 4=CE, 7=Pasaporte
+    numero_documento     varchar(20),   -- DNI, CE, Pasaporte según id_tipo_documento
+    brevete             varchar(30),
+    telefono            varchar(20),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 -- Cuentas bancarias y billeteras de la empresa y de clientes/proveedores
--- idCliente NULL = cuenta de la empresa | idCliente NOT NULL = del cliente/proveedor
-CREATE TABLE gen_CuentaBancaria (
+-- id_cliente NULL = cuenta de la empresa | id_cliente NOT NULL = del cliente/proveedor
+CREATE TABLE gen_cuenta_bancaria (
     id                          SERIAL PRIMARY KEY,
-    idCliente                   INT REFERENCES cli_Clientes(id),
-    idBanco                     INT REFERENCES gen_ListaOpciones(id),
-    idTipoCuenta                INT REFERENCES gen_ListaOpciones(id),  -- AHORROS, CCI, YAPE, PLIN...
-    titular                     VARCHAR(200),
-    numeroCuenta                VARCHAR(30),
-    numeroCuentaInterbancaria   VARCHAR(30),
-    telefonoBilletera           VARCHAR(20),          -- YAPE / PLIN
-    esPrincipal                 BOOLEAN DEFAULT FALSE,
+    id_cliente                   INT REFERENCES cli_clientes(id),
+    id_banco                     INT REFERENCES gen_lista_opciones(id),
+    id_tipo_cuenta                INT REFERENCES gen_lista_opciones(id),  -- AHORROS, CCI, YAPE, PLIN...
+    titular                     varchar(200),
+    numero_cuenta                varchar(30),
+    numero_cuenta_interbancaria   varchar(30),
+    telefono_billetera           varchar(20),          -- YAPE / PLIN
+    es_principal                 BOOLEAN DEFAULT FALSE,
     estado                      INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion           INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion       INT REFERENCES auth_Usuarios(id),
-    fechaCreacion               TIMESTAMP DEFAULT NOW(),
-    fechaModificacion           TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion           INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion       INT REFERENCES auth_usuarios(id),
+    fecha_creacion               TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion           TIMESTAMP DEFAULT NOW()
 );
 
 -- Vencimientos de documentos: SOAT, inspección vehicular, BPA, extintor, salubridad...
-CREATE TABLE gen_DocumentoVencimiento (
+CREATE TABLE gen_documento_vencimiento (
     id                  SERIAL PRIMARY KEY,
-    idCategoria         INT REFERENCES gen_ListaOpciones(id),  -- VEHICULO, CERTIFICADO, SEGURIDAD...
-    descripcion         VARCHAR(255) NOT NULL,
-    idVehiculo          INT REFERENCES gen_Vehiculo(id),
-    fechaVencimiento    DATE NOT NULL,
-    fechaRenovacion     DATE,
-    numeroDocumento     VARCHAR(50),
-    observacion         VARCHAR(255),
+    id_categoria         INT REFERENCES gen_lista_opciones(id),  -- VEHICULO, CERTIFICADO, SEGURIDAD...
+    descripcion         varchar(255) NOT NULL,
+    id_vehiculo          INT REFERENCES gen_vehiculo(id),
+    fecha_vencimiento    DATE NOT NULL,
+    fecha_renovacion     DATE,
+    numero_documento     varchar(50),
+    observacion         varchar(255),
     -- Estado: VIGENTE, POR_VENCER, VENCIDO
-    idEstado            INT REFERENCES gen_ListaOpciones(id),
+    id_estado            INT REFERENCES gen_lista_opciones(id),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 
@@ -491,116 +491,116 @@ CREATE TABLE gen_DocumentoVencimiento (
 -- GRUPO 4: PRODUCTOS E INVENTARIO
 -- ============================================================
 
-CREATE TABLE pro_Categoria (
+CREATE TABLE pro_categoria (
     id              SERIAL PRIMARY KEY,
-    nombre          VARCHAR(100) NOT NULL,
-    descripcion     VARCHAR(255),
+    nombre          varchar(100) NOT NULL,
+    descripcion     varchar(255),
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 -- Datos iniciales: Gases, Accesorios, Gastos Operativos, Gastos de otros Servicios
 
-CREATE TABLE pro_SubCategoria (
+CREATE TABLE pro_sub_categoria (
     id              SERIAL PRIMARY KEY,
-    idCategoria     INT NOT NULL REFERENCES pro_Categoria(id),
-    nombre          VARCHAR(100) NOT NULL,
-    descripcion     VARCHAR(255),
+    id_categoria     INT NOT NULL REFERENCES pro_categoria(id),
+    nombre          varchar(100) NOT NULL,
+    descripcion     varchar(255),
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 -- Datos iniciales: Oxigeno, Nitrogeno, Argon, Acetileno, Soldadura, Reguladores,
 --                 Valvulas, Manometros, Mantenimiento, Carburo...
 
-CREATE TABLE pro_Producto (
+CREATE TABLE pro_producto (
     id              SERIAL PRIMARY KEY,
-    codigo          VARCHAR(30) NOT NULL UNIQUE,
-    codigoBarra     VARCHAR(50),
-    nombre          VARCHAR(300) NOT NULL,
-    idSubCategoria  INT REFERENCES pro_SubCategoria(id),
-    idUnidadMedida  INT REFERENCES gen_ListaOpciones(id), -- UNID, MT3, KG, MTS, PAR...
-    marca           VARCHAR(100),
-    presentacion    VARCHAR(150),
+    codigo          varchar(30) NOT NULL UNIQUE,
+    codigo_barra     varchar(50),
+    nombre          varchar(300) NOT NULL,
+    id_sub_categoria  INT REFERENCES pro_sub_categoria(id),
+    id_unidad_medida  INT REFERENCES gen_lista_opciones(id), -- UNID, MT3, KG, MTS, PAR...
+    marca           varchar(100),
+    presentacion    varchar(150),
     -- Flags especiales
-    esGas           BOOLEAN DEFAULT FALSE,   -- true si es un gas (Oxigeno, Nitrogeno...)
-    esServicio      BOOLEAN DEFAULT FALSE,   -- true si es un servicio (Mantenimiento, Alquiler...)
-    esAlquilable    BOOLEAN DEFAULT FALSE,   -- puede ser alquilado
-    afectaStock     BOOLEAN DEFAULT TRUE,    -- false para servicios puros
+    es_gas           BOOLEAN DEFAULT FALSE,   -- true si es un gas (Oxigeno, Nitrogeno...)
+    es_servicio      BOOLEAN DEFAULT FALSE,   -- true si es un servicio (Mantenimiento, Alquiler...)
+    es_alquilable    BOOLEAN DEFAULT FALSE,   -- puede ser alquilado
+    afecta_stock     BOOLEAN DEFAULT TRUE,    -- false para servicios puros
     precio          NUMERIC(12,4) DEFAULT 0,
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 -- Catálogo unificado de precios (cilindro recargado, garantía, accesorios)
--- idTipoCatalogo: RECARGADO | GARANTIA | ACCESORIO (gen_Lista TipoCatalogoPrecio)
--- idTipoCatalogo: RECARGADO (gas+cilindro vendido), GARANTIA (depósito préstamo),
+-- id_tipo_catalogo: RECARGADO | GARANTIA | ACCESORIO (gen_lista TipoCatalogoPrecio)
+-- id_tipo_catalogo: RECARGADO (gas+cilindro vendido), GARANTIA (depósito préstamo),
 --                VENTA_CILINDRO (cilindro vacío vendido), ACCESORIO
-CREATE TABLE pro_CatalogoPrecio (
+CREATE TABLE pro_catalogo_precio (
     id                      SERIAL PRIMARY KEY,
-    idTipoCatalogo          INT NOT NULL REFERENCES gen_ListaOpciones(id),
-    periodo                 VARCHAR(20),
-    nombreItem              VARCHAR(200) NOT NULL,
-    idProducto              INT REFERENCES pro_Producto(id),    -- gas asociado
-    idTipoBalon             INT REFERENCES bal_TipoBalon(id),   -- tipo de cilindro (link directo)
-    idProveedor             INT REFERENCES cli_Clientes(id),
-    clasificacion           VARCHAR(100),
-    modelo                  VARCHAR(100),
+    id_tipo_catalogo          INT NOT NULL REFERENCES gen_lista_opciones(id),
+    periodo                 varchar(20),
+    nombre_item              varchar(200) NOT NULL,
+    id_producto              INT REFERENCES pro_producto(id),    -- gas asociado
+    id_tipo_balon             INT REFERENCES bal_tipo_balon(id),   -- tipo de cilindro (link directo)
+    id_proveedor             INT REFERENCES cli_clientes(id),
+    clasificacion           varchar(100),
+    modelo                  varchar(100),
     capacidad               NUMERIC(10,4),
-    idUnidadMedida          INT REFERENCES gen_ListaOpciones(id),
-    descripcionPresentacion VARCHAR(300),
-    costoProducto           NUMERIC(12,4) DEFAULT 0,
-    costoFlete              NUMERIC(12,4) DEFAULT 0,
-    porcentajeMargen        NUMERIC(6,2),
-    precioFinal             NUMERIC(12,4),    -- precio confirmado (app calcula margen, usuario ajusta)
-    precioGarantia          NUMERIC(12,4),    -- depósito al prestar el cilindro
+    id_unidad_medida          INT REFERENCES gen_lista_opciones(id),
+    descripcion_presentacion varchar(300),
+    costo_producto           NUMERIC(12,4) DEFAULT 0,
+    costo_flete              NUMERIC(12,4) DEFAULT 0,
+    porcentaje_margen        NUMERIC(6,2),
+    precio_final             NUMERIC(12,4),    -- precio confirmado (app calcula margen, usuario ajusta)
+    precio_garantia          NUMERIC(12,4),    -- depósito al prestar el cilindro
     estado                  INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion           TIMESTAMP DEFAULT NOW(),
-    fechaModificacion       TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
 );
 
 -- Stock por producto y almacén
-CREATE TABLE pro_Stock (
+CREATE TABLE pro_stock (
     id              SERIAL PRIMARY KEY,
-    idAlmacen       INT NOT NULL REFERENCES gen_Almacen(id),
-    idProducto      INT NOT NULL REFERENCES pro_Producto(id),
+    id_almacen       INT NOT NULL REFERENCES gen_almacen(id),
+    id_producto      INT NOT NULL REFERENCES pro_producto(id),
     stock           NUMERIC(12,4) NOT NULL DEFAULT 0,
-    stockMinimo     NUMERIC(12,4) DEFAULT 0,
+    stock_minimo     NUMERIC(12,4) DEFAULT 0,
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW(),
-    UNIQUE(idAlmacen, idProducto)
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW(),
+    UNIQUE(id_almacen, id_producto)
 );
 
 -- Kardex / movimientos de inventario
-CREATE TABLE pro_Movimientos (
+CREATE TABLE pro_movimientos (
     id                  SERIAL PRIMARY KEY,
     fecha               DATE NOT NULL,
-    idProducto          INT NOT NULL REFERENCES pro_Producto(id),
-    idAlmacen           INT NOT NULL REFERENCES gen_Almacen(id),
-    idTipoMovimiento    INT REFERENCES gen_ListaOpciones(id), -- INGRESO, SALIDA, TRASLADO...
+    id_producto          INT NOT NULL REFERENCES pro_producto(id),
+    id_almacen           INT NOT NULL REFERENCES gen_almacen(id),
+    id_tipo_movimiento    INT REFERENCES gen_lista_opciones(id), -- INGRESO, SALIDA, TRASLADO...
     cantidad            NUMERIC(12,4) NOT NULL,
-    stockAnterior       NUMERIC(12,4),
-    stockNuevo          NUMERIC(12,4),
-    idDocumentoRef      INT,                                              -- ID del documento origen (polimórfico)
-    idTipoDocumentoRef  INT REFERENCES gen_ListaOpciones(id),            -- (gen_Lista: TipoDocumentoRef)
-    glosa               VARCHAR(255),
+    stock_anterior       NUMERIC(12,4),
+    stock_nuevo          NUMERIC(12,4),
+    id_documento_ref      INT,                                              -- ID del documento origen (polimórfico)
+    id_tipo_documento_ref  INT REFERENCES gen_lista_opciones(id),            -- (gen_lista: TipoDocumentoRef)
+    glosa               varchar(255),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 
@@ -610,212 +610,212 @@ CREATE TABLE pro_Movimientos (
 
 -- Catálogo de tipos de balón
 -- Cada balón físico tendrá su propio registro con número de serie
-CREATE TABLE bal_TipoBalon (
+CREATE TABLE bal_tipo_balon (
     id              SERIAL PRIMARY KEY,
-    nombre          VARCHAR(150) NOT NULL,  -- "Oxígeno Industrial 10m3", "Oxígeno Medicinal 1m3"...
-    idGas           INT REFERENCES pro_Producto(id),  -- gas que contiene
+    nombre          varchar(150) NOT NULL,  -- "Oxígeno Industrial 10m3", "Oxígeno Medicinal 1m3"...
+    id_gas           INT REFERENCES pro_producto(id),  -- gas que contiene
     capacidad       NUMERIC(10,4),          -- en m3 o kg
-    idUnidadMedida  INT REFERENCES gen_ListaOpciones(id),
+    id_unidad_medida  INT REFERENCES gen_lista_opciones(id),
     peso            NUMERIC(10,4),          -- peso tara en kg
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 -- Registro individual de cada balón físico (libro de cilindros / trazabilidad total)
-CREATE TABLE bal_Balon (
+CREATE TABLE bal_balon (
     id                  SERIAL PRIMARY KEY,
-    codigoBalon         VARCHAR(50) NOT NULL UNIQUE,  -- 20K650076, 21Y405093, 4706374...
-    libroCilindro       VARCHAR(30),                 -- LIBRO 1, LIBRO 5, SIN LIBRO...
-    paginaLibro         INT,                         -- PAG. 103, 0 si sin libro
-    fechaRegistro       DATE,                        -- FECHA de asignación / registro actual
-    idAlmacen           INT REFERENCES gen_Almacen(id),
-    idClienteUbicacion  INT REFERENCES cli_Clientes(id),
+    codigo_balon         varchar(50) NOT NULL UNIQUE,  -- 20K650076, 21Y405093, 4706374...
+    libro_cilindro       varchar(30),                 -- LIBRO 1, LIBRO 5, SIN LIBRO...
+    pagina_libro         INT,                         -- PAG. 103, 0 si sin libro
+    fecha_registro       DATE,                        -- FECHA de asignación / registro actual
+    id_almacen           INT REFERENCES gen_almacen(id),
+    id_cliente_ubicacion  INT REFERENCES cli_clientes(id),
     -- Propiedad del envase
-    idPropietario       INT REFERENCES gen_ListaOpciones(id),  -- EMPRESA / CLIENTE / PROPIA
-    idClientePropietario INT REFERENCES cli_Clientes(id),
-    idReferencia        INT REFERENCES gen_ListaOpciones(id),  -- ReferenciaCilindro
+    id_propietario       INT REFERENCES gen_lista_opciones(id),  -- EMPRESA / CLIENTE / PROPIA
+    id_cliente_propietario INT REFERENCES cli_clientes(id),
+    id_referencia        INT REFERENCES gen_lista_opciones(id),  -- ReferenciaCilindro
     -- Gas / producto actual en el cilindro
-    idTipoBalon         INT REFERENCES bal_TipoBalon(id),
-    idProductoGas       INT REFERENCES pro_Producto(id),
+    id_tipo_balon         INT REFERENCES bal_tipo_balon(id),
+    id_producto_gas       INT REFERENCES pro_producto(id),
     -- Estado actual del balón
-    idEstadoBalon       INT REFERENCES gen_ListaOpciones(id),
+    id_estado_balon       INT REFERENCES gen_lista_opciones(id),
     -- Prueba hidrostática
-    fechaUltimaPruebaHidrostatica   DATE,
-    vigenciaPruebaHidrostaticaAnios INT DEFAULT 5,
-    fechaProximaPruebaHidrostatica  DATE,
+    fecha_ultima_prueba_hidrostatica   DATE,
+    vigencia_prueba_hidrostatica_anios INT DEFAULT 5,
+    fecha_proxima_prueba_hidrostatica  DATE,
     -- Datos técnicos adicionales
-    fechaFabricacion    DATE,
-    numeroRecepcion     VARCHAR(30),
-    presionActual       NUMERIC(8,2),
-    observacion         VARCHAR(500),
+    fecha_fabricacion    DATE,
+    numero_recepcion     varchar(30),
+    presion_actual       NUMERIC(8,2),
+    observacion         varchar(500),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 -- Historial de movimientos/estados del balón (trazabilidad completa)
-CREATE TABLE bal_Movimiento (
+CREATE TABLE bal_movimiento (
     id                  SERIAL PRIMARY KEY,
-    idBalon             INT NOT NULL REFERENCES bal_Balon(id),
-    idTipoMovimiento    INT REFERENCES gen_ListaOpciones(id),
+    id_balon             INT NOT NULL REFERENCES bal_balon(id),
+    id_tipo_movimiento    INT REFERENCES gen_lista_opciones(id),
     -- Tipos: SALIDA_VENTA, SALIDA_PRESTAMO, SALIDA_ALQUILER, SALIDA_MANTENIMIENTO,
     --        ENTRADA_DEVOLUCION, ENTRADA_LLENADO, TRASLADO_LIMA, RETORNO_LIMA
-    idDocumentoRef      INT,                                              -- ID del documento asociado (polimórfico)
-    idTipoDocumentoRef  INT REFERENCES gen_ListaOpciones(id),            -- (gen_Lista: TipoDocumentoRef)
-    idCliente           INT REFERENCES cli_Clientes(id),
-    idAlmacenOrigen     INT REFERENCES gen_Almacen(id),
-    idAlmacenDestino    INT REFERENCES gen_Almacen(id),
-    fechaMovimiento     TIMESTAMP NOT NULL DEFAULT NOW(),
-    observacion         VARCHAR(500),
+    id_documento_ref      INT,                                              -- ID del documento asociado (polimórfico)
+    id_tipo_documento_ref  INT REFERENCES gen_lista_opciones(id),            -- (gen_lista: TipoDocumentoRef)
+    id_cliente           INT REFERENCES cli_clientes(id),
+    id_almacen_origen     INT REFERENCES gen_almacen(id),
+    id_almacen_destino    INT REFERENCES gen_almacen(id),
+    fecha_movimiento     TIMESTAMP NOT NULL DEFAULT NOW(),
+    observacion         varchar(500),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 -- Salida / ingreso de almacén por recarga de cilindro (GRE salida + GRE ingreso + factura)
-CREATE TABLE bal_MovimientoRecarga (
+CREATE TABLE bal_movimiento_recarga (
     id                      SERIAL PRIMARY KEY,
-    fechaSalidaAlmacen      DATE NOT NULL,
-    idBalon                 INT NOT NULL REFERENCES bal_Balon(id),
-    idProducto              INT REFERENCES pro_Producto(id),
+    fecha_salida_almacen      DATE NOT NULL,
+    id_balon                 INT NOT NULL REFERENCES bal_balon(id),
+    id_producto              INT REFERENCES pro_producto(id),
     capacidad               NUMERIC(10,4),
-    idUnidadMedida          INT REFERENCES gen_ListaOpciones(id),
+    id_unidad_medida          INT REFERENCES gen_lista_opciones(id),
     -- Guías de remisión
-    serieGuiaSalida                 VARCHAR(10),
-    numeroGuiaSalida                VARCHAR(15),
-    serieGuiaIngreso                VARCHAR(10),
-    numeroGuiaIngreso               VARCHAR(15),
+    serie_guia_salida                 varchar(10),
+    numero_guia_salida                varchar(15),
+    serie_guia_ingreso                varchar(10),
+    numero_guia_ingreso               varchar(15),
     -- Factura asociada
-    serieFactura                    VARCHAR(10),
-    numeroFactura                   VARCHAR(15),
-    idComprobante                   INT REFERENCES ven_Comprobante(id),
-    fechaLlegadaAlmacen             DATE,
-    lote                            VARCHAR(50),
-    fechaVencimientoLote            DATE,
-    fechaPruebaHidrostatica         DATE,           -- P.H. certificada en esta recarga (proveedor en idProveedor)
-    idProveedor             INT REFERENCES cli_Clientes(id),       -- planta de recarga / P.H.
-    observacion             VARCHAR(500),
-    idAlmacen               INT REFERENCES gen_Almacen(id),
+    serie_factura                    varchar(10),
+    numero_factura                   varchar(15),
+    id_comprobante                   INT REFERENCES ven_comprobante(id),
+    fecha_llegada_almacen             DATE,
+    lote                            varchar(50),
+    fecha_vencimiento_lote            DATE,
+    fecha_prueba_hidrostatica         DATE,           -- P.H. certificada en esta recarga (proveedor en id_proveedor)
+    id_proveedor             INT REFERENCES cli_clientes(id),       -- planta de recarga / P.H.
+    observacion             varchar(500),
+    id_almacen               INT REFERENCES gen_almacen(id),
     estado                  INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion           INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion       INT REFERENCES auth_Usuarios(id),
-    fechaCreacion           TIMESTAMP DEFAULT NOW(),
-    fechaModificacion       TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion           INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion       INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
 );
 
 -- Préstamo de balones: cliente, empresa↔cliente, o planta proveedora
-CREATE TABLE bal_Prestamo (
+CREATE TABLE bal_prestamo (
     id                  SERIAL PRIMARY KEY,
-    numeroPrestamo      VARCHAR(30) UNIQUE,
-    idTipoPrestamo      INT NOT NULL REFERENCES gen_ListaOpciones(id),
+    numero_prestamo      varchar(30) UNIQUE,
+    id_tipo_prestamo      INT NOT NULL REFERENCES gen_lista_opciones(id),
     -- Tipos: ENVASE_EMPRESA_A_CLIENTE, CILINDRO_CLIENTE_A_EMPRESA, CILINDRO_A_PLANTA
-    idCliente           INT REFERENCES cli_Clientes(id),
-    idProveedor         INT REFERENCES cli_Clientes(id),
-    idAlmacen           INT REFERENCES gen_Almacen(id),
-    fechaSalida         DATE,
-    fechaRetornoPactada DATE,
-    fechaRetornoReal    DATE,
-    titulo              VARCHAR(200),
-    observacion         VARCHAR(500),
-    idEstado            INT REFERENCES gen_ListaOpciones(id),
-    idComprobanteVenta  INT REFERENCES ven_Comprobante(id),       -- garantía cobrada al cliente
-    idComprobanteCompra INT REFERENCES com_ComprobanteCompra(id), -- factura recibida del proveedor
+    id_cliente           INT REFERENCES cli_clientes(id),
+    id_proveedor         INT REFERENCES cli_clientes(id),
+    id_almacen           INT REFERENCES gen_almacen(id),
+    fecha_salida         DATE,
+    fecha_retorno_pactada DATE,
+    fecha_retorno_real    DATE,
+    titulo              varchar(200),
+    observacion         varchar(500),
+    id_estado            INT REFERENCES gen_lista_opciones(id),
+    id_comprobante_venta  INT REFERENCES ven_comprobante(id),       -- garantía cobrada al cliente
+    id_comprobante_compra INT REFERENCES com_comprobante_compra(id), -- factura recibida del proveedor
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 -- Detalle de cilindros en préstamo (cliente o planta) con guías GRE
-CREATE TABLE bal_PrestamoDetalle (
+CREATE TABLE bal_prestamo_detalle (
     id                  SERIAL PRIMARY KEY,
-    idPrestamo          INT NOT NULL REFERENCES bal_Prestamo(id),
-    idBalon             INT REFERENCES bal_Balon(id),
-    idProducto          INT REFERENCES pro_Producto(id),
-    motivoEspecifico    VARCHAR(255),
-    fechaEntregado      DATE,
-    fechaPrestamo       DATE,
-    diasPrestamo        INT DEFAULT 30,
-    fechaVencimiento    DATE,
-    fechaDevolucion     DATE,
-    serieGuiaEntrega    VARCHAR(10),
-    numeroGuiaEntrega   VARCHAR(15),
-    serieGuiaDevolucion VARCHAR(10),
-    numeroGuiaDevolucion VARCHAR(15),
-    idEstado            INT REFERENCES gen_ListaOpciones(id),
-    observacion         VARCHAR(500),
+    id_prestamo          INT NOT NULL REFERENCES bal_prestamo(id),
+    id_balon             INT REFERENCES bal_balon(id),
+    id_producto          INT REFERENCES pro_producto(id),
+    motivo_especifico    varchar(255),
+    fecha_entregado      DATE,
+    fecha_prestamo       DATE,
+    dias_prestamo        INT DEFAULT 30,
+    fecha_vencimiento    DATE,
+    fecha_devolucion     DATE,
+    serie_guia_entrega    varchar(10),
+    numero_guia_entrega   varchar(15),
+    serie_guia_devolucion varchar(10),
+    numero_guia_devolucion varchar(15),
+    id_estado            INT REFERENCES gen_lista_opciones(id),
+    observacion         varchar(500),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 -- Alquiler de balones de la empresa al cliente
-CREATE TABLE bal_Alquiler (
+CREATE TABLE bal_alquiler (
     id                  SERIAL PRIMARY KEY,
-    numeroAlquiler      VARCHAR(30) NOT NULL UNIQUE,
-    idCliente           INT NOT NULL REFERENCES cli_Clientes(id),
-    idAlmacen           INT NOT NULL REFERENCES gen_Almacen(id),
-    fechaInicio         DATE NOT NULL,
-    fechaFinPactada     DATE,
-    fechaFinReal        DATE,
-    tarifaDiaria        NUMERIC(10,4) DEFAULT 0,
-    totalCobrado        NUMERIC(12,4) DEFAULT 0,
+    numero_alquiler      varchar(30) NOT NULL UNIQUE,
+    id_cliente           INT NOT NULL REFERENCES cli_clientes(id),
+    id_almacen           INT NOT NULL REFERENCES gen_almacen(id),
+    fecha_inicio         DATE NOT NULL,
+    fecha_fin_pactada     DATE,
+    fecha_fin_real        DATE,
+    tarifa_diaria        NUMERIC(10,4) DEFAULT 0,
+    total_cobrado        NUMERIC(12,4) DEFAULT 0,
     -- Estado: ACTIVO, FINALIZADO, FACTURADO
-    idEstado            INT REFERENCES gen_ListaOpciones(id),
-    observacion         VARCHAR(500),
-    idComprobanteVenta  INT REFERENCES ven_Comprobante(id),       -- factura emitida al cliente
+    id_estado            INT REFERENCES gen_lista_opciones(id),
+    observacion         varchar(500),
+    id_comprobante_venta  INT REFERENCES ven_comprobante(id),       -- factura emitida al cliente
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 -- Detalle de balones en alquiler
-CREATE TABLE bal_AlquilerDetalle (
+CREATE TABLE bal_alquiler_detalle (
     id              SERIAL PRIMARY KEY,
-    idAlquiler      INT NOT NULL REFERENCES bal_Alquiler(id),
-    idBalon         INT NOT NULL REFERENCES bal_Balon(id),
+    id_alquiler      INT NOT NULL REFERENCES bal_alquiler(id),
+    id_balon         INT NOT NULL REFERENCES bal_balon(id),
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 -- Mantenimiento de cilindros (recertificación, prueba hidrostática, reparación)
-CREATE TABLE bal_Mantenimiento (
+CREATE TABLE bal_mantenimiento (
     id                  SERIAL PRIMARY KEY,
-    idBalon             INT NOT NULL REFERENCES bal_Balon(id),
-    idTipoMantenimiento INT REFERENCES gen_ListaOpciones(id),
+    id_balon             INT NOT NULL REFERENCES bal_balon(id),
+    id_tipo_mantenimiento INT REFERENCES gen_lista_opciones(id),
     -- Tipos: PRUEBA_HIDROSTATICA, RECERTIFICACION, REPARACION, PINTURA, VALVULA
-    fechaIngreso        DATE NOT NULL,
-    fechaSalida         DATE,
-    descripcion         VARCHAR(500),
+    fecha_ingreso        DATE NOT NULL,
+    fecha_salida         DATE,
+    descripcion         varchar(500),
     costo               NUMERIC(10,4) DEFAULT 0,
     -- Si es mantenimiento externo (Lima u otro proveedor)
-    esExterno           BOOLEAN DEFAULT FALSE,
-    idProveedor         INT REFERENCES cli_Clientes(id),           -- taller externo (Lima u otro)
+    es_externo           BOOLEAN DEFAULT FALSE,
+    id_proveedor         INT REFERENCES cli_clientes(id),           -- taller externo (Lima u otro)
     -- Estado: PENDIENTE, EN_PROCESO, FINALIZADO
-    idEstado            INT REFERENCES gen_ListaOpciones(id),
-    idComprobanteVenta  INT REFERENCES ven_Comprobante(id),       -- si se cobra al cliente
-    idComprobanteCompra INT REFERENCES com_ComprobanteCompra(id), -- si es externo (proveedor Lima)
-    observacion         VARCHAR(500),
+    id_estado            INT REFERENCES gen_lista_opciones(id),
+    id_comprobante_venta  INT REFERENCES ven_comprobante(id),       -- si se cobra al cliente
+    id_comprobante_compra INT REFERENCES com_comprobante_compra(id), -- si es externo (proveedor Lima)
+    observacion         varchar(500),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 
@@ -823,144 +823,144 @@ CREATE TABLE bal_Mantenimiento (
 -- GRUPO 6: VENTAS / FACTURACIÓN
 -- ============================================================
 
-CREATE TABLE ven_Comprobante (
+CREATE TABLE ven_comprobante (
     id                  SERIAL PRIMARY KEY,
     -- Identificación SUNAT
-    idTipoComprobante   INT REFERENCES gen_ListaOpciones(id),  -- FACTURA(01), BOLETA(03), NC(07), ND(08)
-    serie               VARCHAR(10) NOT NULL,
-    numero              VARCHAR(15) NOT NULL,
-    idEstadoSunat       INT REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: EstadoSunat)
-    idTipoOperacionSunat INT REFERENCES gen_ListaOpciones(id), -- (gen_Lista: TipoOperacionSunat)
+    id_tipo_comprobante   INT REFERENCES gen_lista_opciones(id),  -- FACTURA(01), BOLETA(03), NC(07), ND(08)
+    serie               varchar(10) NOT NULL,
+    numero              varchar(15) NOT NULL,
+    id_estado_sunat       INT REFERENCES gen_lista_opciones(id),  -- (gen_lista: EstadoSunat)
+    id_tipo_operacion_sunat INT REFERENCES gen_lista_opciones(id), -- (gen_lista: TipoOperacionSunat)
     -- Nota de crédito / débito: referencia al comprobante que corrige
-    idComprobanteOrigen INT REFERENCES ven_Comprobante(id),   -- NULL si es FC/BL normal
-    idMotivoNota        INT REFERENCES gen_ListaOpciones(id),  -- MotivoNotaCredito o MotivoNotaDebito según tipo
+    id_comprobante_origen INT REFERENCES ven_comprobante(id),   -- NULL si es FC/BL normal
+    id_motivo_nota        INT REFERENCES gen_lista_opciones(id),  -- MotivoNotaCredito o MotivoNotaDebito según tipo
     -- Ciclo electrónico SUNAT
-    ticketSunat         VARCHAR(100),  -- ticket async para consultar CDR
-    hashDocumento       VARCHAR(100),  -- hash del XML firmado
-    xmlFirmado          TEXT,          -- XML enviado a SUNAT (firmado)
-    cdrRespuesta        TEXT,          -- CDR de respuesta de SUNAT
+    ticket_sunat         varchar(100),  -- ticket async para consultar CDR
+    hash_documento       varchar(100),  -- hash del XML firmado
+    xml_firmado          TEXT,          -- XML enviado a SUNAT (firmado)
+    cdr_respuesta        TEXT,          -- CDR de respuesta de SUNAT
     -- Datos del documento
-    idTipoMovimiento    INT REFERENCES gen_ListaOpciones(id),  -- MOV. DIVERSOS, etc.
-    idTipoVenta         INT REFERENCES gen_ListaOpciones(id),  -- VENTAS C/S GUIAS REMISION
+    id_tipo_movimiento    INT REFERENCES gen_lista_opciones(id),  -- MOV. DIVERSOS, etc.
+    id_tipo_venta         INT REFERENCES gen_lista_opciones(id),  -- VENTAS C/S GUIAS REMISION
     fecha               DATE NOT NULL,
-    fechaVencimiento    DATE,
-    tipoCambio          NUMERIC(10,4) DEFAULT 3.5,
+    fecha_vencimiento    DATE,
+    tipo_cambio          NUMERIC(10,4) DEFAULT 3.5,
     -- Partes
-    idCliente           INT NOT NULL REFERENCES cli_Clientes(id),
-    idSucursal          INT REFERENCES gen_Sucursal(id),
-    idAlmacen           INT REFERENCES gen_Almacen(id),
-    idCondicionPago     INT REFERENCES gen_CondicionPago(id),
-    idMoneda            INT REFERENCES gen_ListaOpciones(id),  -- Nuevos Soles, USD
-    idMedioPago         INT REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: MedioPago)
+    id_cliente           INT NOT NULL REFERENCES cli_clientes(id),
+    id_sucursal          INT REFERENCES gen_sucursal(id),
+    id_almacen           INT REFERENCES gen_almacen(id),
+    id_condicion_pago     INT REFERENCES gen_condicion_pago(id),
+    id_moneda            INT REFERENCES gen_lista_opciones(id),  -- Nuevos Soles, USD
+    id_medio_pago         INT REFERENCES gen_lista_opciones(id),  -- (gen_lista: MedioPago)
     -- Importes
-    subTotal            NUMERIC(12,4) DEFAULT 0,
+    sub_total            NUMERIC(12,4) DEFAULT 0,
     descuento           NUMERIC(12,4) DEFAULT 0,
-    valorVenta          NUMERIC(12,4) DEFAULT 0,
+    valor_venta          NUMERIC(12,4) DEFAULT 0,
     igv                 NUMERIC(12,4) DEFAULT 0,
-    totalImporte        NUMERIC(12,4) DEFAULT 0,
+    total_importe        NUMERIC(12,4) DEFAULT 0,
     anticipos           NUMERIC(12,4) DEFAULT 0,
     exonerado           NUMERIC(12,4) DEFAULT 0,
     -- Glosa y observaciones
-    glosa               VARCHAR(500),
-    observaciones       VARCHAR(500),
+    glosa               varchar(500),
+    observaciones       varchar(500),
     -- Contabilidad
-    periodoContable     VARCHAR(10),
-    operacion           VARCHAR(100),
+    periodo_contable     varchar(10),
+    operacion           varchar(100),
     -- Estado: PENDIENTE, PAGADO, ANULADO
-    idEstado            INT REFERENCES gen_ListaOpciones(id),
+    id_estado            INT REFERENCES gen_lista_opciones(id),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW(),
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW(),
     UNIQUE(serie, numero)
 );
 
 -- Detalle de cada línea del comprobante
-CREATE TABLE ven_ComprobanteDetalle (
+CREATE TABLE ven_comprobante_detalle (
     id                  SERIAL PRIMARY KEY,
-    idComprobante       INT NOT NULL REFERENCES ven_Comprobante(id),
+    id_comprobante       INT NOT NULL REFERENCES ven_comprobante(id),
     item                INT NOT NULL,
-    idProducto          INT NOT NULL REFERENCES pro_Producto(id),
-    descripcion         VARCHAR(300),
-    idUnidadMedida      INT REFERENCES gen_ListaOpciones(id),
+    id_producto          INT NOT NULL REFERENCES pro_producto(id),
+    descripcion         varchar(300),
+    id_unidad_medida      INT REFERENCES gen_lista_opciones(id),
     cantidad            NUMERIC(12,4) NOT NULL,
-    precioUnitario      NUMERIC(12,6) NOT NULL,
+    precio_unitario      NUMERIC(12,6) NOT NULL,
     descuento           NUMERIC(12,4) DEFAULT 0,
-    valorVenta          NUMERIC(12,4),
-    porcentajeIgv       NUMERIC(6,4) DEFAULT 18,
-    idAfectacionIgv     INT REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: AfectacionIgv) 10, 20, 30, 40
+    valor_venta          NUMERIC(12,4),
+    porcentaje_igv       NUMERIC(6,4) DEFAULT 18,
+    id_afectacion_igv     INT REFERENCES gen_lista_opciones(id),  -- (gen_lista: AfectacionIgv) 10, 20, 30, 40
     impuesto            NUMERIC(12,4),
     importe             NUMERIC(12,4),
     -- Si el producto es un balón específico, referenciar
-    idBalon             INT REFERENCES bal_Balon(id),
-    capacidadCilindro   NUMERIC(10,4),
-    idEstadoCilindro    INT REFERENCES gen_ListaOpciones(id),
+    id_balon             INT REFERENCES bal_balon(id),
+    capacidad_cilindro   NUMERIC(10,4),
+    id_estado_cilindro    INT REFERENCES gen_lista_opciones(id),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 -- Relación comprobante → Guía de Remisión
  
 -- Cuotas de pago para ventas a crédito
-CREATE TABLE ven_Cuotas (
+CREATE TABLE ven_cuotas (
     id              SERIAL PRIMARY KEY,
-    idComprobante   INT NOT NULL REFERENCES ven_Comprobante(id),
-    numeroCuota     INT NOT NULL,
-    fechaVencimiento DATE NOT NULL,
+    id_comprobante   INT NOT NULL REFERENCES ven_comprobante(id),
+    numero_cuota     INT NOT NULL,
+    fecha_vencimiento DATE NOT NULL,
     monto           NUMERIC(12,4) NOT NULL,
-    montoPagado     NUMERIC(12,4) DEFAULT 0,
+    monto_pagado     NUMERIC(12,4) DEFAULT 0,
     -- Estado: PENDIENTE, PAGADO, VENCIDO
-    idEstado        INT REFERENCES gen_ListaOpciones(id),
+    id_estado        INT REFERENCES gen_lista_opciones(id),
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 -- Garantía de envase/cilindro cobrada al cliente
 -- Una garantía puede cubrir uno o varios cilindros del mismo préstamo
-CREATE TABLE ven_Garantia (
+CREATE TABLE ven_garantia (
     id                  SERIAL PRIMARY KEY,
-    idCliente           INT NOT NULL REFERENCES cli_Clientes(id),
-    idPrestamo          INT REFERENCES bal_Prestamo(id),       -- préstamo que originó la garantía
-    ubicacion           VARCHAR(150),
-    idProducto          INT REFERENCES pro_Producto(id),
-    cantidadVenta       NUMERIC(12,4),
-    idUnidadMedida      INT REFERENCES gen_ListaOpciones(id),
-    fechaRegistro       DATE NOT NULL,
-    montoCobrado        NUMERIC(12,4) NOT NULL DEFAULT 0,
-    montoDevuelto       NUMERIC(12,4) NOT NULL DEFAULT 0,
-    montoSaldo          NUMERIC(12,4) NOT NULL DEFAULT 0,
-    idEstado            INT REFERENCES gen_ListaOpciones(id),  -- ACTIVA, DEVUELTA, PARCIAL
-    observacion         VARCHAR(500),
+    id_cliente           INT NOT NULL REFERENCES cli_clientes(id),
+    id_prestamo          INT REFERENCES bal_prestamo(id),       -- préstamo que originó la garantía
+    ubicacion           varchar(150),
+    id_producto          INT REFERENCES pro_producto(id),
+    cantidad_venta       NUMERIC(12,4),
+    id_unidad_medida      INT REFERENCES gen_lista_opciones(id),
+    fecha_registro       DATE NOT NULL,
+    monto_cobrado        NUMERIC(12,4) NOT NULL DEFAULT 0,
+    monto_devuelto       NUMERIC(12,4) NOT NULL DEFAULT 0,
+    monto_saldo          NUMERIC(12,4) NOT NULL DEFAULT 0,
+    id_estado            INT REFERENCES gen_lista_opciones(id),  -- ACTIVA, DEVUELTA, PARCIAL
+    observacion         varchar(500),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 -- Movimientos de garantía: cobro inicial y devoluciones parciales/totales
--- COBRO  → idComprobante apunta a la factura/boleta de cobro de garantía
--- DEVOLUCION → idComprobante apunta a la Nota de Crédito emitida al devolver
-CREATE TABLE ven_GarantiaMovimiento (
+-- COBRO  → id_comprobante apunta a la factura/boleta de cobro de garantía
+-- DEVOLUCION → id_comprobante apunta a la Nota de Crédito emitida al devolver
+CREATE TABLE ven_garantia_movimiento (
     id                  SERIAL PRIMARY KEY,
-    idGarantia          INT NOT NULL REFERENCES ven_Garantia(id),
-    idTipoMovimiento    INT NOT NULL REFERENCES gen_ListaOpciones(id), -- COBRO, DEVOLUCION
-    idComprobante       INT REFERENCES ven_Comprobante(id),            -- FC cobro o NC devolución
+    id_garantia          INT NOT NULL REFERENCES ven_garantia(id),
+    id_tipo_movimiento    INT NOT NULL REFERENCES gen_lista_opciones(id), -- COBRO, DEVOLUCION
+    id_comprobante       INT REFERENCES ven_comprobante(id),            -- FC cobro o NC devolución
     fecha               DATE NOT NULL,
     monto               NUMERIC(12,4) NOT NULL,
-    observacion         VARCHAR(500),
+    observacion         varchar(500),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 
@@ -968,107 +968,107 @@ CREATE TABLE ven_GarantiaMovimiento (
 -- GRUPO 7: GUÍAS DE REMISIÓN (GRE)
 -- ============================================================
 
-CREATE TABLE gre_GuiaRemision (
+CREATE TABLE gre_guia_remision (
     id                      SERIAL PRIMARY KEY,
     -- Identificación SUNAT
-    idTipoGuiaRemision      INT REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: TipoGuiaRemision) 09, 31
-    serie                   VARCHAR(10) NOT NULL,
-    numero                  VARCHAR(15) NOT NULL,
-    idEstadoSunat           INT REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: EstadoSunat)
+    id_tipo_guia_remision      INT REFERENCES gen_lista_opciones(id),  -- (gen_lista: TipoGuiaRemision) 09, 31
+    serie                   varchar(10) NOT NULL,
+    numero                  varchar(15) NOT NULL,
+    id_estado_sunat           INT REFERENCES gen_lista_opciones(id),  -- (gen_lista: EstadoSunat)
     -- Ciclo electrónico SUNAT
-    ticketSunat             VARCHAR(100),
-    hashDocumento           VARCHAR(100),
-    xmlFirmado              TEXT,
-    cdrRespuesta            TEXT,
+    ticket_sunat             varchar(100),
+    hash_documento           varchar(100),
+    xml_firmado              TEXT,
+    cdr_respuesta            TEXT,
     fecha                   DATE NOT NULL,
-    tipoCambio              NUMERIC(10,4) DEFAULT 3.5,
-    idSucursal              INT NOT NULL REFERENCES gen_Sucursal(id),
-    idAlmacen               INT NOT NULL REFERENCES gen_Almacen(id),
-    idCliente               INT REFERENCES cli_Clientes(id),
+    tipo_cambio              NUMERIC(10,4) DEFAULT 3.5,
+    id_sucursal              INT NOT NULL REFERENCES gen_sucursal(id),
+    id_almacen               INT NOT NULL REFERENCES gen_almacen(id),
+    id_cliente               INT REFERENCES cli_clientes(id),
     -- Traslado
-    fechaTraslado           DATE NOT NULL,
-    idMotivoTraslado        INT REFERENCES gen_ListaOpciones(id),   -- (gen_Lista: MotivoTraslado)
-    idUnidadMedida          INT REFERENCES gen_ListaOpciones(id),
-    pesoBruto               NUMERIC(10,4),
-    numeroBultos            INT,
-    -- Origen (la dirección se deriva de gen_Sucursal; se puede sobreescribir)
-    direccionOrigen         VARCHAR(255),
-    idDistritoOrigen        INT REFERENCES gen_Distrito(id),  -- codigoUbigeo requerido por SUNAT
+    fecha_traslado           DATE NOT NULL,
+    id_motivo_traslado        INT REFERENCES gen_lista_opciones(id),   -- (gen_lista: MotivoTraslado)
+    id_unidad_medida          INT REFERENCES gen_lista_opciones(id),
+    peso_bruto               NUMERIC(10,4),
+    numero_bultos            INT,
+    -- Origen (la dirección se deriva de gen_sucursal; se puede sobreescribir)
+    direccion_origen         varchar(255),
+    id_distrito_origen        INT REFERENCES gen_distrito(id),  -- codigo_ubigeo requerido por SUNAT
     -- Destinatario
-    idDestinatario          INT REFERENCES cli_Clientes(id),
-    direccionLlegada        VARCHAR(255),
-    idDistritoLlegada       INT REFERENCES gen_Distrito(id),  -- codigoUbigeo requerido por SUNAT
+    id_destinatario          INT REFERENCES cli_clientes(id),
+    direccion_llegada        varchar(255),
+    id_distrito_llegada       INT REFERENCES gen_distrito(id),  -- codigo_ubigeo requerido por SUNAT
     -- Transporte (chofer y vehículo de la empresa o del cliente/proveedor)
-    idModalidadTraslado     INT REFERENCES gen_ListaOpciones(id),  -- PRIVADO(02), PUBLICO(01)
-    idTransportista         INT REFERENCES cli_Clientes(id),       -- RUC del transportista (modalidad pública)
-    idChofer                INT REFERENCES gen_Chofer(id),
-    idVehiculo              INT REFERENCES gen_Vehiculo(id),
+    id_modalidad_traslado     INT REFERENCES gen_lista_opciones(id),  -- PRIVADO(02), PUBLICO(01)
+    id_transportista         INT REFERENCES cli_clientes(id),       -- RUC del transportista (modalidad pública)
+    id_chofer                INT REFERENCES gen_chofer(id),
+    id_vehiculo              INT REFERENCES gen_vehiculo(id),
     -- Responsable interno
-    idResponsable           INT REFERENCES auth_Usuarios(id),
-    observaciones           VARCHAR(500),
+    id_responsable           INT REFERENCES auth_usuarios(id),
+    observaciones           varchar(500),
     -- Contabilidad
-    periodoContable         VARCHAR(10),
-    operacion               VARCHAR(100),
+    periodo_contable         varchar(10),
+    operacion               varchar(100),
     -- Estado: PENDIENTE, ENVIADO, RECIBIDO, ANULADO
-    idEstado                INT REFERENCES gen_ListaOpciones(id),
+    id_estado                INT REFERENCES gen_lista_opciones(id),
     estado                  INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion           TIMESTAMP DEFAULT NOW(),
-    fechaModificacion       TIMESTAMP DEFAULT NOW(),
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW(),
     UNIQUE(serie, numero)
 );
 
 -- Detalle de la guía de remisión
-CREATE TABLE gre_GuiaRemisionDetalle (
+CREATE TABLE gre_guia_remision_detalle (
     id              SERIAL PRIMARY KEY,
-    idGuiaRemision  INT NOT NULL REFERENCES gre_GuiaRemision(id),
+    id_guia_remision  INT NOT NULL REFERENCES gre_guia_remision(id),
     item            INT NOT NULL,
-    idProducto      INT NOT NULL REFERENCES pro_Producto(id),
-    descripcion     VARCHAR(300),
-    idUnidadMedida  INT REFERENCES gen_ListaOpciones(id),
+    id_producto      INT NOT NULL REFERENCES pro_producto(id),
+    descripcion     varchar(300),
+    id_unidad_medida  INT REFERENCES gen_lista_opciones(id),
     cantidad        NUMERIC(12,4) NOT NULL,
     -- Balón específico si aplica
-    idBalon         INT REFERENCES bal_Balon(id),
-    glosa           VARCHAR(255),
+    id_balon         INT REFERENCES bal_balon(id),
+    glosa           varchar(255),
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 -- Documentos de referencia de la guía (facturas, boletas, otras GRE asociadas)
-CREATE TABLE gre_DocumentosReferencia (
+CREATE TABLE gre_documentos_referencia (
     id                  SERIAL PRIMARY KEY,
-    idGuiaRemision      INT NOT NULL REFERENCES gre_GuiaRemision(id),
-    idTipoComprobante   INT NOT NULL REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: TipoComprobante) 01, 03, 09...
-    serie               VARCHAR(10),
-    numero              VARCHAR(15),
+    id_guia_remision      INT NOT NULL REFERENCES gre_guia_remision(id),
+    id_tipo_comprobante   INT NOT NULL REFERENCES gen_lista_opciones(id),  -- (gen_lista: TipoComprobante) 01, 03, 09...
+    serie               varchar(10),
+    numero              varchar(15),
     fecha               DATE,
     estado          INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion   TIMESTAMP DEFAULT NOW(),
-    fechaModificacion TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion   TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
 -- Control de rangos de numeración de guías asignados (ej. GUIAS JHON 8554-8600)
-CREATE TABLE gre_RangoNumeracion (
+CREATE TABLE gre_rango_numeracion (
     id                  SERIAL PRIMARY KEY,
-    responsable         VARCHAR(100) NOT NULL,     -- JHON
-    descripcion         VARCHAR(150),              -- GUIAS JHON
-    serie               VARCHAR(10),
-    numeroInicio        INT NOT NULL,              -- 8554
-    numeroFin           INT NOT NULL,              -- 8600
-    numeroActual        INT,                       -- último usado
-    fechaAsignacion     DATE,
-    observacion         VARCHAR(255),
+    responsable         varchar(100) NOT NULL,     -- JHON
+    descripcion         varchar(150),              -- GUIAS JHON
+    serie               varchar(10),
+    numero_inicio        INT NOT NULL,              -- 8554
+    numero_fin           INT NOT NULL,              -- 8600
+    numero_actual        INT,                       -- último usado
+    fecha_asignacion     DATE,
+    observacion         varchar(255),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 
@@ -1077,41 +1077,41 @@ CREATE TABLE gre_RangoNumeracion (
 -- ============================================================
 
 -- Cuentas por cobrar y por pagar unificadas
--- idTipoCuenta: COBRAR (cliente) | PAGAR (proveedor)
-CREATE TABLE fin_Cuenta (
+-- id_tipo_cuenta: COBRAR (cliente) | PAGAR (proveedor)
+CREATE TABLE fin_cuenta (
     id                  SERIAL PRIMARY KEY,
-    idTipoCuenta        INT NOT NULL REFERENCES gen_ListaOpciones(id),
-    idTercero           INT NOT NULL REFERENCES cli_Clientes(id),
-    idComprobanteVenta  INT REFERENCES ven_Comprobante(id),
-    idComprobanteCompra INT REFERENCES com_ComprobanteCompra(id),
-    idCuota             INT REFERENCES ven_Cuotas(id),
-    fechaEmision        DATE NOT NULL,
-    fechaVencimiento    DATE,
-    montoPendiente      NUMERIC(12,4) NOT NULL,
-    montoAbonado        NUMERIC(12,4) DEFAULT 0,
-    montoSaldo          NUMERIC(12,4),
-    idEstado            INT REFERENCES gen_ListaOpciones(id),
-    observacion         VARCHAR(500),
+    id_tipo_cuenta        INT NOT NULL REFERENCES gen_lista_opciones(id),
+    id_tercero           INT NOT NULL REFERENCES cli_clientes(id),
+    id_comprobante_venta  INT REFERENCES ven_comprobante(id),
+    id_comprobante_compra INT REFERENCES com_comprobante_compra(id),
+    id_cuota             INT REFERENCES ven_cuotas(id),
+    fecha_emision        DATE NOT NULL,
+    fecha_vencimiento    DATE,
+    monto_pendiente      NUMERIC(12,4) NOT NULL,
+    monto_abonado        NUMERIC(12,4) DEFAULT 0,
+    monto_saldo          NUMERIC(12,4),
+    id_estado            INT REFERENCES gen_lista_opciones(id),
+    observacion         varchar(500),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE fin_Pago (
+CREATE TABLE fin_pago (
     id                  SERIAL PRIMARY KEY,
-    idCuenta            INT NOT NULL REFERENCES fin_Cuenta(id),
-    fechaPago           DATE NOT NULL,
+    id_cuenta            INT NOT NULL REFERENCES fin_cuenta(id),
+    fecha_pago           DATE NOT NULL,
     monto               NUMERIC(12,4) NOT NULL,
-    idMedioPago         INT REFERENCES gen_ListaOpciones(id),
-    referencia          VARCHAR(100),
-    observacion         VARCHAR(255),
+    id_medio_pago         INT REFERENCES gen_lista_opciones(id),
+    referencia          varchar(100),
+    observacion         varchar(255),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 
@@ -1119,43 +1119,43 @@ CREATE TABLE fin_Pago (
 -- GRUPO 9: FINANZAS (PRÉSTAMOS BANCARIOS)
 -- ============================================================
 
-CREATE TABLE fin_PrestamoBanco (
+CREATE TABLE fin_prestamo_banco (
     id                  SERIAL PRIMARY KEY,
-    idBanco             INT REFERENCES gen_ListaOpciones(id),
-    descripcion         VARCHAR(255),
-    montoTotal          NUMERIC(14,4),
-    numeroCuotas        INT,
-    fechaInicio         DATE,
-    tasaInteres         NUMERIC(8,4),
+    id_banco             INT REFERENCES gen_lista_opciones(id),
+    descripcion         varchar(255),
+    monto_total          NUMERIC(14,4),
+    numero_cuotas        INT,
+    fecha_inicio         DATE,
+    tasa_interes         NUMERIC(8,4),
     -- Estado: ACTIVO, CANCELADO
-    idEstado            INT REFERENCES gen_ListaOpciones(id),
-    observacion         VARCHAR(500),
+    id_estado            INT REFERENCES gen_lista_opciones(id),
+    observacion         varchar(500),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE fin_PrestamoBancoCuota (
+CREATE TABLE fin_prestamo_banco_cuota (
     id                  SERIAL PRIMARY KEY,
-    idPrestamoBanco     INT NOT NULL REFERENCES fin_PrestamoBanco(id),
-    numeroCuota         INT NOT NULL,
+    id_prestamo_banco     INT NOT NULL REFERENCES fin_prestamo_banco(id),
+    numero_cuota         INT NOT NULL,
     importe             NUMERIC(12,4) NOT NULL,
-    fechaVencimiento    DATE,
-    fechaPago           DATE,
-    idMedioPago         INT REFERENCES gen_ListaOpciones(id),  -- TRANSFERENCIA, CHEQUE, DÉBITO AUTOMÁTICO
-    numeroOperacion     VARCHAR(50),                            -- N° operación / N° cheque
-    idCuentaBancaria    INT REFERENCES gen_CuentaBancaria(id), -- cuenta empresa debitada
+    fecha_vencimiento    DATE,
+    fecha_pago           DATE,
+    id_medio_pago         INT REFERENCES gen_lista_opciones(id),  -- TRANSFERENCIA, CHEQUE, DÉBITO AUTOMÁTICO
+    numero_operacion     varchar(50),                            -- N° operación / N° cheque
+    id_cuenta_bancaria    INT REFERENCES gen_cuenta_bancaria(id), -- cuenta empresa debitada
     -- Estado: PENDIENTE, PAGADO, VENCIDO
-    idEstado            INT REFERENCES gen_ListaOpciones(id),
-    observacion         VARCHAR(255),
+    id_estado            INT REFERENCES gen_lista_opciones(id),
+    observacion         varchar(255),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW(),
-    UNIQUE(idPrestamoBanco, numeroCuota)
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW(),
+    UNIQUE(id_prestamo_banco, numero_cuota)
 );
 
 
@@ -1167,73 +1167,73 @@ CREATE TABLE fin_PrestamoBancoCuota (
 -- Ej: GASES INDUSTRIALES > GAS NOBLE > OXIGENO GAS INDUSTRIAL
 --     OFICINA > GASTOS ADMINISTRATIVOS > MANO DE OBRA
 --     CAMIÓN > GASTOS DE TRANSPORTE > COMBUSTIBLES
-CREATE TABLE gen_ClasificacionGasto (
+CREATE TABLE gen_clasificacion_gasto (
     id                  SERIAL PRIMARY KEY,
-    grupo               VARCHAR(100) NOT NULL,     -- OFICINA, CAMIÓN, GASES INDUSTRIALES, FLETE...
-    subgrupo            VARCHAR(100) NOT NULL,     -- GASTOS ADMINISTRATIVOS, GAS NOBLE...
-    subSubgrupo         VARCHAR(100) NOT NULL,   -- MANO DE OBRA, OXIGENO GAS INDUSTRIAL...
+    grupo               varchar(100) NOT NULL,     -- OFICINA, CAMIÓN, GASES INDUSTRIALES, FLETE...
+    subgrupo            varchar(100) NOT NULL,     -- GASTOS ADMINISTRATIVOS, GAS NOBLE...
+    sub_subgrupo         varchar(100) NOT NULL,   -- MANO DE OBRA, OXIGENO GAS INDUSTRIAL...
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW(),
-    UNIQUE(grupo, subgrupo, subSubgrupo)
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW(),
+    UNIQUE(grupo, subgrupo, sub_subgrupo)
 );
 
 -- Comprobante de compra o gasto (factura proveedor, gasto sin proveedor, tributos SUNAT...)
-CREATE TABLE com_ComprobanteCompra (
+CREATE TABLE com_comprobante_compra (
     id                  SERIAL PRIMARY KEY,
-    idTipoComprobante   INT REFERENCES gen_ListaOpciones(id),  -- FACTURA, BOLETA, S/D, RR.HH... (gen_Lista: TipoComprobante)
-    serie               VARCHAR(10),
-    numero              VARCHAR(15),
+    id_tipo_comprobante   INT REFERENCES gen_lista_opciones(id),  -- FACTURA, BOLETA, S/D, RR.HH... (gen_lista: TipoComprobante)
+    serie               varchar(10),
+    numero              varchar(15),
     fecha               DATE NOT NULL,
-    idProveedor         INT REFERENCES cli_Clientes(id),
-    idTipoRegistro      INT REFERENCES gen_ListaOpciones(id),  -- COMPRA, GASTO
-    idCategoriaGasto    INT REFERENCES gen_ListaOpciones(id),  -- Combustible, Tributos, Flete...
-    idSucursal          INT REFERENCES gen_Sucursal(id),
-    idAlmacen           INT REFERENCES gen_Almacen(id),
-    idMoneda            INT REFERENCES gen_ListaOpciones(id),
-    idCondicionPago     INT REFERENCES gen_CondicionPago(id),
-    subTotal            NUMERIC(12,4) DEFAULT 0,
+    id_proveedor         INT REFERENCES cli_clientes(id),
+    id_tipo_registro      INT REFERENCES gen_lista_opciones(id),  -- COMPRA, GASTO
+    id_categoria_gasto    INT REFERENCES gen_lista_opciones(id),  -- Combustible, Tributos, Flete...
+    id_sucursal          INT REFERENCES gen_sucursal(id),
+    id_almacen           INT REFERENCES gen_almacen(id),
+    id_moneda            INT REFERENCES gen_lista_opciones(id),
+    id_condicion_pago     INT REFERENCES gen_condicion_pago(id),
+    sub_total            NUMERIC(12,4) DEFAULT 0,
     igv                 NUMERIC(12,4) DEFAULT 0,
-    totalImporte        NUMERIC(12,4) DEFAULT 0,
-    afectaInventario    BOOLEAN DEFAULT FALSE,     -- true si ingresa stock (gases, cilindros...)
-    declararSunat       BOOLEAN DEFAULT FALSE,     -- true = factura a declarar ante SUNAT (secc. IV y V)
-    glosa               VARCHAR(500),
+    total_importe        NUMERIC(12,4) DEFAULT 0,
+    afecta_inventario    BOOLEAN DEFAULT FALSE,     -- true si ingresa stock (gases, cilindros...)
+    declarar_sunat       BOOLEAN DEFAULT FALSE,     -- true = factura a declarar ante SUNAT (secc. IV y V)
+    glosa               varchar(500),
     -- Estado: PENDIENTE, PAGADO, ANULADO
-    idEstado            INT REFERENCES gen_ListaOpciones(id),
+    id_estado            INT REFERENCES gen_lista_opciones(id),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 -- Detalle de compra/gasto por línea (clasificación + pago por línea como en Excel de egresos)
-CREATE TABLE com_ComprobanteCompraDetalle (
+CREATE TABLE com_comprobante_compra_detalle (
     id                  SERIAL PRIMARY KEY,
-    idComprobante       INT NOT NULL REFERENCES com_ComprobanteCompra(id),
+    id_comprobante       INT NOT NULL REFERENCES com_comprobante_compra(id),
     item                INT NOT NULL,
-    idClasificacionGasto INT REFERENCES gen_ClasificacionGasto(id),
-    idProducto          INT REFERENCES pro_Producto(id),
-    descripcion         VARCHAR(300) NOT NULL,
-    idUnidadMedida      INT REFERENCES gen_ListaOpciones(id),
+    id_clasificacion_gasto INT REFERENCES gen_clasificacion_gasto(id),
+    id_producto          INT REFERENCES pro_producto(id),
+    descripcion         varchar(300) NOT NULL,
+    id_unidad_medida      INT REFERENCES gen_lista_opciones(id),
     cantidad            NUMERIC(12,4) NOT NULL,
-    precioUnitario      NUMERIC(12,6),
+    precio_unitario      NUMERIC(12,6),
     importe             NUMERIC(12,4) NOT NULL,
     -- Pago de la línea
-    idMedioPago         INT REFERENCES gen_ListaOpciones(id),
-    fechaPago           DATE,
-    numeroOperacion     VARCHAR(50),
-    idEstadoPago        INT REFERENCES gen_ListaOpciones(id),
-    observacion         VARCHAR(500),
-    afectaStock         BOOLEAN DEFAULT FALSE,
-    idPago              INT REFERENCES fin_Pago(id),
+    id_medio_pago         INT REFERENCES gen_lista_opciones(id),
+    fecha_pago           DATE,
+    numero_operacion     varchar(50),
+    id_estado_pago        INT REFERENCES gen_lista_opciones(id),
+    observacion         varchar(500),
+    afecta_stock         BOOLEAN DEFAULT FALSE,
+    id_pago              INT REFERENCES fin_pago(id),
     estado              INT NOT NULL DEFAULT 1,
-    idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
-    idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
-    fechaCreacion       TIMESTAMP DEFAULT NOW(),
-    fechaModificacion   TIMESTAMP DEFAULT NOW()
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
 
@@ -1242,88 +1242,88 @@ CREATE TABLE com_ComprobanteCompraDetalle (
 -- ============================================================
 
 -- Clientes
-CREATE INDEX idx_cli_clientes_numDoc ON cli_Clientes(numeroDocumento);
-CREATE INDEX idx_cli_clientes_codigo ON cli_Clientes(codigoInterno);
-CREATE INDEX idx_cli_clientes_razon ON cli_Clientes(razonSocial);
-CREATE INDEX idx_cli_contacto_cliente ON cli_Contacto(idCliente);
-CREATE INDEX idx_gen_vehiculo_placa ON gen_Vehiculo(placa);
-CREATE INDEX idx_gen_vehiculo_cliente ON gen_Vehiculo(idCliente);
-CREATE UNIQUE INDEX idx_gen_vehiculo_placa_empresa ON gen_Vehiculo(placa) WHERE idCliente IS NULL;
-CREATE UNIQUE INDEX idx_gen_vehiculo_placa_cliente ON gen_Vehiculo(idCliente, placa) WHERE idCliente IS NOT NULL;
-CREATE INDEX idx_gen_chofer_documento ON gen_Chofer(numeroDocumento);
-CREATE INDEX idx_gen_chofer_cliente ON gen_Chofer(idCliente);
-CREATE INDEX idx_gen_cuenta_cliente ON gen_CuentaBancaria(idCliente);
+CREATE INDEX idx_cli_clientes_numDoc ON cli_clientes(numero_documento);
+CREATE INDEX idx_cli_clientes_codigo ON cli_clientes(codigo_interno);
+CREATE INDEX idx_cli_clientes_razon ON cli_clientes(razon_social);
+CREATE INDEX idx_cli_contacto_cliente ON cli_contacto(id_cliente);
+CREATE INDEX idx_gen_vehiculo_placa ON gen_vehiculo(placa);
+CREATE INDEX idx_gen_vehiculo_cliente ON gen_vehiculo(id_cliente);
+CREATE UNIQUE INDEX idx_gen_vehiculo_placa_empresa ON gen_vehiculo(placa) WHERE id_cliente IS NULL;
+CREATE UNIQUE INDEX idx_gen_vehiculo_placa_cliente ON gen_vehiculo(id_cliente, placa) WHERE id_cliente IS NOT NULL;
+CREATE INDEX idx_gen_chofer_documento ON gen_chofer(numero_documento);
+CREATE INDEX idx_gen_chofer_cliente ON gen_chofer(id_cliente);
+CREATE INDEX idx_gen_cuenta_cliente ON gen_cuenta_bancaria(id_cliente);
 
 -- Balones
-CREATE INDEX idx_bal_balon_codigo ON bal_Balon(codigoBalon);
-CREATE INDEX idx_bal_balon_libro ON bal_Balon(libroCilindro, paginaLibro);
-CREATE INDEX idx_bal_balon_cliente_ubic ON bal_Balon(idClienteUbicacion);
-CREATE INDEX idx_bal_balon_ph_vence ON bal_Balon(fechaProximaPruebaHidrostatica);
-CREATE INDEX idx_bal_balon_estado ON bal_Balon(idEstadoBalon);
-CREATE INDEX idx_bal_balon_cliente ON bal_Balon(idClientePropietario);
-CREATE INDEX idx_bal_movimiento_balon ON bal_Movimiento(idBalon);
-CREATE INDEX idx_bal_movimiento_fecha ON bal_Movimiento(fechaMovimiento);
-CREATE INDEX idx_bal_movimiento_recarga_balon ON bal_MovimientoRecarga(idBalon);
-CREATE INDEX idx_bal_movimiento_recarga_fecha ON bal_MovimientoRecarga(fechaSalidaAlmacen);
-CREATE INDEX idx_bal_prestamo_cliente ON bal_Prestamo(idCliente);
-CREATE INDEX idx_bal_prestamo_proveedor ON bal_Prestamo(idProveedor);
-CREATE INDEX idx_bal_prestamo_tipo ON bal_Prestamo(idTipoPrestamo);
-CREATE INDEX idx_bal_prestamo_detalle_balon ON bal_PrestamoDetalle(idBalon);
-CREATE INDEX idx_bal_prestamo_detalle_venc ON bal_PrestamoDetalle(fechaVencimiento);
-CREATE INDEX idx_bal_prestamo_detalle_est ON bal_PrestamoDetalle(idEstado);
-CREATE INDEX idx_bal_alquiler_cliente ON bal_Alquiler(idCliente);
+CREATE INDEX idx_bal_balon_codigo ON bal_balon(codigo_balon);
+CREATE INDEX idx_bal_balon_libro ON bal_balon(libro_cilindro, pagina_libro);
+CREATE INDEX idx_bal_balon_cliente_ubic ON bal_balon(id_cliente_ubicacion);
+CREATE INDEX idx_bal_balon_ph_vence ON bal_balon(fecha_proxima_prueba_hidrostatica);
+CREATE INDEX idx_bal_balon_estado ON bal_balon(id_estado_balon);
+CREATE INDEX idx_bal_balon_cliente ON bal_balon(id_cliente_propietario);
+CREATE INDEX idx_bal_movimiento_balon ON bal_movimiento(id_balon);
+CREATE INDEX idx_bal_movimiento_fecha ON bal_movimiento(fecha_movimiento);
+CREATE INDEX idx_bal_movimiento_recarga_balon ON bal_movimiento_recarga(id_balon);
+CREATE INDEX idx_bal_movimiento_recarga_fecha ON bal_movimiento_recarga(fecha_salida_almacen);
+CREATE INDEX idx_bal_prestamo_cliente ON bal_prestamo(id_cliente);
+CREATE INDEX idx_bal_prestamo_proveedor ON bal_prestamo(id_proveedor);
+CREATE INDEX idx_bal_prestamo_tipo ON bal_prestamo(id_tipo_prestamo);
+CREATE INDEX idx_bal_prestamo_detalle_balon ON bal_prestamo_detalle(id_balon);
+CREATE INDEX idx_bal_prestamo_detalle_venc ON bal_prestamo_detalle(fecha_vencimiento);
+CREATE INDEX idx_bal_prestamo_detalle_est ON bal_prestamo_detalle(id_estado);
+CREATE INDEX idx_bal_alquiler_cliente ON bal_alquiler(id_cliente);
 
 -- Ventas
-CREATE INDEX idx_ven_comprobante_serie ON ven_Comprobante(serie, numero);
-CREATE INDEX idx_ven_comprobante_cliente ON ven_Comprobante(idCliente);
-CREATE INDEX idx_ven_comprobante_fecha ON ven_Comprobante(fecha);
-CREATE INDEX idx_ven_detalle_comprobante ON ven_ComprobanteDetalle(idComprobante);
-CREATE INDEX idx_ven_detalle_estado_cil ON ven_ComprobanteDetalle(idEstadoCilindro);
-CREATE INDEX idx_ven_garantia_cliente ON ven_Garantia(idCliente);
-CREATE INDEX idx_ven_garantia_fecha ON ven_Garantia(fechaRegistro);
-CREATE INDEX idx_ven_garantia_mov ON ven_GarantiaMovimiento(idGarantia);
+CREATE INDEX idx_ven_comprobante_serie ON ven_comprobante(serie, numero);
+CREATE INDEX idx_ven_comprobante_cliente ON ven_comprobante(id_cliente);
+CREATE INDEX idx_ven_comprobante_fecha ON ven_comprobante(fecha);
+CREATE INDEX idx_ven_detalle_comprobante ON ven_comprobante_detalle(id_comprobante);
+CREATE INDEX idx_ven_detalle_estado_cil ON ven_comprobante_detalle(id_estado_cilindro);
+CREATE INDEX idx_ven_garantia_cliente ON ven_garantia(id_cliente);
+CREATE INDEX idx_ven_garantia_fecha ON ven_garantia(fecha_registro);
+CREATE INDEX idx_ven_garantia_mov ON ven_garantia_movimiento(id_garantia);
 
 -- GRE
-CREATE INDEX idx_gre_serie ON gre_GuiaRemision(serie, numero);
-CREATE INDEX idx_gre_fecha ON gre_GuiaRemision(fecha);
-CREATE INDEX idx_gre_cliente ON gre_GuiaRemision(idCliente);
-CREATE INDEX idx_gre_rango_responsable ON gre_RangoNumeracion(responsable);
+CREATE INDEX idx_gre_serie ON gre_guia_remision(serie, numero);
+CREATE INDEX idx_gre_fecha ON gre_guia_remision(fecha);
+CREATE INDEX idx_gre_cliente ON gre_guia_remision(id_cliente);
+CREATE INDEX idx_gre_rango_responsable ON gre_rango_numeracion(responsable);
 
 -- Stock y movimientos
-CREATE INDEX idx_pro_stock_almacen ON pro_Stock(idAlmacen, idProducto);
-CREATE INDEX idx_pro_movimientos_producto ON pro_Movimientos(idProducto, fecha);
-CREATE INDEX idx_pro_catalogo_precio ON pro_CatalogoPrecio(idTipoCatalogo, periodo);
-CREATE INDEX idx_pro_catalogo_nombre ON pro_CatalogoPrecio(nombreItem);
+CREATE INDEX idx_pro_stock_almacen ON pro_stock(id_almacen, id_producto);
+CREATE INDEX idx_pro_movimientos_producto ON pro_movimientos(id_producto, fecha);
+CREATE INDEX idx_pro_catalogo_precio ON pro_catalogo_precio(id_tipo_catalogo, periodo);
+CREATE INDEX idx_pro_catalogo_nombre ON pro_catalogo_precio(nombre_item);
 
 -- Vencimientos documentos
-CREATE INDEX idx_gen_doc_vencimiento_fecha ON gen_DocumentoVencimiento(fechaVencimiento);
-CREATE INDEX idx_gen_doc_vencimiento_vehiculo ON gen_DocumentoVencimiento(idVehiculo);
+CREATE INDEX idx_gen_doc_vencimiento_fecha ON gen_documento_vencimiento(fecha_vencimiento);
+CREATE INDEX idx_gen_doc_vencimiento_vehiculo ON gen_documento_vencimiento(id_vehiculo);
 
 -- Cobranza / kardex
 -- Finanzas unificadas
-CREATE INDEX idx_fin_cuenta_tercero ON fin_Cuenta(idTercero);
-CREATE INDEX idx_fin_cuenta_tipo ON fin_Cuenta(idTipoCuenta);
-CREATE INDEX idx_fin_cuenta_saldo ON fin_Cuenta(idTercero, montoSaldo);
-CREATE INDEX idx_fin_pago_cuenta ON fin_Pago(idCuenta);
-CREATE INDEX idx_fin_pago_fecha ON fin_Pago(fechaPago);
+CREATE INDEX idx_fin_cuenta_tercero ON fin_cuenta(id_tercero);
+CREATE INDEX idx_fin_cuenta_tipo ON fin_cuenta(id_tipo_cuenta);
+CREATE INDEX idx_fin_cuenta_saldo ON fin_cuenta(id_tercero, monto_saldo);
+CREATE INDEX idx_fin_pago_cuenta ON fin_pago(id_cuenta);
+CREATE INDEX idx_fin_pago_fecha ON fin_pago(fecha_pago);
 
 -- Compras y gastos
-CREATE INDEX idx_com_compra_fecha ON com_ComprobanteCompra(fecha);
-CREATE INDEX idx_com_compra_proveedor ON com_ComprobanteCompra(idProveedor);
-CREATE INDEX idx_com_detalle_comprobante ON com_ComprobanteCompraDetalle(idComprobante);
-CREATE INDEX idx_com_detalle_clasificacion ON com_ComprobanteCompraDetalle(idClasificacionGasto);
-CREATE INDEX idx_com_detalle_fecha_pago ON com_ComprobanteCompraDetalle(fechaPago);
-CREATE INDEX idx_com_detalle_descripcion ON com_ComprobanteCompraDetalle(descripcion);
-CREATE INDEX idx_gen_clasificacion_gasto ON gen_ClasificacionGasto(grupo, subgrupo);
-CREATE INDEX idx_com_compra_declarar_sunat ON com_ComprobanteCompra(declararSunat, fecha);
+CREATE INDEX idx_com_compra_fecha ON com_comprobante_compra(fecha);
+CREATE INDEX idx_com_compra_proveedor ON com_comprobante_compra(id_proveedor);
+CREATE INDEX idx_com_detalle_comprobante ON com_comprobante_compra_detalle(id_comprobante);
+CREATE INDEX idx_com_detalle_clasificacion ON com_comprobante_compra_detalle(id_clasificacion_gasto);
+CREATE INDEX idx_com_detalle_fecha_pago ON com_comprobante_compra_detalle(fecha_pago);
+CREATE INDEX idx_com_detalle_descripcion ON com_comprobante_compra_detalle(descripcion);
+CREATE INDEX idx_gen_clasificacion_gasto ON gen_clasificacion_gasto(grupo, subgrupo);
+CREATE INDEX idx_com_compra_declarar_sunat ON com_comprobante_compra(declarar_sunat, fecha);
 
 
 -- ============================================================
 -- DATOS INICIALES MÍNIMOS: LISTAS MAESTRAS
 -- ============================================================
 
--- Lista base (gen_Lista)
-INSERT INTO gen_Lista (nombre, descripcion) VALUES
+-- Lista base (gen_lista)
+INSERT INTO gen_lista (nombre, descripcion) VALUES
 ('TipoPersona',       'Natural o Jurídica'),
 ('TipoCliente',       'Cliente, Paciente, Proveedor o Ambos'),
 ('TipoDocumento',     'RUC, DNI, CE, etc.'),
@@ -1362,8 +1362,8 @@ INSERT INTO gen_Lista (nombre, descripcion) VALUES
 ('ReferenciaCilindro',  'ALMACEN, CLIENTE, Cliente Extraviada, Almacen Extraviada...'),
 ('EstadoPagoGasto',     'Cancelado, Pendiente, Anulado');
 
--- Opciones EstadoBalon (ajustar idLista según ID real de 'EstadoBalon')
--- INSERT INTO gen_ListaOpciones (idLista, nombre) VALUES
+-- Opciones EstadoBalon (ajustar id_lista según ID real de 'EstadoBalon')
+-- INSERT INTO gen_lista_opciones (id_lista, nombre) VALUES
 -- (9, 'EN_ALMACEN'),
 -- (9, 'POR_RECOGER'),      -- del Excel: cilindros pendientes de recoger
 -- (9, 'PRESTADO_CLIENTE'),
@@ -1376,55 +1376,55 @@ INSERT INTO gen_Lista (nombre, descripcion) VALUES
 
 -- ============================================================
 -- DATOS INICIALES: MAPEO DESDE EXCEL (estructura de referencia)
--- Ejecutar después de cargar gen_ListaOpciones de TipoVehiculo, Banco, UnidadMedida
+-- Ejecutar después de cargar gen_lista_opciones de TipoVehiculo, Banco, UnidadMedida
 -- ============================================================
 
--- gen_Empresa + gen_ConfiguracionSunat
--- INSERT INTO gen_Empresa (ruc, razonSocial, nombreComercial) VALUES
+-- gen_empresa + gen_configuracion_sunat
+-- INSERT INTO gen_empresa (ruc, razon_social, nombre_comercial) VALUES
 -- ('10175332796', 'RUIZ DE LOS SANTOS HAYDEE', 'OXIGENO SARITA');
--- INSERT INTO gen_ConfiguracionSunat (idEmpresa, usuarioSol, claveSol) VALUES
+-- INSERT INTO gen_configuracion_sunat (id_empresa, usuario_sol, clave_sol) VALUES
 -- (1, 'WILLOONT', 'Grupo2026GVR');
 
--- gen_ConfiguracionServicio
--- INSERT INTO gen_ConfiguracionServicio (codigo, nombre, email, usuario, contrasena) VALUES
+-- gen_configuracion_servicio
+-- INSERT INTO gen_configuracion_servicio (codigo, nombre, email, usuario, contrasena) VALUES
 -- ('CORREO', 'Correo corporativo', 'gvariasr@hotmail.com', 'gvariasr@hotmail.com', 'Rumymisky1214'),
 -- ('WHEREX', 'Plataforma WHEREX', NULL, 'gvariasr@hotmail.com', 'S@rit@35');
 
--- gen_Vehiculo — flota empresa (idCliente NULL)
--- INSERT INTO gen_Vehiculo (idTipoVehiculo, placa) VALUES
+-- gen_vehiculo — flota empresa (id_cliente NULL)
+-- INSERT INTO gen_vehiculo (id_tipo_vehiculo, placa) VALUES
 -- (..., '9773CM'),   -- MOTOTAXI
 -- (..., 'M4F782'),   -- CAMION
 -- (..., '02198M');   -- MOTO CARGUERA
 -- -- MOTO LINEAL: placa pendiente en Excel
 
--- gen_Chofer — choferes empresa (idCliente NULL)
--- INSERT INTO gen_Chofer (apellidoPaterno, apellidoMaterno, nombres, brevete, idTipoDocumento, numeroDocumento) VALUES
+-- gen_chofer — choferes empresa (id_cliente NULL)
+-- INSERT INTO gen_chofer (apellido_paterno, apellido_materno, nombres, brevete, id_tipo_documento, numero_documento) VALUES
 -- ('VALDERA', 'ACOSTA', 'JUAN JOSE', 'C16740640', ..., '16740640'),
 -- ('VARIAS', 'PANTA', 'LUIS ALBERTO', 'C17534821', ..., '17534821'),
 -- ('VARIAS', 'RUIZ', 'GIANCARLO JAVIER', 'C43862326', ..., '43862326'),
 -- ('SANTISTEBAN', 'SALZAR', 'JHON OCTAVIO', NULL, ..., '72684495');
 
--- gen_CuentaBancaria — cuentas empresa (idCliente NULL)
--- INSERT INTO gen_CuentaBancaria (idBanco, titular, numeroCuenta, numeroCuentaInterbancaria) VALUES
+-- gen_cuenta_bancaria — cuentas empresa (id_cliente NULL)
+-- INSERT INTO gen_cuenta_bancaria (id_banco, titular, numero_cuenta, numero_cuenta_interbancaria) VALUES
 -- (...,'RUIZ DE LOS SANTOS HAYDEE', '30515162800047', '00230511516280004713'),  -- BCP
 -- (...,'VARIAS RUIZ GIANCARLO JAVIER', '001107960200180312', '01179600020018031207'),  -- BBVA
 -- (...,'VARIAS RUIZ GIANCARLO JAVIER', '7123243857101', '00371201324385710171'),  -- INTERBANK
 -- (...,'VARIAS RUIZ GIANCARLO JAVIER', '7208838719', '00940920720883871943');  -- SCOTIABANK
--- INSERT INTO gen_CuentaBancaria (idTipoCuenta, titular, telefonoBilletera) VALUES
+-- INSERT INTO gen_cuenta_bancaria (id_tipo_cuenta, titular, telefono_billetera) VALUES
 -- (...,'RUIZ DE LOS SANTOS HAYDEE', '964069607'),  -- YAPE
 -- (...,'VARIAS RUIZ GIANCARLO JAVIER', '964069607');  -- PLIN
 
--- gen_Vehiculo / gen_Chofer / gen_CuentaBancaria — cliente (idCliente = ...)
--- INSERT INTO gen_Chofer (idCliente, nombres, apellidoPaterno, dni, brevete) VALUES (...);
--- INSERT INTO gen_Vehiculo (idCliente, placa, marca, certificadoInscripcion) VALUES (...);
--- INSERT INTO gen_CuentaBancaria (idCliente, idBanco, idTipoCuenta, numeroCuenta) VALUES (...);
+-- gen_vehiculo / gen_chofer / gen_cuenta_bancaria — cliente (id_cliente = ...)
+-- INSERT INTO gen_chofer (id_cliente, nombres, apellido_paterno, dni, brevete) VALUES (...);
+-- INSERT INTO gen_vehiculo (id_cliente, placa, marca, certificado_inscripcion) VALUES (...);
+-- INSERT INTO gen_cuenta_bancaria (id_cliente, id_banco, id_tipo_cuenta, numero_cuenta) VALUES (...);
 
--- pro_Producto (gases)
--- Los gases van en pro_Producto con esGas=TRUE (090, 095, 040...)
+-- pro_producto (gases)
+-- Los gases van en pro_producto con es_gas=TRUE (090, 095, 040...)
 -- Ejemplo: Oxígeno Industrial codigo 010, U.M. m3
 
--- gen_DocumentoVencimiento
--- INSERT INTO gen_DocumentoVencimiento (descripcion, fechaVencimiento) VALUES
+-- gen_documento_vencimiento
+-- INSERT INTO gen_documento_vencimiento (descripcion, fecha_vencimiento) VALUES
 -- ('CAMION - SOAT', '2025-08-26'),
 -- ('CAMION - INSPECCION VEHICULAR', '2025-01-24'),
 -- ('MOTO CARGUERA - SOAT', '2025-05-08'),
@@ -1435,7 +1435,6 @@ INSERT INTO gen_Lista (nombre, descripcion) VALUES
 -- ('CERTIFICADO DE INSPECCION TECNICA - MUNICIPALIDAD', '2026-09-03'),
 -- ('BPA', '2026-10-06'),
 -- ('EXTINTOR', '2025-12-01');
-
 -- ============================================================
 -- FIN DEL SCRIPT
 -- ============================================================

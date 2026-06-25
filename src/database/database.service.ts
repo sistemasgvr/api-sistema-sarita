@@ -64,6 +64,16 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     return result.rows;
   }
 
+  async callFunctionJson<T = unknown>(
+    functionName: string,
+    params: unknown[] = [],
+  ): Promise<T> {
+    const placeholders = params.map((_, i) => `$${i + 1}`).join(', ');
+    const sql = `SELECT ${functionName}(${placeholders}) AS result`;
+    const result = await this.query<{ result: T }>(sql, params);
+    return result.rows[0]?.result ?? (null as T);
+  }
+
   async getClient(): Promise<PoolClient> {
     return this.pool.connect();
   }

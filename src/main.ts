@@ -30,6 +30,7 @@ async function bootstrap() {
     .setTitle('API Sistema Sarita')
     .setDescription('API REST del sistema Sarita')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig, {
