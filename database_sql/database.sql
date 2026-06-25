@@ -65,13 +65,13 @@
 --
 --  G. CORRECCIÓN / ANULACIÓN DE COMPROBANTE (NC / ND)
 --       ven_Comprobante tipo 07/08 con idComprobanteOrigen apuntando al original
---       y codigoMotivoNota (01=Anulación, 07=Descuento, 08=Devolución, 13=Ajuste)
+--       y idMotivoNota (01=Anulación, 07=Descuento, 08=Devolución, 13=Ajuste)
 --
 --  H. FACTURACIÓN ELECTRÓNICA SUNAT
 --       ven_Comprobante y gre_GuiaRemision almacenan:
---         xmlFirmado, cdrRespuesta, hashDocumento, ticketSunat, estadoSunat
+--         xmlFirmado, cdrRespuesta, hashDocumento, ticketSunat, idEstadoSunat
 --       gen_ConfiguracionSunat guarda credenciales SOL y certificado digital
---       codigoAfectacionIgv por línea: 10=Gravado, 20=Exonerado, 30=Inafecto, 40=Exportación
+--       idAfectacionIgv por línea vía gen_Lista (10 Gravado, 20 Exonerado, 30 Inafecto, 40 Exportación)
 --       Ubigeo en gen_Distrito.codigoUbigeo para origen/destino de GREs
 --
 --  DECISIONES DE DISEÑO
@@ -303,7 +303,7 @@ CREATE TABLE gen_ConfiguracionSunat (
     claveSol            VARCHAR(255) NOT NULL,   -- cifrar en aplicación
     certificadoDigital  VARCHAR(255),             -- ruta o referencia al .pfx
     claveCertificado    VARCHAR(255),             -- cifrar en aplicación
-    ambiente            VARCHAR(20) DEFAULT 'PRODUCCION',  -- BETA / PRODUCCION
+    idAmbiente          INT REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: AmbienteSunat) BETA, PRODUCCION
     estado              INT NOT NULL DEFAULT 1,
     idUsuarioCreacion       INT REFERENCES auth_Usuarios(id),
     idUsuarioModificacion   INT REFERENCES auth_Usuarios(id),
@@ -357,9 +357,9 @@ CREATE TABLE cli_Clientes (
     esBuenContribuyente BOOLEAN DEFAULT FALSE,
     esAgenteRetenedor   BOOLEAN DEFAULT FALSE,
     afectoRUS           BOOLEAN DEFAULT FALSE,
-    -- SUNAT
-    situacionSunat      VARCHAR(50),
-    estadoSunat         VARCHAR(50),
+    -- SUNAT (texto devuelto por consulta RUC; no es estado del comprobante electrónico)
+    situacionSunat      VARCHAR(50),   -- HABIDO, NO HABIDO
+    estadoContribuyenteSunat VARCHAR(50),  -- ACTIVO, BAJA, SUSPENSION TEMPORAL
     observacion         VARCHAR(500),
     -- Control
     estado              INT NOT NULL DEFAULT 1,
@@ -699,9 +699,8 @@ CREATE TABLE bal_MovimientoRecarga (
     fechaLlegadaAlmacen             DATE,
     lote                            VARCHAR(50),
     fechaVencimientoLote            DATE,
-    proveedorPruebaHidrostatica     VARCHAR(100),   -- taller o planta que realizó la P.H.
-    fechaPruebaHidrostatica         DATE,           -- P.H. certificada en esta recarga
-    idProveedor             INT REFERENCES cli_Clientes(id),
+    fechaPruebaHidrostatica         DATE,           -- P.H. certificada en esta recarga (proveedor en idProveedor)
+    idProveedor             INT REFERENCES cli_Clientes(id),       -- planta de recarga / P.H.
     observacion             VARCHAR(500),
     idAlmacen               INT REFERENCES gen_Almacen(id),
     estado                  INT NOT NULL DEFAULT 1,
@@ -806,7 +805,7 @@ CREATE TABLE bal_Mantenimiento (
     costo               NUMERIC(10,4) DEFAULT 0,
     -- Si es mantenimiento externo (Lima u otro proveedor)
     esExterno           BOOLEAN DEFAULT FALSE,
-    idProveedorRef      INT REFERENCES cli_Clientes(id),
+    idProveedor         INT REFERENCES cli_Clientes(id),           -- taller externo (Lima u otro)
     -- Estado: PENDIENTE, EN_PROCESO, FINALIZADO
     idEstado            INT REFERENCES gen_ListaOpciones(id),
     idComprobanteVenta  INT REFERENCES ven_Comprobante(id),       -- si se cobra al cliente
@@ -828,14 +827,13 @@ CREATE TABLE ven_Comprobante (
     id                  SERIAL PRIMARY KEY,
     -- Identificación SUNAT
     idTipoComprobante   INT REFERENCES gen_ListaOpciones(id),  -- FACTURA(01), BOLETA(03), NC(07), ND(08)
-    codigoTipoComprobante VARCHAR(2),                          -- código SUNAT: 01, 03, 07, 08
     serie               VARCHAR(10) NOT NULL,
     numero              VARCHAR(15) NOT NULL,
-    estadoSunat         VARCHAR(30),   -- PENDIENTE, ACEPTADO, RECHAZADO, BAJA
-    codigoTipoOperacion VARCHAR(4),    -- SUNAT: 0101=Venta interna, 0112=Sustento gastos, etc.
+    idEstadoSunat       INT REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: EstadoSunat)
+    idTipoOperacionSunat INT REFERENCES gen_ListaOpciones(id), -- (gen_Lista: TipoOperacionSunat)
     -- Nota de crédito / débito: referencia al comprobante que corrige
     idComprobanteOrigen INT REFERENCES ven_Comprobante(id),   -- NULL si es FC/BL normal
-    codigoMotivoNota    VARCHAR(2),    -- SUNAT: 01=Anulación, 07=Descuento, 08=Devolución, 13=Ajuste
+    idMotivoNota        INT REFERENCES gen_ListaOpciones(id),  -- MotivoNotaCredito o MotivoNotaDebito según tipo
     -- Ciclo electrónico SUNAT
     ticketSunat         VARCHAR(100),  -- ticket async para consultar CDR
     hashDocumento       VARCHAR(100),  -- hash del XML firmado
@@ -853,7 +851,7 @@ CREATE TABLE ven_Comprobante (
     idAlmacen           INT REFERENCES gen_Almacen(id),
     idCondicionPago     INT REFERENCES gen_CondicionPago(id),
     idMoneda            INT REFERENCES gen_ListaOpciones(id),  -- Nuevos Soles, USD
-    medioPago           VARCHAR(50),
+    idMedioPago         INT REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: MedioPago)
     -- Importes
     subTotal            NUMERIC(12,4) DEFAULT 0,
     descuento           NUMERIC(12,4) DEFAULT 0,
@@ -891,7 +889,7 @@ CREATE TABLE ven_ComprobanteDetalle (
     descuento           NUMERIC(12,4) DEFAULT 0,
     valorVenta          NUMERIC(12,4),
     porcentajeIgv       NUMERIC(6,4) DEFAULT 18,
-    codigoAfectacionIgv VARCHAR(2) DEFAULT '10',  -- SUNAT: 10=Gravado, 20=Exonerado, 30=Inafecto, 40=Exportación
+    idAfectacionIgv     INT REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: AfectacionIgv) 10, 20, 30, 40
     impuesto            NUMERIC(12,4),
     importe             NUMERIC(12,4),
     -- Si el producto es un balón específico, referenciar
@@ -973,10 +971,10 @@ CREATE TABLE ven_GarantiaMovimiento (
 CREATE TABLE gre_GuiaRemision (
     id                      SERIAL PRIMARY KEY,
     -- Identificación SUNAT
-    codigoTipoGuia          VARCHAR(2) DEFAULT '09',  -- 09=GRE Remitente, 31=GRE Transportista
+    idTipoGuiaRemision      INT REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: TipoGuiaRemision) 09, 31
     serie                   VARCHAR(10) NOT NULL,
     numero                  VARCHAR(15) NOT NULL,
-    estadoSunat             VARCHAR(30),   -- PENDIENTE, ACEPTADO, RECHAZADO, BAJA
+    idEstadoSunat           INT REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: EstadoSunat)
     -- Ciclo electrónico SUNAT
     ticketSunat             VARCHAR(100),
     hashDocumento           VARCHAR(100),
@@ -990,7 +988,6 @@ CREATE TABLE gre_GuiaRemision (
     -- Traslado
     fechaTraslado           DATE NOT NULL,
     idMotivoTraslado        INT REFERENCES gen_ListaOpciones(id),   -- (gen_Lista: MotivoTraslado)
-    codigoMotivoTraslado    VARCHAR(2),   -- SUNAT: 01=Venta, 02=Compra, 04=Entre establecimientos, 13=Otros
     idUnidadMedida          INT REFERENCES gen_ListaOpciones(id),
     pesoBruto               NUMERIC(10,4),
     numeroBultos            INT,
@@ -1041,14 +1038,14 @@ CREATE TABLE gre_GuiaRemisionDetalle (
     fechaModificacion TIMESTAMP DEFAULT NOW()
 );
 
--- Documentos de referencia de la guía (facturas, otras GRE asociadas)
+-- Documentos de referencia de la guía (facturas, boletas, otras GRE asociadas)
 CREATE TABLE gre_DocumentosReferencia (
-    id              SERIAL PRIMARY KEY,
-    idGuiaRemision  INT NOT NULL REFERENCES gre_GuiaRemision(id),
-    tipoDocumento   VARCHAR(20) NOT NULL,
-    serie           VARCHAR(10),
-    numero          VARCHAR(15),
-    fecha           DATE,
+    id                  SERIAL PRIMARY KEY,
+    idGuiaRemision      INT NOT NULL REFERENCES gre_GuiaRemision(id),
+    idTipoComprobante   INT NOT NULL REFERENCES gen_ListaOpciones(id),  -- (gen_Lista: TipoComprobante) 01, 03, 09...
+    serie               VARCHAR(10),
+    numero              VARCHAR(15),
+    fecha               DATE,
     estado          INT NOT NULL DEFAULT 1,
     idUsuarioCreacion    INT REFERENCES auth_Usuarios(id),
     idUsuarioModificacion INT REFERENCES auth_Usuarios(id),
@@ -1338,17 +1335,19 @@ INSERT INTO gen_Lista (nombre, descripcion) VALUES
 ('EstadoBalon',       'Estados posibles de un balón'),
 ('TipoPrestamo',      'ENVASE_EMPRESA_A_CLIENTE, CILINDRO_CLIENTE_A_EMPRESA, CILINDRO_A_PLANTA'),
 ('TipoMantenimiento', 'Tipos de mantenimiento de cilindro'),
-('ModalidadTraslado', 'Modalidad de traslado en GRE'),
-('MotivoTraslado',    'Motivo de traslado en GRE'),
+('ModalidadTraslado', '01=Transporte público, 02=Transporte privado'),
+('MotivoTraslado',    '01=Venta, 02=Compra, 04=Entre establecimientos, 09=Exportación, 13=Otros'),
 ('MedioPago',         'Medios de pago'),
 ('Moneda',            'Monedas'),
-('TipoComprobante',   'Tipos de comprobante SUNAT: 01=Factura, 03=Boleta, 07=NC, 08=ND'),
+('TipoComprobante',   'Tipos comprobante SUNAT: 01=Factura, 03=Boleta, 07=NC, 08=ND, 09=GRE'),
 ('MotivoNotaCredito', '01=Anulación, 07=Descuento, 08=Devolución, 13=Ajuste de precio'),
 ('MotivoNotaDebito',  '01=Intereses por mora, 02=Aumento de valor, 03=Penalidades'),
 ('TipoOperacionSunat','0101=Venta interna, 0112=Sustento gastos, 0200=Exportación'),
 ('TipoDocumentoRef',  'Tipos de documento origen en movimientos: FACTURA, GRE, PRESTAMO, ALQUILER, RECARGA, COMPRA, DEVOLUCION'),
-('MotivoTraslado',    '01=Venta, 02=Compra, 04=Entre establecimientos, 09=Exportación, 13=Otros'),
-('ModalidadTraslado', '01=Transporte público, 02=Transporte privado'),
+('EstadoSunat',       'PENDIENTE, ACEPTADO, RECHAZADO, BAJA'),
+('TipoGuiaRemision',  '09=GRE Remitente, 31=GRE Transportista'),
+('AfectacionIgv',     '10=Gravado, 20=Exonerado, 30=Inafecto, 40=Exportación'),
+('AmbienteSunat',     'BETA, PRODUCCION'),
 ('EstadoDocumento',   'Estados de documentos'),
 ('TipoVehiculo',      'Tipos de vehículo de la empresa'),
 ('CategoriaVencimiento', 'Categoría de documentos con vencimiento'),
