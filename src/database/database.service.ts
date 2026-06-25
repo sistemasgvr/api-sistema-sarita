@@ -8,17 +8,20 @@ import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
-  private pool: Pool;
+  private pool!: Pool;
 
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit() {
+    const ssl = this.configService.get<boolean>('database.ssl');
+
     this.pool = new Pool({
       host: this.configService.get<string>('database.host'),
       port: this.configService.get<number>('database.port'),
       user: this.configService.get<string>('database.user'),
       password: this.configService.get<string>('database.password'),
       database: this.configService.get<string>('database.database'),
+      ...(ssl && { ssl: { rejectUnauthorized: false } }),
     });
   }
 

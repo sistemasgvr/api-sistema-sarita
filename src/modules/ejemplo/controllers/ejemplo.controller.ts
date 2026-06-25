@@ -71,7 +71,7 @@ export class EjemploController {
       ],
     },
   })
-  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
     return this.ejemploLogic.obtenerPorId(id);
   }
@@ -110,7 +110,7 @@ export class EjemploController {
       ],
     },
   })
-  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateEjemploDto,
@@ -122,9 +122,18 @@ export class EjemploController {
   @ApiOperation({ summary: 'Eliminar un registro' })
   @ApiOkResponse({
     description: 'Registro eliminado',
-    type: ApiResponseDto,
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(ApiResponseDto) },
+        {
+          properties: {
+            data: { type: 'object', nullable: true },
+          },
+        },
+      ],
+    },
   })
-  @ApiNotFoundResponse({ type: ApiErrorResponseDto })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   eliminar(@Param('id', ParseIntPipe) id: number) {
     return this.ejemploLogic.eliminar(id);
   }
