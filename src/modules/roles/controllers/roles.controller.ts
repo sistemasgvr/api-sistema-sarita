@@ -10,6 +10,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
+import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
@@ -22,12 +24,14 @@ export class RolesController {
   constructor(private readonly rolesLogic: RolesLogic) {}
 
   @Get()
+  @Permisos(PermisoBanderas.ROLES_LISTAR)
   @ApiOperation({ summary: 'Listar roles' })
   listar(@Query() filtros: FiltroPaginacionDto) {
     return this.rolesLogic.listar(filtros);
   }
 
   @Get(':id')
+  @Permisos(PermisoBanderas.ROLES_VER)
   @ApiOperation({ summary: 'Obtener rol por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
@@ -35,12 +39,14 @@ export class RolesController {
   }
 
   @Post()
+  @Permisos(PermisoBanderas.ROLES_CREAR)
   @ApiOperation({ summary: 'Crear rol' })
   crear(@Body() dto: CreateRolDto) {
     return this.rolesLogic.crear(dto);
   }
 
   @Patch(':id')
+  @Permisos(PermisoBanderas.ROLES_EDITAR)
   @ApiOperation({ summary: 'Actualizar rol' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   actualizar(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRolDto) {
@@ -48,6 +54,7 @@ export class RolesController {
   }
 
   @Delete(':id')
+  @Permisos(PermisoBanderas.ROLES_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar rol (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   eliminar(

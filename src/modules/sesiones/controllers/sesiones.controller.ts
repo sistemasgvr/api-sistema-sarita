@@ -9,6 +9,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { Public } from '../../../common/decorators/public.decorator';
+import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
+import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
@@ -22,12 +24,14 @@ export class SesionesController {
   constructor(private readonly sesionesLogic: SesionesLogic) {}
 
   @Get()
+  @Permisos(PermisoBanderas.SESIONES_LISTAR)
   @ApiOperation({ summary: 'Listar sesiones' })
   listar(@Query() filtros: FiltroSesionesDto) {
     return this.sesionesLogic.listar(filtros);
   }
 
   @Get(':id')
+  @Permisos(PermisoBanderas.SESIONES_VER)
   @ApiOperation({ summary: 'Obtener sesión por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
@@ -35,6 +39,7 @@ export class SesionesController {
   }
 
   @Post()
+  @Permisos(PermisoBanderas.SESIONES_CREAR)
   @ApiOperation({ summary: 'Crear sesión' })
   crear(@Body() dto: CreateSesionDto) {
     return this.sesionesLogic.crear(dto);
@@ -48,6 +53,7 @@ export class SesionesController {
   }
 
   @Patch(':id/cerrar')
+  @Permisos(PermisoBanderas.SESIONES_CERRAR)
   @ApiOperation({ summary: 'Cerrar sesión' })
   cerrar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
     return this.sesionesLogic.cerrar(id, dto.idUsuarioAuditoria);

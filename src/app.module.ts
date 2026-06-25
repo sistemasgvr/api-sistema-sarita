@@ -5,6 +5,7 @@ import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import { envValidationSchema } from './config/env.validation';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { PermisosGuard } from './common/guards/permisos.guard';
 import { DatabaseModule } from './database/database.module';
 import { EjemploModule } from './modules/ejemplo/ejemplo.module';
 import { LoginModule } from './modules/login/login.module';
@@ -40,6 +41,10 @@ import { UsuariosRolesModule } from './modules/usuarios-roles/usuarios-roles.mod
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermisosGuard,
     },
   ],
 })

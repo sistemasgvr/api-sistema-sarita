@@ -38,4 +38,11 @@ export class LoginModel {
       [idSesion, idUsuario],
     );
   }
+
+  obtenerPermisosUsuario(idUsuario: number) {
+    return this.db.callFunctionJson<{ permisos: string[] }>(
+      'auth_obtener_permisos_usuario',
+      [idUsuario],
+    );
+  }
 }

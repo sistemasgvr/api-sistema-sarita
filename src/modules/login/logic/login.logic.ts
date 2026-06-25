@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
+import { AuthCloseResult } from '../../../common/interfaces/auth-db.interface';
 import { LoginDto } from '../dto/login.dto';
 import { LoginModel } from '../models/login.model';
 
@@ -39,15 +40,22 @@ export class LoginLogic {
       dto.userAgent ?? null,
     );
 
+    const permisosResult = await this.loginModel.obtenerPermisosUsuario(
+      usuario.id,
+    );
+
     const { contrasena: _, ...usuarioSinClave } = usuario;
 
     return {
       token,
-      usuario: usuarioSinClave,
+      usuario: {
+        ...usuarioSinClave,
+        permisos: permisosResult.permisos ?? [],
+      },
     };
   }
 
-  async logout(idSesion: number, idUsuario: number) {
+  async logout(idSesion: number, idUsuario: number): Promise<AuthCloseResult> {
     const result = await this.loginModel.cerrarSesion(idSesion, idUsuario);
 
     if (!result.cerrada) {

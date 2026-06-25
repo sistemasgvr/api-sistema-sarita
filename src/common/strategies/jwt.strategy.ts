@@ -43,9 +43,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Sesión inválida o expirada');
     }
 
+    const permisosResult = await this.db.callFunctionJson<{ permisos: string[] }>(
+      'auth_obtener_permisos_usuario',
+      [payload.sub],
+    );
+
     return {
       id: payload.sub,
       correo: payload.correo,
+      permisos: permisosResult.permisos ?? [],
       sesion: result.registro,
     };
   }
