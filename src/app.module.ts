@@ -15,6 +15,7 @@ import { RolesPermisosModule } from './modules/roles-permisos/roles-permisos.mod
 import { SesionesModule } from './modules/sesiones/sesiones.module';
 import { UsuariosModule } from './modules/usuarios/usuarios.module';
 import { UsuariosRolesModule } from './modules/usuarios-roles/usuarios-roles.module';
+import { ClientesModule } from './modules/clientes/clientes.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { UsuariosRolesModule } from './modules/usuarios-roles/usuarios-roles.mod
     RolesPermisosModule,
     SesionesModule,
     EjemploModule,
+    ClientesModule,
   ],
   providers: [
     {

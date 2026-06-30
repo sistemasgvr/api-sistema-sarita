@@ -1,31 +1,47 @@
+DROP FUNCTION IF EXISTS cli_listar_clientes(BOOLEAN, INT, VARCHAR, INT, INT);
 CREATE OR REPLACE FUNCTION cli_listar_clientes(
-    p_solo_activos     BOOLEAN  DEFAULT TRUE,
-    p_id_tipo_cliente   INT      DEFAULT NULL,
-    p_busqueda         varchar  DEFAULT NULL,  -- busca en razón social, nombres, documento o código
-    p_limite           INT      DEFAULT 50,
-    p_pagina           INT      DEFAULT 1
+    p_solo_activos    BOOLEAN  DEFAULT TRUE,
+    p_id_tipo_cliente INT      DEFAULT NULL,
+    p_busqueda        VARCHAR  DEFAULT NULL,
+    p_limite          INT      DEFAULT 50,
+    p_pagina          INT      DEFAULT 1
 )
-RETURNS SETOF cli_clientes
+RETURNS JSON
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    v_resultado JSON;
 BEGIN
-    RETURN QUERY
-    SELECT c.*
-    FROM cli_clientes c
-    WHERE (p_solo_activos = FALSE OR c.estado = 1)
-      AND (p_id_tipo_cliente IS NULL OR c.id_tipo_cliente = p_id_tipo_cliente)
-      AND (
-            p_busqueda IS NULL
-            OR c.razon_social ILIKE '%' || p_busqueda || '%'
-            OR c.nombres ILIKE '%' || p_busqueda || '%'
-            OR c.apellido_paterno ILIKE '%' || p_busqueda || '%'
-            OR c.apellido_materno ILIKE '%' || p_busqueda || '%'
-            OR c.numero_documento ILIKE '%' || p_busqueda || '%'
-            OR c.codigo_interno ILIKE '%' || p_busqueda || '%'
-          )
-    ORDER BY c.razon_social NULLS LAST, c.nombres NULLS LAST
-    LIMIT p_limite
-    OFFSET GREATEST(p_pagina - 1, 0) * p_limite;
+    WITH filtrados AS (
+        SELECT c.*
+        FROM cli_clientes c
+        WHERE (p_solo_activos = FALSE OR c.estado = 1)
+          AND (p_id_tipo_cliente IS NULL OR c.id_tipo_cliente = p_id_tipo_cliente)
+          AND (
+                p_busqueda IS NULL
+                OR c.razon_social ILIKE '%' || p_busqueda || '%'
+                OR c.nombres ILIKE '%' || p_busqueda || '%'
+                OR c.apellido_paterno ILIKE '%' || p_busqueda || '%'
+                OR c.apellido_materno ILIKE '%' || p_busqueda || '%'
+                OR c.numero_documento ILIKE '%' || p_busqueda || '%'
+                OR c.codigo_interno ILIKE '%' || p_busqueda || '%'
+              )
+    ),
+    total_count AS (
+        SELECT COUNT(*) AS total FROM filtrados
+    ),
+    paginados AS (
+        SELECT * FROM filtrados
+        ORDER BY razon_social NULLS LAST, nombres NULLS LAST
+        LIMIT p_limite
+        OFFSET GREATEST(p_pagina - 1, 0) * p_limite
+    )
+    SELECT json_build_object(
+        'total', COALESCE((SELECT total FROM total_count), 0),
+        'registros', COALESCE((SELECT json_agg(row_to_json(p)) FROM paginados p), '[]'::json)
+    ) INTO v_resultado;
+
+    RETURN v_resultado;
 END;
 $$;
 
