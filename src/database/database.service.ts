@@ -1,27 +1,53 @@
 import {
   Injectable,
+  Logger,
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { Pool, PoolClient, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(DatabaseService.name);
   private pool!: Pool;
 
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit() {
     const ssl = this.configService.get<boolean>('database.ssl');
+    const sslConfig = ssl ? { rejectUnauthorized: false } : undefined;
 
-    this.pool = new Pool({
-      host: this.configService.get<string>('database.host'),
-      port: this.configService.get<number>('database.port'),
-      user: this.configService.get<string>('database.user'),
-      password: this.configService.get<string>('database.password'),
-      database: this.configService.get<string>('database.database'),
-      ...(ssl && { ssl: { rejectUnauthorized: false } }),
+    const poolConfig: PoolConfig = {
+      max: this.configService.get<number>('database.poolMax'),
+      idleTimeoutMillis: this.configService.get<number>('database.idleTimeoutMillis'),
+      connectionTimeoutMillis: this.configService.get<number>(
+        'database.connectionTimeoutMillis',
+      ),
+      keepAlive: true,
+      ssl: sslConfig,
+    };
+
+    const databaseUrl = this.configService.get<string>('database.url');
+
+    if (databaseUrl) {
+      poolConfig.connectionString = databaseUrl;
+    } else {
+      poolConfig.host = this.configService.get<string>('database.host');
+      poolConfig.port = this.configService.get<number>('database.port');
+      poolConfig.user = this.configService.get<string>('database.user');
+      poolConfig.password = this.configService.get<string>('database.password');
+      poolConfig.database = this.configService.get<string>('database.database');
+    }
+
+    this.pool = new Pool(poolConfig);
+
+    // Obligatorio con pg: evita que errores en clientes idle derriben el proceso.
+    this.pool.on('error', (error) => {
+      this.logger.error(
+        `Error en conexión idle del pool PostgreSQL: ${error.message}`,
+        error.stack,
+      );
     });
   }
 
@@ -33,17 +59,40 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.pool.query('SELECT 1');
       return true;
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`No se pudo conectar a PostgreSQL: ${message}`);
       return false;
     }
   }
 
   getConnectionInfo() {
+    const databaseUrl = this.configService.get<string>('database.url');
+
+    if (databaseUrl) {
+      try {
+        const parsed = new URL(databaseUrl);
+        return {
+          host: parsed.hostname,
+          port: Number(parsed.port || 5432),
+          database: parsed.pathname.replace(/^\//, ''),
+          user: decodeURIComponent(parsed.username),
+        };
+      } catch {
+        return {
+          host: 'DATABASE_URL',
+          port: 5432,
+          database: '—',
+          user: '—',
+        };
+      }
+    }
+
     return {
-      host: this.configService.get<string>('database.host'),
-      port: this.configService.get<number>('database.port'),
-      database: this.configService.get<string>('database.database'),
-      user: this.configService.get<string>('database.user'),
+      host: this.configService.get<string>('database.host') ?? '—',
+      port: this.configService.get<number>('database.port') ?? 5432,
+      database: this.configService.get<string>('database.database') ?? '—',
+      user: this.configService.get<string>('database.user') ?? '—',
     };
   }
 
