@@ -1,54 +1,57 @@
 CREATE OR REPLACE FUNCTION cli_crear_clientes(
-    p_codigo_interno              varchar  DEFAULT NULL,
-    p_razon_social                varchar  DEFAULT NULL,
-    p_id_tipo_cliente              INT      DEFAULT NULL,
-    p_id_tipo_persona              INT      DEFAULT NULL,
-    p_nombres                     varchar  DEFAULT NULL,
-    p_apellido_paterno             varchar  DEFAULT NULL,
-    p_apellido_materno             varchar  DEFAULT NULL,
-    p_id_tipo_documento            INT      DEFAULT NULL,
-    p_numero_documento             varchar  DEFAULT NULL,
-    p_direccion                   varchar  DEFAULT NULL,
-    p_referencia                  varchar  DEFAULT NULL,
-    p_telefono                    varchar  DEFAULT NULL,
-    p_email                       varchar  DEFAULT NULL,
-    p_id_departamento              INT      DEFAULT NULL,
-    p_id_provincia                 INT      DEFAULT NULL,
-    p_id_distrito                  INT      DEFAULT NULL,
+    p_codigo_interno              VARCHAR  DEFAULT NULL,
+    p_razon_social                VARCHAR  DEFAULT NULL,
+    p_id_tipo_cliente             INT      DEFAULT NULL,
+    p_id_tipo_persona             INT      DEFAULT NULL,
+    p_nombres                     VARCHAR  DEFAULT NULL,
+    p_apellido_paterno            VARCHAR  DEFAULT NULL,
+    p_apellido_materno            VARCHAR  DEFAULT NULL,
+    p_id_tipo_documento           INT      DEFAULT NULL,
+    p_numero_documento            VARCHAR  DEFAULT NULL,
+    p_direccion                   VARCHAR  DEFAULT NULL,
+    p_referencia                  VARCHAR  DEFAULT NULL,
+    p_telefono                    VARCHAR  DEFAULT NULL,
+    p_email                       VARCHAR  DEFAULT NULL,
+    p_id_departamento             INT      DEFAULT NULL,
+    p_id_provincia                INT      DEFAULT NULL,
+    p_id_distrito                 INT      DEFAULT NULL,
     p_id_pais                     INT      DEFAULT NULL,
-    p_es_agente_percepcion         BOOLEAN  DEFAULT FALSE,
-    p_es_buen_contribuyente        BOOLEAN  DEFAULT FALSE,
-    p_es_agente_retenedor          BOOLEAN  DEFAULT FALSE,
+    p_es_agente_percepcion        BOOLEAN  DEFAULT FALSE,
+    p_es_buen_contribuyente       BOOLEAN  DEFAULT FALSE,
+    p_es_agente_retenedor         BOOLEAN  DEFAULT FALSE,
     p_afecto_rus                  BOOLEAN  DEFAULT FALSE,
-    p_situacion_sunat              varchar  DEFAULT NULL,
-    p_estado_contribuyente_sunat   varchar  DEFAULT NULL,
-    p_observacion                 varchar  DEFAULT NULL,
-    p_id_usuario                  INT      DEFAULT NULL  -- usuario que crea (auditoría)
+    p_situacion_sunat             VARCHAR  DEFAULT NULL,
+    p_estado_contribuyente_sunat  VARCHAR  DEFAULT NULL,
+    p_observacion                 VARCHAR  DEFAULT NULL,
+    p_id_usuario                  INT      DEFAULT NULL
 )
-RETURNS SETOF cli_clientes
+RETURNS JSON
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    v_id INT;
 BEGIN
-    -- Validar que se identifique al menos por razón social/nombres
+    SET TIME ZONE 'America/Lima';
+
+    -- Validar que se identifique al menos por razón social o nombres
     IF p_razon_social IS NULL AND p_nombres IS NULL THEN
-        RAISE EXCEPTION 'Debe indicar razon_social o nombres del cliente';
+        RETURN json_build_object('error', 'Debe indicar razon_social o nombres del cliente', 'registro', NULL);
     END IF;
 
-    -- Validar que se identifique documento único (si se envía)
+    -- Validar que el documento sea único
     IF p_numero_documento IS NOT NULL AND EXISTS (
         SELECT 1 FROM cli_clientes WHERE numero_documento = p_numero_documento
     ) THEN
-        RAISE EXCEPTION 'Ya existe un cliente registrado con el documento %', p_numero_documento;
+        RETURN json_build_object('error', 'Ya existe un cliente registrado con el documento ' || p_numero_documento, 'registro', NULL);
     END IF;
 
-    -- Validar que se identifique código interno único (si se envía)
+    -- Validar que el código interno sea único
     IF p_codigo_interno IS NOT NULL AND EXISTS (
         SELECT 1 FROM cli_clientes WHERE codigo_interno = p_codigo_interno
     ) THEN
-        RAISE EXCEPTION 'Ya existe un cliente con el código interno %', p_codigo_interno;
-    END IF;		
+        RETURN json_build_object('error', 'Ya existe un cliente con el código interno ' || p_codigo_interno, 'registro', NULL);
+    END IF;     
 
-    RETURN QUERY
     INSERT INTO cli_clientes (
         codigo_interno, razon_social, id_tipo_cliente, id_tipo_persona,
         nombres, apellido_paterno, apellido_materno,
@@ -69,6 +72,8 @@ BEGIN
         p_situacion_sunat, p_estado_contribuyente_sunat, p_observacion,
         1, p_id_usuario, p_id_usuario
     )
-    RETURNING *;
+    RETURNING id INTO v_id;
+
+    RETURN cli_obtener_por_id_cliente(v_id);
 END;
 $$;
