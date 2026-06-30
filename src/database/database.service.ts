@@ -2,28 +2,38 @@ import {
   Injectable,
   Logger,
   OnModuleDestroy,
-  OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool, PoolClient, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 
 @Injectable()
-export class DatabaseService implements OnModuleInit, OnModuleDestroy {
+export class DatabaseService implements OnModuleDestroy {
   private readonly logger = new Logger(DatabaseService.name);
-  private pool!: Pool;
+  private readonly pool: Pool;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) {
+    this.pool = this.createPool();
 
-  onModuleInit() {
+    // Obligatorio con pg: evita que errores en clientes idle derriben el proceso.
+    this.pool.on('error', (error) => {
+      this.logger.error(
+        `Error en conexión idle del pool PostgreSQL: ${error.message}`,
+        error.stack,
+      );
+    });
+  }
+
+  private createPool(): Pool {
     const ssl = this.configService.get<boolean>('database.ssl');
     const sslConfig = ssl ? { rejectUnauthorized: false } : undefined;
 
     const poolConfig: PoolConfig = {
-      max: this.configService.get<number>('database.poolMax'),
-      idleTimeoutMillis: this.configService.get<number>('database.idleTimeoutMillis'),
-      connectionTimeoutMillis: this.configService.get<number>(
-        'database.connectionTimeoutMillis',
-      ),
+      max: this.configService.get<number>('database.poolMax') ?? 10,
+      idleTimeoutMillis:
+        this.configService.get<number>('database.idleTimeoutMillis') ?? 30_000,
+      connectionTimeoutMillis:
+        this.configService.get<number>('database.connectionTimeoutMillis') ??
+        10_000,
       keepAlive: true,
       ssl: sslConfig,
     };
@@ -40,15 +50,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       poolConfig.database = this.configService.get<string>('database.database');
     }
 
-    this.pool = new Pool(poolConfig);
-
-    // Obligatorio con pg: evita que errores en clientes idle derriben el proceso.
-    this.pool.on('error', (error) => {
-      this.logger.error(
-        `Error en conexión idle del pool PostgreSQL: ${error.message}`,
-        error.stack,
-      );
-    });
+    return new Pool(poolConfig);
   }
 
   async onModuleDestroy() {

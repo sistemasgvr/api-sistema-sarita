@@ -14,6 +14,7 @@ import { EjemploResponseDto } from './modules/ejemplo/dto/ejemplo-response.dto';
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
+  await app.init();
 
   app.enableCors({
     origin: true,
