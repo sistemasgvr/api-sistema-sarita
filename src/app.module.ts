@@ -7,8 +7,14 @@ import { envValidationSchema } from './config/env.validation';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermisosGuard } from './common/guards/permisos.guard';
 import { DatabaseModule } from './database/database.module';
+import { AlmacenesModule } from './modules/almacenes/almacenes.module';
+import { CondicionesPagoModule } from './modules/condiciones-pago/condiciones-pago.module';
+import { ConfiguracionServiciosModule } from './modules/configuracion-servicios/configuracion-servicios.module';
+import { ConfiguracionSunatModule } from './modules/configuracion-sunat/configuracion-sunat.module';
 import { EjemploModule } from './modules/ejemplo/ejemplo.module';
+import { EmpresasModule } from './modules/empresas/empresas.module';
 import { LoginModule } from './modules/login/login.module';
+import { SucursalesModule } from './modules/sucursales/sucursales.module';
 import { PermisosModule } from './modules/permisos/permisos.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { RolesPermisosModule } from './modules/roles-permisos/roles-permisos.module';
@@ -35,6 +41,12 @@ import { UsuariosRolesModule } from './modules/usuarios-roles/usuarios-roles.mod
     UsuariosRolesModule,
     RolesPermisosModule,
     SesionesModule,
+    SucursalesModule,
+    AlmacenesModule,
+    CondicionesPagoModule,
+    EmpresasModule,
+    ConfiguracionSunatModule,
+    ConfiguracionServiciosModule,
     EjemploModule,
   ],
   providers: [

@@ -35,6 +35,42 @@ export const PermisoBanderas = {
   SESIONES_VER: 'sesiones.ver',
   SESIONES_CREAR: 'sesiones.crear',
   SESIONES_CERRAR: 'sesiones.cerrar',
+
+  SUCURSALES_LISTAR: 'sucursales.listar',
+  SUCURSALES_VER: 'sucursales.ver',
+  SUCURSALES_CREAR: 'sucursales.crear',
+  SUCURSALES_EDITAR: 'sucursales.editar',
+  SUCURSALES_ELIMINAR: 'sucursales.eliminar',
+
+  ALMACENES_LISTAR: 'almacenes.listar',
+  ALMACENES_VER: 'almacenes.ver',
+  ALMACENES_CREAR: 'almacenes.crear',
+  ALMACENES_EDITAR: 'almacenes.editar',
+  ALMACENES_ELIMINAR: 'almacenes.eliminar',
+
+  CONDICIONES_PAGO_LISTAR: 'condiciones_pago.listar',
+  CONDICIONES_PAGO_VER: 'condiciones_pago.ver',
+  CONDICIONES_PAGO_CREAR: 'condiciones_pago.crear',
+  CONDICIONES_PAGO_EDITAR: 'condiciones_pago.editar',
+  CONDICIONES_PAGO_ELIMINAR: 'condiciones_pago.eliminar',
+
+  EMPRESAS_LISTAR: 'empresas.listar',
+  EMPRESAS_VER: 'empresas.ver',
+  EMPRESAS_CREAR: 'empresas.crear',
+  EMPRESAS_EDITAR: 'empresas.editar',
+  EMPRESAS_ELIMINAR: 'empresas.eliminar',
+
+  CONFIGURACION_SUNAT_LISTAR: 'configuracion_sunat.listar',
+  CONFIGURACION_SUNAT_VER: 'configuracion_sunat.ver',
+  CONFIGURACION_SUNAT_CREAR: 'configuracion_sunat.crear',
+  CONFIGURACION_SUNAT_EDITAR: 'configuracion_sunat.editar',
+  CONFIGURACION_SUNAT_ELIMINAR: 'configuracion_sunat.eliminar',
+
+  CONFIGURACION_SERVICIOS_LISTAR: 'configuracion_servicios.listar',
+  CONFIGURACION_SERVICIOS_VER: 'configuracion_servicios.ver',
+  CONFIGURACION_SERVICIOS_CREAR: 'configuracion_servicios.crear',
+  CONFIGURACION_SERVICIOS_EDITAR: 'configuracion_servicios.editar',
+  CONFIGURACION_SERVICIOS_ELIMINAR: 'configuracion_servicios.eliminar',
 } as const;
 
 export type PermisoBandera =
