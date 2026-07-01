@@ -41,6 +41,7 @@ export const PermisoBanderas = {
   CLIENTES_CREAR: 'clientes.crear',
   CLIENTES_EDITAR: 'clientes.editar',
   CLIENTES_ELIMINAR: 'clientes.eliminar',
+  CLIENTES_RESTAURAR: 'clientes.restaurar',
 
   SUCURSALES_LISTAR: 'sucursales.listar',
   SUCURSALES_VER: 'sucursales.ver',

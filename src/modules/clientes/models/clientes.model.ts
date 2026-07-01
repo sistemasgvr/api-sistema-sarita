@@ -1,21 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { FiltroClienteDto } from '../dto/filtros-cliente.dto';
-import { AuthDeleteResult, AuthExisteResult, AuthListResult, AuthSingleResult } from '../../../common/interfaces/auth-db.interface';
+import {
+  AuthDeleteResult,
+  AuthExisteResult,
+  AuthListResult,
+  AuthSingleResult,
+} from '../../../common/interfaces/auth-db.interface';
 import { CreateClienteDto, UpdateClienteDto } from '../dto/crear-cliente.dto';
 
 @Injectable()
 export class ClientesModel {
   constructor(private readonly db: DatabaseService) {}
+
   listar(filtros: FiltroClienteDto) {
     return this.db.callFunctionJson<AuthListResult>('cli_listar_clientes', [
       filtros.soloActivos ?? true,
       filtros.idTipoCliente ?? null,
-      filtros.busqueda ?? null,
+      filtros.buscar ?? null,
       filtros.limite ?? 50,
       filtros.pagina ?? 1,
     ]);
   }
+
   obtenerPorId(id: number) {
     return this.db.callFunctionJson<AuthSingleResult<any>>('cli_obtener_por_id_cliente', [id]);
   }

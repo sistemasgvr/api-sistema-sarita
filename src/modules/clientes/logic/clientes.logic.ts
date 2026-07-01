@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { mapDeleteResult, mapListResult, mapSingleResult } from '../../../common/helpers/auth-response.helper';
+import {
+  mapDeleteResult,
+  mapListResult,
+  mapSingleResult,
+} from '../../../common/helpers/auth-response.helper';
 import { FiltroClienteDto } from '../dto/filtros-cliente.dto';
 import { ClientesModel } from '../models/clientes.model';
 import { ValidarDocumentoClienteDto } from '../dto/validar-documento.dto';
-import { ResponseHelper } from 'src/common/helpers/response.helper';
 import { CreateClienteDto, UpdateClienteDto } from '../dto/crear-cliente.dto';
 
 @Injectable()
@@ -20,19 +23,18 @@ export class ClientesLogic {
     return mapSingleResult(result, `Cliente ${id} no encontrado`);
   }
 
-  async eliminar(id: number) {
-    const result = await this.clientesModel.eliminar(id);
+  async eliminar(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.clientesModel.eliminar(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Cliente ${id} no encontrado o ya está inactivo`);
   }
 
-  async restaurar(id: number) {
-    const result = await this.clientesModel.restaurar(id);
+  async restaurar(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.clientesModel.restaurar(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Cliente ${id} no encontrado o ya está activo`);
   }
 
   async validarDocumento(dto: ValidarDocumentoClienteDto) {
-    const result = await this.clientesModel.validarDocumento(dto.numeroDocumento,dto.idExcluir,);
-    return ResponseHelper.success(result, 'Validación de documento realizada');
+    return this.clientesModel.validarDocumento(dto.numeroDocumento, dto.idExcluir);
   }
 
   async crear(dto: CreateClienteDto) {

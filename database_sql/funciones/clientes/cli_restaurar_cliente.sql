@@ -9,13 +9,15 @@ DECLARE
     v_estado INT;
 BEGIN
     SET TIME ZONE 'America/Lima';
+
     SELECT estado INTO v_estado FROM cli_clientes WHERE id = p_id;
+
     IF NOT FOUND THEN
-        RETURN json_build_object('eliminado', false, 'error', 'No existe un cliente con id ' || p_id);
+        RETURN json_build_object('eliminado', false, 'id', p_id);
     END IF;
 
     IF v_estado = 1 THEN
-        RETURN json_build_object('eliminado', false, 'error', 'El cliente con id ' || p_id || ' ya se encuentra activo');
+        RETURN json_build_object('eliminado', false, 'id', p_id);
     END IF;
 
     UPDATE cli_clientes
@@ -24,8 +26,6 @@ BEGIN
         fecha_modificacion = NOW()
     WHERE id = p_id;
 
-    RETURN json_build_object('eliminado', true, 'mensaje', 'Cliente reactivado correctamente');
+    RETURN json_build_object('eliminado', true, 'id', p_id);
 END;
 $$;
-
-select * FROM cli_restaurar_cliente(20, 1);
