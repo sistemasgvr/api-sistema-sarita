@@ -1,52 +1,48 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateEjemploDto } from '../dto/create-ejemplo.dto';
-import { FiltroEjemploDto } from '../dto/filtro-ejemplo.dto';
-import { UpdateEjemploDto } from '../dto/update-ejemplo.dto';
+import { Injectable } from '@nestjs/common';
+import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
+import {
+  mapDeleteResult,
+  mapListResult,
+  mapSingleResult,
+} from '../../../common/helpers/auth-response.helper';
+import { CreateEjemploDto, UpdateEjemploDto } from '../dto/ejemplos.dto';
 import { EjemploModel } from '../models/ejemplo.model';
 
 @Injectable()
 export class EjemploLogic {
   constructor(private readonly ejemploModel: EjemploModel) {}
 
-  listar(filtros: FiltroEjemploDto) {
-    return this.ejemploModel.listar(filtros);
+  async listar(filtros: FiltroPaginacionDto) {
+    const result = await this.ejemploModel.listar(filtros);
+    return mapListResult(result, filtros);
   }
 
   async obtenerPorId(id: number) {
-    const registro = await this.ejemploModel.obtenerPorId(id);
-
-    if (!registro) {
-      throw new NotFoundException(`Registro ${id} no encontrado`);
-    }
-
-    return registro;
+    const result = await this.ejemploModel.obtenerPorId(id);
+    return mapSingleResult(result, `Ejemplo ${id} no encontrado`);
   }
 
-  crear(dto: CreateEjemploDto) {
-    return this.ejemploModel.crear(dto);
+  async crear(dto: CreateEjemploDto) {
+    const result = await this.ejemploModel.crear(
+      dto.nombre,
+      dto.descripcion ?? null,
+      dto.idUsuarioAuditoria,
+    );
+    return mapSingleResult(result, 'No se pudo crear el ejemplo');
   }
 
   async actualizar(id: number, dto: UpdateEjemploDto) {
-    await this.obtenerPorId(id);
-
-    const actualizado = await this.ejemploModel.actualizar(id, dto);
-
-    if (!actualizado) {
-      throw new NotFoundException(`No se pudo actualizar el registro ${id}`);
-    }
-
-    return actualizado;
+    const result = await this.ejemploModel.actualizar(
+      id,
+      dto.nombre ?? null,
+      dto.descripcion ?? null,
+      dto.idUsuarioAuditoria,
+    );
+    return mapSingleResult(result, `Ejemplo ${id} no encontrado`);
   }
 
-  async eliminar(id: number) {
-    await this.obtenerPorId(id);
-
-    const eliminado = await this.ejemploModel.eliminar(id);
-
-    if (!eliminado) {
-      throw new NotFoundException(`No se pudo eliminar el registro ${id}`);
-    }
-
-    return eliminado;
+  async eliminar(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.ejemploModel.eliminar(id, idUsuarioAuditoria);
+    return mapDeleteResult(result, `Ejemplo ${id} no encontrado`);
   }
 }

@@ -5,6 +5,12 @@
 export const PermisoBanderas = {
   AUTH_TODO: 'auth.todo',
 
+  EJEMPLOS_LISTAR: 'ejemplos.listar',
+  EJEMPLOS_VER: 'ejemplos.ver',
+  EJEMPLOS_CREAR: 'ejemplos.crear',
+  EJEMPLOS_EDITAR: 'ejemplos.editar',
+  EJEMPLOS_ELIMINAR: 'ejemplos.eliminar',
+
   USUARIOS_LISTAR: 'usuarios.listar',
   USUARIOS_VER: 'usuarios.ver',
   USUARIOS_CREAR: 'usuarios.crear',

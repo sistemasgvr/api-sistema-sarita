@@ -9,7 +9,6 @@ import {
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformResponseInterceptor } from './common/interceptors/transform-response.interceptor';
 import { DatabaseService } from './database/database.service';
-import { EjemploResponseDto } from './modules/ejemplo/dto/ejemplo-response.dto';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -41,7 +40,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig, {
-    extraModels: [ApiResponseDto, ApiErrorResponseDto, EjemploResponseDto],
+    extraModels: [ApiResponseDto, ApiErrorResponseDto],
   });
   SwaggerModule.setup('api/docs', app, document);
 

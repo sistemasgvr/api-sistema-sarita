@@ -9,24 +9,13 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import {
-  ApiCreatedResponse,
-  ApiNotFoundResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-  getSchemaPath,
-} from '@nestjs/swagger';
-import {
-  ApiErrorResponseDto,
-  ApiResponseDto,
-} from '../../../common/dto/api-response.dto';
-import {
-  CreateEjemploDto,
-  EjemploResponseDto,
-  FiltroEjemploDto,
-  UpdateEjemploDto,
-} from '../dto';
+import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
+import { Permisos } from '../../../common/decorators/permisos.decorator';
+import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
+import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
+import { CreateEjemploDto, UpdateEjemploDto } from '../dto/ejemplos.dto';
 import { EjemploLogic } from '../logic/ejemplo.logic';
 
 @ApiTags('Ejemplo')
@@ -35,81 +24,30 @@ export class EjemploController {
   constructor(private readonly ejemploLogic: EjemploLogic) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar registros con filtros opcionales' })
-  @ApiOkResponse({
-    description: 'Lista de registros',
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponseDto) },
-        {
-          properties: {
-            data: {
-              type: 'array',
-              items: { $ref: getSchemaPath(EjemploResponseDto) },
-            },
-          },
-        },
-      ],
-    },
-  })
-  listar(@Query() filtros: FiltroEjemploDto) {
+  @Permisos(PermisoBanderas.EJEMPLOS_LISTAR)
+  @ApiOperation({ summary: 'Listar ejemplos' })
+  listar(@Query() filtros: FiltroPaginacionDto) {
     return this.ejemploLogic.listar(filtros);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtener un registro por ID' })
-  @ApiOkResponse({
-    description: 'Registro encontrado',
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponseDto) },
-        {
-          properties: {
-            data: { $ref: getSchemaPath(EjemploResponseDto) },
-          },
-        },
-      ],
-    },
-  })
+  @Permisos(PermisoBanderas.EJEMPLOS_VER)
+  @ApiOperation({ summary: 'Obtener ejemplo por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
     return this.ejemploLogic.obtenerPorId(id);
   }
 
   @Post()
-  @ApiOperation({ summary: 'Crear un nuevo registro' })
-  @ApiCreatedResponse({
-    description: 'Registro creado',
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponseDto) },
-        {
-          properties: {
-            data: { $ref: getSchemaPath(EjemploResponseDto) },
-          },
-        },
-      ],
-    },
-  })
+  @Permisos(PermisoBanderas.EJEMPLOS_CREAR)
+  @ApiOperation({ summary: 'Crear ejemplo' })
   crear(@Body() dto: CreateEjemploDto) {
     return this.ejemploLogic.crear(dto);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar un registro existente' })
-  @ApiOkResponse({
-    description: 'Registro actualizado',
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponseDto) },
-        {
-          properties: {
-            data: { $ref: getSchemaPath(EjemploResponseDto) },
-          },
-        },
-      ],
-    },
-  })
+  @Permisos(PermisoBanderas.EJEMPLOS_EDITAR)
+  @ApiOperation({ summary: 'Actualizar ejemplo' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   actualizar(
     @Param('id', ParseIntPipe) id: number,
@@ -119,22 +57,13 @@ export class EjemploController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar un registro' })
-  @ApiOkResponse({
-    description: 'Registro eliminado',
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(ApiResponseDto) },
-        {
-          properties: {
-            data: { type: 'object', nullable: true },
-          },
-        },
-      ],
-    },
-  })
+  @Permisos(PermisoBanderas.EJEMPLOS_ELIMINAR)
+  @ApiOperation({ summary: 'Eliminar ejemplo (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  eliminar(@Param('id', ParseIntPipe) id: number) {
-    return this.ejemploLogic.eliminar(id);
+  eliminar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.ejemploLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

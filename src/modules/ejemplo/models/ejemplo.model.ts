@@ -1,46 +1,63 @@
 import { Injectable } from '@nestjs/common';
+import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
+import {
+  AuthDeleteResult,
+  AuthListResult,
+  AuthSingleResult,
+} from '../../../common/interfaces/auth-db.interface';
 import { DatabaseService } from '../../../database/database.service';
-import { CreateEjemploDto } from '../dto/create-ejemplo.dto';
-import { FiltroEjemploDto } from '../dto/filtro-ejemplo.dto';
-import { UpdateEjemploDto } from '../dto/update-ejemplo.dto';
 
 @Injectable()
 export class EjemploModel {
   constructor(private readonly db: DatabaseService) {}
 
-  listar(filtros: FiltroEjemploDto) {
-    return this.db.callFunction('fn_ejemplo_listar', [
-      filtros.buscar ?? null,
-      filtros.soloActivos ?? true,
-      filtros.pagina ?? 1,
+  listar(filtros: FiltroPaginacionDto) {
+    return this.db.callFunctionJson<AuthListResult>('gen_listar_ejemplos', [
+      filtros.buscar ?? '',
       filtros.limite ?? 10,
+      filtros.offset,
     ]);
   }
 
-  async obtenerPorId(id: number) {
-    const rows = await this.db.callFunction('fn_ejemplo_obtener_por_id', [id]);
-    return rows[0] ?? null;
-  }
-
-  async crear(dto: CreateEjemploDto) {
-    const rows = await this.db.callFunction('fn_ejemplo_crear', [
-      dto.nombre,
-      dto.descripcion ?? null,
-    ]);
-    return rows[0];
-  }
-
-  async actualizar(id: number, dto: UpdateEjemploDto) {
-    const rows = await this.db.callFunction('fn_ejemplo_actualizar', [
+  obtenerPorId(id: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('gen_obtener_ejemplo', [
       id,
-      dto.nombre ?? null,
-      dto.descripcion ?? null,
     ]);
-    return rows[0] ?? null;
   }
 
-  async eliminar(id: number) {
-    const rows = await this.db.callFunction('fn_ejemplo_eliminar', [id]);
-    return rows[0] ?? null;
+  crear(
+    nombre: string,
+    descripcion: string | null,
+    idUsuarioAuditoria?: number,
+  ) {
+    return this.db.callFunctionJson<AuthSingleResult>('gen_crear_ejemplo', [
+      nombre,
+      descripcion,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  actualizar(
+    id: number,
+    nombre: string | null,
+    descripcion: string | null,
+    idUsuarioAuditoria?: number,
+  ) {
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'gen_actualizar_ejemplo',
+      [
+        id,
+        nombre,
+        descripcion,
+        idUsuarioAuditoria ?? null,
+      ],
+    );
+  }
+
+  eliminar(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthDeleteResult>('gen_eliminar_ejemplo', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
   }
 }

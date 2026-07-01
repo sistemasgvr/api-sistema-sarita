@@ -11,7 +11,6 @@ import { AlmacenesModule } from './modules/almacenes/almacenes.module';
 import { CondicionesPagoModule } from './modules/condiciones-pago/condiciones-pago.module';
 import { ConfiguracionServiciosModule } from './modules/configuracion-servicios/configuracion-servicios.module';
 import { ConfiguracionSunatModule } from './modules/configuracion-sunat/configuracion-sunat.module';
-import { EjemploModule } from './modules/ejemplo/ejemplo.module';
 import { EmpresasModule } from './modules/empresas/empresas.module';
 import { LoginModule } from './modules/login/login.module';
 import { SucursalesModule } from './modules/sucursales/sucursales.module';
@@ -48,7 +47,6 @@ import { ClientesModule } from './modules/clientes/clientes.module';
     EmpresasModule,
     ConfiguracionSunatModule,
     ConfiguracionServiciosModule,
-    EjemploModule,
     ClientesModule,
   ],
   providers: [
