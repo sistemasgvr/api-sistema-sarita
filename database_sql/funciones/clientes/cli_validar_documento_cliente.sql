@@ -1,8 +1,8 @@
 CREATE OR REPLACE FUNCTION cli_validar_documento_cliente(
     p_numero_documento varchar,
-    p_id_excluir       INT DEFAULT NULL
+    p_id_excluir       INT DEFAULT NULL  -- enviar el id propio al editar
 )
-RETURNS JSON
+RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -14,6 +14,6 @@ BEGIN
           AND (p_id_excluir IS NULL OR id <> p_id_excluir)
     ) INTO v_existe;
 
-    RETURN json_build_object('existe', v_existe);
+    RETURN v_existe;
 END;
 $$;

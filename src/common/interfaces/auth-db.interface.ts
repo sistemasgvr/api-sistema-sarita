@@ -22,7 +22,3 @@ export interface AuthSessionValidateResult<T = unknown> {
   valida: boolean;
   registro: T | null;
 }
-
-export interface AuthExisteResult {
-  existe: boolean;
-}
