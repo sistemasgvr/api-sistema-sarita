@@ -4,14 +4,26 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { ApiErrorResponse } from '../interfaces/api-response.interface';
+
+interface ErrorCause {
+  message: string;
+  code?: string;
+  detail?: string;
+  table?: string;
+  constraint?: string;
+}
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(HttpExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
+    const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -37,6 +49,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     }
 
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      const cause = this.getErrorCause(exception);
+      response.locals.errorCause = cause;
+      this.logUnhandledException(cause, exception, request);
+    }
+
     const body: ApiErrorResponse = {
       success: false,
       message,
@@ -46,5 +64,51 @@ export class HttpExceptionFilter implements ExceptionFilter {
     };
 
     response.status(status).json(body);
+  }
+
+  private getErrorCause(exception: unknown): ErrorCause {
+    if (exception instanceof Error) {
+      const dbError = exception as Error & {
+        code?: string;
+        detail?: string;
+        table?: string;
+        constraint?: string;
+      };
+
+      return {
+        message: exception.message,
+        code: dbError.code,
+        detail: dbError.detail,
+        table: dbError.table,
+        constraint: dbError.constraint,
+      };
+    }
+
+    return {
+      message: JSON.stringify(exception),
+    };
+  }
+
+  private logUnhandledException(
+    cause: ErrorCause,
+    exception: unknown,
+    request: Request,
+  ) {
+    const method = request.method;
+    const url = request.originalUrl;
+
+    if (exception instanceof Error) {
+      this.logger.error(
+        `${method} ${url} failed: ${cause.message}` +
+          `${cause.code ? ` | code=${cause.code}` : ''}` +
+          `${cause.detail ? ` | detail=${cause.detail}` : ''}` +
+          `${cause.table ? ` | table=${cause.table}` : ''}` +
+          `${cause.constraint ? ` | constraint=${cause.constraint}` : ''}`,
+        exception.stack,
+      );
+      return;
+    }
+
+    this.logger.error(`${method} ${url} failed: ${cause.message}`);
   }
 }

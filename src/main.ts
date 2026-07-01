@@ -8,6 +8,7 @@ import {
 } from './common/dto/api-response.dto';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformResponseInterceptor } from './common/interceptors/transform-response.interceptor';
+import { httpRequestLoggerMiddleware } from './common/middleware/http-request-logger.middleware';
 import { DatabaseService } from './database/database.service';
 
 async function bootstrap() {
@@ -20,6 +21,8 @@ async function bootstrap() {
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
+
+  app.use(httpRequestLoggerMiddleware);
 
   app.useGlobalPipes(
     new ValidationPipe({
