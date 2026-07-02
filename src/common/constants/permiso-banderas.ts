@@ -89,6 +89,5 @@ export const PermisoBanderas = {
 export type PermisoBandera =
   (typeof PermisoBanderas)[keyof typeof PermisoBanderas];
 
-export const TODAS_LAS_BANDERAS: PermisoBandera[] = Object.values(
-  PermisoBanderas,
-);
+export const TODAS_LAS_BANDERAS: PermisoBandera[] =
+  Object.values(PermisoBanderas);

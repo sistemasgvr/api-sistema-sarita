@@ -21,6 +21,7 @@ import { SesionesModule } from './modules/sesiones/sesiones.module';
 import { UsuariosModule } from './modules/usuarios/usuarios.module';
 import { UsuariosRolesModule } from './modules/usuarios-roles/usuarios-roles.module';
 import { ClientesModule } from './modules/clientes/clientes.module';
+import { ConsultasModule } from './modules/consultas/consultas.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { ClientesModule } from './modules/clientes/clientes.module';
     ConfiguracionSunatModule,
     ConfiguracionServiciosModule,
     ClientesModule,
+    ConsultasModule,
   ],
   providers: [
     {
