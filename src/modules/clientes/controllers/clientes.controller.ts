@@ -18,6 +18,7 @@ import { FiltroClienteDto } from '../dto/filtros-cliente.dto';
 import { ClientesLogic } from '../logic/clientes.logic';
 import { ValidarDocumentoClienteDto } from '../dto/validar-documento.dto';
 import { CreateClienteDto, UpdateClienteDto } from '../dto/crear-cliente.dto';
+import {Public} from "../../../common/decorators/public.decorator";
 
 @ApiTags('Clientes')
 @Controller('clientes')
@@ -47,6 +48,7 @@ export class ClientesController {
   }
 
   @Post()
+  @Public()
   @Permisos(PermisoBanderas.CLIENTES_CREAR)
   @ApiOperation({ summary: 'Crear cliente' })
   crear(@Body() dto: CreateClienteDto) {
@@ -64,7 +66,7 @@ export class ClientesController {
     return this.clientesLogic.restaurar(id, dto.idUsuarioAuditoria);
   }
 
-  @Patch(':id')
+  @Patch(':id') 
   @Permisos(PermisoBanderas.CLIENTES_EDITAR)
   @ApiOperation({ summary: 'Actualizar cliente' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })

@@ -50,11 +50,8 @@ import { CatalogosModule } from './modules/catalogos/catalogos.module';
     ConfiguracionSunatModule,
     ConfiguracionServiciosModule,
     ClientesModule,
-<<<<<<< HEAD
     ConsultasModule,
-=======
     CatalogosModule,
->>>>>>> 9db1dc41f91007b82d740148a31a3d729e0a5e77
   ],
   providers: [
     {
