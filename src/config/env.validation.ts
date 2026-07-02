@@ -6,6 +6,11 @@ export const envValidationSchema = Joi.object({
     .default('development'),
 
   PORT: Joi.number().port().default(3000),
+  HTTP_REQUEST_LOGGER_ENABLED: Joi.boolean()
+    .truthy('true')
+    .falsy('false')
+    .default(true),
+  HTTP_REQUEST_LOGGER_MAX_BODY_LENGTH: Joi.number().integer().min(0).default(2000),
 
   DB_HOST: Joi.string().required(),
   DB_PORT: Joi.number().port().default(5432),
