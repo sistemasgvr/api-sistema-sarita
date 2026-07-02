@@ -22,6 +22,12 @@ import { UsuariosModule } from './modules/usuarios/usuarios.module';
 import { UsuariosRolesModule } from './modules/usuarios-roles/usuarios-roles.module';
 import { ClientesModule } from './modules/clientes/clientes.module';
 import { CatalogosModule } from './modules/catalogos/catalogos.module';
+import { CategoriasProductoModule } from './modules/categorias-producto/categorias-producto.module';
+import { SubCategoriasProductoModule } from './modules/sub-categorias-producto/sub-categorias-producto.module';
+import { CatalogoPreciosModule } from './modules/catalogo-precios/catalogo-precios.module';
+import { StockProductoModule } from './modules/stock-producto/stock-producto.module';
+import { MovimientosInventarioModule } from './modules/movimientos-inventario/movimientos-inventario.module';
+import { ProductosModule } from './modules/productos/productos.module';
 
 @Module({
   imports: [
@@ -50,6 +56,12 @@ import { CatalogosModule } from './modules/catalogos/catalogos.module';
     ConfiguracionServiciosModule,
     ClientesModule,
     CatalogosModule,
+    CategoriasProductoModule,
+    SubCategoriasProductoModule,
+    CatalogoPreciosModule,
+    StockProductoModule,
+    MovimientosInventarioModule,
+    ProductosModule,
   ],
   providers: [
     {

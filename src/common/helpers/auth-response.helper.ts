@@ -34,6 +34,10 @@ export function mapSingleResult<T>(
 }
 
 export function mapDeleteResult(result: AuthDeleteResult, notFoundMessage: string) {
+  if (result.error) {
+    throw new BadRequestException(result.error);
+  }
+
   if (!result.eliminado) {
     throw new NotFoundException(notFoundMessage);
   }

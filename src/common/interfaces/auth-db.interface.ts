@@ -11,6 +11,7 @@ export interface AuthSingleResult<T = unknown> {
 export interface AuthDeleteResult {
   eliminado: boolean;
   id: number;
+  error?: string;
 }
 
 export interface AuthCloseResult {

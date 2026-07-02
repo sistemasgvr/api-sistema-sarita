@@ -84,6 +84,44 @@ export const PermisoBanderas = {
   CONFIGURACION_SERVICIOS_CREAR: 'configuracion_servicios.crear',
   CONFIGURACION_SERVICIOS_EDITAR: 'configuracion_servicios.editar',
   CONFIGURACION_SERVICIOS_ELIMINAR: 'configuracion_servicios.eliminar',
+
+  PRODUCTOS_HUB_VER: 'productos.ver',
+
+  CATEGORIAS_LISTAR: 'categorias.listar',
+  CATEGORIAS_VER: 'categorias.ver',
+  CATEGORIAS_CREAR: 'categorias.crear',
+  CATEGORIAS_EDITAR: 'categorias.editar',
+  CATEGORIAS_ELIMINAR: 'categorias.eliminar',
+
+  SUB_CATEGORIAS_LISTAR: 'sub_categorias.listar',
+  SUB_CATEGORIAS_VER: 'sub_categorias.ver',
+  SUB_CATEGORIAS_CREAR: 'sub_categorias.crear',
+  SUB_CATEGORIAS_EDITAR: 'sub_categorias.editar',
+  SUB_CATEGORIAS_ELIMINAR: 'sub_categorias.eliminar',
+
+  PRODUCTOS_LISTAR: 'productos.listar',
+  PRODUCTOS_VER: 'productos.ver',
+  PRODUCTOS_CREAR: 'productos.crear',
+  PRODUCTOS_EDITAR: 'productos.editar',
+  PRODUCTOS_ELIMINAR: 'productos.eliminar',
+
+  CATALOGO_PRECIOS_LISTAR: 'catalogo_precios.listar',
+  CATALOGO_PRECIOS_VER: 'catalogo_precios.ver',
+  CATALOGO_PRECIOS_CREAR: 'catalogo_precios.crear',
+  CATALOGO_PRECIOS_EDITAR: 'catalogo_precios.editar',
+  CATALOGO_PRECIOS_ELIMINAR: 'catalogo_precios.eliminar',
+
+  STOCK_LISTAR: 'stock.listar',
+  STOCK_VER: 'stock.ver',
+  STOCK_CREAR: 'stock.crear',
+  STOCK_EDITAR: 'stock.editar',
+  STOCK_ELIMINAR: 'stock.eliminar',
+
+  MOVIMIENTOS_LISTAR: 'movimientos.listar',
+  MOVIMIENTOS_VER: 'movimientos.ver',
+  MOVIMIENTOS_CREAR: 'movimientos.crear',
+  MOVIMIENTOS_EDITAR: 'movimientos.editar',
+  MOVIMIENTOS_ELIMINAR: 'movimientos.eliminar',
 } as const;
 
 export type PermisoBandera =
