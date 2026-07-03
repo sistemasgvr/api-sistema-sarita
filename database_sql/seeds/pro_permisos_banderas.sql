@@ -1,4 +1,107 @@
--- Permisos del módulo Productos e Inventario (ejecutar después de crear tablas pro_*)
+-- Permisos y listas del módulo Productos e Inventario (ejecutar después de crear tablas pro_*)
+
+-- ============================================================
+-- LISTAS MAESTRAS (gen_lista + gen_lista_opciones)
+-- ============================================================
+
+INSERT INTO gen_lista (nombre, descripcion)
+SELECT v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('UnidadMedida', 'Unidades de medida de productos'),
+        ('TipoMovInv', 'Tipos de movimiento de inventario'),
+        ('TipoDocumentoRef', 'Tipos de documento origen en movimientos de inventario'),
+        ('TipoCatalogoPrecio', 'Tipos de ítem en catálogo de precios')
+) AS v(nombre, descripcion)
+WHERE NOT EXISTS (
+    SELECT 1 FROM gen_lista l WHERE l.nombre = v.nombre
+);
+
+-- UnidadMedida
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('UNID', 'Unidad'),
+        ('MT3', 'Metro cúbico'),
+        ('KG', 'Kilogramo'),
+        ('MTS', 'Metro'),
+        ('PAR', 'Par'),
+        ('LTR', 'Litro'),
+        ('GLN', 'Galón')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'UnidadMedida'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id
+        AND lo.nombre = v.nombre
+  );
+
+-- TipoMovInv (SALIDA resta stock; el resto suma)
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('INGRESO', 'Ingreso de mercadería al almacén'),
+        ('SALIDA', 'Salida de mercadería del almacén'),
+        ('TRASLADO', 'Traslado entre almacenes'),
+        ('AJUSTE', 'Ajuste de inventario')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'TipoMovInv'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id
+        AND lo.nombre = v.nombre
+  );
+
+-- TipoDocumentoRef
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('FACTURA', 'Factura de venta o compra'),
+        ('GRE', 'Guía de remisión electrónica'),
+        ('PRESTAMO', 'Préstamo de cilindro'),
+        ('ALQUILER', 'Alquiler de cilindro'),
+        ('RECARGA', 'Recarga de gas'),
+        ('COMPRA', 'Comprobante de compra'),
+        ('DEVOLUCION', 'Devolución de cilindro o mercadería')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'TipoDocumentoRef'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id
+        AND lo.nombre = v.nombre
+  );
+
+-- TipoCatalogoPrecio
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('RECARGADO', 'Gas con cilindro (recarga vendida)'),
+        ('GARANTIA', 'Depósito o garantía de préstamo'),
+        ('VENTA_CILINDRO', 'Cilindro vacío vendido'),
+        ('ACCESORIO', 'Accesorio o repuesto')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'TipoCatalogoPrecio'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id
+        AND lo.nombre = v.nombre
+  );
+
+-- ============================================================
+-- PERMISOS
+-- ============================================================
 
 INSERT INTO auth_permisos (nombre, descripcion)
 SELECT v.nombre, v.descripcion
