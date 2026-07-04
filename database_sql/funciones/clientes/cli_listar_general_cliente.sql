@@ -1,7 +1,7 @@
-DROP FUNCTION IF EXISTS cli_listar_clientes(BOOLEAN, INT, VARCHAR, INT, INT);
+DROP FUNCTION IF EXISTS cli_listar_clientes(INT, INT, VARCHAR, INT, INT);
 
 CREATE OR REPLACE FUNCTION cli_listar_clientes(
-    p_solo_activos    BOOLEAN  DEFAULT TRUE,
+    p_solo_activos    INT  DEFAULT 1,
     p_id_tipo_cliente INT      DEFAULT NULL,
     p_buscar          VARCHAR  DEFAULT NULL,
     p_limite          INT      DEFAULT 50,
@@ -67,7 +67,7 @@ BEGIN
         LEFT JOIN gen_distrito dist ON c.id_distrito = dist.id
         LEFT JOIN auth_usuarios uc ON c.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON c.id_usuario_modificacion = um.id
-        WHERE (p_solo_activos = FALSE OR c.estado = 1)
+        WHERE (p_solo_activos IS NULL OR c.estado = p_solo_activos)
           AND (p_id_tipo_cliente IS NULL OR c.id_tipo_cliente = p_id_tipo_cliente)
           AND (
                 v_buscar IS NULL
@@ -98,7 +98,7 @@ END;
 $$;
 
 --ejemplo de uso listar general
-select * FROM cli_listar_clientes();
+select * FROM cli_listar_clientes(p_solo_activos=>False);
 
 --ejemplo de uso listar solo activos con limite y pagina
 SELECT *

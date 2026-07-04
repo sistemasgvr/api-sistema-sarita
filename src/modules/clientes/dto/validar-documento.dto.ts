@@ -8,7 +8,10 @@ export class ValidarDocumentoClienteDto {
   @MinLength(1)
   numeroDocumento!: string;
 
-  @ApiPropertyOptional({ example: 5, description: 'ID a excluir (uso al editar)' })
+  @ApiPropertyOptional({
+    example: 5,
+    description: 'ID a excluir (uso al editar)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

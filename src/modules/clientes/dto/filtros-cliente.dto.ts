@@ -1,14 +1,19 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional } from 'class-validator';
+import {IsIn, IsInt, IsOptional } from 'class-validator';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
 export class FiltroClienteDto extends FiltroPaginacionDto {
-  @ApiPropertyOptional({ example: true, description: 'Filtra solo clientes activos' })
+  @ApiPropertyOptional({
+    required: false,
+    example: 1,
+    nullable: true,
+    description: 'Estado del cliente: 1 = activos, 0 = inactivos, null = todos',
+  })
   @IsOptional()
-  @IsBoolean()
-  @Type(() => Boolean)
-  soloActivos?: boolean = true;
+  @Type(() => Number)
+  @IsIn([0, 1])
+  soloActivos?: number;
 
   @ApiPropertyOptional({ example: 1, description: 'ID del tipo de cliente' })
   @IsOptional()
