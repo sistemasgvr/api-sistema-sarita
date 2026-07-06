@@ -1,5 +1,5 @@
-DROP FUNCTION IF EXISTS cli_obtener_direccion(INTEGER);
-CREATE OR REPLACE FUNCTION cli_obtener_direccion(p_id INTEGER)
+DROP FUNCTION IF EXISTS cli_obtener_por_id_direccion(INTEGER);
+CREATE OR REPLACE FUNCTION cli_obtener_por_id_direccion(p_id INTEGER)
 RETURNS JSON
 LANGUAGE plpgsql
 AS $function$
@@ -16,6 +16,8 @@ BEGIN
             COALESCE(c.razon_social, c.nombres) AS nombre_cliente,
             d.descripcion,
             d.direccion,
+            d.id_pais,
+            pa.nombre AS nombre_pais,
             d.id_departamento,
             dep.nombre AS nombre_departamento,
             d.id_provincia,
@@ -33,6 +35,7 @@ BEGIN
             um.nombre AS nombre_usuario_modificacion
         FROM cli_direcciones d
         INNER JOIN cli_clientes c ON d.id_cliente = c.id
+        LEFT JOIN gen_pais pa ON d.id_pais = pa.id
         LEFT JOIN gen_departamento dep ON d.id_departamento = dep.id
         LEFT JOIN gen_provincia prov ON d.id_provincia = prov.id
         LEFT JOIN gen_distrito dist ON d.id_distrito = dist.id

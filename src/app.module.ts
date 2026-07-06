@@ -24,6 +24,8 @@ import { ClientesModule } from './modules/clientes/clientes.module';
 import { ConsultasModule } from './modules/consultas/consultas.module';
 import { CatalogosModule } from './modules/catalogos/catalogos.module';
 import { ContactosModule } from './modules/contactos/contactos.module';
+import { DireccionesModule } from './modules/direcciones/direcciones.module';
+import { ChoferesModule } from './modules/choferes/choferes.module';
 
 @Module({
   imports: [
@@ -54,6 +56,8 @@ import { ContactosModule } from './modules/contactos/contactos.module';
     ConsultasModule,
     CatalogosModule,
     ContactosModule,
+    DireccionesModule,
+    ChoferesModule,
   ],
   providers: [
     {

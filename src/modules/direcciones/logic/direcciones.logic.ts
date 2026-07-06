@@ -9,7 +9,7 @@ import {
   FiltroDireccionesDto,
   UpdateDireccionDto,
 } from '../dto/filtros-direcciones.dto';
-import { DireccionesModel } from '../models/direcciones.modele';
+import { DireccionesModel } from '../models/direcciones.model';
 
 @Injectable()
 export class DireccionesLogic {

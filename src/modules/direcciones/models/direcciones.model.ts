@@ -13,6 +13,7 @@ export class DireccionesModel {
 
   listar(filtros: FiltroDireccionesDto) {
     return this.db.callFunctionJson<AuthListResult>('cli_listar_direcciones', [
+      filtros.soloActivos ?? null,
       filtros.idCliente ?? null,
       filtros.buscar ?? '',
       filtros.limite ?? 10,
@@ -21,9 +22,10 @@ export class DireccionesModel {
   }
 
   obtenerPorId(id: number) {
-    return this.db.callFunctionJson<AuthSingleResult>('cli_obtener_direccion', [
-      id,
-    ]);
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'cli_obtener_por_id_direccion',
+      [id],
+    );
   }
 
   crear(

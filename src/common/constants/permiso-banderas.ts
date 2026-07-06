@@ -91,6 +91,12 @@ export const PermisoBanderas = {
   DIRECCIONES_EDITAR: 'direcciones.editar',
   DIRECCIONES_ELIMINAR: 'direcciones.eliminar',
 
+  CHOFERES_LISTAR: 'choferes.listar',
+  CHOFERES_VER: 'choferes.ver',
+  CHOFERES_CREAR: 'choferes.crear',
+  CHOFERES_EDITAR: 'choferes.editar',
+  CHOFERES_ELIMINAR: 'choferes.eliminar',
+
   CONFIGURACION_SERVICIOS_LISTAR: 'configuracion_servicios.listar',
   CONFIGURACION_SERVICIOS_VER: 'configuracion_servicios.ver',
   CONFIGURACION_SERVICIOS_CREAR: 'configuracion_servicios.crear',

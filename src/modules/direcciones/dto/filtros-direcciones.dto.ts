@@ -16,6 +16,15 @@ export class FiltroDireccionesDto extends FiltroPaginacionDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  soloActivos?: number;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Filtrar por ID del cliente',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
   idCliente?: number;
 }
 
