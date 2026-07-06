@@ -21,7 +21,11 @@ import { SesionesModule } from './modules/sesiones/sesiones.module';
 import { UsuariosModule } from './modules/usuarios/usuarios.module';
 import { UsuariosRolesModule } from './modules/usuarios-roles/usuarios-roles.module';
 import { ClientesModule } from './modules/clientes/clientes.module';
+import { ConsultasModule } from './modules/consultas/consultas.module';
 import { CatalogosModule } from './modules/catalogos/catalogos.module';
+import { ContactosModule } from './modules/contactos/contactos.module';
+import { DireccionesModule } from './modules/direcciones/direcciones.module';
+import { ChoferesModule } from './modules/choferes/choferes.module';
 import { CategoriasProductoModule } from './modules/categorias-producto/categorias-producto.module';
 import { SubCategoriasProductoModule } from './modules/sub-categorias-producto/sub-categorias-producto.module';
 import { CatalogoPreciosModule } from './modules/catalogo-precios/catalogo-precios.module';
@@ -64,7 +68,11 @@ import { MantenimientosBalonModule } from './modules/mantenimientos-balon/manten
     ConfiguracionSunatModule,
     ConfiguracionServiciosModule,
     ClientesModule,
+    ConsultasModule,
     CatalogosModule,
+    ContactosModule,
+    DireccionesModule,
+    ChoferesModule,
     CategoriasProductoModule,
     SubCategoriasProductoModule,
     CatalogoPreciosModule,
