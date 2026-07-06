@@ -49,6 +49,12 @@ export const PermisoBanderas = {
   CLIENTES_ELIMINAR: 'clientes.eliminar',
   CLIENTES_RESTAURAR: 'clientes.restaurar',
 
+  CONTACTOS_LISTAR: 'contactos.listar',
+  CONTACTOS_VER: 'contactos.ver',
+  CONTACTOS_CREAR: 'contactos.crear',
+  CONTACTOS_EDITAR: 'contactos.editar',
+  CONTACTOS_ELIMINAR: 'contactos.eliminar',
+
   SUCURSALES_LISTAR: 'sucursales.listar',
   SUCURSALES_VER: 'sucursales.ver',
   SUCURSALES_CREAR: 'sucursales.crear',
@@ -78,6 +84,12 @@ export const PermisoBanderas = {
   CONFIGURACION_SUNAT_CREAR: 'configuracion_sunat.crear',
   CONFIGURACION_SUNAT_EDITAR: 'configuracion_sunat.editar',
   CONFIGURACION_SUNAT_ELIMINAR: 'configuracion_sunat.eliminar',
+
+  DIRECCIONES_LISTAR: 'direcciones.listar',
+  DIRECCIONES_VER: 'direcciones.ver',
+  DIRECCIONES_CREAR: 'direcciones.crear',
+  DIRECCIONES_EDITAR: 'direcciones.editar',
+  DIRECCIONES_ELIMINAR: 'direcciones.eliminar',
 
   CONFIGURACION_SERVICIOS_LISTAR: 'configuracion_servicios.listar',
   CONFIGURACION_SERVICIOS_VER: 'configuracion_servicios.ver',

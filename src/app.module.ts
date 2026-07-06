@@ -23,6 +23,7 @@ import { UsuariosRolesModule } from './modules/usuarios-roles/usuarios-roles.mod
 import { ClientesModule } from './modules/clientes/clientes.module';
 import { ConsultasModule } from './modules/consultas/consultas.module';
 import { CatalogosModule } from './modules/catalogos/catalogos.module';
+import { ContactosModule } from './modules/contactos/contactos.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { CatalogosModule } from './modules/catalogos/catalogos.module';
     ClientesModule,
     ConsultasModule,
     CatalogosModule,
+    ContactosModule,
   ],
   providers: [
     {
