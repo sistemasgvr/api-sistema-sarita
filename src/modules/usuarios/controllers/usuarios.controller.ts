@@ -13,7 +13,7 @@ import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
-import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
+import { FiltroUsuarioDto } from '../dto/filtros-usuario.dto';
 import { CreateUsuarioDto, UpdateUsuarioDto } from '../dto/usuarios.dto';
 import { UsuariosLogic } from '../logic/usuarios.logic';
 
@@ -25,7 +25,7 @@ export class UsuariosController {
   @Get()
   @Permisos(PermisoBanderas.USUARIOS_LISTAR)
   @ApiOperation({ summary: 'Listar usuarios' })
-  listar(@Query() filtros: FiltroPaginacionDto) {
+  listar(@Query() filtros: FiltroUsuarioDto) {
     return this.usuariosLogic.listar(filtros);
   }
 
@@ -44,6 +44,14 @@ export class UsuariosController {
     return this.usuariosLogic.crear(dto);
   }
 
+  @Patch(':id/activar')
+  @Permisos(PermisoBanderas.USUARIOS_ACTIVAR)
+  @ApiOperation({ summary: 'Activar usuario' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  activar(@Param('id', ParseIntPipe) id: number) {
+    return this.usuariosLogic.activar(id);
+  }
+
   @Patch(':id')
   @Permisos(PermisoBanderas.USUARIOS_EDITAR)
   @ApiOperation({ summary: 'Actualizar usuario' })
@@ -53,8 +61,8 @@ export class UsuariosController {
 
   @Delete(':id')
   @Permisos(PermisoBanderas.USUARIOS_ELIMINAR)
-  @ApiOperation({ summary: 'Eliminar usuario (baja lógica)' })
-  eliminar(@Param('id', ParseIntPipe) id: number) {
+  @ApiOperation({ summary: 'Desactivar usuario (baja lógica)' })
+  desactivar(@Param('id', ParseIntPipe) id: number) {
     return this.usuariosLogic.eliminar(id);
   }
 }

@@ -16,6 +16,7 @@ export const PermisoBanderas = {
   USUARIOS_CREAR: 'usuarios.crear',
   USUARIOS_EDITAR: 'usuarios.editar',
   USUARIOS_ELIMINAR: 'usuarios.eliminar',
+  USUARIOS_ACTIVAR: 'usuarios.activar',
 
   ROLES_LISTAR: 'roles.listar',
   ROLES_VER: 'roles.ver',

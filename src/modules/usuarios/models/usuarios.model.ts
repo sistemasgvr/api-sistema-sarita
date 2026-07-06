@@ -2,21 +2,29 @@ import { Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { DatabaseService } from '../../../database/database.service';
 import {
+  AuthActivateResult,
   AuthDeleteResult,
   AuthListResult,
   AuthSingleResult,
 } from '../../../common/interfaces/auth-db.interface';
-import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
+import { FiltroUsuarioDto, UsuarioEstadoFiltro } from '../dto/filtros-usuario.dto';
 
 @Injectable()
 export class UsuariosModel {
   constructor(private readonly db: DatabaseService) {}
 
-  listar(filtros: FiltroPaginacionDto) {
+  private resolveEstadoFiltro(estado?: UsuarioEstadoFiltro): boolean | null {
+    if (estado === 'inactivos') return false;
+    if (estado === 'todos') return null;
+    return true;
+  }
+
+  listar(filtros: FiltroUsuarioDto) {
     return this.db.callFunctionJson<AuthListResult>('auth_listar_usuarios', [
       filtros.buscar ?? '',
       filtros.limite ?? 10,
       filtros.offset,
+      this.resolveEstadoFiltro(filtros.estado),
     ]);
   }
 
@@ -56,6 +64,10 @@ export class UsuariosModel {
 
   eliminar(id: number) {
     return this.db.callFunctionJson<AuthDeleteResult>('auth_eliminar_usuario', [id]);
+  }
+
+  activar(id: number) {
+    return this.db.callFunctionJson<AuthActivateResult>('auth_activar_usuario', [id]);
   }
 
   static async hashPassword(password: string): Promise<string> {

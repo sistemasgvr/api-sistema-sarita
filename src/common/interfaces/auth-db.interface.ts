@@ -14,6 +14,12 @@ export interface AuthDeleteResult {
   error?: string;
 }
 
+export interface AuthActivateResult {
+  activado: boolean;
+  id: number;
+  error?: string;
+}
+
 export interface AuthCloseResult {
   cerrada: boolean;
   id: number;
