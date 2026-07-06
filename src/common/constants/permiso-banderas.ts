@@ -123,6 +123,62 @@ export const PermisoBanderas = {
   MOVIMIENTOS_CREAR: 'movimientos.crear',
   MOVIMIENTOS_EDITAR: 'movimientos.editar',
   MOVIMIENTOS_ELIMINAR: 'movimientos.eliminar',
+
+  BALONES_HUB_VER: 'balones.ver',
+
+  TIPOS_BALON_LISTAR: 'tipos_balon.listar',
+  TIPOS_BALON_VER: 'tipos_balon.ver',
+  TIPOS_BALON_CREAR: 'tipos_balon.crear',
+  TIPOS_BALON_EDITAR: 'tipos_balon.editar',
+  TIPOS_BALON_ELIMINAR: 'tipos_balon.eliminar',
+
+  BALONES_LISTAR: 'balones.listar',
+  BALONES_VER: 'balones.ver',
+  BALONES_CREAR: 'balones.crear',
+  BALONES_EDITAR: 'balones.editar',
+  BALONES_ELIMINAR: 'balones.eliminar',
+
+  MOVIMIENTOS_BALON_LISTAR: 'movimientos_balon.listar',
+  MOVIMIENTOS_BALON_VER: 'movimientos_balon.ver',
+  MOVIMIENTOS_BALON_CREAR: 'movimientos_balon.crear',
+  MOVIMIENTOS_BALON_EDITAR: 'movimientos_balon.editar',
+  MOVIMIENTOS_BALON_ELIMINAR: 'movimientos_balon.eliminar',
+
+  MOVIMIENTOS_RECARGA_LISTAR: 'movimientos_recarga.listar',
+  MOVIMIENTOS_RECARGA_VER: 'movimientos_recarga.ver',
+  MOVIMIENTOS_RECARGA_CREAR: 'movimientos_recarga.crear',
+  MOVIMIENTOS_RECARGA_EDITAR: 'movimientos_recarga.editar',
+  MOVIMIENTOS_RECARGA_ELIMINAR: 'movimientos_recarga.eliminar',
+
+  PRESTAMOS_BALON_LISTAR: 'prestamos_balon.listar',
+  PRESTAMOS_BALON_VER: 'prestamos_balon.ver',
+  PRESTAMOS_BALON_CREAR: 'prestamos_balon.crear',
+  PRESTAMOS_BALON_EDITAR: 'prestamos_balon.editar',
+  PRESTAMOS_BALON_ELIMINAR: 'prestamos_balon.eliminar',
+
+  PRESTAMOS_DETALLE_LISTAR: 'prestamos_detalle.listar',
+  PRESTAMOS_DETALLE_VER: 'prestamos_detalle.ver',
+  PRESTAMOS_DETALLE_CREAR: 'prestamos_detalle.crear',
+  PRESTAMOS_DETALLE_EDITAR: 'prestamos_detalle.editar',
+  PRESTAMOS_DETALLE_ELIMINAR: 'prestamos_detalle.eliminar',
+
+  ALQUILERES_BALON_LISTAR: 'alquileres_balon.listar',
+  ALQUILERES_BALON_VER: 'alquileres_balon.ver',
+  ALQUILERES_BALON_CREAR: 'alquileres_balon.crear',
+  ALQUILERES_BALON_EDITAR: 'alquileres_balon.editar',
+  ALQUILERES_BALON_ELIMINAR: 'alquileres_balon.eliminar',
+
+  ALQUILERES_DETALLE_LISTAR: 'alquileres_detalle.listar',
+  ALQUILERES_DETALLE_VER: 'alquileres_detalle.ver',
+  ALQUILERES_DETALLE_CREAR: 'alquileres_detalle.crear',
+  ALQUILERES_DETALLE_EDITAR: 'alquileres_detalle.editar',
+  ALQUILERES_DETALLE_ELIMINAR: 'alquileres_detalle.eliminar',
+
+  MANTENIMIENTOS_BALON_LISTAR: 'mantenimientos_balon.listar',
+  MANTENIMIENTOS_BALON_VER: 'mantenimientos_balon.ver',
+  MANTENIMIENTOS_BALON_CREAR: 'mantenimientos_balon.crear',
+  MANTENIMIENTOS_BALON_EDITAR: 'mantenimientos_balon.editar',
+  MANTENIMIENTOS_BALON_ELIMINAR: 'mantenimientos_balon.eliminar',
 } as const;
 
 export type PermisoBandera =
