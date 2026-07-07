@@ -1,6 +1,7 @@
 DROP FUNCTION IF EXISTS gen_listar_vehiculos(VARCHAR, INTEGER, INTEGER, INTEGER, BOOLEAN);
 
 CREATE OR REPLACE FUNCTION gen_listar_vehiculos(
+    p_solo_activos INT DEFAULT NULL,
     p_busqueda VARCHAR DEFAULT '',
     p_limite INTEGER DEFAULT 10,
     p_offset INTEGER DEFAULT 0,
@@ -18,7 +19,7 @@ BEGIN
 
     SELECT COUNT(*) INTO v_total
     FROM gen_vehiculo v
-    WHERE v.estado = 1
+    WHERE (p_solo_activos IS NULL OR v.estado = p_solo_activos)
       AND (p_id_cliente IS NULL OR v.id_cliente = p_id_cliente)
       AND (
           p_solo_flota_propia IS NULL
@@ -38,7 +39,11 @@ BEGIN
         SELECT
             v.id,
             v.id_cliente,
-            COALESCE(c.razon_social, c.nombres) AS nombre_cliente,
+            c.razon_social AS cliente_razon_social,
+            c.nombres AS cliente_nombres,
+            c.apellido_paterno AS cliente_apellido_paterno,
+            c.apellido_materno AS cliente_apellido_materno,
+            c.numero_documento AS cliente_numero_documento,
             v.id_tipo_vehiculo,
             tv.nombre AS nombre_tipo_vehiculo,
             v.placa,
@@ -62,7 +67,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones tv ON v.id_tipo_vehiculo = tv.id
         LEFT JOIN auth_usuarios uc ON v.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON v.id_usuario_modificacion = um.id
-        WHERE v.estado = 1
+        WHERE (p_solo_activos IS NULL OR v.estado = p_solo_activos)
           AND (p_id_cliente IS NULL OR v.id_cliente = p_id_cliente)
           AND (
               p_solo_flota_propia IS NULL

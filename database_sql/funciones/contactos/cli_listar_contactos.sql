@@ -24,6 +24,8 @@ BEGIN
             co.id_cliente,
             c.razon_social AS cliente_razon_social,
             c.nombres AS cliente_nombres,
+            c.apellido_paterno AS cliente_apellido_paterno,
+            c.apellido_materno AS cliente_apellido_materno,
             c.numero_documento AS cliente_numero_documento,
             co.nombre,
             co.apellido_paterno,

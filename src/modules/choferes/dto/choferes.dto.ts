@@ -63,7 +63,16 @@ export class CreateChoferDto extends AuditoriaDto {
 export class UpdateChoferDto extends PartialType(CreateChoferDto) {}
 
 export class FiltroChoferDto extends FiltroPaginacionDto {
-  @ApiPropertyOptional({ example: 1, description: 'Filtrar por cliente/proveedor dueño' })
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  isActivos?: number;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Filtrar por ID del cliente',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
