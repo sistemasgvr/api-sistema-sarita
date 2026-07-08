@@ -1,8 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type, Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
-  IsBoolean,
-  IsDateString,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -11,12 +9,6 @@ import {
 } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
-
-function toOptionalBoolean(value: unknown) {
-  if (value === 'true' || value === true) return true;
-  if (value === 'false' || value === false) return false;
-  return undefined;
-}
 
 export class FiltroTiposBalonDto extends FiltroPaginacionDto {
   @ApiPropertyOptional()
@@ -56,6 +48,12 @@ export class CreateTiposBalonDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   peso?: number;
+
+  @ApiPropertyOptional({ description: 'Vigencia PH en años según normativa del gas (5 o 10)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  vigenciaPhAnios?: number;
 }
 
 export class UpdateTiposBalonDto extends AuditoriaDto {
@@ -88,4 +86,10 @@ export class UpdateTiposBalonDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   peso?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  vigenciaPhAnios?: number;
 }

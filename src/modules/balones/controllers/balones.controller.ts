@@ -16,7 +16,10 @@ import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   CreateBalonesDto,
+  DarBajaBalonDto,
   FiltroBalonesDto,
+  FiltroPhHistorialDto,
+  RegistrarPhHistorialDto,
   UpdateBalonesDto,
 } from '../dto/balones.dto';
 import { BalonesLogic } from '../logic/balones.logic';
@@ -31,6 +34,40 @@ export class BalonesController {
   @ApiOperation({ summary: 'Listar' })
   listar(@Query() filtros: FiltroBalonesDto) {
     return this.logic.listar(filtros);
+  }
+
+  @Get(':id/ph-historial')
+  @Permisos(PermisoBanderas.BALONES_VER)
+  @ApiOperation({ summary: 'Listar historial de pruebas hidrostáticas' })
+  listarPhHistorial(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() filtros: FiltroPhHistorialDto,
+  ) {
+    return this.logic.listarPhHistorial(id, filtros);
+  }
+
+  @Post(':id/ph-historial')
+  @Permisos(PermisoBanderas.BALONES_EDITAR)
+  @ApiOperation({ summary: 'Registrar prueba hidrostática' })
+  registrarPhHistorial(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RegistrarPhHistorialDto,
+  ) {
+    return this.logic.registrarPhHistorial(id, dto);
+  }
+
+  @Get(':id/baja')
+  @Permisos(PermisoBanderas.BALONES_VER)
+  @ApiOperation({ summary: 'Obtener baja activa del cilindro' })
+  obtenerBaja(@Param('id', ParseIntPipe) id: number) {
+    return this.logic.obtenerBajaPorBalon(id);
+  }
+
+  @Post(':id/baja')
+  @Permisos(PermisoBanderas.BALONES_EDITAR)
+  @ApiOperation({ summary: 'Dar de baja cilindro (requiere autorización de administrador)' })
+  darBaja(@Param('id', ParseIntPipe) id: number, @Body() dto: DarBajaBalonDto) {
+    return this.logic.darBaja(id, dto);
   }
 
   @Get(':id')

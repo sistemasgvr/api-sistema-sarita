@@ -35,6 +35,7 @@ export class TiposBalonModel {
       dto.capacidad ?? null,
       dto.idUnidadMedida ?? null,
       dto.peso ?? null,
+      dto.vigenciaPhAnios ?? 5,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }
@@ -47,6 +48,7 @@ export class TiposBalonModel {
       dto.capacidad ?? null,
       dto.idUnidadMedida ?? null,
       dto.peso ?? null,
+      dto.vigenciaPhAnios ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }

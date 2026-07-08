@@ -42,6 +42,24 @@ export class FiltroBalonesDto extends FiltroPaginacionDto {
   @IsOptional()
   @IsNumber()
   idClienteUbicacion?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idMarcaCilindro?: number;
+
+  @ApiPropertyOptional({ description: 'true = solo PH vencida, false = solo vigente o sin fecha' })
+  @Transform(({ value }) => toOptionalBoolean(value))
+  @IsOptional()
+  @IsBoolean()
+  phVencida?: boolean;
+
+  @ApiPropertyOptional({ description: 'Cilindros con PH por vencer en N días' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  phPorVencerDias?: number;
 }
 
 export class CreateBalonesDto extends AuditoriaDto {
@@ -154,6 +172,35 @@ export class CreateBalonesDto extends AuditoriaDto {
   @IsOptional()
   @IsString()
   observacion?: string;
+
+  @ApiPropertyOptional()
+  @MaxLength(50)
+  @IsOptional()
+  @IsString()
+  numeroSerie?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idMarcaCilindro?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idOrganoInspector?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  organoInspectorNoAplica?: boolean;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  anioFabricacion?: number;
 }
 
 export class UpdateBalonesDto extends AuditoriaDto {
@@ -266,4 +313,150 @@ export class UpdateBalonesDto extends AuditoriaDto {
   @IsOptional()
   @IsString()
   observacion?: string;
+
+  @ApiPropertyOptional()
+  @MaxLength(50)
+  @IsOptional()
+  @IsString()
+  numeroSerie?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idMarcaCilindro?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idOrganoInspector?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  organoInspectorNoAplica?: boolean;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  anioFabricacion?: number;
+}
+
+export class FiltroPhHistorialDto extends FiltroPaginacionDto {}
+
+export class RegistrarPhHistorialDto extends AuditoriaDto {
+  @ApiProperty()
+  @IsDateString()
+  @IsNotEmpty()
+  fechaPrueba!: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  vigenciaAnios?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idOrganoInspector?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  organoInspectorNoAplica?: boolean;
+
+  @ApiPropertyOptional()
+  @MaxLength(50)
+  @IsOptional()
+  @IsString()
+  numeroCertificado?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idMantenimiento?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idMovimientoRecarga?: number;
+
+  @ApiPropertyOptional()
+  @MaxLength(500)
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+}
+
+export class DarBajaBalonDto extends AuditoriaDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  @IsNotEmpty()
+  idMotivoBaja!: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  @IsNotEmpty()
+  idUsuarioSolicita!: number;
+
+  @ApiProperty({ description: 'Usuario con rol Administrador que autoriza la baja' })
+  @Type(() => Number)
+  @IsNumber()
+  @IsNotEmpty()
+  idUsuarioAutoriza!: number;
+
+  @ApiPropertyOptional()
+  @MaxLength(500)
+  @IsOptional()
+  @IsString()
+  motivoDetalle?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idClienteComprador?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idComprobanteVenta?: number;
+
+  @ApiPropertyOptional()
+  @MaxLength(10)
+  @IsOptional()
+  @IsString()
+  serieComprobante?: string;
+
+  @ApiPropertyOptional()
+  @MaxLength(15)
+  @IsOptional()
+  @IsString()
+  numeroComprobante?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  montoVenta?: number;
+
+  @ApiPropertyOptional()
+  @MaxLength(500)
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaBaja?: string;
 }

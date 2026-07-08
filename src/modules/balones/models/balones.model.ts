@@ -7,7 +7,10 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import {
   CreateBalonesDto,
+  DarBajaBalonDto,
   FiltroBalonesDto,
+  FiltroPhHistorialDto,
+  RegistrarPhHistorialDto,
   UpdateBalonesDto,
 } from '../dto/balones.dto';
 
@@ -24,6 +27,9 @@ export class BalonesModel {
       filtros.idAlmacen ?? null,
       filtros.idEstadoBalon ?? null,
       filtros.idClienteUbicacion ?? null,
+      filtros.idMarcaCilindro ?? null,
+      filtros.phVencida ?? null,
+      filtros.phPorVencerDias ?? null,
     ]);
   }
 
@@ -52,6 +58,11 @@ export class BalonesModel {
       dto.numeroRecepcion ?? null,
       dto.presionActual ?? null,
       dto.observacion ?? null,
+      dto.numeroSerie ?? null,
+      dto.idMarcaCilindro ?? null,
+      dto.idOrganoInspector ?? null,
+      dto.organoInspectorNoAplica ?? false,
+      dto.anioFabricacion ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }
@@ -78,6 +89,11 @@ export class BalonesModel {
       dto.numeroRecepcion ?? null,
       dto.presionActual ?? null,
       dto.observacion ?? null,
+      dto.numeroSerie ?? null,
+      dto.idMarcaCilindro ?? null,
+      dto.idOrganoInspector ?? null,
+      dto.organoInspectorNoAplica ?? null,
+      dto.anioFabricacion ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }
@@ -86,6 +102,51 @@ export class BalonesModel {
     return this.db.callFunctionJson<AuthDeleteResult>('bal_eliminar_balon', [
       id,
       idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  listarPhHistorial(idBalon: number, filtros: FiltroPhHistorialDto) {
+    return this.db.callFunctionJson<AuthListResult>('bal_listar_ph_historial', [
+      idBalon,
+      filtros.limite ?? 50,
+      filtros.offset,
+    ]);
+  }
+
+  registrarPhHistorial(idBalon: number, dto: RegistrarPhHistorialDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_registrar_ph_historial', [
+      idBalon,
+      dto.fechaPrueba ?? null,
+      dto.vigenciaAnios ?? null,
+      dto.idOrganoInspector ?? null,
+      dto.organoInspectorNoAplica ?? false,
+      dto.numeroCertificado ?? null,
+      dto.idMantenimiento ?? null,
+      dto.idMovimientoRecarga ?? null,
+      dto.observacion ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  obtenerBajaPorBalon(idBalon: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_obtener_baja_por_balon', [idBalon]);
+  }
+
+  darBaja(idBalon: number, dto: DarBajaBalonDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_dar_baja_balon', [
+      idBalon,
+      dto.idMotivoBaja ?? null,
+      dto.idUsuarioSolicita ?? null,
+      dto.idUsuarioAutoriza ?? null,
+      dto.motivoDetalle ?? null,
+      dto.idClienteComprador ?? null,
+      dto.idComprobanteVenta ?? null,
+      dto.serieComprobante ?? null,
+      dto.numeroComprobante ?? null,
+      dto.montoVenta ?? null,
+      dto.observacion ?? null,
+      dto.fechaBaja ?? null,
+      dto.idUsuarioAuditoria ?? null,
     ]);
   }
 }
