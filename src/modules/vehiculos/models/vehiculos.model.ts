@@ -20,7 +20,7 @@ export class VehiculosModel {
       filtros.isActivos ?? 1,
       filtros.buscar ?? '',
       filtros.limite ?? 10,
-      filtros.offset,
+      filtros.pagina?? 1,
       filtros.idCliente ?? null,
     ]);
   }

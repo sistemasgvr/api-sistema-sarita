@@ -20,7 +20,7 @@ export class ChoferesModel {
       filtros.isActivos ?? null,
       filtros.buscar ?? '',
       filtros.limite ?? 10,
-      filtros.offset,
+      filtros.pagina ?? 1,
       filtros.idCliente ?? null,
     ]);
   }

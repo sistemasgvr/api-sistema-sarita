@@ -44,6 +44,7 @@ BEGIN
             c.id_distrito,
             dist.nombre AS nombre_distrito,
             c.id_pais,
+            pa.nombre AS nombre_pais,
             c.es_agente_percepcion,
             c.es_buen_contribuyente,
             c.es_agente_retenedor,
@@ -62,6 +63,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones tc ON c.id_tipo_cliente = tc.id
         LEFT JOIN gen_lista_opciones tp ON c.id_tipo_persona = tp.id
         LEFT JOIN gen_lista_opciones td ON c.id_tipo_documento = td.id
+        LEFT JOIN gen_pais pa ON c.id_pais = pa.id
         LEFT JOIN gen_departamento dep ON c.id_departamento = dep.id
         LEFT JOIN gen_provincia prov ON c.id_provincia = prov.id
         LEFT JOIN gen_distrito dist ON c.id_distrito = dist.id
