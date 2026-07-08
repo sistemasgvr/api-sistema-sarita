@@ -27,7 +27,11 @@ BEGIN
         SELECT
             d.id,
             d.id_cliente,
-            COALESCE(c.razon_social, c.nombres) AS nombre_cliente,
+            c.razon_social AS cliente_razon_social,
+            c.nombres AS cliente_nombres,
+            c.apellido_paterno AS cliente_apellido_paterno,
+            c.apellido_materno AS cliente_apellido_materno,
+            c.numero_documento AS cliente_numero_documento,
             d.descripcion,
             d.direccion,
             d.id_pais,

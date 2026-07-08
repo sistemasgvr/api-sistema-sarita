@@ -17,6 +17,11 @@ BEGIN
         SELECT 
             co.id,
             co.id_cliente,
+            c.razon_social AS cliente_razon_social,
+            c.nombres AS cliente_nombres,
+            c.apellido_paterno AS cliente_apellido_paterno,
+            c.apellido_materno AS cliente_apellido_materno,
+            c.numero_documento AS cliente_numero_documento,
             co.nombre,
             co.apellido_paterno,
             co.apellido_materno,
@@ -34,6 +39,7 @@ BEGIN
             co.fecha_creacion,
             co.fecha_modificacion
         FROM cli_contacto co
+        LEFT JOIN cli_clientes c ON co.id_cliente = c.id
         LEFT JOIN auth_usuarios uc ON co.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON co.id_usuario_modificacion = um.id
         WHERE co.id = p_id

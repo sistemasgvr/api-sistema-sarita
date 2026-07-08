@@ -17,9 +17,10 @@ export class ChoferesModel {
 
   listar(filtros: FiltroChoferDto) {
     return this.db.callFunctionJson<AuthListResult>('gen_listar_choferes', [
+      filtros.isActivos ?? null,
       filtros.buscar ?? '',
       filtros.limite ?? 10,
-      filtros.offset,
+      filtros.pagina ?? 1,
       filtros.idCliente ?? null,
     ]);
   }
@@ -32,20 +33,17 @@ export class ChoferesModel {
   }
 
   crear(dto: CreateChoferDto) {
-    return this.db.callFunctionJson<AuthSingleResult<any>>(
-      'gen_crear_chofer',
-      [
-        dto.nombres,
-        dto.idCliente ?? null,
-        dto.apellidoPaterno ?? null,
-        dto.apellidoMaterno ?? null,
-        dto.idTipoDocumento ?? null,
-        dto.numeroDocumento ?? null,
-        dto.brevete ?? null,
-        dto.telefono ?? null,
-        dto.idUsuarioAuditoria ?? null,
-      ],
-    );
+    return this.db.callFunctionJson<AuthSingleResult<any>>('gen_crear_chofer', [
+      dto.nombres,
+      dto.idCliente ?? null,
+      dto.apellidoPaterno ?? null,
+      dto.apellidoMaterno ?? null,
+      dto.idTipoDocumento ?? null,
+      dto.numeroDocumento ?? null,
+      dto.brevete ?? null,
+      dto.telefono ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
   }
 
   actualizar(id: number, dto: UpdateChoferDto) {

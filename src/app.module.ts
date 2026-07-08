@@ -26,6 +26,7 @@ import { CatalogosModule } from './modules/catalogos/catalogos.module';
 import { ContactosModule } from './modules/contactos/contactos.module';
 import { DireccionesModule } from './modules/direcciones/direcciones.module';
 import { ChoferesModule } from './modules/choferes/choferes.module';
+import { VehiculosModule } from './modules/vehiculos/vehiculos.module';
 import { CategoriasProductoModule } from './modules/categorias-producto/categorias-producto.module';
 import { SubCategoriasProductoModule } from './modules/sub-categorias-producto/sub-categorias-producto.module';
 import { CatalogoPreciosModule } from './modules/catalogo-precios/catalogo-precios.module';
@@ -73,6 +74,7 @@ import { MantenimientosBalonModule } from './modules/mantenimientos-balon/manten
     ContactosModule,
     DireccionesModule,
     ChoferesModule,
+    VehiculosModule,
     CategoriasProductoModule,
     SubCategoriasProductoModule,
     CatalogoPreciosModule,
