@@ -84,7 +84,7 @@ BEGIN
                     LEFT JOIN cli_clientes cc ON bb.id_cliente_comprador = cc.id
                     LEFT JOIN auth_usuarios us ON bb.id_usuario_solicita = us.id
                     LEFT JOIN auth_usuarios ua ON bb.id_usuario_autoriza = ua.id
-                    WHERE bb.id_balon = b.id AND bb.estado = 1
+                    WHERE bb.id_balon = b.id AND bb.estado = 1 AND bb.estado_aprobacion = 'APROBADA'
                     LIMIT 1
                 ) bj
             ) AS baja

@@ -31,6 +31,7 @@ BEGIN
             bb.id_usuario_autoriza,
             ua.nombre AS nombre_usuario_autoriza,
             bb.fecha_autorizacion,
+            bb.estado_aprobacion,
             bb.estado,
             bb.fecha_creacion,
             bb.fecha_modificacion
@@ -40,7 +41,7 @@ BEGIN
         LEFT JOIN cli_clientes cc ON bb.id_cliente_comprador = cc.id
         LEFT JOIN auth_usuarios us ON bb.id_usuario_solicita = us.id
         LEFT JOIN auth_usuarios ua ON bb.id_usuario_autoriza = ua.id
-        WHERE bb.id = p_id AND bb.estado = 1
+        WHERE bb.id = p_id
     ) t;
 
     RETURN json_build_object('registro', v_registro);

@@ -854,8 +854,9 @@ CREATE TABLE bal_baja_balon (
     id_motivo_baja           INT NOT NULL REFERENCES gen_lista_opciones(id), -- MotivoBajaBalon
     fecha_baja               DATE NOT NULL DEFAULT CURRENT_DATE,
     id_usuario_solicita      INT NOT NULL REFERENCES auth_usuarios(id),
-    id_usuario_autoriza      INT NOT NULL REFERENCES auth_usuarios(id),
-    fecha_autorizacion       TIMESTAMP NOT NULL DEFAULT NOW(),
+    id_usuario_autoriza      INT REFERENCES auth_usuarios(id),
+    fecha_autorizacion       TIMESTAMP,
+    estado_aprobacion        VARCHAR(20) NOT NULL DEFAULT 'APROBADA', -- PENDIENTE | APROBADA | RECHAZADA
     motivo_detalle           varchar(500),  -- texto adicional (ej. cuando motivo = OTROS)
     id_cliente_comprador     INT REFERENCES cli_clientes(id),
     id_comprobante_venta     INT REFERENCES ven_comprobante(id),
@@ -1320,7 +1321,8 @@ CREATE INDEX idx_bal_balon_anio_fabricacion ON bal_balon(anio_fabricacion);
 CREATE INDEX idx_bal_balon_ph_historial_balon ON bal_balon_ph_historial(id_balon);
 CREATE INDEX idx_bal_balon_ph_historial_vigente ON bal_balon_ph_historial(id_balon, es_vigente) WHERE es_vigente = TRUE;
 CREATE INDEX idx_bal_baja_balon_balon ON bal_baja_balon(id_balon);
-CREATE UNIQUE INDEX idx_bal_baja_balon_activo ON bal_baja_balon(id_balon) WHERE estado = 1;
+CREATE UNIQUE INDEX idx_bal_baja_balon_pendiente ON bal_baja_balon(id_balon) WHERE estado = 1 AND estado_aprobacion = 'PENDIENTE';
+CREATE UNIQUE INDEX idx_bal_baja_balon_aprobada ON bal_baja_balon(id_balon) WHERE estado = 1 AND estado_aprobacion = 'APROBADA';
 CREATE INDEX idx_bal_movimiento_balon ON bal_movimiento(id_balon);
 CREATE INDEX idx_bal_movimiento_fecha ON bal_movimiento(fecha_movimiento);
 CREATE INDEX idx_bal_movimiento_recarga_balon ON bal_movimiento_recarga(id_balon);

@@ -9,7 +9,7 @@ BEGIN
 
     SELECT id INTO v_id
     FROM bal_baja_balon
-    WHERE id_balon = p_id_balon AND estado = 1
+    WHERE id_balon = p_id_balon AND estado = 1 AND estado_aprobacion = 'APROBADA'
     ORDER BY id DESC
     LIMIT 1;
 

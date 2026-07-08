@@ -6,12 +6,15 @@ import {
 } from '../../../common/helpers/auth-response.helper';
 import {
   CreateBalonesDto,
+  AprobarBajaBalonDto,
   DarBajaBalonDto,
   FiltroBalonesDto,
   FiltroPhHistorialDto,
+  RechazarBajaBalonDto,
   RegistrarPhHistorialDto,
   UpdateBalonesDto,
 } from '../dto/balones.dto';
+import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 import { BalonesModel } from '../models/balones.model';
 
 @Injectable()
@@ -65,6 +68,21 @@ export class BalonesLogic {
 
   async darBaja(idBalon: number, dto: DarBajaBalonDto) {
     const result = await this.model.darBaja(idBalon, dto);
-    return mapSingleResult(result, 'No se pudo dar de baja el balón');
+    return mapSingleResult(result, 'No se pudo registrar la solicitud de baja');
+  }
+
+  async listarSolicitudesBaja(filtros: FiltroPaginacionDto) {
+    const result = await this.model.listarSolicitudesBaja(filtros);
+    return mapListResult(result, filtros);
+  }
+
+  async aprobarBaja(idBaja: number, dto: AprobarBajaBalonDto) {
+    const result = await this.model.aprobarBaja(idBaja, dto);
+    return mapSingleResult(result, 'No se pudo aprobar la solicitud de baja');
+  }
+
+  async rechazarBaja(idBaja: number, dto: RechazarBajaBalonDto) {
+    const result = await this.model.rechazarBaja(idBaja, dto);
+    return mapSingleResult(result, 'No se pudo rechazar la solicitud de baja');
   }
 }

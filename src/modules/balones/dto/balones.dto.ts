@@ -407,12 +407,6 @@ export class DarBajaBalonDto extends AuditoriaDto {
   @IsNotEmpty()
   idUsuarioSolicita!: number;
 
-  @ApiProperty({ description: 'Usuario con rol Administrador que autoriza la baja' })
-  @Type(() => Number)
-  @IsNumber()
-  @IsNotEmpty()
-  idUsuarioAutoriza!: number;
-
   @ApiPropertyOptional()
   @MaxLength(500)
   @IsOptional()
@@ -459,4 +453,26 @@ export class DarBajaBalonDto extends AuditoriaDto {
   @IsOptional()
   @IsDateString()
   fechaBaja?: string;
+}
+
+export class AprobarBajaBalonDto extends AuditoriaDto {
+  @ApiProperty({ description: 'Administrador que aprueba la solicitud' })
+  @Type(() => Number)
+  @IsNumber()
+  @IsNotEmpty()
+  idUsuarioAutoriza!: number;
+}
+
+export class RechazarBajaBalonDto extends AuditoriaDto {
+  @ApiProperty({ description: 'Administrador que rechaza la solicitud' })
+  @Type(() => Number)
+  @IsNumber()
+  @IsNotEmpty()
+  idUsuarioAutoriza!: number;
+
+  @ApiPropertyOptional()
+  @MaxLength(500)
+  @IsOptional()
+  @IsString()
+  motivoRechazo?: string;
 }

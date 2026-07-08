@@ -14,11 +14,14 @@ import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 import {
+  AprobarBajaBalonDto,
   CreateBalonesDto,
   DarBajaBalonDto,
   FiltroBalonesDto,
   FiltroPhHistorialDto,
+  RechazarBajaBalonDto,
   RegistrarPhHistorialDto,
   UpdateBalonesDto,
 } from '../dto/balones.dto';
@@ -34,6 +37,33 @@ export class BalonesController {
   @ApiOperation({ summary: 'Listar' })
   listar(@Query() filtros: FiltroBalonesDto) {
     return this.logic.listar(filtros);
+  }
+
+  @Get('bajas/pendientes')
+  @Permisos(PermisoBanderas.BALONES_EDITAR)
+  @ApiOperation({ summary: 'Listar solicitudes de baja pendientes de aprobación' })
+  listarBajasPendientes(@Query() filtros: FiltroPaginacionDto) {
+    return this.logic.listarSolicitudesBaja(filtros);
+  }
+
+  @Post('bajas/:idBaja/aprobar')
+  @Permisos(PermisoBanderas.BALONES_EDITAR)
+  @ApiOperation({ summary: 'Aprobar solicitud de baja (solo administrador)' })
+  aprobarBaja(
+    @Param('idBaja', ParseIntPipe) idBaja: number,
+    @Body() dto: AprobarBajaBalonDto,
+  ) {
+    return this.logic.aprobarBaja(idBaja, dto);
+  }
+
+  @Post('bajas/:idBaja/rechazar')
+  @Permisos(PermisoBanderas.BALONES_EDITAR)
+  @ApiOperation({ summary: 'Rechazar solicitud de baja (solo administrador)' })
+  rechazarBaja(
+    @Param('idBaja', ParseIntPipe) idBaja: number,
+    @Body() dto: RechazarBajaBalonDto,
+  ) {
+    return this.logic.rechazarBaja(idBaja, dto);
   }
 
   @Get(':id/ph-historial')
@@ -65,7 +95,7 @@ export class BalonesController {
 
   @Post(':id/baja')
   @Permisos(PermisoBanderas.BALONES_EDITAR)
-  @ApiOperation({ summary: 'Dar de baja cilindro (requiere autorización de administrador)' })
+  @ApiOperation({ summary: 'Solicitar baja de cilindro (requiere aprobación de administrador)' })
   darBaja(@Param('id', ParseIntPipe) id: number, @Body() dto: DarBajaBalonDto) {
     return this.logic.darBaja(id, dto);
   }

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 import {
   AuthDeleteResult,
   AuthListResult,
@@ -7,9 +8,11 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import {
   CreateBalonesDto,
+  AprobarBajaBalonDto,
   DarBajaBalonDto,
   FiltroBalonesDto,
   FiltroPhHistorialDto,
+  RechazarBajaBalonDto,
   RegistrarPhHistorialDto,
   UpdateBalonesDto,
 } from '../dto/balones.dto';
@@ -133,11 +136,10 @@ export class BalonesModel {
   }
 
   darBaja(idBalon: number, dto: DarBajaBalonDto) {
-    return this.db.callFunctionJson<AuthSingleResult>('bal_dar_baja_balon', [
+    return this.db.callFunctionJson<AuthSingleResult>('bal_solicitar_baja_balon', [
       idBalon,
       dto.idMotivoBaja ?? null,
       dto.idUsuarioSolicita ?? null,
-      dto.idUsuarioAutoriza ?? null,
       dto.motivoDetalle ?? null,
       dto.idClienteComprador ?? null,
       dto.idComprobanteVenta ?? null,
@@ -146,6 +148,32 @@ export class BalonesModel {
       dto.montoVenta ?? null,
       dto.observacion ?? null,
       dto.fechaBaja ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  listarSolicitudesBaja(filtros: FiltroPaginacionDto) {
+    return this.db.callFunctionJson<AuthListResult>('bal_listar_solicitudes_baja', [
+      filtros.buscar ?? '',
+      filtros.limite ?? 10,
+      filtros.offset,
+      'PENDIENTE',
+    ]);
+  }
+
+  aprobarBaja(idBaja: number, dto: AprobarBajaBalonDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_aprobar_baja_balon', [
+      idBaja,
+      dto.idUsuarioAutoriza ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  rechazarBaja(idBaja: number, dto: RechazarBajaBalonDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_rechazar_baja_balon', [
+      idBaja,
+      dto.idUsuarioAutoriza ?? null,
+      dto.motivoRechazo ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }

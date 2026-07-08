@@ -93,6 +93,13 @@ BEGIN
                 ELSE 'VIGENTE'
             END AS estado_ph,
             b.presion_actual,
+            EXISTS (
+                SELECT 1
+                FROM bal_baja_balon bb
+                WHERE bb.id_balon = b.id
+                  AND bb.estado = 1
+                  AND bb.estado_aprobacion = 'PENDIENTE'
+            ) AS tiene_solicitud_baja_pendiente,
             b.estado,
             b.fecha_creacion,
             b.fecha_modificacion
