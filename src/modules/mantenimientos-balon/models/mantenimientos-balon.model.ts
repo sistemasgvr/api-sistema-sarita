@@ -46,6 +46,10 @@ export class MantenimientosBalonModel {
       dto.idComprobanteCompra ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.vigenciaPhAnios ?? null,
+      dto.idOrganoInspector ?? null,
+      dto.organoInspectorNoAplica ?? null,
+      dto.numeroCertificadoPh ?? null,
     ]);
   }
 
@@ -64,6 +68,10 @@ export class MantenimientosBalonModel {
       dto.idComprobanteCompra ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.vigenciaPhAnios ?? null,
+      dto.idOrganoInspector ?? null,
+      dto.organoInspectorNoAplica ?? null,
+      dto.numeroCertificadoPh ?? null,
     ]);
   }
 

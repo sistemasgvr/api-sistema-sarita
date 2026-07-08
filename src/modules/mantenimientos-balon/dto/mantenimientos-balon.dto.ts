@@ -111,6 +111,29 @@ export class CreateMantenimientosBalonDto extends AuditoriaDto {
   @IsOptional()
   @IsString()
   observacion?: string;
+
+  @ApiPropertyOptional({ description: 'Solo aplica si el tipo es P.H. o recertificación' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  vigenciaPhAnios?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idOrganoInspector?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  organoInspectorNoAplica?: boolean;
+
+  @ApiPropertyOptional()
+  @MaxLength(50)
+  @IsOptional()
+  @IsString()
+  numeroCertificadoPh?: string;
 }
 
 export class UpdateMantenimientosBalonDto extends AuditoriaDto {
@@ -176,4 +199,27 @@ export class UpdateMantenimientosBalonDto extends AuditoriaDto {
   @IsOptional()
   @IsString()
   observacion?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  vigenciaPhAnios?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idOrganoInspector?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  organoInspectorNoAplica?: boolean;
+
+  @ApiPropertyOptional()
+  @MaxLength(50)
+  @IsOptional()
+  @IsString()
+  numeroCertificadoPh?: string;
 }

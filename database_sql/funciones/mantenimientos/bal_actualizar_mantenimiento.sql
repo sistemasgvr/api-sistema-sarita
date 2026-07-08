@@ -11,7 +11,11 @@ CREATE OR REPLACE FUNCTION bal_actualizar_mantenimiento(
     p_id_comprobante_venta INTEGER DEFAULT NULL,
     p_id_comprobante_compra INTEGER DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_vigencia_ph_anios INTEGER DEFAULT NULL,
+    p_id_organo_inspector INTEGER DEFAULT NULL,
+    p_organo_inspector_no_aplica BOOLEAN DEFAULT NULL,
+    p_numero_certificado_ph VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -39,6 +43,15 @@ BEGIN
     IF NOT FOUND THEN
         RETURN json_build_object('registro', NULL);
     END IF;
+
+    PERFORM bal_sync_ph_desde_mantenimiento(
+        p_id,
+        p_id_usuario_auditoria,
+        p_vigencia_ph_anios,
+        p_id_organo_inspector,
+        p_organo_inspector_no_aplica,
+        p_numero_certificado_ph
+    );
 
     RETURN bal_obtener_mantenimiento(p_id);
 END;
