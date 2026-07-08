@@ -18,7 +18,10 @@ FROM (
         ('PropietarioBalon', 'Propiedad del envase: empresa, cliente o propia'),
         ('EstadoPrestamo', 'Estado del préstamo de cilindros'),
         ('EstadoAlquiler', 'Estado del alquiler de cilindros'),
-        ('EstadoMantenimiento', 'Estado del mantenimiento de cilindro')
+        ('EstadoMantenimiento', 'Estado del mantenimiento de cilindro'),
+        ('MarcaCilindro', 'Marca del fabricante del cilindro'),
+        ('OrganoInspectorCilindro', 'Órgano inspector de la prueba hidrostática'),
+        ('MotivoBajaBalon', 'Motivo de baja definitiva del cilindro')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (
     SELECT 1 FROM gen_lista l WHERE l.nombre = v.nombre
@@ -159,9 +162,10 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('EMPRESA', 'Envase propiedad de la empresa'),
+        ('EMPRESA', 'Envase propiedad de la empresa (SARITA)'),
         ('CLIENTE', 'Envase propiedad del cliente'),
-        ('PROPIA', 'Propiedad propia / particular')
+        ('PROPIA', 'Propiedad propia / particular'),
+        ('PLANTA', 'Envase propiedad de planta proveedora')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'PropietarioBalon'
@@ -213,6 +217,64 @@ FROM (
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'EstadoMantenimiento'
+  AND NOT EXISTS (
+      SELECT 1 FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
+  );
+
+-- MarcaCilindro
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('JP', 'Marca JP'),
+        ('JD', 'Marca JD'),
+        ('YA', 'Marca YA'),
+        ('LD', 'Marca LD'),
+        ('AMERICANA', 'Marca Americana'),
+        ('BRASILERA', 'Marca Brasilera'),
+        ('ARGENTINA', 'Marca Argentina'),
+        ('OTRA', 'Otra marca')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'MarcaCilindro'
+  AND NOT EXISTS (
+      SELECT 1 FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
+  );
+
+-- OrganoInspectorCilindro
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('NO_APLICA', 'Sin órgano inspector'),
+        ('OCIA', 'OCIA'),
+        ('DNV', 'DNV'),
+        ('BUREAU_VERITAS', 'Bureau Veritas'),
+        ('LLOYDS', 'Lloyd''s Register'),
+        ('OTRO', 'Otro órgano inspector')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'OrganoInspectorCilindro'
+  AND NOT EXISTS (
+      SELECT 1 FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
+  );
+
+-- MotivoBajaBalon
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('VENDIDO', 'Cilindro vendido'),
+        ('PERDIDO', 'Cilindro perdido o extraviado'),
+        ('ROBO', 'Cilindro robado'),
+        ('DETERIORO', 'Cilindro deteriorado / inservible'),
+        ('OTROS', 'Otro motivo de baja')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'MotivoBajaBalon'
   AND NOT EXISTS (
       SELECT 1 FROM gen_lista_opciones lo
       WHERE lo.id_lista = l.id AND lo.nombre = v.nombre

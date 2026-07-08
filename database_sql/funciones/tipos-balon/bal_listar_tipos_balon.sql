@@ -35,6 +35,7 @@ BEGIN
             tb.id_unidad_medida,
             um.nombre AS nombre_unidad_medida,
             tb.peso,
+            tb.vigencia_ph_anios,
             tb.estado,
             tb.fecha_creacion,
             tb.fecha_modificacion,

@@ -1,6 +1,6 @@
 -- ============================================================
 --  BASE DE DATOS - OXÍGENO SARITA
---  Versión 6.0 | Junio 2026
+--  Versión 7.0 | Julio 2026
 -- ============================================================
 --
 --  NEGOCIO
@@ -22,7 +22,8 @@
 --                   catálogo de precios con costo/flete/margen, stock por almacén y kardex
 --  5. BALONES     → Maestro de balones/cilindros (bal_balon) con trazabilidad completa:
 --                   movimientos físicos, recargas en planta, préstamos, alquiler,
---                   mantenimiento y garantías cobradas/devueltas
+--                   mantenimiento, historial PH (bal_balon_ph_historial),
+--                   baja controlada (bal_baja_balon) y garantías cobradas/devueltas
 --  6. VENTAS      → Comprobantes de venta con ciclo FE-SUNAT completo (xml_firmado,
 --                   cdr_respuesta, NC/ND), detalle por línea con afectación IGV,
 --                   cuotas de crédito y relación con GRE
@@ -617,6 +618,7 @@ CREATE TABLE bal_tipo_balon (
     capacidad       NUMERIC(10,4),          -- en m3 o kg
     id_unidad_medida  INT REFERENCES gen_lista_opciones(id),
     peso            NUMERIC(10,4),          -- peso tara en kg
+    vigencia_ph_anios INT NOT NULL DEFAULT 5, -- vigencia PH por normativa del tipo/gas (5 o 10 años)
     estado          INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),
@@ -627,27 +629,33 @@ CREATE TABLE bal_tipo_balon (
 -- Registro individual de cada balón físico (libro de cilindros / trazabilidad total)
 CREATE TABLE bal_balon (
     id                  SERIAL PRIMARY KEY,
-    codigo_balon         varchar(50) NOT NULL UNIQUE,  -- 20K650076, 21Y405093, 4706374...
+    codigo_balon         varchar(50) NOT NULL UNIQUE,  -- identificador principal / número de serie
+    numero_serie         varchar(50),                 -- número de serie del fabricante (si difiere del código)
     libro_cilindro       varchar(30),                 -- LIBRO 1, LIBRO 5, SIN LIBRO...
     pagina_libro         INT,                         -- PAG. 103, 0 si sin libro
     fecha_registro       DATE,                        -- FECHA de asignación / registro actual
     id_almacen           INT REFERENCES gen_almacen(id),
     id_cliente_ubicacion  INT REFERENCES cli_clientes(id),
     -- Propiedad del envase
-    id_propietario       INT REFERENCES gen_lista_opciones(id),  -- EMPRESA / CLIENTE / PROPIA
+    id_propietario       INT REFERENCES gen_lista_opciones(id),  -- EMPRESA / CLIENTE / PROPIA / PLANTA
     id_cliente_propietario INT REFERENCES cli_clientes(id),
     id_referencia        INT REFERENCES gen_lista_opciones(id),  -- ReferenciaCilindro
+    -- Identificación del envase
+    id_marca_cilindro     INT REFERENCES gen_lista_opciones(id), -- MarcaCilindro: JP, JD, YA, LD...
+    id_organo_inspector   INT REFERENCES gen_lista_opciones(id), -- OrganoInspectorCilindro
+    organo_inspector_no_aplica BOOLEAN NOT NULL DEFAULT FALSE,
     -- Gas / producto actual en el cilindro
     id_tipo_balon         INT REFERENCES bal_tipo_balon(id),
     id_producto_gas       INT REFERENCES pro_producto(id),
     -- Estado actual del balón
     id_estado_balon       INT REFERENCES gen_lista_opciones(id),
-    -- Prueba hidrostática
+    -- Prueba hidrostática (snapshot vigente)
     fecha_ultima_prueba_hidrostatica   DATE,
     vigencia_prueba_hidrostatica_anios INT DEFAULT 5,
     fecha_proxima_prueba_hidrostatica  DATE,
     -- Datos técnicos adicionales
     fecha_fabricacion    DATE,
+    anio_fabricacion     SMALLINT,                    -- año de fabricación (consulta rápida)
     numero_recepcion     varchar(30),
     presion_actual       NUMERIC(8,2),
     observacion         varchar(500),
@@ -816,6 +824,51 @@ CREATE TABLE bal_mantenimiento (
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),
     fecha_creacion       TIMESTAMP DEFAULT NOW(),
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
+);
+
+-- Historial de pruebas hidrostáticas por cilindro (renovaciones PH)
+CREATE TABLE bal_balon_ph_historial (
+    id                      SERIAL PRIMARY KEY,
+    id_balon                 INT NOT NULL REFERENCES bal_balon(id),
+    fecha_prueba             DATE NOT NULL,
+    vigencia_anios           INT NOT NULL DEFAULT 5,
+    fecha_proxima            DATE,
+    id_organo_inspector      INT REFERENCES gen_lista_opciones(id),
+    organo_inspector_no_aplica BOOLEAN NOT NULL DEFAULT FALSE,
+    numero_certificado       varchar(50),
+    id_mantenimiento         INT REFERENCES bal_mantenimiento(id),
+    id_movimiento_recarga    INT REFERENCES bal_movimiento_recarga(id),
+    es_vigente               BOOLEAN NOT NULL DEFAULT TRUE,
+    observacion             varchar(500),
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion           INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion       INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+-- Baja controlada de cilindro (motivo obligatorio + autorización de administrador)
+CREATE TABLE bal_baja_balon (
+    id                      SERIAL PRIMARY KEY,
+    id_balon                 INT NOT NULL REFERENCES bal_balon(id),
+    id_motivo_baja           INT NOT NULL REFERENCES gen_lista_opciones(id), -- MotivoBajaBalon
+    fecha_baja               DATE NOT NULL DEFAULT CURRENT_DATE,
+    id_usuario_solicita      INT NOT NULL REFERENCES auth_usuarios(id),
+    id_usuario_autoriza      INT NOT NULL REFERENCES auth_usuarios(id),
+    fecha_autorizacion       TIMESTAMP NOT NULL DEFAULT NOW(),
+    motivo_detalle           varchar(500),  -- texto adicional (ej. cuando motivo = OTROS)
+    id_cliente_comprador     INT REFERENCES cli_clientes(id),
+    id_comprobante_venta     INT REFERENCES ven_comprobante(id),
+    serie_comprobante        varchar(10),
+    numero_comprobante       varchar(15),
+    monto_venta              NUMERIC(12,4),
+    id_movimiento            INT REFERENCES bal_movimiento(id),
+    observacion             varchar(500),
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion           INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion       INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
 );
 
 
@@ -1256,11 +1309,18 @@ CREATE INDEX idx_gen_cuenta_cliente ON gen_cuenta_bancaria(id_cliente);
 
 -- Balones
 CREATE INDEX idx_bal_balon_codigo ON bal_balon(codigo_balon);
+CREATE INDEX idx_bal_balon_numero_serie ON bal_balon(numero_serie);
 CREATE INDEX idx_bal_balon_libro ON bal_balon(libro_cilindro, pagina_libro);
 CREATE INDEX idx_bal_balon_cliente_ubic ON bal_balon(id_cliente_ubicacion);
 CREATE INDEX idx_bal_balon_ph_vence ON bal_balon(fecha_proxima_prueba_hidrostatica);
 CREATE INDEX idx_bal_balon_estado ON bal_balon(id_estado_balon);
 CREATE INDEX idx_bal_balon_cliente ON bal_balon(id_cliente_propietario);
+CREATE INDEX idx_bal_balon_marca ON bal_balon(id_marca_cilindro);
+CREATE INDEX idx_bal_balon_anio_fabricacion ON bal_balon(anio_fabricacion);
+CREATE INDEX idx_bal_balon_ph_historial_balon ON bal_balon_ph_historial(id_balon);
+CREATE INDEX idx_bal_balon_ph_historial_vigente ON bal_balon_ph_historial(id_balon, es_vigente) WHERE es_vigente = TRUE;
+CREATE INDEX idx_bal_baja_balon_balon ON bal_baja_balon(id_balon);
+CREATE UNIQUE INDEX idx_bal_baja_balon_activo ON bal_baja_balon(id_balon) WHERE estado = 1;
 CREATE INDEX idx_bal_movimiento_balon ON bal_movimiento(id_balon);
 CREATE INDEX idx_bal_movimiento_fecha ON bal_movimiento(fecha_movimiento);
 CREATE INDEX idx_bal_movimiento_recarga_balon ON bal_movimiento_recarga(id_balon);

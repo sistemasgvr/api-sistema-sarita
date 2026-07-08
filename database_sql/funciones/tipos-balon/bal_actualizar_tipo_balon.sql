@@ -5,6 +5,7 @@ CREATE OR REPLACE FUNCTION bal_actualizar_tipo_balon(
     p_capacidad NUMERIC DEFAULT NULL,
     p_id_unidad_medida INTEGER DEFAULT NULL,
     p_peso NUMERIC DEFAULT NULL,
+    p_vigencia_ph_anios INTEGER DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -43,6 +44,7 @@ BEGIN
         capacidad = COALESCE(p_capacidad, capacidad),
         id_unidad_medida = COALESCE(p_id_unidad_medida, id_unidad_medida),
         peso = COALESCE(p_peso, peso),
+        vigencia_ph_anios = COALESCE(p_vigencia_ph_anios, vigencia_ph_anios),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;

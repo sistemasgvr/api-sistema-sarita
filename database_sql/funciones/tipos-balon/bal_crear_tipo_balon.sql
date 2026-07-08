@@ -4,6 +4,7 @@ CREATE OR REPLACE FUNCTION bal_crear_tipo_balon(
     p_capacidad NUMERIC DEFAULT NULL,
     p_id_unidad_medida INTEGER DEFAULT NULL,
     p_peso NUMERIC DEFAULT NULL,
+    p_vigencia_ph_anios INTEGER DEFAULT 5,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -38,11 +39,12 @@ BEGIN
     END IF;
 
     INSERT INTO bal_tipo_balon (
-        nombre, id_gas, capacidad, id_unidad_medida, peso,
+        nombre, id_gas, capacidad, id_unidad_medida, peso, vigencia_ph_anios,
         id_usuario_creacion, id_usuario_modificacion
     )
     VALUES (
         TRIM(p_nombre), p_id_gas, p_capacidad, p_id_unidad_medida, p_peso,
+        COALESCE(p_vigencia_ph_anios, 5),
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;

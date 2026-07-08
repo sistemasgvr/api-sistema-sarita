@@ -5,7 +5,10 @@ CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_id_tipo_balon INTEGER DEFAULT NULL,
     p_id_almacen INTEGER DEFAULT NULL,
     p_id_estado_balon INTEGER DEFAULT NULL,
-    p_id_cliente_ubicacion INTEGER DEFAULT NULL
+    p_id_cliente_ubicacion INTEGER DEFAULT NULL,
+    p_id_marca_cilindro INTEGER DEFAULT NULL,
+    p_ph_vencida BOOLEAN DEFAULT NULL,
+    p_ph_por_vencer_dias INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -21,17 +24,44 @@ BEGIN
     LEFT JOIN bal_tipo_balon tb ON b.id_tipo_balon = tb.id
     LEFT JOIN gen_almacen a ON b.id_almacen = a.id
     LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
+    LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
     WHERE b.estado = 1
       AND (p_id_tipo_balon IS NULL OR b.id_tipo_balon = p_id_tipo_balon)
       AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
       AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
       AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
+      AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
+      AND (
+          p_ph_vencida IS NULL
+          OR (
+              p_ph_vencida = TRUE
+              AND b.fecha_proxima_prueba_hidrostatica IS NOT NULL
+              AND b.fecha_proxima_prueba_hidrostatica < CURRENT_DATE
+          )
+          OR (
+              p_ph_vencida = FALSE
+              AND (
+                  b.fecha_proxima_prueba_hidrostatica IS NULL
+                  OR b.fecha_proxima_prueba_hidrostatica >= CURRENT_DATE
+              )
+          )
+      )
+      AND (
+          p_ph_por_vencer_dias IS NULL
+          OR (
+              b.fecha_proxima_prueba_hidrostatica IS NOT NULL
+              AND b.fecha_proxima_prueba_hidrostatica >= CURRENT_DATE
+              AND b.fecha_proxima_prueba_hidrostatica <= CURRENT_DATE + make_interval(days => p_ph_por_vencer_dias)
+          )
+      )
       AND (
           p_busqueda = ''
           OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(b.numero_serie, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(b.libro_cilindro, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(tb.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(a.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(mc.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -39,6 +69,7 @@ BEGIN
         SELECT
             b.id,
             b.codigo_balon,
+            b.numero_serie,
             b.libro_cilindro,
             b.pagina_libro,
             b.fecha_registro,
@@ -51,7 +82,16 @@ BEGIN
             pg.nombre AS nombre_producto_gas,
             b.id_estado_balon,
             eb.nombre AS nombre_estado_balon,
+            b.id_marca_cilindro,
+            mc.nombre AS nombre_marca_cilindro,
+            b.anio_fabricacion,
             b.fecha_proxima_prueba_hidrostatica,
+            CASE
+                WHEN b.fecha_proxima_prueba_hidrostatica IS NULL THEN NULL
+                WHEN b.fecha_proxima_prueba_hidrostatica < CURRENT_DATE THEN 'VENCIDA'
+                WHEN b.fecha_proxima_prueba_hidrostatica <= CURRENT_DATE + INTERVAL '90 days' THEN 'POR_VENCER'
+                ELSE 'VIGENTE'
+            END AS estado_ph,
             b.presion_actual,
             b.estado,
             b.fecha_creacion,
@@ -61,17 +101,44 @@ BEGIN
         LEFT JOIN gen_almacen a ON b.id_almacen = a.id
         LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
         LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
+        LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
         WHERE b.estado = 1
           AND (p_id_tipo_balon IS NULL OR b.id_tipo_balon = p_id_tipo_balon)
           AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
           AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
           AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
+          AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
+          AND (
+              p_ph_vencida IS NULL
+              OR (
+                  p_ph_vencida = TRUE
+                  AND b.fecha_proxima_prueba_hidrostatica IS NOT NULL
+                  AND b.fecha_proxima_prueba_hidrostatica < CURRENT_DATE
+              )
+              OR (
+                  p_ph_vencida = FALSE
+                  AND (
+                      b.fecha_proxima_prueba_hidrostatica IS NULL
+                      OR b.fecha_proxima_prueba_hidrostatica >= CURRENT_DATE
+                  )
+              )
+          )
+          AND (
+              p_ph_por_vencer_dias IS NULL
+              OR (
+                  b.fecha_proxima_prueba_hidrostatica IS NOT NULL
+                  AND b.fecha_proxima_prueba_hidrostatica >= CURRENT_DATE
+                  AND b.fecha_proxima_prueba_hidrostatica <= CURRENT_DATE + make_interval(days => p_ph_por_vencer_dias)
+              )
+          )
           AND (
               p_busqueda = ''
               OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(b.numero_serie, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(b.libro_cilindro, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(tb.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(a.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(mc.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
           )
         ORDER BY b.codigo_balon ASC
         LIMIT p_limite
