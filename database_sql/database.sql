@@ -439,7 +439,7 @@ CREATE TABLE gen_chofer (
     nombres             varchar(150) NOT NULL,
     id_tipo_documento     INT REFERENCES gen_lista_opciones(id),  -- SUNAT: 1=DNI, 4=CE, 7=Pasaporte
     numero_documento     varchar(20),   -- DNI, CE, Pasaporte según id_tipo_documento
-    brevete             varchar(30),
+    --brevete             varchar(30),
     telefono            varchar(20),
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion       INT REFERENCES auth_usuarios(id),
@@ -486,7 +486,21 @@ CREATE TABLE gen_documento_vencimiento (
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE gen_licencias(
+    id  SERIAL PRIMARY KEY,
+    id_tipo_licencia INT REFERENCES gen_lista_opciones(id), --VEHICULO PESADO, VEHICULO LIGERO
+    id_categoria INT REFERENCES gen_lista_opciones(id),  --A1, A2, B1, B2, C1, C2
+    id_chofer INT REFERENCES gen_chofer(id),
+    codigo varchar(20) NOT NULL UNIQUE, --brevete(ABDHSFS-912323)
+    fecha_emision DATE NOT NULL,
+    fecha_vencimiento DATE NOT NULL,
+    estado              INT NOT NULL DEFAULT 1,
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
 
+)
 -- ============================================================
 -- GRUPO 4: PRODUCTOS E INVENTARIO
 -- ============================================================

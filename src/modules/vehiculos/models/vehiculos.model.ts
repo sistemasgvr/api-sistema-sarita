@@ -17,10 +17,10 @@ export class VehiculosModel {
 
   listar(filtros: FiltroVehiculoDto) {
     return this.db.callFunctionJson<AuthListResult>('gen_listar_vehiculos', [
-      filtros.isActivos ?? 1,
+      filtros.isActivos ?? null,
       filtros.buscar ?? '',
       filtros.limite ?? 10,
-      filtros.pagina?? 1,
+      filtros.pagina ?? 1,
       filtros.idCliente ?? null,
     ]);
   }
