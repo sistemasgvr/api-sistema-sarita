@@ -41,7 +41,7 @@ BEGIN
             mr.id_usuario_creacion,
             uc.nombre AS nombre_usuario_creacion,
             mr.id_usuario_modificacion,
-            um.nombre AS nombre_usuario_modificacion
+            um2.nombre AS nombre_usuario_modificacion
         FROM bal_movimiento_recarga mr
         INNER JOIN bal_balon b ON mr.id_balon = b.id
         LEFT JOIN pro_producto p ON mr.id_producto = p.id
@@ -49,7 +49,7 @@ BEGIN
         LEFT JOIN cli_clientes prov ON mr.id_proveedor = prov.id
         LEFT JOIN gen_almacen a ON mr.id_almacen = a.id
         LEFT JOIN auth_usuarios uc ON mr.id_usuario_creacion = uc.id
-        LEFT JOIN auth_usuarios um ON mr.id_usuario_modificacion = um.id
+        LEFT JOIN auth_usuarios um2 ON mr.id_usuario_modificacion = um2.id
         WHERE mr.id = p_id AND mr.estado = 1
     ) t;
 
