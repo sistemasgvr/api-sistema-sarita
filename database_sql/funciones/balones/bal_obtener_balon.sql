@@ -59,6 +59,13 @@ BEGIN
             uc.nombre AS nombre_usuario_creacion,
             b.id_usuario_modificacion,
             um.nombre AS nombre_usuario_modificacion,
+            EXISTS (
+                SELECT 1
+                FROM bal_baja_balon bb
+                WHERE bb.id_balon = b.id
+                  AND bb.estado = 1
+                  AND bb.estado_aprobacion = 'PENDIENTE'
+            ) AS tiene_solicitud_baja_pendiente,
             (
                 SELECT row_to_json(bj)
                 FROM (
