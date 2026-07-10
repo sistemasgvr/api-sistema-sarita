@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import databaseConfig from './config/database.config';
+import facturacionConfig from './config/facturacion.config';
 import jwtConfig from './config/jwt.config';
 import { envValidationSchema } from './config/env.validation';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -42,12 +43,14 @@ import { PrestamosDetalleModule } from './modules/prestamos-detalle/prestamos-de
 import { AlquileresBalonModule } from './modules/alquileres-balon/alquileres-balon.module';
 import { AlquileresDetalleModule } from './modules/alquileres-detalle/alquileres-detalle.module';
 import { MantenimientosBalonModule } from './modules/mantenimientos-balon/mantenimientos-balon.module';
+import { FacturacionApisperuModule } from './integrations/facturacion-apisperu/facturacion-apisperu.module';
+import { FacturacionElectronicaModule } from './modules/facturacion-electronica/facturacion-electronica.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig],
+      load: [databaseConfig, jwtConfig, facturacionConfig],
       validationSchema: envValidationSchema,
       validationOptions: {
         allowUnknown: true,
@@ -90,6 +93,8 @@ import { MantenimientosBalonModule } from './modules/mantenimientos-balon/manten
     AlquileresDetalleModule,
     MantenimientosBalonModule,
     BalonesModule,
+    FacturacionApisperuModule,
+    FacturacionElectronicaModule,
   ],
   providers: [
     {
