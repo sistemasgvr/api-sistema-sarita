@@ -45,6 +45,7 @@ import { AlquileresDetalleModule } from './modules/alquileres-detalle/alquileres
 import { MantenimientosBalonModule } from './modules/mantenimientos-balon/mantenimientos-balon.module';
 import { FacturacionApisperuModule } from './integrations/facturacion-apisperu/facturacion-apisperu.module';
 import { FacturacionElectronicaModule } from './modules/facturacion-electronica/facturacion-electronica.module';
+import { ComprobantesModule } from './modules/comprobantes/comprobantes.module';
 
 @Module({
   imports: [
@@ -95,6 +96,7 @@ import { FacturacionElectronicaModule } from './modules/facturacion-electronica/
     BalonesModule,
     FacturacionApisperuModule,
     FacturacionElectronicaModule,
+    ComprobantesModule,
   ],
   providers: [
     {

@@ -203,6 +203,16 @@ export const PermisoBanderas = {
   MANTENIMIENTOS_BALON_CREAR: 'mantenimientos_balon.crear',
   MANTENIMIENTOS_BALON_EDITAR: 'mantenimientos_balon.editar',
   MANTENIMIENTOS_BALON_ELIMINAR: 'mantenimientos_balon.eliminar',
+
+  VENTAS_VER: 'ventas.ver',
+
+  COMPROBANTES_LISTAR: 'comprobantes.listar',
+  COMPROBANTES_VER: 'comprobantes.ver',
+  COMPROBANTES_CREAR: 'comprobantes.crear',
+  COMPROBANTES_EDITAR: 'comprobantes.editar',
+  COMPROBANTES_ELIMINAR: 'comprobantes.eliminar',
+  COMPROBANTES_EMITIR: 'comprobantes.emitir',
+  COMPROBANTES_CONSULTAR_CDR: 'comprobantes.consultar_cdr',
 } as const;
 
 export type PermisoBandera =
