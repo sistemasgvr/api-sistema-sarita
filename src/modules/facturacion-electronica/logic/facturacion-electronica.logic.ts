@@ -4,7 +4,6 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { FacturacionApisperuClient } from '../../../integrations/facturacion-apisperu/facturacion-apisperu.client';
-import type { FacturacionApisperuPayload } from '../../../integrations/facturacion-apisperu/interfaces/facturacion-apisperu.interface';
 import {
   FacturacionComprobanteStatusDto,
   FacturacionDocumentoPayload,
@@ -103,13 +102,11 @@ export class FacturacionElectronicaLogic {
 
   /**
    * Punto de extensión para mapear ven_comprobante → payload Invoice APIsPERU.
-   * Se implementará al crear el módulo de comprobantes (GRUPO 6).
+   * Implementado en ComprobantesLogic / ComprobanteInvoiceMapper.
    */
-  mapComprobanteToInvoicePayload(
-    _comprobante: FacturacionApisperuPayload,
-  ): FacturacionApisperuPayload {
+  mapComprobanteToInvoicePayload(): never {
     throw new BadRequestException(
-      'Mapeo ven_comprobante → APIsPERU pendiente de implementación',
+      'Use ComprobantesLogic.mapComprobanteToInvoicePayload o POST /comprobantes/:id/emitir',
     );
   }
 

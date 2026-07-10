@@ -1,10 +1,16 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   AuthDeleteResult,
   AuthListResult,
   AuthSingleResult,
 } from '../../../common/interfaces/auth-db.interface';
 import { DatabaseService } from '../../../database/database.service';
+import type {
+  ComprobanteCatalogosPos,
+  ComprobanteCompletoResult,
+  ListaOpcionBasica,
+} from '../interfaces/comprobante.interface';
 import {
   ComprobanteCuotaDto,
   ComprobanteDetalleDto,
@@ -52,9 +58,20 @@ function mapCuotasToJson(cuotas?: ComprobanteCuotaDto[]) {
   }));
 }
 
+interface EmpresaEmisoraRow {
+  id: number;
+  ruc: string;
+  razon_social: string | null;
+  nombre_comercial: string | null;
+  direccion: string | null;
+}
+
 @Injectable()
 export class ComprobantesModel {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly configService: ConfigService,
+  ) {}
 
   listar(filtros: FiltroComprobantesDto) {
     return this.db.callFunctionJson<AuthListResult>('ven_listar_comprobantes', [
@@ -71,8 +88,106 @@ export class ComprobantesModel {
     ]);
   }
 
+  obtenerCompleto(id: number) {
+    return this.db.callFunctionJson<ComprobanteCompletoResult>(
+      'ven_obtener_comprobante',
+      [id],
+    );
+  }
+
   obtenerPorId(id: number) {
-    return this.db.callFunctionJson<AuthSingleResult>('ven_obtener_comprobante', [id]);
+    return this.obtenerCompleto(id);
+  }
+
+  async listarOpcionesPorLista(nombreLista: string) {
+    const result = await this.db.query<ListaOpcionBasica>(
+      `SELECT lo.id, lo.nombre, lo.descripcion
+       FROM gen_lista_opciones lo
+       INNER JOIN gen_lista l ON lo.id_lista = l.id
+       WHERE l.nombre = $1 AND lo.estado = 1
+       ORDER BY lo.nombre`,
+      [nombreLista],
+    );
+
+    return result.rows;
+  }
+
+  async obtenerCatalogosPos(): Promise<ComprobanteCatalogosPos> {
+    const [
+      tiposComprobante,
+      afectacionesIgv,
+      monedas,
+      mediosPago,
+      tiposOperacionSunat,
+      estadosSunat,
+    ] = await Promise.all([
+      this.listarOpcionesPorLista('TipoComprobante'),
+      this.listarOpcionesPorLista('AfectacionIgv'),
+      this.listarOpcionesPorLista('Moneda'),
+      this.listarOpcionesPorLista('MedioPago'),
+      this.listarOpcionesPorLista('TipoOperacionSunat'),
+      this.listarOpcionesPorLista('EstadoSunat'),
+    ]);
+
+    return {
+      tiposComprobante,
+      afectacionesIgv,
+      monedas,
+      mediosPago,
+      tiposOperacionSunat,
+      estadosSunat,
+    };
+  }
+
+  async resolverIdEstadoSunat(nombreEstado: string) {
+    const result = await this.db.query<{ id: number }>(
+      `SELECT lo.id
+       FROM gen_lista_opciones lo
+       INNER JOIN gen_lista l ON lo.id_lista = l.id
+       WHERE l.nombre = 'EstadoSunat'
+         AND lo.nombre = $1
+         AND lo.estado = 1
+       LIMIT 1`,
+      [nombreEstado],
+    );
+
+    return result.rows[0]?.id ?? null;
+  }
+
+  async obtenerCodigoUbigeoDistrito(idDistrito: number) {
+    const result = await this.db.query<{ codigo_ubigeo: string | null }>(
+      `SELECT codigo_ubigeo FROM gen_distrito WHERE id = $1 LIMIT 1`,
+      [idDistrito],
+    );
+
+    return result.rows[0]?.codigo_ubigeo ?? '150101';
+  }
+
+  async obtenerEmpresaEmisora(): Promise<EmpresaEmisoraRow | null> {
+    const defaultRuc =
+      this.configService.get<string>('facturacion.defaultRuc') ?? null;
+
+    if (defaultRuc) {
+      const byRuc = await this.db.query<EmpresaEmisoraRow>(
+        `SELECT id, ruc, razon_social, nombre_comercial, direccion
+         FROM gen_empresa
+         WHERE estado = 1 AND ruc = $1
+         LIMIT 1`,
+        [defaultRuc],
+      );
+
+      if (byRuc.rows[0]) return byRuc.rows[0];
+    }
+
+    const result = await this.db.query<EmpresaEmisoraRow>(
+      `SELECT id, ruc, razon_social, nombre_comercial, direccion
+       FROM gen_empresa
+       WHERE estado = 1
+       ORDER BY id
+       LIMIT 1`,
+    );
+
+    return result.rows[0] ?? null;
   }
 
   obtenerSiguienteNumero(query: SiguienteNumeroQueryDto) {

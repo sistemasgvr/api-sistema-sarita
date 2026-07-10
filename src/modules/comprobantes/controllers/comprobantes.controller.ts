@@ -35,6 +35,13 @@ export class ComprobantesController {
     return this.logic.listar(filtros);
   }
 
+  @Get('catalogos/pos')
+  @Permisos(PermisoBanderas.COMPROBANTES_CREAR)
+  @ApiOperation({ summary: 'Catálogos para punto de venta' })
+  obtenerCatalogosPos() {
+    return this.logic.obtenerCatalogosPos();
+  }
+
   @Get('siguiente-numero')
   @Permisos(PermisoBanderas.COMPROBANTES_CREAR)
   @ApiOperation({ summary: 'Obtener siguiente número correlativo por serie y tipo' })
@@ -66,6 +73,17 @@ export class ComprobantesController {
     @Body() dto: UpdateComprobantesDto,
   ) {
     return this.logic.actualizar(id, dto);
+  }
+
+  @Post(':id/emitir')
+  @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
+  @ApiOperation({ summary: 'Emitir comprobante ante SUNAT vía APIsPERU' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  emitir(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.logic.emitir(id, dto);
   }
 
   @Post(':id/respuesta-sunat')
