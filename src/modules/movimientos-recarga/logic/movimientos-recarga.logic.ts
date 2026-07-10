@@ -6,6 +6,7 @@ import {
 } from '../../../common/helpers/auth-response.helper';
 import {
   CreateMovimientosRecargaDto,
+  CreateRecargaClienteDto,
   FiltroMovimientosRecargaDto,
   UpdateMovimientosRecargaDto,
 } from '../dto/movimientos-recarga.dto';
@@ -28,6 +29,11 @@ export class MovimientosRecargaLogic {
   async crear(dto: CreateMovimientosRecargaDto) {
     const result = await this.model.crear(dto);
     return mapSingleResult(result, 'No se pudo crear el registro');
+  }
+
+  async crearRecargaCliente(dto: CreateRecargaClienteDto) {
+    const result = await this.model.crearRecargaCliente(dto);
+    return mapSingleResult(result, 'No se pudo registrar la recarga del cliente');
   }
 
   async actualizar(id: number, dto: UpdateMovimientosRecargaDto) {

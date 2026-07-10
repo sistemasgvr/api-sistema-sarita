@@ -36,8 +36,13 @@
 --
 --  FLUJOS DEL NEGOCIO
 --  ------------------
---  A. VENTA DE GAS (cliente trae su propio balón)
---       ven_comprobante + ven_comprobante_detalle + pro_movimientos (salida gas)
+--  A. RECARGA DE GAS EN MOSTRADOR (cliente trae su balón — ustedes son la planta)
+--       bal_crear_recarga_cliente → bal_movimiento_recarga (tipo CLIENTE) +
+--       ven_comprobante (boleta/factura con id_balon en detalle) +
+--       bal_movimiento (RECARGA_CLIENTE) + actualización bal_balon
+--
+--  A2. VENTA DE ACCESORIOS (válvulas, mangueras, etc.)
+--       ven_comprobante + ven_comprobante_detalle (productos es_gas=FALSE)
 --
 --  B. VENTA DE GAS + BALÓN EN PRÉSTAMO
 --       bal_prestamo (garantía cobrada → id_comprobante_venta) +
@@ -59,8 +64,8 @@
 --       bal_mantenimiento + ven_comprobante (servicio cobrado al cliente)
 --       o com_comprobante_compra (servicio contratado a tercero)
 --
---  F. RECARGA EN PLANTA (balones propios enviados al proveedor)
---       bal_movimiento_recarga (lote + P.H. de la recarga) +
+--  F. RECARGA EN PLANTA EXTERNA (balones propios enviados a tercero — uso excepcional)
+--       bal_movimiento_recarga (tipo PLANTA_EXTERNA, lote + P.H.) +
 --       gre_guia_remision salida + gre_guia_remision retorno +
 --       com_comprobante_compra (factura de la planta)
 --
@@ -687,11 +692,13 @@ CREATE TABLE bal_movimiento (
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
--- Salida / ingreso de almacén por recarga de cilindro (GRE salida + GRE ingreso + factura)
+-- Recarga de cilindro: CLIENTE (mostrador) o PLANTA_EXTERNA (envío a tercero)
 CREATE TABLE bal_movimiento_recarga (
     id                      SERIAL PRIMARY KEY,
     fecha_salida_almacen      DATE NOT NULL,
     id_balon                 INT NOT NULL REFERENCES bal_balon(id),
+    id_cliente               INT REFERENCES cli_clientes(id),           -- cliente que trae el balón (tipo CLIENTE)
+    id_tipo_recarga          INT REFERENCES gen_lista_opciones(id),      -- (gen_lista: TipoRecarga) CLIENTE | PLANTA_EXTERNA
     id_producto              INT REFERENCES pro_producto(id),
     capacidad               NUMERIC(10,4),
     id_unidad_medida          INT REFERENCES gen_lista_opciones(id),
@@ -1394,6 +1401,7 @@ INSERT INTO gen_lista (nombre, descripcion) VALUES
 ('UnidadMedida',      'Unidades de medida de productos'),
 ('TipoMovInv',        'Tipos de movimiento de inventario'),
 ('TipoMovBalon',      'Tipos de movimiento de balón'),
+('TipoRecarga',       'CLIENTE = mostrador; PLANTA_EXTERNA = envío a tercero'),
 ('EstadoBalon',       'Estados posibles de un balón'),
 ('TipoPrestamo',      'ENVASE_EMPRESA_A_CLIENTE, CILINDRO_CLIENTE_A_EMPRESA, CILINDRO_A_PLANTA'),
 ('TipoMantenimiento', 'Tipos de mantenimiento de cilindro'),

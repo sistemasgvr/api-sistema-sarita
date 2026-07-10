@@ -16,6 +16,7 @@ import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   CreateMovimientosRecargaDto,
+  CreateRecargaClienteDto,
   FiltroMovimientosRecargaDto,
   UpdateMovimientosRecargaDto,
 } from '../dto/movimientos-recarga.dto';
@@ -31,6 +32,13 @@ export class MovimientosRecargaController {
   @ApiOperation({ summary: 'Listar' })
   listar(@Query() filtros: FiltroMovimientosRecargaDto) {
     return this.logic.listar(filtros);
+  }
+
+  @Post('recarga-cliente')
+  @Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_CREAR)
+  @ApiOperation({ summary: 'Recarga en mostrador (cliente trae balón + comprobante)' })
+  crearRecargaCliente(@Body() dto: CreateRecargaClienteDto) {
+    return this.logic.crearRecargaCliente(dto);
   }
 
   @Get(':id')

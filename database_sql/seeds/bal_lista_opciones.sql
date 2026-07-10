@@ -21,7 +21,8 @@ FROM (
         ('EstadoMantenimiento', 'Estado del mantenimiento de cilindro'),
         ('MarcaCilindro', 'Marca del fabricante del cilindro'),
         ('OrganoInspectorCilindro', 'Órgano inspector de la prueba hidrostática'),
-        ('MotivoBajaBalon', 'Motivo de baja definitiva del cilindro')
+        ('MotivoBajaBalon', 'Motivo de baja definitiva del cilindro'),
+        ('TipoRecarga', 'CLIENTE = mostrador; PLANTA_EXTERNA = envío a tercero')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (
     SELECT 1 FROM gen_lista l WHERE l.nombre = v.nombre
@@ -42,6 +43,7 @@ FROM (
         ('SALIDA_MANTENIMIENTO', 'Salida a mantenimiento o taller'),
         ('ENTRADA_DEVOLUCION', 'Entrada por devolución de cliente'),
         ('ENTRADA_LLENADO', 'Entrada desde planta de llenado'),
+        ('RECARGA_CLIENTE', 'Recarga de gas al balón del cliente en planta'),
         ('TRASLADO_LIMA', 'Traslado hacia Lima'),
         ('RETORNO_LIMA', 'Retorno desde Lima')
 ) AS v(nombre, descripcion)
@@ -275,6 +277,21 @@ FROM (
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'MotivoBajaBalon'
+  AND NOT EXISTS (
+      SELECT 1 FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
+  );
+
+-- TipoRecarga
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('CLIENTE', 'Recarga en mostrador — cliente trae su balón'),
+        ('PLANTA_EXTERNA', 'Envío del balón propio a planta externa')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'TipoRecarga'
   AND NOT EXISTS (
       SELECT 1 FROM gen_lista_opciones lo
       WHERE lo.id_lista = l.id AND lo.nombre = v.nombre

@@ -7,6 +7,7 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import {
   CreateMovimientosRecargaDto,
+  CreateRecargaClienteDto,
   FiltroMovimientosRecargaDto,
   UpdateMovimientosRecargaDto,
 } from '../dto/movimientos-recarga.dto';
@@ -52,6 +53,23 @@ export class MovimientosRecargaModel {
       dto.idProveedor ?? null,
       dto.observacion ?? null,
       dto.idAlmacen ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  crearRecargaCliente(dto: CreateRecargaClienteDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_crear_recarga_cliente', [
+      dto.idCliente,
+      dto.idBalon,
+      dto.idProducto,
+      dto.precioUnitario,
+      dto.cantidad ?? 1,
+      dto.idTipoComprobante ?? null,
+      dto.serie ?? 'B001',
+      dto.capacidad ?? null,
+      dto.idMedioPago ?? null,
+      dto.idAlmacen ?? null,
+      dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }
