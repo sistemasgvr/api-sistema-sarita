@@ -27,6 +27,7 @@ import { ContactosModule } from './modules/contactos/contactos.module';
 import { DireccionesModule } from './modules/direcciones/direcciones.module';
 import { ChoferesModule } from './modules/choferes/choferes.module';
 import { VehiculosModule } from './modules/vehiculos/vehiculos.module';
+import { LicenciasModule } from './modules/licencias/licencias.module'
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { VehiculosModule } from './modules/vehiculos/vehiculos.module';
     DireccionesModule,
     ChoferesModule,
     VehiculosModule,
+    LicenciasModule,
   ],
   providers: [
     {
