@@ -28,6 +28,7 @@ import { ContactosModule } from './modules/contactos/contactos.module';
 import { DireccionesModule } from './modules/direcciones/direcciones.module';
 import { ChoferesModule } from './modules/choferes/choferes.module';
 import { VehiculosModule } from './modules/vehiculos/vehiculos.module';
+import { LicenciasModule } from './modules/licencias/licencias.module'
 import { CategoriasProductoModule } from './modules/categorias-producto/categorias-producto.module';
 import { SubCategoriasProductoModule } from './modules/sub-categorias-producto/sub-categorias-producto.module';
 import { CatalogoPreciosModule } from './modules/catalogo-precios/catalogo-precios.module';
@@ -79,6 +80,7 @@ import { ComprobantesModule } from './modules/comprobantes/comprobantes.module';
     DireccionesModule,
     ChoferesModule,
     VehiculosModule,
+    LicenciasModule,
     CategoriasProductoModule,
     SubCategoriasProductoModule,
     CatalogoPreciosModule,

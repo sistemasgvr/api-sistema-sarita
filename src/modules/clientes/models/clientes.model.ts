@@ -11,7 +11,7 @@ import { CreateClienteDto, UpdateClienteDto } from '../dto/crear-cliente.dto';
 
 @Injectable()
 export class ClientesModel {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
   listar(filtros: FiltroClienteDto) {
     return this.db.callFunctionJson<AuthListResult>('cli_listar_clientes', [
@@ -64,14 +64,8 @@ export class ClientesModel {
         dto.apellidoMaterno ?? null,
         dto.idTipoDocumento ?? null,
         dto.numeroDocumento ?? null,
-        dto.direccion ?? null,
-        dto.referencia ?? null,
         dto.telefono ?? null,
         dto.email ?? null,
-        dto.idDepartamento ?? null,
-        dto.idProvincia ?? null,
-        dto.idDistrito ?? null,
-        dto.idPais ?? null,
         dto.esAgentePercepcion ?? false,
         dto.esBuenContribuyente ?? false,
         dto.esAgenteRetenedor ?? false,
@@ -79,6 +73,12 @@ export class ClientesModel {
         dto.situacionSunat ?? null,
         dto.estadoContribuyenteSunat ?? null,
         dto.observacion ?? null,
+        dto.direccion ?? null,
+        dto.referencia ?? null,
+        dto.idDepartamento ?? null,
+        dto.idProvincia ?? null,
+        dto.idDistrito ?? null,
+        dto.idPais ?? null,
         dto.idUsuarioAuditoria ?? null,
       ],
     );
@@ -98,14 +98,8 @@ export class ClientesModel {
         dto.apellidoMaterno ?? null,
         dto.idTipoDocumento ?? null,
         dto.numeroDocumento ?? null,
-        dto.direccion ?? null,
-        dto.referencia ?? null,
         dto.telefono ?? null,
         dto.email ?? null,
-        dto.idDepartamento ?? null,
-        dto.idProvincia ?? null,
-        dto.idDistrito ?? null,
-        dto.idPais ?? null,
         dto.esAgentePercepcion ?? null,
         dto.esBuenContribuyente ?? null,
         dto.esAgenteRetenedor ?? null,
@@ -113,6 +107,13 @@ export class ClientesModel {
         dto.situacionSunat ?? null,
         dto.estadoContribuyenteSunat ?? null,
         dto.observacion ?? null,
+        // dirección principal
+        dto.direccion ?? null,
+        dto.referencia ?? null,
+        dto.idDepartamento ?? null,
+        dto.idProvincia ?? null,
+        dto.idDistrito ?? null,
+        dto.idPais ?? null,
         dto.idUsuarioAuditoria ?? null,
       ],
     );

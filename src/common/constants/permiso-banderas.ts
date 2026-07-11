@@ -104,6 +104,12 @@ export const PermisoBanderas = {
   VEHICULOS_EDITAR: 'vehiculos.editar',
   VEHICULOS_ELIMINAR: 'vehiculos.eliminar',
 
+  LICENCIAS_LISTAR: 'licencias.listar',
+  LICENCIAS_VER: 'licencias.ver',
+  LICENCIAS_CREAR: 'licencias.crear',
+  LICENCIAS_EDITAR: 'licencias.editar',
+  LICENCIAS_ELIMINAR: 'licencias.eliminar',
+
   CONFIGURACION_SERVICIOS_LISTAR: 'configuracion_servicios.listar',
   CONFIGURACION_SERVICIOS_VER: 'configuracion_servicios.ver',
   CONFIGURACION_SERVICIOS_CREAR: 'configuracion_servicios.crear',

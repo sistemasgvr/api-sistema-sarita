@@ -1,3 +1,10 @@
+DROP FUNCTION IF EXISTS gen_listar_choferes(
+    INT,
+    VARCHAR,
+    INTEGER,
+    INTEGER,
+    INTEGER
+);
 CREATE OR REPLACE FUNCTION gen_listar_choferes(
     p_solo_activos INT DEFAULT Null,
     p_busqueda VARCHAR DEFAULT '',
@@ -25,7 +32,6 @@ BEGIN
           OR LOWER(COALESCE(ch.apellido_paterno, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(ch.apellido_materno, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(ch.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(ch.brevete, '')) LIKE LOWER('%' || p_busqueda || '%')
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -44,7 +50,6 @@ BEGIN
             ch.id_tipo_documento,
             td.nombre AS nombre_tipo_documento,
             ch.numero_documento,
-            ch.brevete,
             ch.telefono,
             ch.estado,
             ch.fecha_creacion,
@@ -66,7 +71,6 @@ BEGIN
               OR LOWER(COALESCE(ch.apellido_paterno, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(ch.apellido_materno, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(ch.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(ch.brevete, '')) LIKE LOWER('%' || p_busqueda || '%')
           )
         ORDER BY ch.nombres ASC
         LIMIT p_limite

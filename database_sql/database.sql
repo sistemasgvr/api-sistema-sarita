@@ -476,7 +476,7 @@ CREATE TABLE gen_cuenta_bancaria (
 -- Vencimientos de documentos: SOAT, inspección vehicular, BPA, extintor, salubridad...
 CREATE TABLE gen_documento_vencimiento (
     id                  SERIAL PRIMARY KEY,
-    id_categoria         INT REFERENCES gen_lista_opciones(id),  -- VEHICULO, CERTIFICADO, SEGURIDAD...
+    id_categoria        INT REFERENCES gen_lista_opciones(id),  -- VEHICULO, CERTIFICADO, SEGURIDAD...
     descripcion         varchar(255) NOT NULL,
     id_vehiculo          INT REFERENCES gen_vehiculo(id),
     fecha_vencimiento    DATE NOT NULL,
@@ -492,6 +492,20 @@ CREATE TABLE gen_documento_vencimiento (
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE gen_licencia(
+    id Serial PRIMARY KEY,
+    id_tipo_licencia INT REFERENCES gen_lista_opciones(id), --Vehiculo pesado, vehiculo ligero
+    id_categoria_licencia INT REFERENCES gen_lista_opciones(id), --A1,A2,A3
+    id_chofer INT REFERENCES gen_chofer(id), 
+    codigo VARCHAR(20) NOT NULL UNIQUE, --BREVETE
+    fecha_emision DATE NOT NULL,
+    fecha_vencimiento DATE NOT NULL,
+    estado              INT NOT NULL DEFAULT 1,
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW()
+)
 
 -- ============================================================
 -- GRUPO 4: PRODUCTOS E INVENTARIO
