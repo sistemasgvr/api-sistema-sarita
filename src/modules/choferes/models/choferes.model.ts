@@ -13,7 +13,7 @@ import {
 
 @Injectable()
 export class ChoferesModel {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
   listar(filtros: FiltroChoferDto) {
     return this.db.callFunctionJson<AuthListResult>('gen_listar_choferes', [
@@ -33,17 +33,24 @@ export class ChoferesModel {
   }
 
   crear(dto: CreateChoferDto) {
-    return this.db.callFunctionJson<AuthSingleResult<any>>('gen_crear_chofer', [
-      dto.nombres,
-      dto.idCliente ?? null,
-      dto.apellidoPaterno ?? null,
-      dto.apellidoMaterno ?? null,
-      dto.idTipoDocumento ?? null,
-      dto.numeroDocumento ?? null,
-      dto.brevete ?? null,
-      dto.telefono ?? null,
-      dto.idUsuarioAuditoria ?? null,
-    ]);
+    return this.db.callFunctionJson<AuthSingleResult<any>>(
+      'gen_crear_chofer',
+      [
+        dto.nombres,
+        dto.idCliente ?? null,
+        dto.apellidoPaterno ?? null,
+        dto.apellidoMaterno ?? null,
+        dto.idTipoDocumento ?? null,
+        dto.numeroDocumento ?? null,
+        dto.telefono ?? null,
+        dto.codigoLicencia ?? null,
+        dto.fechaEmision ?? null,
+        dto.fechaVencimiento ?? null,
+        dto.idTipoLicencia ?? null,
+        dto.idCategoriaLicencia ?? null,
+        dto.idUsuarioAuditoria ?? null,
+      ],
+    );
   }
 
   actualizar(id: number, dto: UpdateChoferDto) {
@@ -57,8 +64,12 @@ export class ChoferesModel {
         dto.nombres ?? null,
         dto.idTipoDocumento ?? null,
         dto.numeroDocumento ?? null,
-        dto.brevete ?? null,
         dto.telefono ?? null,
+        dto.codigoLicencia ?? null,
+        dto.fechaEmision ?? null,
+        dto.fechaVencimiento ?? null,
+        dto.idTipoLicencia ?? null,
+        dto.idCategoriaLicencia ?? null,
         dto.idUsuarioAuditoria ?? null,
       ],
     );
