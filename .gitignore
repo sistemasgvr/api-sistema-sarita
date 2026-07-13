@@ -35,6 +35,11 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Certificados digitales (PFX/P12/PEM) — nunca versionar
+/certs/
+*.pfx
+*.p12
+
 # dotenv environment variable files
 .env
 .env.development.local
