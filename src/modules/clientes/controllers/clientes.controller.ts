@@ -43,7 +43,8 @@ export class ClientesController {
   }
 
   @Get(':id')
-  @Permisos(PermisoBanderas.CLIENTES_VER)
+  @Public()
+  //@Permisos(PermisoBanderas.CLIENTES_VER)
   @ApiOperation({ summary: 'Obtener cliente por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
