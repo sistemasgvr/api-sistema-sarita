@@ -3,13 +3,15 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   ParseIntPipe,
   Patch,
   Post,
   Query,
+  StreamableFile,
 } from '@nestjs/common';
-import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiNotFoundResponse, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
@@ -17,6 +19,7 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   CreateComprobantesDto,
   FiltroComprobantesDto,
+  PdfComprobanteQueryDto,
   RegistrarRespuestaSunatDto,
   SiguienteNumeroQueryDto,
   UpdateComprobantesDto,
@@ -47,6 +50,27 @@ export class ComprobantesController {
   @ApiOperation({ summary: 'Obtener siguiente número correlativo por serie y tipo' })
   obtenerSiguienteNumero(@Query() query: SiguienteNumeroQueryDto) {
     return this.logic.obtenerSiguienteNumero(query);
+  }
+
+  @Get(':id/pdf')
+  @Permisos(PermisoBanderas.COMPROBANTES_VER)
+  @ApiOperation({
+    summary: 'Generar PDF del comprobante (A4 o ticketera) vía APIsPERU',
+  })
+  @ApiProduces('application/pdf')
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  @Header('Content-Type', 'application/pdf')
+  async generarPdf(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: PdfComprobanteQueryDto,
+  ) {
+    const formato = query.formato ?? 'a4';
+    const { buffer, filename } = await this.logic.generarPdf(id, formato);
+
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `inline; filename="${filename}"`,
+    });
   }
 
   @Get(':id')

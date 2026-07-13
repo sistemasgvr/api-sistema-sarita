@@ -1,3 +1,4 @@
+-- precio_unitario en detalles se asume CON IGV incluido (descompone base + impuesto).
 CREATE OR REPLACE FUNCTION ven_crear_comprobante(
     p_id_tipo_comprobante INTEGER,
     p_serie VARCHAR,
@@ -167,22 +168,24 @@ BEGIN
             RETURN json_build_object('error', 'El producto ' || v_id_producto || ' no existe o está inactivo', 'registro', NULL);
         END IF;
 
-        v_valor_linea := ROUND((v_cantidad * v_precio_unitario) - v_descuento_linea, 4);
+        -- precio_unitario del catálogo ya incluye IGV
+        v_importe_linea := ROUND((v_cantidad * v_precio_unitario) - v_descuento_linea, 4);
 
         SELECT lo.descripcion INTO v_codigo_afectacion
         FROM gen_lista_opciones lo
         WHERE lo.id = NULLIF((v_detalle->>'id_afectacion_igv')::INTEGER, 0);
 
         IF v_codigo_afectacion = '10' THEN
-            v_impuesto_linea := ROUND(v_valor_linea * (v_porcentaje_igv / 100), 4);
+            v_valor_linea := ROUND(v_importe_linea / (1 + v_porcentaje_igv / 100), 4);
+            v_impuesto_linea := ROUND(v_importe_linea - v_valor_linea, 4);
         ELSE
+            v_valor_linea := v_importe_linea;
             v_impuesto_linea := 0;
             IF v_codigo_afectacion = '20' THEN
                 v_exonerado_total := v_exonerado_total + v_valor_linea;
             END IF;
         END IF;
 
-        v_importe_linea := ROUND(v_valor_linea + v_impuesto_linea, 4);
         v_descuento_total := v_descuento_total + v_descuento_linea;
         v_valor_venta_total := v_valor_venta_total + v_valor_linea;
         v_igv_total := v_igv_total + v_impuesto_linea;
@@ -227,19 +230,20 @@ BEGIN
         v_precio_unitario := COALESCE((v_detalle->>'precio_unitario')::NUMERIC, 0);
         v_descuento_linea := COALESCE((v_detalle->>'descuento')::NUMERIC, 0);
         v_porcentaje_igv := COALESCE((v_detalle->>'porcentaje_igv')::NUMERIC, 18);
-        v_valor_linea := ROUND((v_cantidad * v_precio_unitario) - v_descuento_linea, 4);
+        -- precio_unitario del catálogo ya incluye IGV
+        v_importe_linea := ROUND((v_cantidad * v_precio_unitario) - v_descuento_linea, 4);
 
         SELECT lo.descripcion INTO v_codigo_afectacion
         FROM gen_lista_opciones lo
         WHERE lo.id = NULLIF((v_detalle->>'id_afectacion_igv')::INTEGER, 0);
 
         IF v_codigo_afectacion = '10' THEN
-            v_impuesto_linea := ROUND(v_valor_linea * (v_porcentaje_igv / 100), 4);
+            v_valor_linea := ROUND(v_importe_linea / (1 + v_porcentaje_igv / 100), 4);
+            v_impuesto_linea := ROUND(v_importe_linea - v_valor_linea, 4);
         ELSE
+            v_valor_linea := v_importe_linea;
             v_impuesto_linea := 0;
         END IF;
-
-        v_importe_linea := ROUND(v_valor_linea + v_impuesto_linea, 4);
 
         INSERT INTO ven_comprobante_detalle (
             id_comprobante, item, id_producto, descripcion, id_unidad_medida,

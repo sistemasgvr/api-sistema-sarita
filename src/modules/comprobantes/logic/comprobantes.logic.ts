@@ -178,6 +178,65 @@ export class ComprobantesLogic {
     };
   }
 
+  async generarPdf(id: number, formato: 'a4' | 'ticket' = 'a4') {
+    this.assertFacturacionConfigurada();
+
+    const comprobante = await this.model.obtenerCompleto(id);
+
+    if (comprobante.error) {
+      throw new BadRequestException(comprobante.error);
+    }
+
+    if (!comprobante.registro) {
+      throw new NotFoundException(`Comprobante ${id} no encontrado`);
+    }
+
+    const empresa = await this.model.obtenerEmpresaEmisora();
+
+    if (!empresa) {
+      throw new BadRequestException(
+        'No hay empresa emisora configurada en gen_empresa',
+      );
+    }
+
+    const clienteResult = await this.clientesModel.obtenerPorId(
+      comprobante.registro.id_cliente,
+    );
+
+    if (!clienteResult.registro) {
+      throw new BadRequestException('El cliente del comprobante no existe');
+    }
+
+    const ubigeo = clienteResult.registro.id_distrito
+      ? await this.model.obtenerCodigoUbigeoDistrito(clienteResult.registro.id_distrito)
+      : '150101';
+
+    const payload = this.invoiceMapper.mapComprobanteToInvoicePayload(
+      comprobante,
+      empresa,
+      clienteResult.registro,
+      ubigeo,
+    );
+
+    // Hash firmado (requerido por representación impresa Greenter)
+    if (comprobante.registro.hash_documento) {
+      ;(payload as Record<string, unknown>).hash =
+        comprobante.registro.hash_documento
+    }
+
+    const tipoDoc = comprobante.registro.codigo_tipo_comprobante;
+    const pdfBuffer =
+      tipoDoc === '07' || tipoDoc === '08'
+        ? await this.facturacionClient.generarPdfNota(payload, formato)
+        : await this.facturacionClient.generarPdfFacturaBoleta(payload, formato);
+
+    const serie = comprobante.registro.serie;
+    const numero = comprobante.registro.numero;
+    const filename = `${serie}-${numero}-${formato}.pdf`;
+
+    return { buffer: pdfBuffer, filename, formato };
+  }
+
   mapComprobanteToInvoicePayload(
     comprobante: Awaited<ReturnType<ComprobantesModel['obtenerCompleto']>>,
     empresa: NonNullable<Awaited<ReturnType<ComprobantesModel['obtenerEmpresaEmisora']>>>,

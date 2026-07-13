@@ -150,10 +150,20 @@ export class FacturacionApisperuClient {
 
   async generarPdfFacturaBoleta(
     payload: FacturacionApisperuPayload,
-  ): Promise<ArrayBuffer> {
-    return this.request<ArrayBuffer>('POST', '/invoice/pdf', payload, {
+    formato: 'a4' | 'ticket' = 'a4',
+  ): Promise<Buffer> {
+    const body: FacturacionApisperuPayload = {
+      ...payload,
+      // Plantilla Greenter en APIsPERU: invoice (A4) | ticket (80mm)
+      name: formato === 'ticket' ? 'ticket' : 'invoice',
+    };
+
+    const data = await this.request<ArrayBuffer>('POST', '/invoice/pdf', body, {
       responseType: 'arraybuffer',
+      accept: 'application/pdf',
     });
+
+    return Buffer.from(data);
   }
 
   async consultarEstadoFacturaBoleta(
@@ -178,10 +188,21 @@ export class FacturacionApisperuClient {
     });
   }
 
-  async generarPdfNota(payload: FacturacionApisperuPayload): Promise<ArrayBuffer> {
-    return this.request<ArrayBuffer>('POST', '/note/pdf', payload, {
+  async generarPdfNota(
+    payload: FacturacionApisperuPayload,
+    formato: 'a4' | 'ticket' = 'a4',
+  ): Promise<Buffer> {
+    const body: FacturacionApisperuPayload = {
+      ...payload,
+      name: formato === 'ticket' ? 'ticket' : 'invoice',
+    };
+
+    const data = await this.request<ArrayBuffer>('POST', '/note/pdf', body, {
       responseType: 'arraybuffer',
+      accept: 'application/pdf',
     });
+
+    return Buffer.from(data);
   }
 
   async enviarResumenDiario(
@@ -284,13 +305,14 @@ export class FacturacionApisperuClient {
       auth?: boolean;
       params?: Record<string, string | number | boolean | undefined>;
       responseType?: AxiosRequestConfig['responseType'];
+      accept?: string;
     },
   ): Promise<T> {
     this.assertEnabled();
 
     const auth = options?.auth !== false;
     const headers: Record<string, string> = {
-      Accept: 'application/json',
+      Accept: options?.accept ?? 'application/json',
     };
 
     if (auth) {
@@ -298,7 +320,7 @@ export class FacturacionApisperuClient {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    if (data !== undefined && options?.responseType !== 'arraybuffer') {
+    if (data !== undefined) {
       headers['Content-Type'] = 'application/json';
     }
 

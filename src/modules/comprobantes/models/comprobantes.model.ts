@@ -30,32 +30,36 @@ export interface SiguienteNumeroResult {
 }
 
 function mapDetallesToJson(detalles: ComprobanteDetalleDto[]) {
-  return detalles.map((d) => ({
-    id_producto: d.idProducto,
-    cantidad: d.cantidad,
-    precio_unitario: d.precioUnitario,
-    descuento: d.descuento ?? 0,
-    porcentaje_igv: d.porcentajeIgv ?? 18,
-    id_afectacion_igv: d.idAfectacionIgv ?? null,
-    descripcion: d.descripcion ?? null,
-    id_unidad_medida: d.idUnidadMedida ?? null,
-    item: d.item ?? null,
-    id_balon: d.idBalon ?? null,
-    capacidad_cilindro: d.capacidadCilindro ?? null,
-    id_estado_cilindro: d.idEstadoCilindro ?? null,
-  }));
+  return JSON.stringify(
+    detalles.map((d) => ({
+      id_producto: d.idProducto,
+      cantidad: d.cantidad,
+      precio_unitario: d.precioUnitario,
+      descuento: d.descuento ?? 0,
+      porcentaje_igv: d.porcentajeIgv ?? 18,
+      id_afectacion_igv: d.idAfectacionIgv ?? null,
+      descripcion: d.descripcion ?? null,
+      id_unidad_medida: d.idUnidadMedida ?? null,
+      item: d.item ?? null,
+      id_balon: d.idBalon ?? null,
+      capacidad_cilindro: d.capacidadCilindro ?? null,
+      id_estado_cilindro: d.idEstadoCilindro ?? null,
+    })),
+  );
 }
 
 function mapCuotasToJson(cuotas?: ComprobanteCuotaDto[]) {
   if (!cuotas?.length) return null;
 
-  return cuotas.map((c) => ({
-    numero_cuota: c.numeroCuota,
-    fecha_vencimiento: c.fechaVencimiento,
-    monto: c.monto,
-    monto_pagado: c.montoPagado ?? 0,
-    id_estado: c.idEstado ?? null,
-  }));
+  return JSON.stringify(
+    cuotas.map((c) => ({
+      numero_cuota: c.numeroCuota,
+      fecha_vencimiento: c.fechaVencimiento,
+      monto: c.monto,
+      monto_pagado: c.montoPagado ?? 0,
+      id_estado: c.idEstado ?? null,
+    })),
+  );
 }
 
 interface EmpresaEmisoraRow {

@@ -4,6 +4,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsDateString,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -13,6 +14,17 @@ import {
 } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
+
+export class PdfComprobanteQueryDto {
+  @ApiPropertyOptional({
+    enum: ['a4', 'ticket'],
+    default: 'a4',
+    description: 'Formato de representación impresa: A4 o ticketera 80mm',
+  })
+  @IsOptional()
+  @IsIn(['a4', 'ticket'])
+  formato?: 'a4' | 'ticket';
+}
 
 export class FiltroComprobantesDto extends FiltroPaginacionDto {
   @ApiPropertyOptional()

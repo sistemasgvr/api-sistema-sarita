@@ -36,6 +36,9 @@ export interface ComprobanteRegistro {
   observaciones?: string | null;
   id_estado?: number | null;
   nombre_estado?: string | null;
+  ticket_sunat?: string | null;
+  hash_documento?: string | null;
+  xml_firmado?: string | null;
 }
 
 export interface ComprobanteDetalleRegistro {
