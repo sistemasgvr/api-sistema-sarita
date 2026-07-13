@@ -23,6 +23,7 @@ import {
 import { ComprobanteInvoiceMapper } from '../mappers/comprobante-invoice.mapper';
 import { ComprobantesModel } from '../models/comprobantes.model';
 import type { SiguienteNumeroResult } from '../models/comprobantes.model';
+import { ComprobanteTicketPdfGenerator } from '../services/comprobante-ticket-pdf.generator';
 
 interface SunatResponsePayload {
   success?: boolean;
@@ -38,6 +39,7 @@ export class ComprobantesLogic {
     private readonly clientesModel: ClientesModel,
     private readonly facturacionClient: FacturacionApisperuClient,
     private readonly invoiceMapper: ComprobanteInvoiceMapper,
+    private readonly ticketPdfGenerator: ComprobanteTicketPdfGenerator,
   ) {}
 
   async listar(filtros: FiltroComprobantesDto) {
@@ -211,24 +213,33 @@ export class ComprobantesLogic {
       ? await this.model.obtenerCodigoUbigeoDistrito(clienteResult.registro.id_distrito)
       : '150101';
 
-    const payload = this.invoiceMapper.mapComprobanteToInvoicePayload(
-      comprobante,
-      empresa,
-      clienteResult.registro,
-      ubigeo,
-    );
+    let pdfBuffer: Buffer;
 
-    // Hash firmado (requerido por representación impresa Greenter)
-    if (comprobante.registro.hash_documento) {
-      ;(payload as Record<string, unknown>).hash =
-        comprobante.registro.hash_documento
+    if (formato === 'ticket') {
+      pdfBuffer = await this.ticketPdfGenerator.generar(
+        comprobante,
+        empresa,
+        clienteResult.registro,
+      );
+    } else {
+      const payload = this.invoiceMapper.mapComprobanteToInvoicePayload(
+        comprobante,
+        empresa,
+        clienteResult.registro,
+        ubigeo,
+      );
+
+      if (comprobante.registro.hash_documento) {
+        ;(payload as Record<string, unknown>).hash =
+          comprobante.registro.hash_documento;
+      }
+
+      const tipoDoc = comprobante.registro.codigo_tipo_comprobante;
+      pdfBuffer =
+        tipoDoc === '07' || tipoDoc === '08'
+          ? await this.facturacionClient.generarPdfNota(payload)
+          : await this.facturacionClient.generarPdfFacturaBoleta(payload);
     }
-
-    const tipoDoc = comprobante.registro.codigo_tipo_comprobante;
-    const pdfBuffer =
-      tipoDoc === '07' || tipoDoc === '08'
-        ? await this.facturacionClient.generarPdfNota(payload, formato)
-        : await this.facturacionClient.generarPdfFacturaBoleta(payload, formato);
 
     const serie = comprobante.registro.serie;
     const numero = comprobante.registro.numero;

@@ -55,7 +55,8 @@ export class ComprobantesController {
   @Get(':id/pdf')
   @Permisos(PermisoBanderas.COMPROBANTES_VER)
   @ApiOperation({
-    summary: 'Generar PDF del comprobante (A4 o ticketera) vía APIsPERU',
+    summary:
+      'Generar PDF del comprobante (A4 vía APIsPERU, ticket 80mm generado en backend)',
   })
   @ApiProduces('application/pdf')
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })

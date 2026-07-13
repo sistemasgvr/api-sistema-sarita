@@ -150,14 +150,8 @@ export class FacturacionApisperuClient {
 
   async generarPdfFacturaBoleta(
     payload: FacturacionApisperuPayload,
-    formato: 'a4' | 'ticket' = 'a4',
   ): Promise<Buffer> {
-    const body: FacturacionApisperuPayload = {
-      ...payload,
-      // Plantilla Greenter en APIsPERU: invoice (A4) | ticket (80mm)
-      name: formato === 'ticket' ? 'ticket' : 'invoice',
-    };
-
+    const body = await this.buildPdfPayload(payload, 'a4');
     const data = await this.request<ArrayBuffer>('POST', '/invoice/pdf', body, {
       responseType: 'arraybuffer',
       accept: 'application/pdf',
@@ -188,15 +182,8 @@ export class FacturacionApisperuClient {
     });
   }
 
-  async generarPdfNota(
-    payload: FacturacionApisperuPayload,
-    formato: 'a4' | 'ticket' = 'a4',
-  ): Promise<Buffer> {
-    const body: FacturacionApisperuPayload = {
-      ...payload,
-      name: formato === 'ticket' ? 'ticket' : 'invoice',
-    };
-
+  async generarPdfNota(payload: FacturacionApisperuPayload): Promise<Buffer> {
+    const body = await this.buildPdfPayload(payload, 'a4');
     const data = await this.request<ArrayBuffer>('POST', '/note/pdf', body, {
       responseType: 'arraybuffer',
       accept: 'application/pdf',
@@ -257,6 +244,119 @@ export class FacturacionApisperuClient {
     return this.request<FacturacionApisperuPayload>('GET', '/despatch/status', undefined, {
       params: this.withDefaultRuc(query),
     });
+  }
+
+  /**
+   * Arma el body del PDF con parámetros Greenter (logo + hash).
+   * Sin logo, la plantilla A4 muestra el ícono roto.
+   */
+  private async buildPdfPayload(
+    payload: FacturacionApisperuPayload,
+    formato: 'a4' | 'ticket',
+  ): Promise<FacturacionApisperuPayload> {
+    const ruc = this.extractCompanyRuc(payload);
+    const hash =
+      typeof payload.hash === 'string' && payload.hash.trim()
+        ? payload.hash.trim()
+        : '';
+    const logoBase64 = await this.resolveLogoBase64(ruc);
+
+    const company =
+      payload.company && typeof payload.company === 'object'
+        ? { ...(payload.company as Record<string, unknown>) }
+        : {};
+
+    if (logoBase64) {
+      company.logo = logoBase64;
+    }
+
+    const parameters: Record<string, unknown> = {
+      system: {
+        ...(logoBase64
+          ? {
+              // Greenter |image espera bytes; APIsPERU suele aceptar base64 del PNG.
+              logo: logoBase64,
+            }
+          : {}),
+        ...(hash ? { hash } : {}),
+      },
+      user: {
+        header: '',
+      },
+    };
+
+    return {
+      ...payload,
+      company,
+      // Plantilla Greenter: invoice (A4) | ticket (80mm) — A4 es el que usa logo
+      name: formato === 'ticket' ? 'ticket' : 'invoice',
+      parameters,
+      // Alias por si el wrapper usa "params"
+      params: parameters,
+    };
+  }
+
+  private extractCompanyRuc(payload: FacturacionApisperuPayload): string {
+    const company = payload.company as { ruc?: string | number } | undefined;
+    if (company?.ruc != null) return String(company.ruc);
+    return this.configService.get<string>('facturacion.defaultRuc') ?? '';
+  }
+
+  private normalizeLogoBase64(value: string): string {
+    const trimmed = value.trim();
+    if (trimmed.startsWith('data:')) {
+      const comma = trimmed.indexOf(',');
+      return comma >= 0 ? trimmed.slice(comma + 1) : trimmed;
+    }
+    return trimmed;
+  }
+
+  /** Logo PNG/JPG en base64 (sin data:) desde la empresa en APIsPERU. */
+  async obtenerLogoEmpresaBase64(ruc: string): Promise<string | null> {
+    return this.resolveLogoBase64(ruc);
+  }
+
+  private async resolveLogoBase64(ruc: string): Promise<string | null> {
+    if (!ruc) return null;
+
+    try {
+      const empresas = await this.listarEmpresas();
+      const empresa = empresas.find((item) => {
+        const itemRuc = String((item as { ruc?: string | number }).ruc ?? '');
+        return itemRuc === ruc;
+      });
+
+      let logo = (empresa as { logo?: string } | undefined)?.logo;
+
+      const companyId = (empresa as { id?: number } | undefined)?.id;
+      if ((!logo || !String(logo).trim()) && companyId != null) {
+        const detail = await this.obtenerEmpresa(companyId);
+        logo = (detail as { logo?: string }).logo;
+      }
+
+      if (typeof logo === 'string' && logo.trim()) {
+        return await this.logoValueToBase64(logo.trim());
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`No se pudo obtener logo de APIsPERU: ${message}`);
+    }
+
+    return null;
+  }
+
+  private async logoValueToBase64(logo: string): Promise<string> {
+    if (logo.startsWith('http://') || logo.startsWith('https://')) {
+      const response = await firstValueFrom(
+        this.httpService.get<ArrayBuffer>(logo, {
+          responseType: 'arraybuffer',
+          timeout: this.getTimeoutMs(),
+        }),
+      );
+      return Buffer.from(response.data).toString('base64');
+    }
+
+    return this.normalizeLogoBase64(logo);
   }
 
   private getBaseUrl(): string {
