@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import * as QRCode from 'qrcode';
 import { FacturacionApisperuClient } from '../../../integrations/facturacion-apisperu/facturacion-apisperu.client';
@@ -31,6 +31,8 @@ interface ClienteReceptor {
 
 @Injectable()
 export class ComprobanteTicketPdfGenerator {
+  private readonly logger = new Logger(ComprobanteTicketPdfGenerator.name);
+
   constructor(private readonly facturacionClient: FacturacionApisperuClient) {}
 
   async generar(
@@ -231,9 +233,12 @@ export class ComprobanteTicketPdfGenerator {
 
       if (ctx.logoBase64) {
         try {
-          const logoBuf = Buffer.from(ctx.logoBase64, 'base64');
-          const logoW = Math.min(120, CONTENT_WIDTH);
-          const logoH = 48;
+          const logoBuf = Buffer.from(
+            ctx.logoBase64.replace(/\s/g, ''),
+            'base64',
+          );
+          const logoW = Math.min(130, CONTENT_WIDTH);
+          const logoH = 56;
           const logoX = MARGIN_X + (CONTENT_WIDTH - logoW) / 2;
           doc.image(logoBuf, logoX, y, {
             fit: [logoW, logoH],
@@ -241,8 +246,10 @@ export class ComprobanteTicketPdfGenerator {
             valign: 'center',
           });
           y += logoH + 6;
-        } catch {
-          // Logo inválido: continuar sin imagen
+        } catch (error: unknown) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          this.logger.warn(`No se pudo incrustar logo en ticket PDF: ${message}`);
         }
       }
 

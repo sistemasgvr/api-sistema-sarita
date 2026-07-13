@@ -317,25 +317,45 @@ export class FacturacionApisperuClient {
   }
 
   private async resolveLogoBase64(ruc: string): Promise<string | null> {
-    if (!ruc) return null;
+    const rucNorm = String(ruc ?? '').trim();
 
     try {
       const empresas = await this.listarEmpresas();
-      const empresa = empresas.find((item) => {
-        const itemRuc = String((item as { ruc?: string | number }).ruc ?? '');
-        return itemRuc === ruc;
-      });
-
-      let logo = (empresa as { logo?: string } | undefined)?.logo;
-
-      const companyId = (empresa as { id?: number } | undefined)?.id;
-      if ((!logo || !String(logo).trim()) && companyId != null) {
-        const detail = await this.obtenerEmpresa(companyId);
-        logo = (detail as { logo?: string }).logo;
+      if (!Array.isArray(empresas) || empresas.length === 0) {
+        this.logger.warn('APIsPERU /companies no devolvió empresas');
+        return null;
       }
 
+      const empresa =
+        (rucNorm
+          ? empresas.find(
+              (item) =>
+                String((item as { ruc?: string | number }).ruc ?? '').trim() ===
+                rucNorm,
+            )
+          : undefined) ?? empresas[0];
+
+      const companyId = (empresa as { id?: number } | undefined)?.id;
+      if (companyId == null) {
+        this.logger.warn('Empresa APIsPERU sin id; no se puede obtener logo');
+        return null;
+      }
+
+      // El listado suele devolver solo la ruta (ej. "10175332796/logo.png").
+      // El detalle sí trae el PNG/JPG en base64 usable para PDFKit.
+      const detail = await this.obtenerEmpresa(companyId);
+      const logo = (detail as { logo?: string }).logo;
+
       if (typeof logo === 'string' && logo.trim()) {
-        return await this.logoValueToBase64(logo.trim());
+        const base64 = await this.logoValueToBase64(logo.trim());
+        if (this.looksLikeImageBase64(base64)) {
+          return base64;
+        }
+        this.logger.warn(
+          `Logo de empresa ${companyId} no es imagen base64 válida (len=${base64.length})`,
+        );
+      } else {
+        this.logger.warn(`Empresa APIsPERU ${companyId} sin campo logo`);
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
@@ -343,6 +363,18 @@ export class FacturacionApisperuClient {
     }
 
     return null;
+  }
+
+  private looksLikeImageBase64(value: string): boolean {
+    const raw = this.normalizeLogoBase64(value).replace(/\s/g, '');
+    if (raw.length < 64) return false;
+    // PNG / JPEG / GIF / WEBP (webp raramente en logo)
+    return (
+      raw.startsWith('iVBOR') || // PNG
+      raw.startsWith('/9j/') || // JPEG
+      raw.startsWith('R0lGOD') || // GIF
+      raw.startsWith('UklGR') // WEBP
+    );
   }
 
   private async logoValueToBase64(logo: string): Promise<string> {
