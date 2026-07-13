@@ -56,10 +56,12 @@ DECLARE
     v_codigo_tipo VARCHAR;
     v_numero_cuota INTEGER;
     v_id_estado_cuota INTEGER;
+    v_serie_origen VARCHAR;
+    v_familia_origen CHAR(1);
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    v_serie := TRIM(p_serie);
+    v_serie := UPPER(TRIM(p_serie));
 
     IF p_id_tipo_comprobante IS NULL THEN
         RETURN json_build_object('error', 'El tipo de comprobante es obligatorio', 'registro', NULL);
@@ -97,6 +99,33 @@ BEGIN
     FROM gen_lista_opciones lo
     WHERE lo.id = p_id_tipo_comprobante;
 
+    -- Serie electrónica SUNAT: 4 caracteres y prefijo según tipo
+    IF char_length(v_serie) <> 4 THEN
+        RETURN json_build_object(
+            'error',
+            'La serie electrónica debe tener 4 caracteres (ej. F001, B001, FC01)',
+            'registro',
+            NULL
+        );
+    END IF;
+
+    IF v_codigo_tipo = '01' AND left(v_serie, 1) <> 'F' THEN
+        RETURN json_build_object('error', 'La factura debe usar serie que inicie con F (ej. F001)', 'registro', NULL);
+    END IF;
+
+    IF v_codigo_tipo = '03' AND left(v_serie, 1) <> 'B' THEN
+        RETURN json_build_object('error', 'La boleta debe usar serie que inicie con B (ej. B001)', 'registro', NULL);
+    END IF;
+
+    IF v_codigo_tipo IN ('07', '08') AND left(v_serie, 1) NOT IN ('F', 'B') THEN
+        RETURN json_build_object(
+            'error',
+            'La nota de crédito/débito debe usar serie que inicie con F o B según el comprobante origen (ej. FC01 / BC01)',
+            'registro',
+            NULL
+        );
+    END IF;
+
     IF v_codigo_tipo IN ('07', '08') AND p_id_comprobante_origen IS NULL THEN
         RETURN json_build_object('error', 'La nota de crédito/débito requiere el comprobante de origen', 'registro', NULL);
     END IF;
@@ -105,6 +134,26 @@ BEGIN
         SELECT 1 FROM ven_comprobante WHERE id = p_id_comprobante_origen AND estado = 1
     ) THEN
         RETURN json_build_object('error', 'El comprobante de origen no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    IF v_codigo_tipo IN ('07', '08') AND p_id_comprobante_origen IS NOT NULL THEN
+        SELECT UPPER(TRIM(serie)) INTO v_serie_origen
+        FROM ven_comprobante
+        WHERE id = p_id_comprobante_origen AND estado = 1;
+
+        v_familia_origen := left(COALESCE(v_serie_origen, ''), 1);
+        IF v_familia_origen IN ('F', 'B') AND left(v_serie, 1) <> v_familia_origen THEN
+            RETURN json_build_object(
+                'error',
+                format(
+                    'La serie de la nota debe iniciar con %s igual que el comprobante origen (%s)',
+                    v_familia_origen,
+                    v_serie_origen
+                ),
+                'registro',
+                NULL
+            );
+        END IF;
     END IF;
 
     IF NULLIF(TRIM(p_numero), '') IS NULL THEN
