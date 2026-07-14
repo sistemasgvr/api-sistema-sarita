@@ -43,6 +43,15 @@ export class FiltroBalonesDto extends FiltroPaginacionDto {
   @IsNumber()
   idClienteUbicacion?: number;
 
+  @ApiPropertyOptional({
+    description:
+      'Cilindros vinculados al cliente por ubicación (p. ej. prestado) o por propiedad (balón propio)',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idClienteRelacionado?: number;
+
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()

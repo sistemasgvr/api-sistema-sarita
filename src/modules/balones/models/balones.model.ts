@@ -33,6 +33,7 @@ export class BalonesModel {
       filtros.idMarcaCilindro ?? null,
       filtros.phVencida ?? null,
       filtros.phPorVencerDias ?? null,
+      filtros.idClienteRelacionado ?? null,
     ]);
   }
 

@@ -8,7 +8,8 @@ CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_id_cliente_ubicacion INTEGER DEFAULT NULL,
     p_id_marca_cilindro INTEGER DEFAULT NULL,
     p_ph_vencida BOOLEAN DEFAULT NULL,
-    p_ph_por_vencer_dias INTEGER DEFAULT NULL
+    p_ph_por_vencer_dias INTEGER DEFAULT NULL,
+    p_id_cliente_relacionado INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -31,6 +32,16 @@ BEGIN
       AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
       AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
       AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
+      AND (
+          p_id_cliente_relacionado IS NULL
+          OR b.id_cliente_ubicacion = p_id_cliente_relacionado
+          OR b.id_cliente_propietario = p_id_cliente_relacionado
+      )
+      AND (
+          p_id_cliente_relacionado IS NULL
+          OR eb.nombre IS NULL
+          OR eb.nombre NOT IN ('DADO_DE_BAJA', 'ROBO')
+      )
       AND (
           p_ph_vencida IS NULL
           OR (
@@ -76,6 +87,9 @@ BEGIN
             b.id_almacen,
             a.nombre AS nombre_almacen,
             b.id_cliente_ubicacion,
+            b.id_propietario,
+            prop.nombre AS nombre_propietario,
+            b.id_cliente_propietario,
             b.id_tipo_balon,
             tb.nombre AS nombre_tipo_balon,
             b.id_producto_gas,
@@ -109,12 +123,23 @@ BEGIN
         LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
         LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
         LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
+        LEFT JOIN gen_lista_opciones prop ON b.id_propietario = prop.id
         WHERE b.estado = 1
           AND (p_id_tipo_balon IS NULL OR b.id_tipo_balon = p_id_tipo_balon)
           AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
           AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
           AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
           AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
+          AND (
+              p_id_cliente_relacionado IS NULL
+              OR b.id_cliente_ubicacion = p_id_cliente_relacionado
+              OR b.id_cliente_propietario = p_id_cliente_relacionado
+          )
+          AND (
+              p_id_cliente_relacionado IS NULL
+              OR eb.nombre IS NULL
+              OR eb.nombre NOT IN ('DADO_DE_BAJA', 'ROBO')
+          )
           AND (
               p_ph_vencida IS NULL
               OR (
