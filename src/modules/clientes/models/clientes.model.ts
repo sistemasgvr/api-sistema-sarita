@@ -18,7 +18,7 @@ export class ClientesModel {
       filtros.soloActivos ?? null,
       filtros.idTipoCliente ?? null,
       filtros.buscar ?? null,
-      filtros.limite ?? 50,
+      filtros.limite ?? 10,
       filtros.pagina ?? 1,
     ]);
   }

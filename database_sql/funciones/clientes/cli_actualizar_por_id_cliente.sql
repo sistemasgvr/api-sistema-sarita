@@ -107,6 +107,8 @@ CREATE OR REPLACE FUNCTION cli_actualizar_por_id_cliente(
     p_observacion                 VARCHAR  DEFAULT NULL,
     p_direccion                   VARCHAR  DEFAULT NULL,
     p_referencia                  VARCHAR  DEFAULT NULL,
+    p_latitud                     NUMERIC(10,8) DEFAULT NULL,
+    p_longitud                    NUMERIC(11,8) DEFAULT NULL,
     p_id_departamento             INT      DEFAULT NULL,
     p_id_provincia                INT      DEFAULT NULL,
     p_id_distrito                 INT      DEFAULT NULL,
@@ -160,8 +162,10 @@ BEGIN
             id_usuario_modificacion     = COALESCE(p_id_usuario, id_usuario_modificacion),
             fecha_modificacion          = NOW()
         WHERE id = p_id;
-        IF p_direccion IS NOT NULL OR p_referencia IS NOT NULL OR p_id_departamento IS NOT NULL
-           OR p_id_provincia IS NOT NULL OR p_id_distrito IS NOT NULL OR p_id_pais IS NOT NULL THEN
+        IF p_direccion IS NOT NULL OR p_referencia IS NOT NULL
+           OR p_latitud IS NOT NULL OR p_longitud IS NOT NULL
+           OR p_id_departamento IS NOT NULL OR p_id_provincia IS NOT NULL
+           OR p_id_distrito IS NOT NULL OR p_id_pais IS NOT NULL THEN
 
             SELECT id INTO v_id_direccion
             FROM cli_direcciones
@@ -173,6 +177,8 @@ BEGIN
                 UPDATE cli_direcciones SET
                     direccion               = COALESCE(p_direccion, direccion),
                     referencia              = COALESCE(p_referencia, referencia),
+                    latitud                 = COALESCE(p_latitud, latitud),
+                    longitud                = COALESCE(p_longitud, longitud),
                     id_departamento         = COALESCE(p_id_departamento, id_departamento),
                     id_provincia            = COALESCE(p_id_provincia, id_provincia),
                     id_distrito             = COALESCE(p_id_distrito, id_distrito),
@@ -181,14 +187,23 @@ BEGIN
                     fecha_modificacion      = NOW()
                 WHERE id = v_id_direccion;
             ELSE
+                IF p_direccion IS NULL THEN
+                    RETURN json_build_object(
+                        'error',
+                        'Para registrar la dirección principal debe indicar la dirección',
+                        'registro',
+                        NULL
+                    );
+                END IF;
+
                 INSERT INTO cli_direcciones (
-                    id_cliente, direccion, referencia,
+                    id_cliente, direccion, referencia, latitud, longitud,
                     id_departamento, id_provincia, id_distrito, id_pais,
                     es_principal, estado,
                     id_usuario_creacion, id_usuario_modificacion
                 )
                 VALUES (
-                    p_id, p_direccion, p_referencia,
+                    p_id, p_direccion, p_referencia, p_latitud, p_longitud,
                     p_id_departamento, p_id_provincia, p_id_distrito, p_id_pais,
                     TRUE, 1,
                     p_id_usuario, p_id_usuario

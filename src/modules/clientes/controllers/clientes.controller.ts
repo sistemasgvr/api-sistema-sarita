@@ -18,7 +18,6 @@ import { FiltroClienteDto } from '../dto/filtros-cliente.dto';
 import { ClientesLogic } from '../logic/clientes.logic';
 import { ValidarDocumentoClienteDto } from '../dto/validar-documento.dto';
 import { CreateClienteDto, UpdateClienteDto } from '../dto/crear-cliente.dto';
-import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('Clientes')
 @Controller('clientes')
@@ -35,7 +34,6 @@ export class ClientesController {
   }
 
   @Get()
-  @Public()
   @Permisos(PermisoBanderas.CLIENTES_LISTAR)
   @ApiOperation({ summary: 'Listar clientes' })
   listar(@Query() filtros: FiltroClienteDto) {
@@ -43,8 +41,7 @@ export class ClientesController {
   }
 
   @Get(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.CLIENTES_VER)
+  @Permisos(PermisoBanderas.CLIENTES_VER)
   @ApiOperation({ summary: 'Obtener cliente por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
@@ -52,7 +49,6 @@ export class ClientesController {
   }
 
   @Post()
-  @Public()
   @Permisos(PermisoBanderas.CLIENTES_CREAR)
   @ApiOperation({ summary: 'Crear cliente' })
   crear(@Body() dto: CreateClienteDto) {
