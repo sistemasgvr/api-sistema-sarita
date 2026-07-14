@@ -58,6 +58,14 @@ DECLARE
     v_id_estado_cuota INTEGER;
     v_serie_origen VARCHAR;
     v_familia_origen CHAR(1);
+    v_afecta_stock BOOLEAN;
+    v_requiere_stock BOOLEAN := FALSE;
+    v_id_tipo_mov_inv INTEGER;
+    v_id_tipo_documento_ref INTEGER;
+    v_nombre_tipo_venta VARCHAR;
+    v_stock_disponible NUMERIC(12,4);
+    v_mov_result JSON;
+    v_glosa_mov VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -217,6 +225,15 @@ BEGIN
             RETURN json_build_object('error', 'El producto ' || v_id_producto || ' no existe o está inactivo', 'registro', NULL);
         END IF;
 
+        SELECT COALESCE(afecta_stock, FALSE)
+        INTO v_afecta_stock
+        FROM pro_producto
+        WHERE id = v_id_producto;
+
+        IF v_afecta_stock THEN
+            v_requiere_stock := TRUE;
+        END IF;
+
         -- precio_unitario del catálogo ya incluye IGV
         v_importe_linea := ROUND((v_cantidad * v_precio_unitario) - v_descuento_linea, 4);
 
@@ -241,6 +258,91 @@ BEGIN
         v_sub_total := v_sub_total + v_importe_linea;
         v_total_importe := v_total_importe + v_importe_linea;
     END LOOP;
+
+    IF v_requiere_stock THEN
+        IF p_id_almacen IS NULL THEN
+            RETURN json_build_object(
+                'error',
+                'Debe indicar el almacén para descontar stock de los productos',
+                'registro',
+                NULL
+            );
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM gen_almacen WHERE id = p_id_almacen AND estado = 1
+        ) THEN
+            RETURN json_build_object('error', 'El almacén indicado no existe o está inactivo', 'registro', NULL);
+        END IF;
+
+        SELECT lo.id INTO v_id_tipo_mov_inv
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON lo.id_lista = l.id
+        WHERE l.nombre = 'TipoMovInv' AND lo.nombre = 'SALIDA' AND lo.estado = 1
+        LIMIT 1;
+
+        IF v_id_tipo_mov_inv IS NULL THEN
+            RETURN json_build_object(
+                'error',
+                'No se encontró el tipo de movimiento de inventario SALIDA',
+                'registro',
+                NULL
+            );
+        END IF;
+
+        SELECT lo.nombre INTO v_nombre_tipo_venta
+        FROM gen_lista_opciones lo
+        WHERE lo.id = p_id_tipo_venta;
+
+        SELECT lo.id INTO v_id_tipo_documento_ref
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON lo.id_lista = l.id
+        WHERE l.nombre = 'TipoDocumentoRef'
+          AND lo.nombre = CASE WHEN v_nombre_tipo_venta = 'VENTA_GAS' THEN 'RECARGA' ELSE 'FACTURA' END
+          AND lo.estado = 1
+        LIMIT 1;
+
+        -- Validar disponibilidad antes de crear el comprobante
+        FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
+        LOOP
+            v_id_producto := (v_detalle->>'id_producto')::INTEGER;
+            v_cantidad := COALESCE((v_detalle->>'cantidad')::NUMERIC, 0);
+
+            SELECT COALESCE(afecta_stock, FALSE)
+            INTO v_afecta_stock
+            FROM pro_producto
+            WHERE id = v_id_producto;
+
+            IF NOT v_afecta_stock THEN
+                CONTINUE;
+            END IF;
+
+            SELECT COALESCE(s.stock, 0)
+            INTO v_stock_disponible
+            FROM pro_stock s
+            WHERE s.id_almacen = p_id_almacen
+              AND s.id_producto = v_id_producto
+              AND s.estado = 1;
+
+            IF v_stock_disponible IS NULL THEN
+                v_stock_disponible := 0;
+            END IF;
+
+            IF v_stock_disponible < v_cantidad THEN
+                RETURN json_build_object(
+                    'error',
+                    format(
+                        'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
+                        v_id_producto,
+                        v_stock_disponible,
+                        v_cantidad
+                    ),
+                    'registro',
+                    NULL
+                );
+            END IF;
+        END LOOP;
+    END IF;
 
     INSERT INTO ven_comprobante (
         id_tipo_comprobante, serie, numero,
@@ -322,6 +424,44 @@ BEGIN
             p_id_usuario_auditoria
         );
     END LOOP;
+
+    IF v_requiere_stock THEN
+        v_glosa_mov := COALESCE(
+            NULLIF(TRIM(p_glosa), ''),
+            format('Salida por comprobante %s-%s', v_serie, v_numero)
+        );
+
+        FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
+        LOOP
+            v_id_producto := (v_detalle->>'id_producto')::INTEGER;
+            v_cantidad := COALESCE((v_detalle->>'cantidad')::NUMERIC, 0);
+
+            SELECT COALESCE(afecta_stock, FALSE)
+            INTO v_afecta_stock
+            FROM pro_producto
+            WHERE id = v_id_producto;
+
+            IF NOT v_afecta_stock THEN
+                CONTINUE;
+            END IF;
+
+            v_mov_result := pro_crear_movimiento(
+                p_fecha,
+                v_id_producto,
+                p_id_almacen,
+                v_id_tipo_mov_inv,
+                v_cantidad,
+                v_id,
+                v_id_tipo_documento_ref,
+                v_glosa_mov,
+                p_id_usuario_auditoria
+            );
+
+            IF v_mov_result->>'error' IS NOT NULL THEN
+                RAISE EXCEPTION '%', v_mov_result->>'error';
+            END IF;
+        END LOOP;
+    END IF;
 
     IF p_cuotas IS NOT NULL AND json_typeof(p_cuotas) = 'array' THEN
         FOR v_cuota IN SELECT value FROM json_array_elements(p_cuotas)

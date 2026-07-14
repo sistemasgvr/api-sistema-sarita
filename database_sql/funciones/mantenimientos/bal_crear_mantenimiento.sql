@@ -22,6 +22,12 @@ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
+    v_id_tipo_movimiento INTEGER;
+    v_id_tipo_documento_ref INTEGER;
+    v_id_estado_mantenimiento INTEGER;
+    v_id_almacen INTEGER;
+    v_id_cliente INTEGER;
+    v_mov_result JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -34,6 +40,29 @@ BEGIN
     ) THEN
         RETURN json_build_object('error', 'El balón indicado no existe o está inactivo', 'registro', NULL);
     END IF;
+
+    SELECT id_almacen, id_cliente_ubicacion
+    INTO v_id_almacen, v_id_cliente
+    FROM bal_balon
+    WHERE id = p_id_balon AND estado = 1;
+
+    SELECT lo.id INTO v_id_tipo_movimiento
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'SALIDA_MANTENIMIENTO' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_tipo_documento_ref
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'FACTURA' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_estado_mantenimiento
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_MANTENIMIENTO' AND lo.estado = 1
+    LIMIT 1;
 
     INSERT INTO bal_mantenimiento (
         id_balon, id_tipo_mantenimiento, fecha_ingreso, fecha_salida,
@@ -48,6 +77,32 @@ BEGIN
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;
+
+    IF v_id_tipo_movimiento IS NOT NULL THEN
+        v_mov_result := bal_crear_movimiento(
+            p_id_balon,
+            v_id_tipo_movimiento,
+            v_id,
+            v_id_tipo_documento_ref,
+            v_id_cliente,
+            v_id_almacen,
+            NULL,
+            p_fecha_ingreso::TIMESTAMP,
+            COALESCE(p_observacion, 'Salida a mantenimiento'),
+            p_id_usuario_auditoria
+        );
+
+        IF v_mov_result->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_mov_result->>'error';
+        END IF;
+    END IF;
+
+    UPDATE bal_balon
+    SET
+        id_estado_balon = COALESCE(v_id_estado_mantenimiento, id_estado_balon),
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id_balon AND estado = 1;
 
     PERFORM bal_sync_ph_desde_mantenimiento(
         v_id,
