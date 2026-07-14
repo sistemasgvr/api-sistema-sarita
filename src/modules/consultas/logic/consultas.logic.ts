@@ -1,10 +1,16 @@
 import { HttpService } from '@nestjs/axios';
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
+import { AxiosResponse } from 'axios';
 import { firstValueFrom } from 'rxjs';
+
+export interface ApisPeruResponse {
+  error?: boolean;
+  [key: string]: unknown;
+}
 
 @Injectable()
 export class ConsultasLogic {
@@ -13,16 +19,18 @@ export class ConsultasLogic {
 
   constructor(private readonly httpService: HttpService) {}
 
-  async consultarDni(dni: string) {
+  async consultarDni(dni: string): Promise<ApisPeruResponse> {
     try {
       const url = `${this.baseUrl}/dni/${dni}?token=${this.token}`;
-      const response = await firstValueFrom(this.httpService.get(url));
+      const response: AxiosResponse<ApisPeruResponse> = await firstValueFrom(
+        this.httpService.get<ApisPeruResponse>(url),
+      );
 
       if (!response.data || response.data.error) {
         throw new NotFoundException(`DNI ${dni} no encontrado en RENIEC`);
       }
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof NotFoundException) throw error;
       throw new BadRequestException(
         'Error al comunicarse con el servicio de RENIEC',
@@ -30,16 +38,18 @@ export class ConsultasLogic {
     }
   }
 
-  async consultarRuc(ruc: string) {
+  async consultarRuc(ruc: string): Promise<ApisPeruResponse> {
     try {
       const url = `${this.baseUrl}/ruc/${ruc}?token=${this.token}`;
-      const response = await firstValueFrom(this.httpService.get(url));
+      const response: AxiosResponse<ApisPeruResponse> = await firstValueFrom(
+        this.httpService.get<ApisPeruResponse>(url),
+      );
 
       if (!response.data || response.data.error) {
         throw new NotFoundException(`RUC ${ruc} no encontrado en SUNAT`);
       }
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof NotFoundException) throw error;
       throw new BadRequestException(
         'Error al comunicarse con el servicio de SUNAT',

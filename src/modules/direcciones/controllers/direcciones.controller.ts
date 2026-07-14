@@ -10,12 +10,10 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-//import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
-//import { Permisos } from '../../../common/decorators/permisos.decorator';
+import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
+import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
-import { Public } from '../../../common/decorators/public.decorator';
-
 import { DireccionesLogic } from '../logic/direcciones.logic';
 import {
   CreateDireccionDto,
@@ -29,16 +27,14 @@ export class DireccionesController {
   constructor(private readonly direccionesLogic: DireccionesLogic) {}
 
   @Get()
-  @Public()
-  //@Permisos(PermisoBanderas.DIRECCIONES_LISTAR)
+  @Permisos(PermisoBanderas.DIRECCIONES_LISTAR)
   @ApiOperation({ summary: 'Listar direcciones de clientes/proveedores' })
   listar(@Query() filtros: FiltroDireccionesDto) {
     return this.direccionesLogic.listar(filtros);
   }
 
   @Get(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.DIRECCIONES_VER)
+  @Permisos(PermisoBanderas.DIRECCIONES_VER)
   @ApiOperation({ summary: 'Obtener dirección por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
@@ -46,16 +42,14 @@ export class DireccionesController {
   }
 
   @Post()
-  @Public()
-  //@Permisos(PermisoBanderas.DIRECCIONES_CREAR)
+  @Permisos(PermisoBanderas.DIRECCIONES_CREAR)
   @ApiOperation({ summary: 'Crear nueva dirección para un cliente' })
   crear(@Body() dto: CreateDireccionDto) {
     return this.direccionesLogic.crear(dto);
   }
 
   @Patch(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.DIRECCIONES_EDITAR)
+  @Permisos(PermisoBanderas.DIRECCIONES_EDITAR)
   @ApiOperation({ summary: 'Actualizar dirección' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   actualizar(
@@ -66,8 +60,7 @@ export class DireccionesController {
   }
 
   @Delete(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.DIRECCIONES_ELIMINAR)
+  @Permisos(PermisoBanderas.DIRECCIONES_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar dirección (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {

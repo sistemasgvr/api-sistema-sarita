@@ -10,8 +10,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-//import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
-//import { Permisos } from '../../../common/decorators/permisos.decorator';
+import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
+import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
@@ -20,7 +20,6 @@ import {
   UpdateChoferDto,
 } from '../dto/choferes.dto';
 import { ChoferesLogic } from '../logic/choferes.logic';
-import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('Choferes')
 @Controller('choferes')
@@ -28,16 +27,14 @@ export class ChoferesController {
   constructor(private readonly choferesLogic: ChoferesLogic) {}
 
   @Get()
-  @Public()
-  //@Permisos(PermisoBanderas.CHOFERES_LISTAR)
+  @Permisos(PermisoBanderas.CHOFERES_LISTAR)
   @ApiOperation({ summary: 'Listar choferes' })
   listar(@Query() filtros: FiltroChoferDto) {
     return this.choferesLogic.listar(filtros);
   }
 
   @Get(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.CHOFERES_VER)
+  @Permisos(PermisoBanderas.CHOFERES_VER)
   @ApiOperation({ summary: 'Obtener chofer por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
@@ -45,16 +42,14 @@ export class ChoferesController {
   }
 
   @Post()
-  @Public()
-  //@Permisos(PermisoBanderas.CHOFERES_CREAR)
+  @Permisos(PermisoBanderas.CHOFERES_CREAR)
   @ApiOperation({ summary: 'Crear chofer' })
   crear(@Body() dto: CreateChoferDto) {
     return this.choferesLogic.crear(dto);
   }
 
   @Patch(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.CHOFERES_EDITAR)
+  @Permisos(PermisoBanderas.CHOFERES_EDITAR)
   @ApiOperation({ summary: 'Actualizar chofer' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   actualizar(
@@ -65,8 +60,7 @@ export class ChoferesController {
   }
 
   @Delete(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.CHOFERES_ELIMINAR)
+  @Permisos(PermisoBanderas.CHOFERES_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar chofer (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {

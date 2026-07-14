@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { FiltroPaginacionDto } from '../dto/filtro-paginacion.dto';
 import {
+  AuthActivateResult,
   AuthDeleteResult,
   AuthListResult,
   AuthSingleResult,
@@ -34,7 +35,23 @@ export function mapSingleResult<T>(
 }
 
 export function mapDeleteResult(result: AuthDeleteResult, notFoundMessage: string) {
+  if (result.error) {
+    throw new BadRequestException(result.error);
+  }
+
   if (!result.eliminado) {
+    throw new NotFoundException(notFoundMessage);
+  }
+
+  return result;
+}
+
+export function mapActivateResult(result: AuthActivateResult, notFoundMessage: string) {
+  if (result.error) {
+    throw new BadRequestException(result.error);
+  }
+
+  if (!result.activado) {
     throw new NotFoundException(notFoundMessage);
   }
 

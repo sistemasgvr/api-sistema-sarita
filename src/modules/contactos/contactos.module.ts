@@ -6,6 +6,5 @@ import { ContactosModel } from './models/contactos.model';
 @Module({
   controllers: [ContactosController],
   providers: [ContactosLogic, ContactosModel],
-  exports: [ContactosLogic, ContactosModel],
 })
 export class ContactosModule {}

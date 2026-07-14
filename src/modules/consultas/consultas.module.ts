@@ -7,6 +7,5 @@ import { ConsultasLogic } from './logic/consultas.logic';
   imports: [HttpModule],
   controllers: [ConsultasController],
   providers: [ConsultasLogic],
-  exports: [ConsultasLogic],
 })
 export class ConsultasModule {}
