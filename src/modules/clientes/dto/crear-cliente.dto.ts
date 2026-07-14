@@ -150,6 +150,16 @@ export class CreateClienteDto extends AuditoriaDto {
   @IsOptional()
   @IsString()
   observacion?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  latitud?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  longitud?: number;
 }
 
 export class UpdateClienteDto extends PartialType(CreateClienteDto) {}

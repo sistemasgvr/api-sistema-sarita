@@ -7,6 +7,8 @@ DROP FUNCTION IF EXISTS cli_crear_direccion(
     INTEGER,
     INTEGER,
     VARCHAR,
+    NUMERIC,
+    NUMERIC,
     BOOLEAN,
     INTEGER
 );
@@ -18,6 +20,8 @@ CREATE OR REPLACE FUNCTION cli_crear_direccion(
     p_id_provincia INTEGER DEFAULT NULL,
     p_id_distrito INTEGER DEFAULT NULL,
     p_referencia VARCHAR DEFAULT NULL,
+    p_latitud NUMERIC DEFAULT NULL,
+    p_longitud NUMERIC DEFAULT NULL,
     p_es_principal BOOLEAN DEFAULT FALSE,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
@@ -45,6 +49,8 @@ BEGIN
         id_provincia,
         id_distrito,
         referencia,
+        latitud,
+        longitud,
         es_principal,
         id_usuario_creacion,
         id_usuario_modificacion
@@ -57,6 +63,8 @@ BEGIN
         p_id_provincia,
         p_id_distrito,
         p_referencia,
+        p_latitud,
+        p_longitud,
         COALESCE(p_es_principal, FALSE),
         p_id_usuario_auditoria,
         p_id_usuario_auditoria

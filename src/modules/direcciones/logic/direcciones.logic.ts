@@ -10,7 +10,6 @@ import {
   UpdateDireccionDto,
 } from '../dto/filtros-direcciones.dto';
 import { DireccionesModel } from '../models/direcciones.model';
-
 @Injectable()
 export class DireccionesLogic {
   constructor(private readonly direccionesModel: DireccionesModel) {}
@@ -26,34 +25,12 @@ export class DireccionesLogic {
   }
 
   async crear(dto: CreateDireccionDto) {
-    const result = await this.direccionesModel.crear(
-      dto.idCliente,
-      dto.direccion,
-      dto.descripcion ?? null,
-      dto.idDepartamento ?? null,
-      dto.idProvincia ?? null,
-      dto.idDistrito ?? null,
-      dto.referencia ?? null,
-      dto.esPrincipal ?? false,
-      dto.idUsuarioAuditoria,
-    );
+    const result = await this.direccionesModel.crear(dto);
     return mapSingleResult(result, 'No se pudo crear la dirección');
   }
 
   async actualizar(id: number, dto: UpdateDireccionDto) {
-  const result = await this.direccionesModel.actualizar(
-    id,
-    dto.idCliente ?? null,
-    dto.direccion ?? null,
-    dto.descripcion ?? null,
-    dto.idPais ?? null,
-    dto.idDepartamento ?? null,
-    dto.idProvincia ?? null,
-    dto.idDistrito ?? null,
-    dto.referencia ?? null,
-    dto.esPrincipal ?? null,
-    dto.idUsuarioAuditoria,
-  );
+  const result = await this.direccionesModel.actualizar(id,dto);
   return mapSingleResult(result, `Dirección ${id} no encontrada`);
 }
 

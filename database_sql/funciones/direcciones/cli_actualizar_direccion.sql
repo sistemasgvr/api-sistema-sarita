@@ -8,6 +8,8 @@ DROP FUNCTION IF EXISTS cli_actualizar_direccion(
     INTEGER,
     INTEGER,
     VARCHAR,
+    NUMERIC(10,8),
+    NUMERIC(11,8),
     BOOLEAN,
     INTEGER
 );
@@ -21,6 +23,8 @@ CREATE OR REPLACE FUNCTION cli_actualizar_direccion(
     p_id_provincia INTEGER DEFAULT NULL,
     p_id_distrito INTEGER DEFAULT NULL,
     p_referencia VARCHAR DEFAULT NULL,
+    p_latitud NUMERIC(10,8) DEFAULT NULL,
+    p_longitud NUMERIC(11,8) DEFAULT NULL,
     p_es_principal BOOLEAN DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
@@ -58,6 +62,8 @@ BEGIN
         id_provincia = COALESCE(p_id_provincia, id_provincia),
         id_distrito = COALESCE(p_id_distrito, id_distrito),
         referencia = COALESCE(p_referencia, referencia),
+        latitud = COALESCE(p_latitud, latitud),
+        longitud = COALESCE(p_longitud, longitud),
         es_principal = COALESCE(p_es_principal, es_principal),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()

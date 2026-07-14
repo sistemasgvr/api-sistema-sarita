@@ -5,7 +5,7 @@ import {
   AuthSingleResult,
 } from '../../../common/interfaces/auth-db.interface';
 import { DatabaseService } from '../../../database/database.service';
-import { FiltroDireccionesDto } from '../dto/filtros-direcciones.dto';
+import { CreateDireccionDto, FiltroDireccionesDto, UpdateDireccionDto } from '../dto/filtros-direcciones.dto';
 
 @Injectable()
 export class DireccionesModel {
@@ -28,57 +28,39 @@ export class DireccionesModel {
     );
   }
 
-  crear(
-    idCliente: number,
-    direccion: string,
-    descripcion: string | null,
-    idDepartamento: number | null,
-    idProvincia: number | null,
-    idDistrito: number | null,
-    referencia: string | null,
-    esPrincipal: boolean | null,
-    idUsuarioAuditoria?: number,
-  ) {
+  crear(dto: CreateDireccionDto) {
     return this.db.callFunctionJson<AuthSingleResult>('cli_crear_direccion', [
-      idCliente,
-      direccion,
-      descripcion,
-      idDepartamento,
-      idProvincia,
-      idDistrito,
-      referencia,
-      esPrincipal ?? false,
-      idUsuarioAuditoria ?? null,
+      dto.idCliente?? null,
+      dto.direccion?? null,
+      dto.descripcion?? null,
+      dto.idDepartamento?? null,
+      dto.idProvincia?? null,
+      dto.idDistrito?? null,
+      dto.referencia?? null,
+      dto.latitud?? null,
+      dto.longitud?? null,
+      dto.esPrincipal ?? false,
+      dto.idUsuarioAuditoria ?? null,
     ]);
   }
 
-  actualizar(
-  id: number,
-  idCliente: number | null,
-  direccion: string | null,
-  descripcion: string | null,
-  idPais: number | null,
-  idDepartamento: number | null,
-  idProvincia: number | null,
-  idDistrito: number | null,
-  referencia: string | null,
-  esPrincipal: boolean | null,
-  idUsuarioAuditoria?: number,
-) {
+  actualizar(id: number, dto: UpdateDireccionDto) {
   return this.db.callFunctionJson<AuthSingleResult>(
     'cli_actualizar_direccion',
     [
       id,
-      idCliente,
-      direccion,
-      descripcion,
-      idPais,
-      idDepartamento,
-      idProvincia,
-      idDistrito,
-      referencia,
-      esPrincipal,
-      idUsuarioAuditoria ?? null,
+      dto.idCliente ?? null,
+      dto.direccion ?? null,
+      dto.descripcion ?? null,
+      dto.idPais ?? null,
+      dto.idDepartamento ?? null,
+      dto.idProvincia ?? null,
+      dto.idDistrito ?? null,
+      dto.referencia ?? null,
+      dto.latitud ?? null,
+      dto.longitud ?? null,
+      dto.esPrincipal ?? null,
+      dto.idUsuarioAuditoria ?? null,
     ],
   );
 }

@@ -43,6 +43,8 @@ BEGIN
             d.id_distrito,
             dist.nombre AS nombre_distrito,
             d.referencia,
+            d.latitud,
+            d.longitud,
             d.es_principal,
             d.estado,
             d.fecha_creacion,

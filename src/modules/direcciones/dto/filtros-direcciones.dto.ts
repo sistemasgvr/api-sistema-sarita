@@ -76,6 +76,16 @@ export class CreateDireccionDto extends AuditoriaDto {
   @MaxLength(255)
   referencia?: string;
 
+  @ApiPropertyOptional({ example: -12.0464 })
+  @IsOptional()
+  @Type(() => Number)
+  latitud?: number;
+
+  @ApiPropertyOptional({ example: -77.0428 })
+  @IsOptional()
+  @Type(() => Number)
+  longitud?: number;
+
   @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()

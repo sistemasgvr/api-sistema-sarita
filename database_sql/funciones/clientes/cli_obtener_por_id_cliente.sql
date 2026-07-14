@@ -30,6 +30,8 @@ BEGIN
             dir.id            AS id_direccion,
             dir.direccion,
             dir.referencia,
+            dir.latitud,
+            dir.longitud,
             dir.id_departamento,
             dep.nombre         AS nombre_departamento,
             dir.id_provincia,
