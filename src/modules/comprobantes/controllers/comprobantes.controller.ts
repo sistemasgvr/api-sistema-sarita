@@ -17,6 +17,7 @@ import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
+  AnularComprobanteDto,
   CreateComprobantesDto,
   FiltroComprobantesDto,
   PdfComprobanteQueryDto,
@@ -109,6 +110,33 @@ export class ComprobantesController {
     @Body() dto: AuditoriaDto,
   ) {
     return this.logic.emitir(id, dto);
+  }
+
+  @Post(':id/consultar-cdr')
+  @Permisos(PermisoBanderas.COMPROBANTES_CONSULTAR_CDR)
+  @ApiOperation({
+    summary: 'Consultar estado/CDR en SUNAT y actualizar el comprobante',
+  })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  consultarCdr(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.logic.consultarCdr(id, dto);
+  }
+
+  @Post(':id/anular')
+  @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
+  @ApiOperation({
+    summary:
+      'Anular factura/nota aceptada vía comunicación de baja (voided). No aplica a boletas.',
+  })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  anular(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AnularComprobanteDto,
+  ) {
+    return this.logic.anular(id, dto);
   }
 
   @Post(':id/respuesta-sunat')

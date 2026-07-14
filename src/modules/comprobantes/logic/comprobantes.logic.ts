@@ -14,6 +14,7 @@ import {
 import { ClientesModel } from '../../clientes/models/clientes.model';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
+  AnularComprobanteDto,
   CreateComprobantesDto,
   FiltroComprobantesDto,
   RegistrarRespuestaSunatDto,
@@ -99,6 +100,148 @@ export class ComprobantesLogic {
     return mapSingleResult(result, `Comprobante ${id} no encontrado`);
   }
 
+  async consultarCdr(id: number, dto: AuditoriaDto) {
+    this.assertFacturacionConfigurada();
+
+    const comprobante = await this.model.obtenerCompleto(id);
+
+    if (comprobante.error) {
+      throw new BadRequestException(comprobante.error);
+    }
+
+    if (!comprobante.registro) {
+      throw new NotFoundException(`Comprobante ${id} no encontrado`);
+    }
+
+    const tipo = comprobante.registro.codigo_tipo_comprobante;
+    const serie = comprobante.registro.serie;
+    const numero = comprobante.registro.numero;
+
+    if (!tipo || !serie || !numero) {
+      throw new BadRequestException('El comprobante no tiene tipo, serie o número');
+    }
+
+    const respuesta = await this.facturacionClient.consultarEstadoFacturaBoleta({
+      tipo,
+      serie,
+      numero: numero.replace(/^0+/, '') || '0',
+    });
+
+    const sunatResponse = (respuesta.sunatResponse ??
+      respuesta) as SunatResponsePayload;
+    const estadoSunatNombre = this.resolverEstadoSunatNombre(sunatResponse);
+    const idEstadoSunat = await this.model.resolverIdEstadoSunat(estadoSunatNombre);
+
+    const comprobanteActualizado = await this.model.registrarRespuestaSunat(id, {
+      idEstadoSunat: idEstadoSunat ?? undefined,
+      ticketSunat:
+        sunatResponse.ticket ?? comprobante.registro.ticket_sunat ?? undefined,
+      hashDocumento: comprobante.registro.hash_documento ?? undefined,
+      cdrRespuesta: JSON.stringify(respuesta),
+      idUsuarioAuditoria: dto.idUsuarioAuditoria,
+    });
+
+    if (comprobanteActualizado.error) {
+      throw new BadRequestException(comprobanteActualizado.error);
+    }
+
+    return {
+      comprobante: comprobanteActualizado.registro,
+      sunat: {
+        estado: estadoSunatNombre,
+        ticket: sunatResponse.ticket ?? null,
+        respuesta,
+      },
+    };
+  }
+
+  async anular(id: number, dto: AnularComprobanteDto) {
+    this.assertFacturacionConfigurada();
+
+    const motivo = dto.motivo?.trim();
+
+    if (!motivo) {
+      throw new BadRequestException('Debe indicar el motivo de la baja');
+    }
+
+    const comprobante = await this.model.obtenerCompleto(id);
+
+    if (comprobante.error) {
+      throw new BadRequestException(comprobante.error);
+    }
+
+    if (!comprobante.registro) {
+      throw new NotFoundException(`Comprobante ${id} no encontrado`);
+    }
+
+    if (comprobante.registro.nombre_estado_sunat === 'BAJA') {
+      throw new BadRequestException('El comprobante ya está dado de baja');
+    }
+
+    if (comprobante.registro.nombre_estado_sunat !== 'ACEPTADO') {
+      throw new BadRequestException(
+        'Solo se pueden anular comprobantes aceptados por SUNAT. Si aún no se emitió, elimínelo.',
+      );
+    }
+
+    const tipoDoc = comprobante.registro.codigo_tipo_comprobante;
+
+    if (tipoDoc === '03') {
+      throw new BadRequestException(
+        'Las boletas no se anulan con comunicación de baja. Emita una nota de crédito.',
+      );
+    }
+
+    const empresa = await this.model.obtenerEmpresaEmisora();
+
+    if (!empresa) {
+      throw new BadRequestException(
+        'No hay empresa emisora configurada en gen_empresa',
+      );
+    }
+
+    const payload = this.invoiceMapper.mapComprobanteToVoidedPayload(
+      comprobante,
+      empresa,
+      motivo,
+    );
+
+    const respuesta = await this.facturacionClient.enviarComunicacionBaja(payload);
+    const sunatResponse = (respuesta.sunatResponse ?? {}) as SunatResponsePayload;
+    const estadoSunatNombre =
+      this.resolverEstadoBajaNombre(sunatResponse) ??
+      (sunatResponse.ticket ? 'PENDIENTE' : 'RECHAZADO');
+    const idEstadoSunat = await this.model.resolverIdEstadoSunat(
+      estadoSunatNombre === 'ACEPTADO' ? 'BAJA' : estadoSunatNombre,
+    );
+
+    const comprobanteActualizado = await this.model.registrarRespuestaSunat(id, {
+      idEstadoSunat: idEstadoSunat ?? undefined,
+      ticketSunat: sunatResponse.ticket ?? undefined,
+      hashDocumento: respuesta.hash ?? comprobante.registro.hash_documento ?? undefined,
+      cdrRespuesta: JSON.stringify({
+        tipo: 'comunicacion_baja',
+        motivo,
+        voided: respuesta.sunatResponse ?? respuesta,
+      }),
+      idUsuarioAuditoria: dto.idUsuarioAuditoria,
+    });
+
+    if (comprobanteActualizado.error) {
+      throw new BadRequestException(comprobanteActualizado.error);
+    }
+
+    return {
+      comprobante: comprobanteActualizado.registro,
+      sunat: {
+        estado: estadoSunatNombre === 'ACEPTADO' ? 'BAJA' : estadoSunatNombre,
+        hash: respuesta.hash ?? null,
+        ticket: sunatResponse.ticket ?? null,
+        respuesta: respuesta.sunatResponse ?? null,
+      },
+    };
+  }
+
   async emitir(id: number, dto: AuditoriaDto) {
     this.assertFacturacionConfigurada();
 
@@ -114,6 +257,10 @@ export class ComprobantesLogic {
 
     if (comprobante.registro.nombre_estado_sunat === 'ACEPTADO') {
       throw new BadRequestException('El comprobante ya fue aceptado por SUNAT');
+    }
+
+    if (comprobante.registro.nombre_estado_sunat === 'BAJA') {
+      throw new BadRequestException('El comprobante está dado de baja');
     }
 
     const empresa = await this.model.obtenerEmpresaEmisora();
@@ -282,6 +429,11 @@ export class ComprobantesLogic {
     }
 
     return 'RECHAZADO';
+  }
+
+  /** Igual que emitir, pero un CDR aceptado de voided implica baja. */
+  private resolverEstadoBajaNombre(sunatResponse: SunatResponsePayload) {
+    return this.resolverEstadoSunatNombre(sunatResponse);
   }
 
   private assertFacturacionConfigurada() {

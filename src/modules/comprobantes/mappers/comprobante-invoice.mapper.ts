@@ -107,6 +107,48 @@ export class ComprobanteInvoiceMapper {
     return payload;
   }
 
+  /**
+   * Comunicación de baja (voided) para facturas y notas relacionadas a factura.
+   * Las boletas (03) no usan este canal: corresponden a nota de crédito / resumen.
+   */
+  mapComprobanteToVoidedPayload(
+    comprobante: ComprobanteCompletoResult,
+    empresa: EmpresaEmisora,
+    motivoBaja: string,
+  ): FacturacionApisperuPayload {
+    const cabecera = comprobante.registro;
+
+    if (!cabecera) {
+      throw new BadRequestException('Comprobante inválido');
+    }
+
+    const tipoDoc = cabecera.codigo_tipo_comprobante;
+
+    if (!tipoDoc || !['01', '07', '08'].includes(tipoDoc)) {
+      throw new BadRequestException(
+        'La comunicación de baja solo aplica a facturas y notas asociadas. Para boletas use una nota de crédito.',
+      );
+    }
+
+    const fechaEmision = this.formatFechaEmision(cabecera.fecha);
+    const hoy = new Date().toISOString().slice(0, 10);
+
+    return {
+      correlativo: String(cabecera.id).padStart(5, '0'),
+      fecGeneracion: fechaEmision,
+      fecComunicacion: `${hoy}T00:00:00-05:00`,
+      company: this.mapEmpresa(empresa),
+      details: [
+        {
+          tipoDoc,
+          serie: cabecera.serie,
+          correlativo: this.parseCorrelativo(cabecera.numero),
+          desMotivoBaja: motivoBaja.trim(),
+        },
+      ],
+    };
+  }
+
   private mapDetalle(
     detalle: ComprobanteDetalleRegistro,
     item: number,

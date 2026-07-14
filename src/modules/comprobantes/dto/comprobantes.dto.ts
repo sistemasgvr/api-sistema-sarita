@@ -462,6 +462,17 @@ export class UpdateComprobantesDto extends AuditoriaDto {
   cuotas?: ComprobanteCuotaDto[];
 }
 
+export class AnularComprobanteDto extends AuditoriaDto {
+  @ApiProperty({
+    example: 'ERROR EN EL CLIENTE / CANTIDAD',
+    description: 'Motivo de la comunicación de baja ante SUNAT',
+  })
+  @MaxLength(250)
+  @IsString()
+  @IsNotEmpty()
+  motivo!: string;
+}
+
 export class RegistrarRespuestaSunatDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @Type(() => Number)
