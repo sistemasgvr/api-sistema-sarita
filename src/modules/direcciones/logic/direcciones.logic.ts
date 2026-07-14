@@ -41,19 +41,21 @@ export class DireccionesLogic {
   }
 
   async actualizar(id: number, dto: UpdateDireccionDto) {
-    const result = await this.direccionesModel.actualizar(
-      id,
-      dto.direccion ?? null,
-      dto.descripcion ?? null,
-      dto.idDepartamento ?? null,
-      dto.idProvincia ?? null,
-      dto.idDistrito ?? null,
-      dto.referencia ?? null,
-      dto.esPrincipal ?? null,
-      dto.idUsuarioAuditoria,
-    );
-    return mapSingleResult(result, `Dirección ${id} no encontrada`);
-  }
+  const result = await this.direccionesModel.actualizar(
+    id,
+    dto.idCliente ?? null,
+    dto.direccion ?? null,
+    dto.descripcion ?? null,
+    dto.idPais ?? null,
+    dto.idDepartamento ?? null,
+    dto.idProvincia ?? null,
+    dto.idDistrito ?? null,
+    dto.referencia ?? null,
+    dto.esPrincipal ?? null,
+    dto.idUsuarioAuditoria,
+  );
+  return mapSingleResult(result, `Dirección ${id} no encontrada`);
+}
 
   async eliminar(id: number, idUsuarioAuditoria?: number) {
     const result = await this.direccionesModel.eliminar(id, idUsuarioAuditoria);

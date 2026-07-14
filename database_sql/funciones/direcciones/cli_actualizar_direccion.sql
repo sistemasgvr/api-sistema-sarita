@@ -1,7 +1,9 @@
 DROP FUNCTION IF EXISTS cli_actualizar_direccion(
     INTEGER,
+    INTEGER,
     VARCHAR,
     VARCHAR,
+    INTEGER,
     INTEGER,
     INTEGER,
     INTEGER,
@@ -11,8 +13,10 @@ DROP FUNCTION IF EXISTS cli_actualizar_direccion(
 );
 CREATE OR REPLACE FUNCTION cli_actualizar_direccion(
     p_id INTEGER,
+    p_id_cliente INTEGER DEFAULT NULL,
     p_direccion VARCHAR DEFAULT NULL,
     p_descripcion VARCHAR DEFAULT NULL,
+    p_id_pais INTEGER DEFAULT NULL,
     p_id_departamento INTEGER DEFAULT NULL,
     p_id_provincia INTEGER DEFAULT NULL,
     p_id_distrito INTEGER DEFAULT NULL,
@@ -46,8 +50,10 @@ BEGIN
 
     UPDATE cli_direcciones
     SET
+        id_cliente = COALESCE(p_id_cliente, id_cliente),
         direccion = COALESCE(p_direccion, direccion),
         descripcion = COALESCE(p_descripcion, descripcion),
+        id_pais = COALESCE(p_id_pais, id_pais),
         id_departamento = COALESCE(p_id_departamento, id_departamento),
         id_provincia = COALESCE(p_id_provincia, id_provincia),
         id_distrito = COALESCE(p_id_distrito, id_distrito),
@@ -57,6 +63,6 @@ BEGIN
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;
 
-    RETURN cli_obtener_direccion(p_id);
+    RETURN cli_obtener_por_id_direccion(p_id);
 END;
 $function$;

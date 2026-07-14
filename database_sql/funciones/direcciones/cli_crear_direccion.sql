@@ -1,3 +1,4 @@
+
 DROP FUNCTION IF EXISTS cli_crear_direccion(
     INTEGER,
     VARCHAR,
@@ -62,6 +63,6 @@ BEGIN
     )
     RETURNING id INTO v_id;
 
-    RETURN cli_obtener_direccion(v_id);
+    RETURN cli_obtener_por_id_direccion(v_id);
 END;
 $function$;

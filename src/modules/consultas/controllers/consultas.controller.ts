@@ -1,6 +1,6 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Public } from '../../../common/decorators/public.decorator';
+  import { Public } from '../../../common/decorators/public.decorator';
 import { ConsultasLogic } from '../logic/consultas.logic';
 import { DniParamDto, RucParamDto } from '../dto/consultas-param.dto';
 

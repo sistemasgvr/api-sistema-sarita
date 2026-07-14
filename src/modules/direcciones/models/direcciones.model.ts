@@ -53,31 +53,35 @@ export class DireccionesModel {
   }
 
   actualizar(
-    id: number,
-    direccion: string | null,
-    descripcion: string | null,
-    idDepartamento: number | null,
-    idProvincia: number | null,
-    idDistrito: number | null,
-    referencia: string | null,
-    esPrincipal: boolean | null,
-    idUsuarioAuditoria?: number,
-  ) {
-    return this.db.callFunctionJson<AuthSingleResult>(
-      'cli_actualizar_direccion',
-      [
-        id,
-        direccion,
-        descripcion,
-        idDepartamento,
-        idProvincia,
-        idDistrito,
-        referencia,
-        esPrincipal,
-        idUsuarioAuditoria ?? null,
-      ],
-    );
-  }
+  id: number,
+  idCliente: number | null,
+  direccion: string | null,
+  descripcion: string | null,
+  idPais: number | null,
+  idDepartamento: number | null,
+  idProvincia: number | null,
+  idDistrito: number | null,
+  referencia: string | null,
+  esPrincipal: boolean | null,
+  idUsuarioAuditoria?: number,
+) {
+  return this.db.callFunctionJson<AuthSingleResult>(
+    'cli_actualizar_direccion',
+    [
+      id,
+      idCliente,
+      direccion,
+      descripcion,
+      idPais,
+      idDepartamento,
+      idProvincia,
+      idDistrito,
+      referencia,
+      esPrincipal,
+      idUsuarioAuditoria ?? null,
+    ],
+  );
+}
 
   eliminar(id: number, idUsuarioAuditoria?: number) {
     return this.db.callFunctionJson<AuthDeleteResult>(

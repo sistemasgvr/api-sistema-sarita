@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional ,PartialType} from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
@@ -33,6 +33,12 @@ export class CreateDireccionDto extends AuditoriaDto {
   @Type(() => Number)
   @IsInt()
   idCliente!: number;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idPais?: number; 
 
   @ApiProperty({ example: 'Av. Los Álamos 123', maxLength: 255 })
   @IsString()
@@ -76,45 +82,4 @@ export class CreateDireccionDto extends AuditoriaDto {
   esPrincipal?: boolean;
 }
 
-export class UpdateDireccionDto extends AuditoriaDto {
-  @ApiPropertyOptional({ maxLength: 255 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  direccion?: string;
-
-  @ApiPropertyOptional({ maxLength: 150 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(150)
-  descripcion?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  idDepartamento?: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  idProvincia?: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  idDistrito?: number;
-
-  @ApiPropertyOptional({ maxLength: 255 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  referencia?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  esPrincipal?: boolean;
-}
+export class UpdateDireccionDto extends PartialType(CreateDireccionDto) {}
