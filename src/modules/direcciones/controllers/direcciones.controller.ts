@@ -18,8 +18,11 @@ import { DireccionesLogic } from '../logic/direcciones.logic';
 import {
   CreateDireccionDto,
   FiltroDireccionesDto,
+  ObtenerCoordenadasDto,
   UpdateDireccionDto,
 } from '../dto/filtros-direcciones.dto';
+import { publicDecrypt } from 'crypto';
+import { Public } from 'src/common/decorators/public.decorator';
 
 @ApiTags('Direcciones')
 @Controller('direcciones')
@@ -65,5 +68,14 @@ export class DireccionesController {
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
     return this.direccionesLogic.eliminar(id, dto.idUsuarioAuditoria);
+  }
+
+  @Post('coordenadas-desde-link')
+  @Permisos(PermisoBanderas.DIRECCIONES_VER)
+  @ApiOperation({
+    summary: 'Obtener coordenadas a partir de un link de Google Maps',
+  })
+  async obtenerCoordenadas(@Body() dto: ObtenerCoordenadasDto) {
+    return this.direccionesLogic.obtenerCoordenadasDesdeLink(dto.link);
   }
 }
