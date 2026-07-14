@@ -22,6 +22,7 @@ BEGIN
     SELECT COUNT(*) INTO v_total
     FROM ven_comprobante c
     LEFT JOIN cli_clientes cl ON c.id_cliente = cl.id
+    LEFT JOIN ven_comprobante co ON c.id_comprobante_origen = co.id
     WHERE c.estado = 1
       AND (p_id_tipo_comprobante IS NULL OR c.id_tipo_comprobante = p_id_tipo_comprobante)
       AND (p_id_cliente IS NULL OR c.id_cliente = p_id_cliente)
@@ -34,6 +35,8 @@ BEGIN
           p_busqueda = ''
           OR LOWER(c.serie) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(c.numero) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(co.serie, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(co.numero, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(cl.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(cl.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
@@ -59,6 +62,14 @@ BEGIN
             ed.nombre AS nombre_estado,
             c.id_estado_sunat,
             es.nombre AS nombre_estado_sunat,
+            c.id_comprobante_origen,
+            co.serie AS serie_comprobante_origen,
+            co.numero AS numero_comprobante_origen,
+            tc_origen.descripcion AS codigo_tipo_comprobante_origen,
+            tc_origen.nombre AS nombre_tipo_comprobante_origen,
+            c.id_motivo_nota,
+            mn.nombre AS nombre_motivo_nota,
+            mn.descripcion AS codigo_motivo_nota,
             c.total_importe,
             c.id_moneda,
             mo.nombre AS nombre_moneda,
@@ -71,6 +82,9 @@ BEGIN
             ) AS total_detalles
         FROM ven_comprobante c
         LEFT JOIN gen_lista_opciones tc ON c.id_tipo_comprobante = tc.id
+        LEFT JOIN ven_comprobante co ON c.id_comprobante_origen = co.id
+        LEFT JOIN gen_lista_opciones tc_origen ON co.id_tipo_comprobante = tc_origen.id
+        LEFT JOIN gen_lista_opciones mn ON c.id_motivo_nota = mn.id
         LEFT JOIN cli_clientes cl ON c.id_cliente = cl.id
         LEFT JOIN gen_lista_opciones ed ON c.id_estado = ed.id
         LEFT JOIN gen_lista_opciones es ON c.id_estado_sunat = es.id
@@ -87,6 +101,8 @@ BEGIN
               p_busqueda = ''
               OR LOWER(c.serie) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(c.numero) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(co.serie, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(co.numero, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(cl.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(cl.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
