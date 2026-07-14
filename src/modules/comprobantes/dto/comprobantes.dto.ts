@@ -473,6 +473,64 @@ export class AnularComprobanteDto extends AuditoriaDto {
   motivo!: string;
 }
 
+export class PreviewResumenDiarioQueryDto {
+  @ApiProperty({ example: '2026-07-13' })
+  @IsDateString()
+  @IsNotEmpty()
+  fecha!: string;
+}
+
+export class FiltroResumenDiarioDto extends FiltroPaginacionDto {
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idEstadoSunat?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaDesde?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaHasta?: string;
+}
+
+export class EstadoResumenDiarioQueryDto {
+  @ApiProperty({ example: '20260713123456' })
+  @IsString()
+  @IsNotEmpty()
+  ticket!: string;
+}
+
+export class EnviarResumenDiarioDto extends AuditoriaDto {
+  @ApiProperty({ example: '2026-07-13' })
+  @IsDateString()
+  @IsNotEmpty()
+  fecha!: string;
+
+  @ApiPropertyOptional({
+    example: '001',
+    description: 'Correlativo del resumen del día (3 dígitos). Por defecto el siguiente disponible.',
+  })
+  @MaxLength(10)
+  @IsOptional()
+  @IsString()
+  correlativo?: string;
+
+  @ApiPropertyOptional({
+    type: [Number],
+    description: 'Si se omite, incluye todas las boletas/NC familia B de la fecha',
+  })
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  @IsNumber({}, { each: true })
+  idsComprobante?: number[];
+}
+
 export class RegistrarRespuestaSunatDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @Type(() => Number)

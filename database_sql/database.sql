@@ -951,6 +951,44 @@ CREATE TABLE ven_comprobante (
     UNIQUE(serie, numero)
 );
 
+-- Resumen diario de boletas (comunicación asíncrona a SUNAT)
+CREATE TABLE ven_resumen_diario (
+    id                      SERIAL PRIMARY KEY,
+    fecha                   DATE NOT NULL,
+    correlativo             VARCHAR(10) NOT NULL,
+    identificador           VARCHAR(50),
+    ticket_sunat            VARCHAR(100),
+    id_estado_sunat         INT REFERENCES gen_lista_opciones(id),
+    hash_documento          VARCHAR(100),
+    xml_firmado             TEXT,
+    cdr_respuesta           TEXT,
+    moneda                  VARCHAR(3) DEFAULT 'PEN',
+    cantidad_docs           INT NOT NULL DEFAULT 0,
+    total_importe           NUMERIC(12,4) NOT NULL DEFAULT 0,
+    total_igv               NUMERIC(12,4) NOT NULL DEFAULT 0,
+    total_valor_venta       NUMERIC(12,4) NOT NULL DEFAULT 0,
+    observacion             VARCHAR(500),
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion      TIMESTAMP DEFAULT NOW(),
+    UNIQUE (fecha, correlativo)
+);
+
+CREATE TABLE ven_resumen_diario_detalle (
+    id                      SERIAL PRIMARY KEY,
+    id_resumen              INT NOT NULL REFERENCES ven_resumen_diario(id),
+    id_comprobante          INT NOT NULL REFERENCES ven_comprobante(id),
+    item                    INT NOT NULL,
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion      TIMESTAMP DEFAULT NOW(),
+    UNIQUE (id_resumen, id_comprobante)
+);
+
 -- Detalle de cada línea del comprobante
 CREATE TABLE ven_comprobante_detalle (
     id                  SERIAL PRIMARY KEY,
@@ -1362,6 +1400,11 @@ CREATE INDEX idx_ven_comprobante_cliente ON ven_comprobante(id_cliente);
 CREATE INDEX idx_ven_comprobante_fecha ON ven_comprobante(fecha);
 CREATE INDEX idx_ven_detalle_comprobante ON ven_comprobante_detalle(id_comprobante);
 CREATE INDEX idx_ven_detalle_estado_cil ON ven_comprobante_detalle(id_estado_cilindro);
+CREATE INDEX idx_ven_resumen_diario_fecha ON ven_resumen_diario(fecha);
+CREATE INDEX idx_ven_resumen_diario_ticket ON ven_resumen_diario(ticket_sunat);
+CREATE INDEX idx_ven_resumen_diario_estado_sunat ON ven_resumen_diario(id_estado_sunat);
+CREATE INDEX idx_ven_resumen_detalle_resumen ON ven_resumen_diario_detalle(id_resumen);
+CREATE INDEX idx_ven_resumen_detalle_comprobante ON ven_resumen_diario_detalle(id_comprobante);
 CREATE INDEX idx_ven_garantia_cliente ON ven_garantia(id_cliente);
 CREATE INDEX idx_ven_garantia_fecha ON ven_garantia(fecha_registro);
 CREATE INDEX idx_ven_garantia_mov ON ven_garantia_movimiento(id_garantia);

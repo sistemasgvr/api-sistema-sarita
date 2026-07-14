@@ -9,13 +9,17 @@ import { DatabaseService } from '../../../database/database.service';
 import type {
   ComprobanteCatalogosPos,
   ComprobanteCompletoResult,
+  ComprobanteResumenDiarioItem,
   ListaOpcionBasica,
+  ResumenDiarioCompletoResult,
+  SiguienteCorrelativoResumenResult,
 } from '../interfaces/comprobante.interface';
 import {
   ComprobanteCuotaDto,
   ComprobanteDetalleDto,
   CreateComprobantesDto,
   FiltroComprobantesDto,
+  FiltroResumenDiarioDto,
   RegistrarRespuestaSunatDto,
   SiguienteNumeroQueryDto,
   UpdateComprobantesDto,
@@ -124,6 +128,7 @@ export class ComprobantesModel {
       mediosPago,
       tiposOperacionSunat,
       estadosSunat,
+      motivosNotaCredito,
     ] = await Promise.all([
       this.listarOpcionesPorLista('TipoComprobante'),
       this.listarOpcionesPorLista('AfectacionIgv'),
@@ -131,6 +136,7 @@ export class ComprobantesModel {
       this.listarOpcionesPorLista('MedioPago'),
       this.listarOpcionesPorLista('TipoOperacionSunat'),
       this.listarOpcionesPorLista('EstadoSunat'),
+      this.listarOpcionesPorLista('MotivoNotaCredito'),
     ]);
 
     return {
@@ -140,7 +146,67 @@ export class ComprobantesModel {
       mediosPago,
       tiposOperacionSunat,
       estadosSunat,
+      motivosNotaCredito,
     };
+  }
+
+  async listarParaResumenDiario(
+    fecha: string,
+    idsComprobante?: number[],
+  ): Promise<ComprobanteResumenDiarioItem[]> {
+    const params: unknown[] = [fecha];
+    let idsFilter = '';
+
+    if (idsComprobante?.length) {
+      params.push(idsComprobante);
+      idsFilter = ` AND c.id = ANY($${params.length}::int[])`;
+    }
+
+    const result = await this.db.query<ComprobanteResumenDiarioItem>(
+      `SELECT
+         c.id,
+         tc.descripcion AS codigo_tipo_comprobante,
+         tc.nombre AS nombre_tipo_comprobante,
+         c.serie,
+         c.numero,
+         c.fecha::text AS fecha,
+         c.id_cliente,
+         COALESCE(
+           cl.razon_social,
+           TRIM(CONCAT_WS(' ', cl.nombres, cl.apellido_paterno, cl.apellido_materno))
+         ) AS nombre_cliente,
+         cl.numero_documento AS documento_cliente,
+         td.nombre AS nombre_tipo_documento_cliente,
+         es.nombre AS nombre_estado_sunat,
+         mo.descripcion AS codigo_moneda,
+         c.valor_venta,
+         c.igv,
+         c.exonerado,
+         c.total_importe,
+         tc_origen.descripcion AS codigo_tipo_comprobante_origen,
+         co.serie AS serie_comprobante_origen,
+         co.numero AS numero_comprobante_origen
+       FROM ven_comprobante c
+       INNER JOIN gen_lista_opciones tc ON c.id_tipo_comprobante = tc.id
+       LEFT JOIN gen_lista_opciones es ON c.id_estado_sunat = es.id
+       LEFT JOIN gen_lista_opciones mo ON c.id_moneda = mo.id
+       LEFT JOIN cli_clientes cl ON c.id_cliente = cl.id
+       LEFT JOIN gen_lista_opciones td ON cl.id_tipo_documento = td.id
+       LEFT JOIN ven_comprobante co ON c.id_comprobante_origen = co.id
+       LEFT JOIN gen_lista_opciones tc_origen ON co.id_tipo_comprobante = tc_origen.id
+       WHERE c.estado = 1
+         AND c.fecha::date = $1::date
+         AND (
+           tc.descripcion = '03'
+           OR (tc.descripcion IN ('07', '08') AND UPPER(c.serie) LIKE 'B%')
+         )
+         AND COALESCE(es.nombre, 'PENDIENTE') IN ('PENDIENTE', 'ACEPTADO')
+         ${idsFilter}
+       ORDER BY c.serie, c.numero`,
+      params,
+    );
+
+    return result.rows;
   }
 
   async resolverIdEstadoSunat(nombreEstado: string) {
@@ -276,5 +342,84 @@ export class ComprobantesModel {
       dto.cdrRespuesta ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
+  }
+
+  listarResumenDiario(filtros: FiltroResumenDiarioDto) {
+    return this.db.callFunctionJson<AuthListResult>('ven_listar_resumen_diario', [
+      filtros.buscar ?? '',
+      filtros.limite ?? 10,
+      filtros.offset,
+      filtros.idEstadoSunat ?? null,
+      filtros.fechaDesde ?? null,
+      filtros.fechaHasta ?? null,
+    ]);
+  }
+
+  obtenerResumenDiario(id: number) {
+    return this.db.callFunctionJson<ResumenDiarioCompletoResult>(
+      'ven_obtener_resumen_diario',
+      [id],
+    );
+  }
+
+  obtenerSiguienteCorrelativoResumen(fecha: string) {
+    return this.db.callFunctionJson<SiguienteCorrelativoResumenResult>(
+      'ven_obtener_siguiente_correlativo_resumen',
+      [fecha],
+    );
+  }
+
+  crearResumenDiario(params: {
+    fecha: string;
+    correlativo: string;
+    ticketSunat?: string | null;
+    idEstadoSunat?: number | null;
+    cdrRespuesta?: string | null;
+    moneda?: string | null;
+    cantidadDocs: number;
+    totalImporte: number;
+    totalIgv: number;
+    totalValorVenta: number;
+    idsComprobante: number[];
+    idUsuarioAuditoria?: number;
+  }) {
+    return this.db.callFunctionJson<ResumenDiarioCompletoResult>(
+      'ven_crear_resumen_diario',
+      [
+        params.fecha,
+        params.correlativo,
+        params.ticketSunat ?? null,
+        params.idEstadoSunat ?? null,
+        params.cdrRespuesta ?? null,
+        params.moneda ?? 'PEN',
+        params.cantidadDocs,
+        params.totalImporte,
+        params.totalIgv,
+        params.totalValorVenta,
+        JSON.stringify(params.idsComprobante),
+        params.idUsuarioAuditoria ?? null,
+      ],
+    );
+  }
+
+  registrarRespuestaResumenDiario(
+    id: number,
+    dto: {
+      idEstadoSunat?: number | null;
+      ticketSunat?: string | null;
+      cdrRespuesta?: string | null;
+      idUsuarioAuditoria?: number;
+    },
+  ) {
+    return this.db.callFunctionJson<ResumenDiarioCompletoResult>(
+      'ven_registrar_respuesta_resumen_diario',
+      [
+        id,
+        dto.idEstadoSunat ?? null,
+        dto.ticketSunat ?? null,
+        dto.cdrRespuesta ?? null,
+        dto.idUsuarioAuditoria ?? null,
+      ],
+    );
   }
 }

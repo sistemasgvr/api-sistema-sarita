@@ -92,12 +92,21 @@ export class ComprobanteInvoiceMapper {
         );
       }
 
-      payload.docReferencia = {
-        tipoDoc: '03',
-        serie: cabecera.serie_comprobante_origen,
-        correlativo: this.parseCorrelativo(cabecera.numero_comprobante_origen),
-      };
-      payload.codMotivo = cabecera.codigo_motivo_nota ?? '01';
+      const tipDocAfectado =
+        cabecera.codigo_tipo_comprobante_origen ??
+        (cabecera.serie_comprobante_origen.toUpperCase().startsWith('F')
+          ? '01'
+          : '03');
+      const numDocfectado = `${cabecera.serie_comprobante_origen}-${this.parseCorrelativo(cabecera.numero_comprobante_origen)}`;
+      const codMotivo = cabecera.codigo_motivo_nota ?? '01';
+
+      payload.tipDocAfectado = tipDocAfectado;
+      payload.numDocfectado = numDocfectado;
+      payload.codMotivo = codMotivo;
+      payload.desMotivo = this.formatDesMotivo(
+        cabecera.nombre_motivo_nota,
+        codMotivo,
+      );
     }
 
     if (cabecera.observaciones) {
@@ -105,6 +114,48 @@ export class ComprobanteInvoiceMapper {
     }
 
     return payload;
+  }
+
+  /**
+   * Resumen diario SUNAT (boletas y notas de crédito de familia B).
+   */
+  mapComprobantesToSummaryPayload(
+    items: Array<{
+      codigo_tipo_comprobante?: string | null;
+      serie: string;
+      numero: string;
+      nombre_tipo_documento_cliente?: string | null;
+      documento_cliente?: string | null;
+      total_importe?: number | null;
+      valor_venta?: number | null;
+      igv?: number | null;
+      exonerado?: number | null;
+      codigo_moneda?: string | null;
+      codigo_tipo_comprobante_origen?: string | null;
+      serie_comprobante_origen?: string | null;
+      numero_comprobante_origen?: string | null;
+    }>,
+    empresa: EmpresaEmisora,
+    fecha: string,
+    correlativo: string,
+  ): FacturacionApisperuPayload {
+    if (!items.length) {
+      throw new BadRequestException(
+        'No hay boletas ni notas para el resumen diario de la fecha indicada',
+      );
+    }
+
+    const moneda = items[0]?.codigo_moneda ?? 'PEN';
+    const fechaFmt = this.formatFechaEmision(fecha);
+
+    return {
+      fecGeneracion: fechaFmt,
+      fecResumen: fechaFmt,
+      correlativo: correlativo.replace(/\D/g, '').padStart(3, '0') || '001',
+      moneda,
+      company: this.mapEmpresa(empresa),
+      details: items.map((item) => this.mapSummaryDetail(item)),
+    };
   }
 
   /**
@@ -147,6 +198,72 @@ export class ComprobanteInvoiceMapper {
         },
       ],
     };
+  }
+
+  private mapSummaryDetail(item: {
+    codigo_tipo_comprobante?: string | null;
+    serie: string;
+    numero: string;
+    nombre_tipo_documento_cliente?: string | null;
+    documento_cliente?: string | null;
+    total_importe?: number | null;
+    valor_venta?: number | null;
+    igv?: number | null;
+    exonerado?: number | null;
+    codigo_tipo_comprobante_origen?: string | null;
+    serie_comprobante_origen?: string | null;
+    numero_comprobante_origen?: string | null;
+  }): Record<string, unknown> {
+    const tipoDoc = item.codigo_tipo_comprobante ?? '03';
+    const correlativo = this.parseCorrelativo(item.numero);
+    const igv = this.round(Number(item.igv ?? 0), 2);
+    const valorVenta = this.round(Number(item.valor_venta ?? 0), 2);
+    const exonerado = this.round(Number(item.exonerado ?? 0), 2);
+    const mtoOperGravadas = igv > 0 ? valorVenta : 0;
+    const mtoOperExoneradas =
+      exonerado > 0 ? exonerado : igv === 0 ? valorVenta : 0;
+    const clienteNro = (item.documento_cliente ?? '').trim() || '00000000';
+
+    const detail: Record<string, unknown> = {
+      tipoDoc,
+      serieNro: `${item.serie}-${correlativo}`,
+      estado: '1',
+      clienteTipo: this.mapTipoDocumentoCliente(
+        item.nombre_tipo_documento_cliente,
+        clienteNro,
+      ),
+      clienteNro,
+      total: this.round(Number(item.total_importe ?? valorVenta + igv), 2),
+      mtoOperGravadas,
+      mtoOperExoneradas,
+      mtoOperInafectas: 0,
+      mtoIGV: igv,
+    };
+
+    if (
+      (tipoDoc === '07' || tipoDoc === '08') &&
+      item.serie_comprobante_origen &&
+      item.numero_comprobante_origen
+    ) {
+      detail.docReferencia = {
+        tipoDoc:
+          item.codigo_tipo_comprobante_origen ??
+          (item.serie_comprobante_origen.toUpperCase().startsWith('F')
+            ? '01'
+            : '03'),
+        nroDoc: `${item.serie_comprobante_origen}-${this.parseCorrelativo(item.numero_comprobante_origen)}`,
+      };
+    }
+
+    return detail;
+  }
+
+  private formatDesMotivo(nombre?: string | null, codigo?: string | null) {
+    if (nombre?.trim()) {
+      return nombre.trim().replace(/_/g, ' ');
+    }
+
+    return codigo ? `Motivo ${codigo}` : 'ANULACION DE LA OPERACION';
   }
 
   private mapDetalle(

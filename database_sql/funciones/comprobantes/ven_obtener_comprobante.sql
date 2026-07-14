@@ -26,6 +26,8 @@ BEGIN
             c.id_comprobante_origen,
             co.serie AS serie_comprobante_origen,
             co.numero AS numero_comprobante_origen,
+            tc_origen.descripcion AS codigo_tipo_comprobante_origen,
+            tc_origen.nombre AS nombre_tipo_comprobante_origen,
             c.id_motivo_nota,
             mn.nombre AS nombre_motivo_nota,
             mn.descripcion AS codigo_motivo_nota,
@@ -82,6 +84,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones es ON c.id_estado_sunat = es.id
         LEFT JOIN gen_lista_opciones tos ON c.id_tipo_operacion_sunat = tos.id
         LEFT JOIN ven_comprobante co ON c.id_comprobante_origen = co.id
+        LEFT JOIN gen_lista_opciones tc_origen ON co.id_tipo_comprobante = tc_origen.id
         LEFT JOIN gen_lista_opciones mn ON c.id_motivo_nota = mn.id
         LEFT JOIN gen_lista_opciones tm ON c.id_tipo_movimiento = tm.id
         LEFT JOIN gen_lista_opciones tv ON c.id_tipo_venta = tv.id

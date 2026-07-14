@@ -19,8 +19,12 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   AnularComprobanteDto,
   CreateComprobantesDto,
+  EnviarResumenDiarioDto,
+  EstadoResumenDiarioQueryDto,
   FiltroComprobantesDto,
+  FiltroResumenDiarioDto,
   PdfComprobanteQueryDto,
+  PreviewResumenDiarioQueryDto,
   RegistrarRespuestaSunatDto,
   SiguienteNumeroQueryDto,
   UpdateComprobantesDto,
@@ -40,8 +44,8 @@ export class ComprobantesController {
   }
 
   @Get('catalogos/pos')
-  @Permisos(PermisoBanderas.COMPROBANTES_CREAR)
-  @ApiOperation({ summary: 'Catálogos para punto de venta' })
+  @Permisos(PermisoBanderas.COMPROBANTES_LISTAR)
+  @ApiOperation({ summary: 'Catálogos para punto de venta y notas' })
   obtenerCatalogosPos() {
     return this.logic.obtenerCatalogosPos();
   }
@@ -51,6 +55,62 @@ export class ComprobantesController {
   @ApiOperation({ summary: 'Obtener siguiente número correlativo por serie y tipo' })
   obtenerSiguienteNumero(@Query() query: SiguienteNumeroQueryDto) {
     return this.logic.obtenerSiguienteNumero(query);
+  }
+
+  @Get('resumenes')
+  @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
+  @ApiOperation({ summary: 'Listar historial de resúmenes diarios enviados' })
+  listarResumenDiario(@Query() filtros: FiltroResumenDiarioDto) {
+    return this.logic.listarResumenDiario(filtros);
+  }
+
+  @Get('resumenes/preview')
+  @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
+  @ApiOperation({
+    summary: 'Previsualizar boletas y NC (serie B) de una fecha para resumen diario',
+  })
+  previewResumenDiario(@Query() query: PreviewResumenDiarioQueryDto) {
+    return this.logic.previewResumenDiario(query.fecha);
+  }
+
+  @Get('resumenes/siguiente-correlativo')
+  @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
+  @ApiOperation({ summary: 'Obtener siguiente correlativo de resumen para una fecha' })
+  siguienteCorrelativoResumen(@Query() query: PreviewResumenDiarioQueryDto) {
+    return this.logic.obtenerSiguienteCorrelativoResumen(query.fecha);
+  }
+
+  @Get('resumenes/estado')
+  @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
+  @ApiOperation({ summary: 'Consultar estado de un resumen diario por ticket SUNAT' })
+  consultarEstadoResumen(@Query() query: EstadoResumenDiarioQueryDto) {
+    return this.logic.consultarEstadoResumen(query.ticket);
+  }
+
+  @Get('resumenes/:id')
+  @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
+  @ApiOperation({ summary: 'Obtener resumen diario por ID' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  obtenerResumenDiario(@Param('id', ParseIntPipe) id: number) {
+    return this.logic.obtenerResumenDiario(id);
+  }
+
+  @Post('resumenes/enviar')
+  @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
+  @ApiOperation({ summary: 'Enviar resumen diario de boletas a SUNAT (summary/send)' })
+  enviarResumenDiario(@Body() dto: EnviarResumenDiarioDto) {
+    return this.logic.enviarResumenDiario(dto);
+  }
+
+  @Post('resumenes/:id/consultar-estado')
+  @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
+  @ApiOperation({ summary: 'Consultar estado SUNAT de un resumen diario guardado' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  consultarEstadoResumenPorId(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.logic.consultarEstadoResumenPorId(id, dto);
   }
 
   @Get(':id/pdf')

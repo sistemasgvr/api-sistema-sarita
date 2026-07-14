@@ -16,7 +16,9 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   AnularComprobanteDto,
   CreateComprobantesDto,
+  EnviarResumenDiarioDto,
   FiltroComprobantesDto,
+  FiltroResumenDiarioDto,
   RegistrarRespuestaSunatDto,
   SiguienteNumeroQueryDto,
   UpdateComprobantesDto,
@@ -68,6 +70,235 @@ export class ComprobantesLogic {
 
   async obtenerCatalogosPos() {
     return this.model.obtenerCatalogosPos();
+  }
+
+  async previewResumenDiario(fecha: string) {
+    const items = await this.model.listarParaResumenDiario(fecha);
+    const total = items.reduce((acc, item) => acc + Number(item.total_importe ?? 0), 0);
+
+    return {
+      fecha,
+      cantidad: items.length,
+      total,
+      items,
+    };
+  }
+
+  async listarResumenDiario(filtros: FiltroResumenDiarioDto) {
+    const result = await this.model.listarResumenDiario(filtros);
+    return mapListResult(result, filtros);
+  }
+
+  async obtenerResumenDiario(id: number) {
+    const result = await this.model.obtenerResumenDiario(id);
+
+    if (result.error) {
+      throw new BadRequestException(result.error);
+    }
+
+    if (!result.registro) {
+      throw new NotFoundException(`Resumen diario ${id} no encontrado`);
+    }
+
+    return {
+      ...result.registro,
+      detalles: result.detalles ?? [],
+    };
+  }
+
+  async obtenerSiguienteCorrelativoResumen(fecha: string) {
+    return this.model.obtenerSiguienteCorrelativoResumen(fecha);
+  }
+
+  async enviarResumenDiario(dto: EnviarResumenDiarioDto) {
+    this.assertFacturacionConfigurada();
+
+    const items = await this.model.listarParaResumenDiario(
+      dto.fecha,
+      dto.idsComprobante,
+    );
+
+    if (!items.length) {
+      throw new BadRequestException(
+        'No hay boletas ni notas de crédito (serie B) para resumir en la fecha indicada',
+      );
+    }
+
+    const empresa = await this.model.obtenerEmpresaEmisora();
+
+    if (!empresa) {
+      throw new BadRequestException(
+        'No hay empresa emisora configurada en gen_empresa',
+      );
+    }
+
+    let correlativo = dto.correlativo?.trim();
+    if (!correlativo) {
+      const siguiente = await this.model.obtenerSiguienteCorrelativoResumen(dto.fecha);
+      correlativo = siguiente.correlativo || '001';
+    }
+
+    const payload = this.invoiceMapper.mapComprobantesToSummaryPayload(
+      items,
+      empresa,
+      dto.fecha,
+      correlativo,
+    );
+
+    const respuesta = await this.facturacionClient.enviarResumenDiario(payload);
+    const sunatResponse = (respuesta.sunatResponse ?? {}) as SunatResponsePayload;
+    const estadoSunatNombre = this.resolverEstadoSunatNombre(sunatResponse);
+    const idEstadoSunat = await this.model.resolverIdEstadoSunat(estadoSunatNombre);
+    const ticket = sunatResponse.ticket ?? null;
+
+    const totalImporte = items.reduce(
+      (acc, item) => acc + Number(item.total_importe ?? 0),
+      0,
+    );
+    const totalIgv = items.reduce((acc, item) => acc + Number(item.igv ?? 0), 0);
+    const totalValorVenta = items.reduce(
+      (acc, item) => acc + Number(item.valor_venta ?? 0),
+      0,
+    );
+
+    const resumenCreado = await this.model.crearResumenDiario({
+      fecha: dto.fecha,
+      correlativo,
+      ticketSunat: ticket,
+      idEstadoSunat,
+      cdrRespuesta: JSON.stringify(respuesta.sunatResponse ?? respuesta),
+      moneda: items[0]?.codigo_moneda ?? 'PEN',
+      cantidadDocs: items.length,
+      totalImporte,
+      totalIgv,
+      totalValorVenta,
+      idsComprobante: items.map((item) => item.id),
+      idUsuarioAuditoria: dto.idUsuarioAuditoria,
+    });
+
+    if (resumenCreado.error || !resumenCreado.registro) {
+      throw new BadRequestException(
+        resumenCreado.error ?? 'No se pudo registrar el historial del resumen diario',
+      );
+    }
+
+    for (const item of items) {
+      await this.model.registrarRespuestaSunat(item.id, {
+        idEstadoSunat: idEstadoSunat ?? undefined,
+        ticketSunat: ticket ?? undefined,
+        cdrRespuesta: JSON.stringify({
+          tipo: 'resumen_diario',
+          id_resumen: resumenCreado.registro.id,
+          fecha: dto.fecha,
+          correlativo,
+          resumen: respuesta.sunatResponse ?? respuesta,
+        }),
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      });
+    }
+
+    return {
+      resumen: {
+        ...resumenCreado.registro,
+        detalles: resumenCreado.detalles ?? [],
+      },
+      fecha: dto.fecha,
+      correlativo,
+      cantidad: items.length,
+      items,
+      sunat: {
+        estado: estadoSunatNombre,
+        ticket,
+        respuesta: respuesta.sunatResponse ?? null,
+      },
+    };
+  }
+
+  async consultarEstadoResumenPorId(id: number, dto: AuditoriaDto) {
+    this.assertFacturacionConfigurada();
+
+    const resumen = await this.model.obtenerResumenDiario(id);
+
+    if (resumen.error) {
+      throw new BadRequestException(resumen.error);
+    }
+
+    if (!resumen.registro) {
+      throw new NotFoundException(`Resumen diario ${id} no encontrado`);
+    }
+
+    const ticket = resumen.registro.ticket_sunat?.trim();
+
+    if (!ticket) {
+      throw new BadRequestException(
+        'El resumen aún no tiene ticket SUNAT para consultar',
+      );
+    }
+
+    const respuesta = await this.facturacionClient.consultarEstadoResumen({ ticket });
+    const sunatResponse = respuesta as SunatResponsePayload;
+    const estadoSunatNombre = this.resolverEstadoSunatDesdeConsulta(respuesta);
+    const idEstadoSunat = await this.model.resolverIdEstadoSunat(estadoSunatNombre);
+
+    const actualizado = await this.model.registrarRespuestaResumenDiario(id, {
+      idEstadoSunat,
+      ticketSunat: ticket,
+      cdrRespuesta: JSON.stringify(respuesta),
+      idUsuarioAuditoria: dto.idUsuarioAuditoria,
+    });
+
+    if (actualizado.error || !actualizado.registro) {
+      throw new BadRequestException(
+        actualizado.error ?? 'No se pudo actualizar el estado del resumen',
+      );
+    }
+
+    if (estadoSunatNombre === 'ACEPTADO' || estadoSunatNombre === 'RECHAZADO') {
+      for (const detalle of actualizado.detalles ?? []) {
+        await this.model.registrarRespuestaSunat(detalle.id_comprobante, {
+          idEstadoSunat: idEstadoSunat ?? undefined,
+          ticketSunat: ticket,
+          cdrRespuesta: JSON.stringify({
+            tipo: 'resumen_diario',
+            id_resumen: id,
+            resumen: respuesta,
+          }),
+          idUsuarioAuditoria: dto.idUsuarioAuditoria,
+        });
+      }
+    }
+
+    return {
+      resumen: {
+        ...actualizado.registro,
+        detalles: actualizado.detalles ?? [],
+      },
+      sunat: {
+        estado: estadoSunatNombre,
+        ticket,
+        respuesta,
+      },
+    };
+  }
+
+  async consultarEstadoResumen(ticket: string) {
+    this.assertFacturacionConfigurada();
+
+    if (!ticket.trim()) {
+      throw new BadRequestException('El ticket del resumen es obligatorio');
+    }
+
+    const respuesta = await this.facturacionClient.consultarEstadoResumen({
+      ticket: ticket.trim(),
+    });
+
+    return {
+      ticket: ticket.trim(),
+      sunat: {
+        estado: this.resolverEstadoSunatDesdeConsulta(respuesta),
+        respuesta,
+      },
+    };
   }
 
   async obtenerSiguienteNumero(query: SiguienteNumeroQueryDto): Promise<SiguienteNumeroResult> {
@@ -429,6 +660,41 @@ export class ComprobantesLogic {
     }
 
     return 'RECHAZADO';
+  }
+
+  private resolverEstadoSunatDesdeConsulta(payload: unknown) {
+    const root =
+      payload && typeof payload === 'object'
+        ? (payload as Record<string, unknown>)
+        : {};
+    const nested =
+      root.sunatResponse && typeof root.sunatResponse === 'object'
+        ? (root.sunatResponse as Record<string, unknown>)
+        : root;
+    const cdr =
+      nested.cdrResponse && typeof nested.cdrResponse === 'object'
+        ? (nested.cdrResponse as Record<string, unknown>)
+        : null;
+    const errorObj =
+      (nested.error && typeof nested.error === 'object'
+        ? (nested.error as Record<string, unknown>)
+        : null) ??
+      (root.error && typeof root.error === 'object'
+        ? (root.error as Record<string, unknown>)
+        : null);
+
+    if (nested.success === false || errorObj) return 'RECHAZADO';
+    if (cdr?.accepted === true || nested.success === true) return 'ACEPTADO';
+
+    const codeRaw = cdr?.code ?? nested.code ?? root.code;
+    const code = Number(codeRaw);
+    if (code === 0) return 'ACEPTADO';
+    if (code === 98) return 'PENDIENTE';
+    if (!Number.isNaN(code) && ((code >= 2000 && code <= 3999) || code === 99)) {
+      return 'RECHAZADO';
+    }
+
+    return this.resolverEstadoSunatNombre(nested as SunatResponsePayload);
   }
 
   /** Igual que emitir, pero un CDR aceptado de voided implica baja. */
