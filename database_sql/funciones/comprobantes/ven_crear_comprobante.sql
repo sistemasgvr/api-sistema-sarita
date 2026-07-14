@@ -298,7 +298,14 @@ BEGIN
         FROM gen_lista_opciones lo
         INNER JOIN gen_lista l ON lo.id_lista = l.id
         WHERE l.nombre = 'TipoDocumentoRef'
-          AND lo.nombre = CASE WHEN v_nombre_tipo_venta = 'VENTA_GAS' THEN 'RECARGA' ELSE 'FACTURA' END
+          AND lo.nombre = CASE
+            WHEN v_nombre_tipo_venta = 'VENTA_GAS' THEN 'RECARGA'
+            WHEN v_codigo_tipo = '01' THEN 'FACTURA'
+            WHEN v_codigo_tipo = '03' THEN 'BOLETA'
+            WHEN v_codigo_tipo = '07' THEN 'NOTA_CREDITO'
+            WHEN v_codigo_tipo = '08' THEN 'NOTA_DEBITO'
+            ELSE 'FACTURA'
+          END
           AND lo.estado = 1
         LIMIT 1;
 

@@ -64,6 +64,9 @@ SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
         ('FACTURA', 'Factura de venta o compra'),
+        ('BOLETA', 'Boleta de venta'),
+        ('NOTA_CREDITO', 'Nota de crédito'),
+        ('NOTA_DEBITO', 'Nota de débito'),
         ('GRE', 'Guía de remisión electrónica'),
         ('PRESTAMO', 'Préstamo de cilindro'),
         ('ALQUILER', 'Alquiler de cilindro'),
