@@ -10,6 +10,11 @@ FROM (
         ('sucursales.crear', 'Crear sucursales'),
         ('sucursales.editar', 'Editar sucursales'),
         ('sucursales.eliminar', 'Eliminar sucursales'),
+        ('actividades.listar',   'Listar actividades'),
+        ('actividades.ver',      'Ver detalle de actividad'),
+        ('actividades.crear',    'Crear actividades'),
+        ('actividades.editar',   'Editar actividades'),
+        ('actividades.eliminar', 'Eliminar actividades');
         ('almacenes.listar', 'Listar almacenes'),
         ('almacenes.ver', 'Ver detalle de almacén'),
         ('almacenes.crear', 'Crear almacenes'),
