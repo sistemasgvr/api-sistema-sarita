@@ -71,7 +71,8 @@ export class DireccionesController {
   }
 
   @Post('coordenadas-desde-link')
-  @Permisos(PermisoBanderas.DIRECCIONES_VER)
+  @Public()
+  //@Permisos(PermisoBanderas.DIRECCIONES_VER)
   @ApiOperation({
     summary: 'Obtener coordenadas a partir de un link de Google Maps',
   })

@@ -24,7 +24,7 @@
     p_situacion_sunat             VARCHAR  DEFAULT NULL,
     p_estado_contribuyente_sunat  VARCHAR  DEFAULT NULL,
     p_observacion                 VARCHAR  DEFAULT NULL,
-    p_id_usuario                  INT      DEFAULT NULL
+    p_id_usuario_auditoria                  INT      DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -77,7 +77,7 @@ BEGIN
         situacion_sunat             = COALESCE(p_situacion_sunat, situacion_sunat),
         estado_contribuyente_sunat  = COALESCE(p_estado_contribuyente_sunat, estado_contribuyente_sunat),
         observacion                 = COALESCE(p_observacion, observacion),
-        id_usuario_modificacion     = COALESCE(p_id_usuario, id_usuario_modificacion),
+        id_usuario_modificacion     = COALESCE(p_id_usuario_auditoria, id_usuario_modificacion),
         fecha_modificacion          = NOW()
     WHERE id = p_id;
 
@@ -111,7 +111,7 @@ CREATE OR REPLACE FUNCTION cli_actualizar_por_id_cliente(
     p_id_provincia                INT      DEFAULT NULL,
     p_id_distrito                 INT      DEFAULT NULL,
     p_id_pais                     INT      DEFAULT NULL,
-    p_id_usuario                  INT      DEFAULT NULL
+    p_id_usuario_auditoria                  INT      DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -157,7 +157,7 @@ BEGIN
             situacion_sunat             = COALESCE(p_situacion_sunat, situacion_sunat),
             estado_contribuyente_sunat  = COALESCE(p_estado_contribuyente_sunat, estado_contribuyente_sunat),
             observacion                 = COALESCE(p_observacion, observacion),
-            id_usuario_modificacion     = COALESCE(p_id_usuario, id_usuario_modificacion),
+            id_usuario_modificacion     = COALESCE(p_id_usuario_auditoria, id_usuario_modificacion),
             fecha_modificacion          = NOW()
         WHERE id = p_id;
         IF p_direccion IS NOT NULL OR p_referencia IS NOT NULL OR p_id_departamento IS NOT NULL
@@ -177,7 +177,7 @@ BEGIN
                     id_provincia            = COALESCE(p_id_provincia, id_provincia),
                     id_distrito             = COALESCE(p_id_distrito, id_distrito),
                     id_pais                 = COALESCE(p_id_pais, id_pais),
-                    id_usuario_modificacion = COALESCE(p_id_usuario, id_usuario_modificacion),
+                    id_usuario_modificacion = COALESCE(p_id_usuario_auditoria, id_usuario_modificacion),
                     fecha_modificacion      = NOW()
                 WHERE id = v_id_direccion;
             ELSE
@@ -191,7 +191,7 @@ BEGIN
                     p_id, p_direccion, p_referencia,
                     p_id_departamento, p_id_provincia, p_id_distrito, p_id_pais,
                     TRUE, 1,
-                    p_id_usuario, p_id_usuario
+                    p_id_usuario_auditoria, p_id_usuario_auditoria
                 );
             END IF;
         END IF;

@@ -1,11 +1,11 @@
 DROP FUNCTION IF EXISTS cli_listar_clientes(INT, INT, VARCHAR, INT, INT);
 
 CREATE OR REPLACE FUNCTION cli_listar_clientes(
-    p_solo_activos    INT  DEFAULT NULL,
-    p_id_tipo_cliente INT      DEFAULT NULL,
-    p_buscar          VARCHAR  DEFAULT NULL,
-    p_limite          INT      DEFAULT 50,
-    p_pagina          INT      DEFAULT 1
+    p_solo_activos    INT     DEFAULT NULL,
+    p_id_tipo_cliente INT     DEFAULT NULL,
+    p_buscar          VARCHAR DEFAULT NULL,
+    p_limite          INT     DEFAULT 10,
+    p_offset          INT     DEFAULT 0
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -105,7 +105,7 @@ BEGIN
         SELECT * FROM filtrados
         ORDER BY razon_social NULLS LAST, nombres NULLS LAST, id DESC
         LIMIT p_limite
-        OFFSET GREATEST(p_pagina - 1, 0) * p_limite
+        OFFSET p_offset
     )
     SELECT json_build_object(
         'total', COALESCE((SELECT total FROM total_count), 0),
@@ -120,8 +120,8 @@ $$;
     p_solo_activos    INT  DEFAULT 1,
     p_id_tipo_cliente INT      DEFAULT NULL,
     p_buscar          VARCHAR  DEFAULT NULL,
-    p_limite          INT      DEFAULT 50,
-    p_pagina          INT      DEFAULT 1
+    p_limite          INT      DEFAULT 10,
+    p_offset          INT      DEFAULT 0
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -204,7 +204,7 @@ BEGIN
         SELECT * FROM filtrados
         ORDER BY razon_social NULLS LAST, nombres NULLS LAST, id DESC
         LIMIT p_limite
-        OFFSET GREATEST(p_pagina - 1, 0) * p_limite
+        OFFSET p_offset
     )
     SELECT json_build_object(
         'total', COALESCE((SELECT total FROM total_count), 0),
@@ -216,14 +216,14 @@ END;
 $$; */
 
 --ejemplo de uso listar general
-select * FROM cli_listar_clientes(p_solo_activos=>False);
+select * FROM cli_listar_clientes(p_solo_activos=>FALSE);
 
---ejemplo de uso listar solo activos con limite y pagina
+--ejemplo de uso listar solo activos con limite y offset
 SELECT *
 FROM cli_listar_clientes(
     p_solo_activos => TRUE,
-    p_limite => 50,
-    p_pagina => 1
+    p_limite => 10,
+    p_offset => 0
 );
 
 ---ejemplo de uso listar todos los clientes
@@ -241,19 +241,19 @@ FROM cli_listar_clientes(
 --ejemplo de uso buscar clientes razon social.
 SELECT *
 FROM cli_listar_clientes(
-    p_busqueda => 'EMPRESA'
+    p_buscar => 'EMPRESA'
 );
 
 --ejemplo de uso buscar clientes por dni.
 SELECT *
 FROM cli_listar_clientes(
-    p_busqueda => '70000001'
+    p_buscar => '70000001'
 );
 
 --ejemplo de uso buscar clientes por código interno.
 SELECT *
 FROM cli_listar_clientes(
-    p_busqueda => 'CLI0005'
+    p_buscar => 'CLI0005'
 );
 
 --ejemplo de uso buscar clientes por tipo de cliente y razón social.
@@ -261,12 +261,12 @@ SELECT *
 FROM cli_listar_clientes(
     p_solo_activos => TRUE,
     p_id_tipo_cliente => 3,
-    p_busqueda => 'EMPRESA'
+    p_buscar => 'EMPRESA'
 );
 
---ejemplo de uso listar clientes con limite y pagina
+--ejemplo de uso listar clientes con limite y offset
 SELECT *
 FROM cli_listar_clientes(
     p_limite => 10,
-    p_pagina => 1
+    p_offset => 0
 );

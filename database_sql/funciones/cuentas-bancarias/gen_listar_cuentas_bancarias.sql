@@ -2,9 +2,9 @@ DROP FUNCTION IF EXISTS gen_listar_cuentas_bancarias(INTEGER, VARCHAR, INTEGER, 
 
 CREATE OR REPLACE FUNCTION gen_listar_cuentas_bancarias(
     p_solo_activos INT DEFAULT NULL,
-    p_busqueda VARCHAR DEFAULT '',
+    p_buscar VARCHAR DEFAULT '',
     p_limite INTEGER DEFAULT 10,
-    p_pagina INTEGER DEFAULT 1,
+    p_offset INTEGER DEFAULT 0,
     p_id_cliente INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -13,21 +13,19 @@ AS $function$
 DECLARE
     v_registros JSON;
     v_total BIGINT;
-    v_offset INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
-    v_offset := (p_pagina - 1) * p_limite;
 
     SELECT COUNT(*) INTO v_total
     FROM gen_cuenta_bancaria cb
     WHERE (p_solo_activos IS NULL OR cb.estado = p_solo_activos)
       AND (p_id_cliente IS NULL OR cb.id_cliente = p_id_cliente OR (p_id_cliente = -1 AND cb.id_cliente IS NULL))
       AND (
-          p_busqueda = ''
-          OR LOWER(COALESCE(cb.titular, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cb.numero_cuenta, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cb.numero_cuenta_interbancaria, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cb.telefono_billetera, '')) LIKE LOWER('%' || p_busqueda || '%')
+          p_buscar = ''
+          OR LOWER(COALESCE(cb.titular, '')) LIKE LOWER('%' || p_buscar || '%')
+          OR LOWER(COALESCE(cb.numero_cuenta, '')) LIKE LOWER('%' || p_buscar || '%')
+          OR LOWER(COALESCE(cb.numero_cuenta_interbancaria, '')) LIKE LOWER('%' || p_buscar || '%')
+          OR LOWER(COALESCE(cb.telefono_billetera, '')) LIKE LOWER('%' || p_buscar || '%')
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -65,15 +63,15 @@ BEGIN
         WHERE (p_solo_activos IS NULL OR cb.estado = p_solo_activos)
           AND (p_id_cliente IS NULL OR cb.id_cliente = p_id_cliente OR (p_id_cliente = -1 AND cb.id_cliente IS NULL))
           AND (
-              p_busqueda = ''
-              OR LOWER(COALESCE(cb.titular, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cb.numero_cuenta, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cb.numero_cuenta_interbancaria, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cb.telefono_billetera, '')) LIKE LOWER('%' || p_busqueda || '%')
+              p_buscar = ''
+              OR LOWER(COALESCE(cb.titular, '')) LIKE LOWER('%' || p_buscar || '%')
+              OR LOWER(COALESCE(cb.numero_cuenta, '')) LIKE LOWER('%' || p_buscar || '%')
+              OR LOWER(COALESCE(cb.numero_cuenta_interbancaria, '')) LIKE LOWER('%' || p_buscar || '%')
+              OR LOWER(COALESCE(cb.telefono_billetera, '')) LIKE LOWER('%' || p_buscar || '%')
           )
         ORDER BY cb.es_principal DESC, cb.id ASC
         LIMIT p_limite
-        OFFSET v_offset
+        OFFSET p_offset
     ) t;
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);

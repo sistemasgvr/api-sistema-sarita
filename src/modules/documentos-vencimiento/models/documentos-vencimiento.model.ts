@@ -20,7 +20,7 @@ export class DocumentosVencimientoModel {
       filtros.isActivos ?? null,
       filtros.buscar ?? '',
       filtros.limite ?? 10,
-      filtros.pagina ?? 1,
+      filtros.offset ?? 0,
       filtros.idCategoria ?? null,
       filtros.idVehiculo ?? null,
     ]);

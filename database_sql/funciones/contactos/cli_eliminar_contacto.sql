@@ -2,7 +2,7 @@ DROP FUNCTION IF EXISTS cli_eliminar_contacto(INT, INT);
 
 CREATE OR REPLACE FUNCTION cli_eliminar_contacto(
     p_id         INT,
-    p_id_usuario INT DEFAULT NULL
+    p_id_usuario_auditoria INT DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -25,7 +25,7 @@ BEGIN
     UPDATE cli_contacto
     SET
         estado = 0,
-        id_usuario_modificacion = COALESCE(p_id_usuario, id_usuario_modificacion),
+        id_usuario_modificacion = COALESCE(p_id_usuario_auditoria, id_usuario_modificacion),
         fecha_modificacion = NOW()
     WHERE id = p_id;
 
