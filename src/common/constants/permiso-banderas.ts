@@ -62,6 +62,12 @@ export const PermisoBanderas = {
   SUCURSALES_EDITAR: 'sucursales.editar',
   SUCURSALES_ELIMINAR: 'sucursales.eliminar',
 
+  ACTIVIDADES_LISTAR: 'actividades.listar',
+  ACTIVIDADES_VER: 'actividades.ver',
+  ACTIVIDADES_CREAR: 'actividades.crear',
+  ACTIVIDADES_EDITAR: 'actividades.editar',
+  ACTIVIDADES_ELIMINAR: 'actividades.eliminar',
+
   ALMACENES_LISTAR: 'almacenes.listar',
   ALMACENES_VER: 'almacenes.ver',
   ALMACENES_CREAR: 'almacenes.crear',

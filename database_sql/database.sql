@@ -1352,6 +1352,27 @@ CREATE TABLE com_comprobante_compra_detalle (
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
+-- Agenda de Actividades
+CREATE TABLE age_actividad (
+    id                      SERIAL PRIMARY KEY,
+    titulo                  varchar(150) NOT NULL,
+    descripcion             text,
+    fecha_programada        DATE NOT NULL,
+    hora_inicio_estimada    TIME,
+    hora_fin_estimada       TIME,
+    fecha_hora_cierre       TIMESTAMP,
+    id_tipo_actividad       INT NOT NULL REFERENCES gen_lista_opciones(id),
+    id_prioridad            INT NOT NULL REFERENCES gen_lista_opciones(id),
+    id_cliente              INT REFERENCES cli_clientes(id),
+    id_usuario_responsable  INT REFERENCES auth_usuarios(id),
+    id_estado_actividad     INT NOT NULL REFERENCES gen_lista_opciones(id),
+    observaciones           varchar(500),
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion      TIMESTAMP DEFAULT NOW()
+);
 
 -- ============================================================
 -- ÍNDICES RECOMENDADOS PARA PERFORMANCE
@@ -1445,6 +1466,13 @@ CREATE INDEX idx_com_detalle_fecha_pago ON com_comprobante_compra_detalle(fecha_
 CREATE INDEX idx_com_detalle_descripcion ON com_comprobante_compra_detalle(descripcion);
 CREATE INDEX idx_gen_clasificacion_gasto ON gen_clasificacion_gasto(grupo, subgrupo);
 CREATE INDEX idx_com_compra_declarar_sunat ON com_comprobante_compra(declarar_sunat, fecha);
+
+-- Agenda de Actividades
+CREATE INDEX idx_age_actividad_fecha ON age_actividad(fecha_programada);
+CREATE INDEX idx_age_actividad_estado ON age_actividad(id_estado_actividad);
+CREATE INDEX idx_age_actividad_chofer ON age_actividad(id_chofer_responsable) WHERE id_chofer_responsable IS NOT NULL;
+CREATE INDEX idx_age_actividad_usuario ON age_actividad(id_usuario_responsable) WHERE id_usuario_responsable IS NOT NULL;
+CREATE INDEX idx_age_actividad_cliente ON age_actividad(id_cliente) WHERE id_cliente IS NOT NULL;
 
 
 -- ============================================================
