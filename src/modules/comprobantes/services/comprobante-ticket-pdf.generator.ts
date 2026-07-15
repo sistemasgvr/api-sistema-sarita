@@ -39,17 +39,30 @@ export class ComprobanteTicketPdfGenerator {
     comprobante: ComprobanteCompletoResult,
     empresa: EmpresaEmisora,
     cliente: ClienteReceptor,
+    options?: { documentoInterno?: boolean; logoBase64?: string | null },
   ): Promise<Buffer> {
     const cabecera = comprobante.registro;
+    const documentoInterno = options?.documentoInterno === true;
 
     if (!cabecera) {
       throw new Error('Comprobante inválido');
     }
 
     const detalles = comprobante.detalles ?? [];
-    const logoBase64 = await this.facturacionClient.obtenerLogoEmpresaBase64(
-      empresa.ruc,
-    );
+    let logoBase64 = options?.logoBase64 ?? null;
+    if (logoBase64 === null && !documentoInterno) {
+      logoBase64 = await this.facturacionClient.obtenerLogoEmpresaBase64(
+        empresa.ruc,
+      );
+    } else if (logoBase64 === null && documentoInterno) {
+      try {
+        logoBase64 = await this.facturacionClient.obtenerLogoEmpresaBase64(
+          empresa.ruc,
+        );
+      } catch {
+        logoBase64 = null;
+      }
+    }
 
     const clienteNombre =
       cliente.razon_social?.trim() ||
@@ -76,38 +89,41 @@ export class ComprobanteTicketPdfGenerator {
     const fecha = this.formatFecha(cabecera.fecha);
     const moneda =
       (cabecera.codigo_moneda ?? 'PEN') === 'PEN' ? 'SOLES' : cabecera.codigo_moneda;
-    const hash = (cabecera.hash_documento ?? '').trim();
+    const hash = documentoInterno ? '' : (cabecera.hash_documento ?? '').trim();
 
     const valorVenta = Number(cabecera.valor_venta ?? 0);
     const igv = Number(cabecera.igv ?? 0);
     const total = Number(cabecera.total_importe ?? 0);
 
-    const qrPayload = [
-      empresa.ruc,
-      tipoCodigo || '03',
-      cabecera.serie,
-      this.stripLeadingZeros(cabecera.numero),
-      this.moneyPlain(igv),
-      this.moneyPlain(total),
-      this.formatFechaIso(cabecera.fecha),
-      clienteTipoDoc,
-      clienteDoc === '—' ? '' : clienteDoc,
-      hash,
-    ].join('|');
+    let qrPng: Buffer | null = null;
+    if (!documentoInterno) {
+      const qrPayload = [
+        empresa.ruc,
+        tipoCodigo || '03',
+        cabecera.serie,
+        this.stripLeadingZeros(cabecera.numero),
+        this.moneyPlain(igv),
+        this.moneyPlain(total),
+        this.formatFechaIso(cabecera.fecha),
+        clienteTipoDoc,
+        clienteDoc === '—' ? '' : clienteDoc,
+        hash,
+      ].join('|');
 
-    const qrPng = await QRCode.toBuffer(qrPayload, {
-      type: 'png',
-      width: 140,
-      margin: 1,
-      errorCorrectionLevel: 'M',
-    });
+      qrPng = await QRCode.toBuffer(qrPayload, {
+        type: 'png',
+        width: 140,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+      });
+    }
 
     const estimatedHeight =
       320 +
       (logoBase64 ? 70 : 0) +
       detalles.length * 42 +
       (hash ? 36 : 0) +
-      160;
+      (qrPng ? 160 : 60);
 
     return this.renderPdf({
       width: PAGE_WIDTH_PT,
@@ -120,8 +136,8 @@ export class ComprobanteTicketPdfGenerator {
       empresaRazon: empresa.razon_social?.trim() || '',
       empresaDireccion: empresa.direccion?.trim() || 'S/N',
       empresaRuc: empresa.ruc,
-      tipoNombre,
-      tipoCodigo,
+      tipoNombre: documentoInterno ? 'NOTA DE VENTA' : tipoNombre,
+      tipoCodigo: documentoInterno ? 'NV' : tipoCodigo,
       serieNumero,
       fecha,
       clienteNombre,
@@ -134,6 +150,7 @@ export class ComprobanteTicketPdfGenerator {
       total,
       hash,
       qrPng,
+      documentoInterno,
     });
   }
 
@@ -158,7 +175,8 @@ export class ComprobanteTicketPdfGenerator {
     igv: number;
     total: number;
     hash: string;
-    qrPng: Buffer;
+    qrPng: Buffer | null;
+    documentoInterno?: boolean;
   }): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({
@@ -309,16 +327,28 @@ export class ComprobanteTicketPdfGenerator {
         centerText(ctx.hash, { size: 6.5 });
       }
 
-      centerText(
-        'Representación impresa del CPE. Consulte en www.sunat.gob.pe',
-        { size: 6 },
-      );
+      if (ctx.documentoInterno) {
+        centerText('Documento interno', { size: 6.5, bold: true });
+        /* centerText('Documento interno — No es CPE', { size: 6.5, bold: true });
+        centerText('No válido como comprobante electrónico SUNAT', {
+          size: 6,
+        }); */
+      } else {
+        centerText(
+          'Representación impresa del CPE. Consulte en www.sunat.gob.pe',
+          { size: 6 },
+        );
+      }
 
-      y += 4;
-      const qrSize = 100;
-      const qrX = MARGIN_X + (CONTENT_WIDTH - qrSize) / 2;
-      doc.image(ctx.qrPng, qrX, y, { width: qrSize, height: qrSize });
-      y += qrSize + 6;
+      if (ctx.qrPng) {
+        y += 4;
+        const qrSize = 100;
+        const qrX = MARGIN_X + (CONTENT_WIDTH - qrSize) / 2;
+        doc.image(ctx.qrPng, qrX, y, { width: qrSize, height: qrSize });
+        y += qrSize + 6;
+      } else {
+        y += 8;
+      }
 
       centerText('¡Gracias por su preferencia!', { size: 7 });
 

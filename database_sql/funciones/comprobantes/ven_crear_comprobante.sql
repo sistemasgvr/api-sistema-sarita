@@ -134,6 +134,15 @@ BEGIN
         );
     END IF;
 
+    IF v_codigo_tipo = 'NV' AND left(v_serie, 2) <> 'NV' THEN
+        RETURN json_build_object(
+            'error',
+            'La nota de venta debe usar serie que inicie con NV (ej. NV01)',
+            'registro',
+            NULL
+        );
+    END IF;
+
     IF v_codigo_tipo IN ('07', '08') AND p_id_comprobante_origen IS NULL THEN
         RETURN json_build_object('error', 'La nota de crédito/débito requiere el comprobante de origen', 'registro', NULL);
     END IF;
@@ -184,7 +193,12 @@ BEGIN
     SELECT lo.id INTO v_id_estado_sunat
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'EstadoSunat' AND lo.nombre = 'PENDIENTE' AND lo.estado = 1
+    WHERE l.nombre = 'EstadoSunat'
+      AND lo.nombre = CASE
+        WHEN v_codigo_tipo = 'NV' THEN 'NO_APLICA'
+        ELSE 'PENDIENTE'
+      END
+      AND lo.estado = 1
     LIMIT 1;
 
     IF p_id_estado IS NOT NULL THEN
@@ -304,6 +318,7 @@ BEGIN
             WHEN v_codigo_tipo = '03' THEN 'BOLETA'
             WHEN v_codigo_tipo = '07' THEN 'NOTA_CREDITO'
             WHEN v_codigo_tipo = '08' THEN 'NOTA_DEBITO'
+            WHEN v_codigo_tipo = 'NV' THEN 'NOTA_VENTA'
             ELSE 'FACTURA'
           END
           AND lo.estado = 1
