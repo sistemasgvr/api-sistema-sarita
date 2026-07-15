@@ -219,6 +219,18 @@ export const PermisoBanderas = {
   COMPROBANTES_ELIMINAR: 'comprobantes.eliminar',
   COMPROBANTES_EMITIR: 'comprobantes.emitir',
   COMPROBANTES_CONSULTAR_CDR: 'comprobantes.consultar_cdr',
+
+  CUENTAS_BANCARIAS_LISTAR: 'cuentas_bancarias.listar',
+  CUENTAS_BANCARIAS_VER: 'cuentas_bancarias.ver',
+  CUENTAS_BANCARIAS_CREAR: 'cuentas_bancarias.crear',
+  CUENTAS_BANCARIAS_EDITAR: 'cuentas_bancarias.editar',
+  CUENTAS_BANCARIAS_ELIMINAR: 'cuentas_bancarias.eliminar',
+
+  DOCUMENTOS_VENCIMIENTO_LISTAR: 'documentos_vencimiento.listar',
+  DOCUMENTOS_VENCIMIENTO_VER: 'documentos_vencimiento.ver',
+  DOCUMENTOS_VENCIMIENTO_CREAR: 'documentos_vencimiento.crear',
+  DOCUMENTOS_VENCIMIENTO_EDITAR: 'documentos_vencimiento.editar',
+  DOCUMENTOS_VENCIMIENTO_ELIMINAR: 'documentos_vencimiento.eliminar',
 } as const;
 
 export type PermisoBandera =
