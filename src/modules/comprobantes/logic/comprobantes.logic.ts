@@ -26,7 +26,10 @@ import {
 import { ComprobanteInvoiceMapper } from '../mappers/comprobante-invoice.mapper';
 import { ComprobantesModel } from '../models/comprobantes.model';
 import type { SiguienteNumeroResult } from '../models/comprobantes.model';
+import { ComprobanteNotaVentaPdfGenerator } from '../services/comprobante-nota-venta-pdf.generator';
 import { ComprobanteTicketPdfGenerator } from '../services/comprobante-ticket-pdf.generator';
+
+const CODIGO_NOTA_VENTA = 'NV';
 
 interface SunatResponsePayload {
   success?: boolean;
@@ -43,6 +46,7 @@ export class ComprobantesLogic {
     private readonly facturacionClient: FacturacionApisperuClient,
     private readonly invoiceMapper: ComprobanteInvoiceMapper,
     private readonly ticketPdfGenerator: ComprobanteTicketPdfGenerator,
+    private readonly notaVentaPdfGenerator: ComprobanteNotaVentaPdfGenerator,
   ) {}
 
   async listar(filtros: FiltroComprobantesDto) {
@@ -474,8 +478,6 @@ export class ComprobantesLogic {
   }
 
   async emitir(id: number, dto: AuditoriaDto) {
-    this.assertFacturacionConfigurada();
-
     const comprobante = await this.model.obtenerCompleto(id);
 
     if (comprobante.error) {
@@ -485,6 +487,14 @@ export class ComprobantesLogic {
     if (!comprobante.registro) {
       throw new NotFoundException(`Comprobante ${id} no encontrado`);
     }
+
+    if (comprobante.registro.codigo_tipo_comprobante === CODIGO_NOTA_VENTA) {
+      throw new BadRequestException(
+        'La nota de venta es un documento interno y no se emite a SUNAT',
+      );
+    }
+
+    this.assertFacturacionConfigurada();
 
     if (comprobante.registro.nombre_estado_sunat === 'ACEPTADO') {
       throw new BadRequestException('El comprobante ya fue aceptado por SUNAT');
@@ -559,8 +569,6 @@ export class ComprobantesLogic {
   }
 
   async generarPdf(id: number, formato: 'a4' | 'ticket' = 'a4') {
-    this.assertFacturacionConfigurada();
-
     const comprobante = await this.model.obtenerCompleto(id);
 
     if (comprobante.error) {
@@ -569,6 +577,13 @@ export class ComprobantesLogic {
 
     if (!comprobante.registro) {
       throw new NotFoundException(`Comprobante ${id} no encontrado`);
+    }
+
+    const esNotaVenta =
+      comprobante.registro.codigo_tipo_comprobante === CODIGO_NOTA_VENTA;
+
+    if (!esNotaVenta) {
+      this.assertFacturacionConfigurada();
     }
 
     const empresa = await this.model.obtenerEmpresaEmisora();
@@ -587,36 +602,65 @@ export class ComprobantesLogic {
       throw new BadRequestException('El cliente del comprobante no existe');
     }
 
-    const ubigeo = clienteResult.registro.id_distrito
-      ? await this.model.obtenerCodigoUbigeoDistrito(clienteResult.registro.id_distrito)
-      : '150101';
-
     let pdfBuffer: Buffer;
 
-    if (formato === 'ticket') {
-      pdfBuffer = await this.ticketPdfGenerator.generar(
-        comprobante,
-        empresa,
-        clienteResult.registro,
-      );
-    } else {
-      const payload = this.invoiceMapper.mapComprobanteToInvoicePayload(
-        comprobante,
-        empresa,
-        clienteResult.registro,
-        ubigeo,
-      );
-
-      if (comprobante.registro.hash_documento) {
-        ;(payload as Record<string, unknown>).hash =
-          comprobante.registro.hash_documento;
+    if (esNotaVenta) {
+      let logoBase64: string | null = null;
+      try {
+        logoBase64 = await this.facturacionClient.obtenerLogoEmpresaBase64(
+          empresa.ruc,
+        );
+      } catch {
+        logoBase64 = null;
       }
 
-      const tipoDoc = comprobante.registro.codigo_tipo_comprobante;
-      pdfBuffer =
-        tipoDoc === '07' || tipoDoc === '08'
-          ? await this.facturacionClient.generarPdfNota(payload)
-          : await this.facturacionClient.generarPdfFacturaBoleta(payload);
+      if (formato === 'ticket') {
+        pdfBuffer = await this.ticketPdfGenerator.generar(
+          comprobante,
+          empresa,
+          clienteResult.registro,
+          { documentoInterno: true, logoBase64 },
+        );
+      } else {
+        pdfBuffer = await this.notaVentaPdfGenerator.generarA4(
+          comprobante,
+          empresa,
+          clienteResult.registro,
+          logoBase64,
+        );
+      }
+    } else {
+      const ubigeo = clienteResult.registro.id_distrito
+        ? await this.model.obtenerCodigoUbigeoDistrito(
+            clienteResult.registro.id_distrito,
+          )
+        : '150101';
+
+      if (formato === 'ticket') {
+        pdfBuffer = await this.ticketPdfGenerator.generar(
+          comprobante,
+          empresa,
+          clienteResult.registro,
+        );
+      } else {
+        const payload = this.invoiceMapper.mapComprobanteToInvoicePayload(
+          comprobante,
+          empresa,
+          clienteResult.registro,
+          ubigeo,
+        );
+
+        if (comprobante.registro.hash_documento) {
+          ;(payload as Record<string, unknown>).hash =
+            comprobante.registro.hash_documento;
+        }
+
+        const tipoDoc = comprobante.registro.codigo_tipo_comprobante;
+        pdfBuffer =
+          tipoDoc === '07' || tipoDoc === '08'
+            ? await this.facturacionClient.generarPdfNota(payload)
+            : await this.facturacionClient.generarPdfFacturaBoleta(payload);
+      }
     }
 
     const serie = comprobante.registro.serie;

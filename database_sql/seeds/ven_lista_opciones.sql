@@ -4,7 +4,7 @@ INSERT INTO gen_lista (nombre, descripcion)
 SELECT v.nombre, v.descripcion
 FROM (
     VALUES
-        ('TipoComprobante', 'Tipos comprobante SUNAT: 01=Factura, 03=Boleta, 07=NC, 08=ND'),
+        ('TipoComprobante', 'Tipos: 01=Factura, 03=Boleta, 07=NC, 08=ND, NV=Nota de venta (interno)'),
         ('MotivoNotaCredito', 'Motivos nota de crédito SUNAT'),
         ('MotivoNotaDebito', 'Motivos nota de débito SUNAT'),
         ('TipoOperacionSunat', 'Catálogo 51 - tipo de operación'),
@@ -28,7 +28,8 @@ FROM (
         ('FACTURA', '01'),
         ('BOLETA', '03'),
         ('NOTA_CREDITO', '07'),
-        ('NOTA_DEBITO', '08')
+        ('NOTA_DEBITO', '08'),
+        ('NOTA_VENTA', 'NV')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'TipoComprobante'
@@ -106,7 +107,8 @@ FROM (
         ('PENDIENTE', 'Sin enviar o en proceso'),
         ('ACEPTADO', 'Aceptado por SUNAT'),
         ('RECHAZADO', 'Rechazado por SUNAT'),
-        ('BAJA', 'Dado de baja')
+        ('BAJA', 'Dado de baja'),
+        ('NO_APLICA', 'Documento interno (no CPE / no SUNAT)')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'EstadoSunat'

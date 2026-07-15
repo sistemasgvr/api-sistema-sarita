@@ -4,6 +4,7 @@ import { ComprobantesController } from './controllers/comprobantes.controller';
 import { ComprobantesLogic } from './logic/comprobantes.logic';
 import { ComprobanteInvoiceMapper } from './mappers/comprobante-invoice.mapper';
 import { ComprobantesModel } from './models/comprobantes.model';
+import { ComprobanteNotaVentaPdfGenerator } from './services/comprobante-nota-venta-pdf.generator';
 import { ComprobanteTicketPdfGenerator } from './services/comprobante-ticket-pdf.generator';
 
 @Module({
@@ -14,6 +15,7 @@ import { ComprobanteTicketPdfGenerator } from './services/comprobante-ticket-pdf
     ComprobantesModel,
     ComprobanteInvoiceMapper,
     ComprobanteTicketPdfGenerator,
+    ComprobanteNotaVentaPdfGenerator,
   ],
   exports: [ComprobantesLogic, ComprobantesModel, ComprobanteInvoiceMapper],
 })
