@@ -58,5 +58,6 @@ export interface FacturacionConfigStatus {
   baseUrl: string;
   hasToken: boolean;
   hasCredentials: boolean;
+  hasGreCredentials: boolean;
   defaultRuc: string | null;
 }

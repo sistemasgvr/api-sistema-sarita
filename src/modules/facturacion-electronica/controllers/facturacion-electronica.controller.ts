@@ -128,8 +128,10 @@ export class FacturacionElectronicaController {
 
   @Get('guias/estado')
   @Permisos(PermisoBanderas.CONFIGURACION_SUNAT_VER)
-  @ApiOperation({ summary: 'Consultar estado de guía de remisión (despatch/status)' })
-  consultarEstadoGuiaRemision(@Query() query: FacturacionComprobanteStatusDto) {
+  @ApiOperation({
+    summary: 'Consultar estado de guía de remisión (despatch/status por ticket)',
+  })
+  consultarEstadoGuiaRemision(@Query() query: FacturacionTicketStatusDto) {
     return this.logic.consultarEstadoGuiaRemision(query);
   }
 }

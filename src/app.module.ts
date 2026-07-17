@@ -47,6 +47,7 @@ import { MantenimientosBalonModule } from './modules/mantenimientos-balon/manten
 import { FacturacionApisperuModule } from './integrations/facturacion-apisperu/facturacion-apisperu.module';
 import { FacturacionElectronicaModule } from './modules/facturacion-electronica/facturacion-electronica.module';
 import { ComprobantesModule } from './modules/comprobantes/comprobantes.module';
+import { GuiasRemisionModule } from './modules/guias-remision/guias-remision.module';
 
 @Module({
   imports: [
@@ -99,6 +100,7 @@ import { ComprobantesModule } from './modules/comprobantes/comprobantes.module';
     FacturacionApisperuModule,
     FacturacionElectronicaModule,
     ComprobantesModule,
+    GuiasRemisionModule,
   ],
   providers: [
     {

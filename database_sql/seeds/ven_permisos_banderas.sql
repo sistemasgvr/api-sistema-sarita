@@ -11,7 +11,13 @@ FROM (
         ('comprobantes.editar', 'Editar comprobantes pendientes'),
         ('comprobantes.eliminar', 'Anular comprobantes pendientes'),
         ('comprobantes.emitir', 'Emitir comprobante electrónico ante SUNAT'),
-        ('comprobantes.consultar_cdr', 'Consultar CDR / estado SUNAT')
+        ('comprobantes.consultar_cdr', 'Consultar CDR / estado SUNAT'),
+        ('guias_remision.listar', 'Listar guías de remisión'),
+        ('guias_remision.ver', 'Ver detalle de guía de remisión'),
+        ('guias_remision.crear', 'Crear guías de remisión'),
+        ('guias_remision.editar', 'Editar guías de remisión'),
+        ('guias_remision.eliminar', 'Eliminar guías de remisión'),
+        ('guias_remision.emitir', 'Emitir / consultar estado SUNAT de GRE')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (
     SELECT 1 FROM auth_permisos p WHERE p.nombre = v.nombre
