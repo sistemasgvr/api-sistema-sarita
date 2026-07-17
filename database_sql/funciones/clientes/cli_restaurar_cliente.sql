@@ -1,3 +1,4 @@
+DROP FUNCTION IF EXISTS cli_restaurar_cliente(INT, INT);
 CREATE OR REPLACE FUNCTION cli_restaurar_cliente(
     p_id           INT,
     p_id_usuario_auditoria   INT DEFAULT NULL
@@ -25,6 +26,36 @@ BEGIN
         id_usuario_modificacion = COALESCE(p_id_usuario_auditoria, id_usuario_modificacion),
         fecha_modificacion = NOW()
     WHERE id = p_id;
+
+    UPDATE cli_direcciones
+    SET estado = 1,
+        id_usuario_modificacion = COALESCE(p_id_usuario_auditoria, id_usuario_modificacion),
+        fecha_modificacion = NOW()
+    WHERE id_cliente = p_id AND estado = 0;
+
+    UPDATE gen_chofer
+    SET estado = 1,
+        id_usuario_modificacion = COALESCE(p_id_usuario_auditoria, id_usuario_modificacion),
+        fecha_modificacion = NOW()
+    WHERE id_cliente = p_id AND estado = 0;
+
+    UPDATE gen_vehiculo
+    SET estado = 1,
+        id_usuario_modificacion = COALESCE(p_id_usuario_auditoria, id_usuario_modificacion),
+        fecha_modificacion = NOW()
+    WHERE id_cliente = p_id AND estado = 0;
+
+    UPDATE gen_cuenta_bancaria
+    SET estado = 1,
+        id_usuario_modificacion = COALESCE(p_id_usuario_auditoria, id_usuario_modificacion),
+        fecha_modificacion = NOW()
+    WHERE id_cliente = p_id AND estado = 0;
+
+    UPDATE cli_contacto
+    SET estado = 1,
+        id_usuario_modificacion = COALESCE(p_id_usuario_auditoria, id_usuario_modificacion),
+        fecha_modificacion = NOW()  
+    WHERE id_cliente = p_id AND estado = 0;
 
     RETURN json_build_object('eliminado', true, 'id', p_id);
 END;

@@ -47,11 +47,7 @@ BEGIN
         fecha_modificacion = NOW()
     WHERE id = p_id_baja;
 
-    UPDATE cli_clientes
-    SET estado = 0,
-        id_usuario_modificacion = p_id_usuario_auditoria,
-        fecha_modificacion = NOW()
-    WHERE id = v_id_cliente AND estado = 1;
+    PERFORM cli_eliminar_logico_cliente(v_id_cliente, p_id_usuario_auditoria);
 
     RETURN cli_obtener_baja_cliente(p_id_baja);
 END;

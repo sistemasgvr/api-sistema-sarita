@@ -18,6 +18,12 @@ BEGIN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id);
     END IF;
 
+    UPDATE gen_licencia
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_chofer = p_id AND estado = 1;
+
     RETURN json_build_object('eliminado', TRUE, 'id', p_id);
 END;
 $function$;
