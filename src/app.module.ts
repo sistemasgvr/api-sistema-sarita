@@ -8,6 +8,7 @@ import { envValidationSchema } from './config/env.validation';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermisosGuard } from './common/guards/permisos.guard';
 import { DatabaseModule } from './database/database.module';
+import { ActividadesModule } from './modules/actividades/actividades.module';
 import { AlmacenesModule } from './modules/almacenes/almacenes.module';
 import { CondicionesPagoModule } from './modules/condiciones-pago/condiciones-pago.module';
 import { ConfiguracionServiciosModule } from './modules/configuracion-servicios/configuracion-servicios.module';
@@ -71,6 +72,7 @@ import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/do
     RolesPermisosModule,
     SesionesModule,
     SucursalesModule,
+    ActividadesModule,
     AlmacenesModule,
     CondicionesPagoModule,
     EmpresasModule,
