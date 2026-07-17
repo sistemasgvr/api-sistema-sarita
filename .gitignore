@@ -35,6 +35,11 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Certificados digitales (PFX/P12/PEM) — nunca versionar
+/certs/
+*.pfx
+*.p12
+
 # dotenv environment variable files
 .env
 .env.development.local
@@ -54,3 +59,4 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+package-lock.json

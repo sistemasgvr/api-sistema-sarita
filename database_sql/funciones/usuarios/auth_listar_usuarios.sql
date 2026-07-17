@@ -1,7 +1,8 @@
 CREATE OR REPLACE FUNCTION auth_listar_usuarios(
     p_busqueda VARCHAR DEFAULT '',
     p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0
+    p_offset INTEGER DEFAULT 0,
+    p_estado BOOLEAN DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -14,7 +15,7 @@ BEGIN
 
     SELECT COUNT(*) INTO v_total
     FROM auth_usuarios u
-    WHERE u.estado = TRUE
+    WHERE (p_estado IS NULL OR u.estado = p_estado)
       AND (
           p_busqueda = ''
           OR LOWER(u.nombre) LIKE LOWER('%' || p_busqueda || '%')
@@ -40,7 +41,7 @@ BEGIN
                 WHERE ur.id_usuario = u.id AND ur.estado = TRUE AND r.estado = TRUE
             ) AS roles
         FROM auth_usuarios u
-        WHERE u.estado = TRUE
+        WHERE (p_estado IS NULL OR u.estado = p_estado)
           AND (
               p_busqueda = ''
               OR LOWER(u.nombre) LIKE LOWER('%' || p_busqueda || '%')

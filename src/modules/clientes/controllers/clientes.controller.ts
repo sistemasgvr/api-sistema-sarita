@@ -26,7 +26,9 @@ export class ClientesController {
 
   @Get('validar-documento')
   @Permisos(PermisoBanderas.CLIENTES_LISTAR)
-  @ApiOperation({ summary: 'Validar si un número de documento ya está registrado' })
+  @ApiOperation({
+    summary: 'Validar si un número de documento ya está registrado',
+  })
   validarDocumento(@Query() dto: ValidarDocumentoClienteDto) {
     return this.clientesLogic.validarDocumento(dto);
   }
@@ -57,10 +59,7 @@ export class ClientesController {
   @Permisos(PermisoBanderas.CLIENTES_RESTAURAR)
   @ApiOperation({ summary: 'Restaurar cliente (reactivar)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  restaurar(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: AuditoriaDto,
-  ) {
+  restaurar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
     return this.clientesLogic.restaurar(id, dto.idUsuarioAuditoria);
   }
 
@@ -79,10 +78,7 @@ export class ClientesController {
   @Permisos(PermisoBanderas.CLIENTES_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar cliente (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  eliminar(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: AuditoriaDto,
-  ) {
+  eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
     return this.clientesLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

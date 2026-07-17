@@ -3,6 +3,10 @@
 -- Usuario administrador por defecto:
 --   Correo:     admin@oxigenosarita.com
 --   Contraseña: Admin123!
+--
+-- Roles operativos adicionales (Vendedor, Chofer, Operario, Supervisor):
+--   ver database_sql/seeds/auth_roles_operativos.sql
+--   (ejecutar después de cli/gen/pro/bal/ven permisos)
 
 -- ============================================================
 -- Permisos (banderas)
@@ -17,7 +21,8 @@ FROM (
         ('usuarios.ver', 'Ver detalle de usuario'),
         ('usuarios.crear', 'Crear usuarios'),
         ('usuarios.editar', 'Editar usuarios'),
-        ('usuarios.eliminar', 'Eliminar usuarios'),
+        ('usuarios.eliminar', 'Desactivar usuarios'),
+        ('usuarios.activar', 'Activar usuarios'),
         ('roles.listar', 'Listar roles'),
         ('roles.ver', 'Ver detalle de rol'),
         ('roles.crear', 'Crear roles'),

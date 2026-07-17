@@ -1,18 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 import {
+  mapActivateResult,
   mapDeleteResult,
   mapListResult,
   mapSingleResult,
 } from '../../../common/helpers/auth-response.helper';
 import { CreateUsuarioDto, UpdateUsuarioDto } from '../dto/usuarios.dto';
+import { FiltroUsuarioDto } from '../dto/filtros-usuario.dto';
 import { UsuariosModel } from '../models/usuarios.model';
 
 @Injectable()
 export class UsuariosLogic {
   constructor(private readonly usuariosModel: UsuariosModel) {}
 
-  async listar(filtros: FiltroPaginacionDto) {
+  async listar(filtros: FiltroUsuarioDto) {
     const result = await this.usuariosModel.listar(filtros);
     return mapListResult(result, filtros);
   }
@@ -50,6 +51,11 @@ export class UsuariosLogic {
 
   async eliminar(id: number) {
     const result = await this.usuariosModel.eliminar(id);
-    return mapDeleteResult(result, `Usuario ${id} no encontrado`);
+    return mapDeleteResult(result, `Usuario ${id} no encontrado o ya está desactivado`);
+  }
+
+  async activar(id: number) {
+    const result = await this.usuariosModel.activar(id);
+    return mapActivateResult(result, `Usuario ${id} no encontrado o ya está activo`);
   }
 }
