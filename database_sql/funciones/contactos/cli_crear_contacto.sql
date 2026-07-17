@@ -11,7 +11,7 @@ CREATE OR REPLACE FUNCTION cli_crear_contacto(
     p_telefono2        VARCHAR DEFAULT NULL,
     p_telefono3        VARCHAR DEFAULT NULL,
     p_es_principal     BOOLEAN DEFAULT FALSE,
-    p_id_usuario       INT     DEFAULT NULL
+    p_id_usuario_auditoria       INT     DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -43,7 +43,7 @@ BEGIN
     VALUES (
         p_id_cliente, p_nombre, p_apellido_paterno, p_apellido_materno, 
         p_direccion, p_email, p_telefono1, p_telefono2, p_telefono3, 
-        p_es_principal, 1, p_id_usuario, p_id_usuario
+        p_es_principal, 1, p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;
 

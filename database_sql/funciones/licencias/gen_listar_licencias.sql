@@ -7,7 +7,7 @@ DROP FUNCTION IF EXISTS gen_listar_licencias(
 );
 CREATE OR REPLACE FUNCTION gen_listar_licencias(
     p_solo_activos INT DEFAULT NULL,
-    p_busqueda VARCHAR DEFAULT '',
+    p_buscar VARCHAR DEFAULT '',
     p_limite INTEGER DEFAULT 10,
     p_offset INTEGER DEFAULT 0,
     p_id_chofer INTEGER DEFAULT NULL
@@ -26,8 +26,8 @@ BEGIN
     WHERE (p_solo_activos IS NULL OR gl.estado = p_solo_activos)
       AND (p_id_chofer IS NULL OR gl.id_chofer = p_id_chofer)
       AND (
-          p_busqueda = ''
-          OR LOWER(gl.codigo) LIKE LOWER('%' || p_busqueda || '%')
+          p_buscar = ''
+          OR LOWER(gl.codigo) LIKE LOWER('%' || p_buscar || '%')
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -62,8 +62,8 @@ BEGIN
         WHERE (p_solo_activos IS NULL OR gl.estado = p_solo_activos)
           AND (p_id_chofer IS NULL OR gl.id_chofer = p_id_chofer)
           AND (
-              p_busqueda = ''
-              OR LOWER(gl.codigo) LIKE LOWER('%' || p_busqueda || '%')
+              p_buscar = ''
+              OR LOWER(gl.codigo) LIKE LOWER('%' || p_buscar || '%')
           )
         ORDER BY gl.fecha_vencimiento DESC
         LIMIT p_limite

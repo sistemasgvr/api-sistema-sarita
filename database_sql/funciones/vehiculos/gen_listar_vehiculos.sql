@@ -1,8 +1,8 @@
-DROP FUNCTION IF EXISTS gen_listar_vehiculos(VARCHAR, INTEGER, INTEGER, INTEGER, BOOLEAN);
+DROP FUNCTION IF EXISTS gen_listar_vehiculos;
 
 CREATE OR REPLACE FUNCTION gen_listar_vehiculos(
     p_solo_activos INT DEFAULT NULL,
-    p_busqueda VARCHAR DEFAULT '',
+    p_buscar VARCHAR DEFAULT '',
     p_limite INTEGER DEFAULT 10,
     p_offset INTEGER DEFAULT 0,
     p_id_cliente INTEGER DEFAULT NULL,
@@ -27,11 +27,11 @@ BEGIN
           OR (p_solo_flota_propia IS FALSE AND v.id_cliente IS NOT NULL)
       )
       AND (
-          p_busqueda = ''
-          OR LOWER(v.placa) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(v.placa2, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(v.marca, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(v.modelo, '')) LIKE LOWER('%' || p_busqueda || '%')
+          p_buscar = ''
+          OR LOWER(v.placa) LIKE LOWER('%' || p_buscar || '%')
+          OR LOWER(COALESCE(v.placa2, '')) LIKE LOWER('%' || p_buscar || '%')
+          OR LOWER(COALESCE(v.marca, '')) LIKE LOWER('%' || p_buscar || '%')
+          OR LOWER(COALESCE(v.modelo, '')) LIKE LOWER('%' || p_buscar || '%')
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -75,11 +75,11 @@ BEGIN
               OR (p_solo_flota_propia IS FALSE AND v.id_cliente IS NOT NULL)
           )
           AND (
-              p_busqueda = ''
-              OR LOWER(v.placa) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(v.placa2, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(v.marca, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(v.modelo, '')) LIKE LOWER('%' || p_busqueda || '%')
+              p_buscar = ''
+              OR LOWER(v.placa) LIKE LOWER('%' || p_buscar || '%')
+              OR LOWER(COALESCE(v.placa2, '')) LIKE LOWER('%' || p_buscar || '%')
+              OR LOWER(COALESCE(v.marca, '')) LIKE LOWER('%' || p_buscar || '%')
+              OR LOWER(COALESCE(v.modelo, '')) LIKE LOWER('%' || p_buscar || '%')
           )
         ORDER BY v.placa ASC
         LIMIT p_limite

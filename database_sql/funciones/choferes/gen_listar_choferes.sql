@@ -6,8 +6,8 @@ DROP FUNCTION IF EXISTS gen_listar_choferes(
     INTEGER
 );
 CREATE OR REPLACE FUNCTION gen_listar_choferes(
-    p_solo_activos INT DEFAULT Null,
-    p_busqueda VARCHAR DEFAULT '',
+    p_solo_activos INT DEFAULT NULL,
+    p_buscar VARCHAR DEFAULT '',
     p_limite INTEGER DEFAULT 10,
     p_offset INTEGER DEFAULT 0,
     p_id_cliente INTEGER DEFAULT NULL
@@ -27,11 +27,11 @@ BEGIN
     WHERE (p_solo_activos IS NULL OR ch.estado = p_solo_activos)
       AND (p_id_cliente IS NULL OR ch.id_cliente = p_id_cliente)
       AND (
-          p_busqueda = ''
-          OR LOWER(ch.nombres) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(ch.apellido_paterno, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(ch.apellido_materno, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(ch.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
+          p_buscar = ''
+          OR LOWER(ch.nombres) LIKE LOWER('%' || p_buscar || '%')
+          OR LOWER(COALESCE(ch.apellido_paterno, '')) LIKE LOWER('%' || p_buscar || '%')
+          OR LOWER(COALESCE(ch.apellido_materno, '')) LIKE LOWER('%' || p_buscar || '%')
+          OR LOWER(COALESCE(ch.numero_documento, '')) LIKE LOWER('%' || p_buscar || '%')
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -66,11 +66,11 @@ BEGIN
         WHERE (p_solo_activos IS NULL OR ch.estado = p_solo_activos)
           AND (p_id_cliente IS NULL OR ch.id_cliente = p_id_cliente)
           AND (
-              p_busqueda = ''
-              OR LOWER(ch.nombres) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(ch.apellido_paterno, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(ch.apellido_materno, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(ch.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
+              p_buscar = ''
+              OR LOWER(ch.nombres) LIKE LOWER('%' || p_buscar || '%')
+              OR LOWER(COALESCE(ch.apellido_paterno, '')) LIKE LOWER('%' || p_buscar || '%')
+              OR LOWER(COALESCE(ch.apellido_materno, '')) LIKE LOWER('%' || p_buscar || '%')
+              OR LOWER(COALESCE(ch.numero_documento, '')) LIKE LOWER('%' || p_buscar || '%')
           )
         ORDER BY ch.nombres ASC
         LIMIT p_limite

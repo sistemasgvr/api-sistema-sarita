@@ -20,8 +20,8 @@ export class ContactosModel {
       filtros.soloActivos ?? null,
       filtros.idCliente ?? null,
       filtros.buscar ?? null,
-      filtros.limite ?? 50,
-      filtros.pagina ?? 1,
+      filtros.limite ?? 10,
+      filtros.offset ?? 0,
     ]);
   }
 
@@ -53,7 +53,7 @@ export class ContactosModel {
 
   actualizar(id: number, dto: UpdateContactoDto) {
     return this.db.callFunctionJson<AuthSingleResult<any>>(
-      'cli_editar_contacto',
+      'cli_actualizar_contacto',
       [
         id,
         dto.idCliente ?? null,

@@ -19,7 +19,7 @@ export class ClientesModel {
       filtros.idTipoCliente ?? null,
       filtros.buscar ?? null,
       filtros.limite ?? 10,
-      filtros.pagina ?? 1,
+      filtros.offset,
     ]);
   }
 
@@ -111,8 +111,6 @@ export class ClientesModel {
         dto.observacion ?? null,
         dto.direccion ?? null,
         dto.referencia ?? null,
-        dto.latitud ?? null, 
-        dto.longitud ?? null,
         dto.idDepartamento ?? null,
         dto.idProvincia ?? null,
         dto.idDistrito ?? null,

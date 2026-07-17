@@ -8,20 +8,20 @@ DROP FUNCTION IF EXISTS cli_listar_direcciones(
 CREATE OR REPLACE FUNCTION public.cli_listar_direcciones(
     p_solo_activos integer DEFAULT NULL,
     p_id_cliente integer DEFAULT NULL,
-    p_busqueda character varying DEFAULT NULL,
+    p_buscar character varying DEFAULT NULL,
     p_limite integer DEFAULT 10,
-    p_pagina integer DEFAULT 1
+    p_offset integer DEFAULT 0
 )
 RETURNS json
 LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_resultado JSON;
-    v_busqueda VARCHAR;
+    v_buscar VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    v_busqueda := NULLIF(TRIM(p_busqueda), '');
+    v_buscar := NULLIF(TRIM(p_buscar), '');
 
     WITH filtrados AS (
         SELECT
@@ -72,10 +72,10 @@ BEGIN
             (p_solo_activos IS NULL OR d.estado = p_solo_activos)
             AND (p_id_cliente IS NULL OR d.id_cliente = p_id_cliente)
             AND (
-                v_busqueda IS NULL
-                OR d.direccion ILIKE '%' || v_busqueda || '%'
-                OR COALESCE(d.descripcion, '') ILIKE '%' || v_busqueda || '%'
-                OR COALESCE(d.referencia, '') ILIKE '%' || v_busqueda || '%'
+                v_buscar IS NULL
+                OR d.direccion ILIKE '%' || v_buscar || '%'
+                OR COALESCE(d.descripcion, '') ILIKE '%' || v_buscar || '%'
+                OR COALESCE(d.referencia, '') ILIKE '%' || v_buscar || '%'
             )
     ),
     total_count AS (
@@ -87,7 +87,7 @@ BEGIN
         FROM filtrados
         ORDER BY es_principal DESC, id DESC
         LIMIT p_limite
-        OFFSET GREATEST(p_pagina - 1, 0) * p_limite
+        OFFSET p_offset
     )
     SELECT json_build_object(
         'total', COALESCE((SELECT total FROM total_count), 0),

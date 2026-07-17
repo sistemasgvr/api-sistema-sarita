@@ -1,11 +1,11 @@
 DROP FUNCTION IF EXISTS cli_listar_contactos(INT, INT, VARCHAR, INT, INT);
 
 CREATE OR REPLACE FUNCTION cli_listar_contactos(
-    p_solo_activos INT DEFAULT Null,
+    p_solo_activos INT DEFAULT NULL,
     p_id_cliente   INT     DEFAULT NULL,
     p_buscar       VARCHAR DEFAULT NULL,
-    p_limite       INT     DEFAULT 50,
-    p_pagina       INT     DEFAULT 1
+    p_limite       INT     DEFAULT 10,
+    p_offset       INT     DEFAULT 0
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -67,7 +67,7 @@ BEGIN
         SELECT * FROM filtrados
         ORDER BY es_principal DESC, nombre ASC, id DESC
         LIMIT p_limite 
-        OFFSET GREATEST(p_pagina - 1, 0) * p_limite
+        OFFSET p_offset
     )
     SELECT json_build_object(
         'total', COALESCE((SELECT total FROM total_count), 0),
