@@ -231,6 +231,13 @@ export const PermisoBanderas = {
   DOCUMENTOS_VENCIMIENTO_CREAR: 'documentos_vencimiento.crear',
   DOCUMENTOS_VENCIMIENTO_EDITAR: 'documentos_vencimiento.editar',
   DOCUMENTOS_VENCIMIENTO_ELIMINAR: 'documentos_vencimiento.eliminar',
+
+  BAJAS_CLIENTE_LISTAR: 'bajas_cliente.listar',
+  BAJAS_CLIENTE_VER: 'bajas_cliente.ver',
+  BAJAS_CLIENTE_SOLICITAR: 'bajas_cliente.solicitar',
+  BAJAS_CLIENTE_APROBAR: 'bajas_cliente.aprobar',
+  BAJAS_CLIENTE_RECHAZAR: 'bajas_cliente.rechazar',
+  BAJAS_CLIENTE_ELIMINAR: 'bajas_cliente.eliminar',
 } as const;
 
 export type PermisoBandera =

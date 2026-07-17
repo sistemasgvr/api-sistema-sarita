@@ -492,6 +492,24 @@ CREATE TABLE gen_documento_vencimiento (
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
+-- Solicitudes de baja de clientes (flujo de aprobación)
+CREATE TABLE cli_baja_cliente (
+    id                  SERIAL PRIMARY KEY,
+    id_cliente           INT NOT NULL REFERENCES cli_clientes(id),
+    id_motivo_baja       INT REFERENCES gen_lista_opciones(id),  -- MotivoBajaCliente
+    fecha_baja           DATE DEFAULT CURRENT_DATE,
+    id_usuario_solicita  INT NOT NULL REFERENCES auth_usuarios(id),
+    id_usuario_autoriza  INT REFERENCES auth_usuarios(id),
+    fecha_autorizacion   TIMESTAMP,
+    id_estado_aprobacion INT REFERENCES gen_lista_opciones(id),  -- EstadoAprobacion: PENDIENTE | APROBADA | RECHAZADA
+    motivo_detalle       VARCHAR(500),
+    estado               INT NOT NULL DEFAULT 1,
+    id_usuario_creacion        INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion    INT REFERENCES auth_usuarios(id),
+    fecha_creacion        TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion    TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE gen_licencia(
     id Serial PRIMARY KEY,
     id_tipo_licencia INT REFERENCES gen_lista_opciones(id), --Vehiculo pesado, vehiculo ligero

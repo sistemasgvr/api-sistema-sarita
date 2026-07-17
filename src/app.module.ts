@@ -47,6 +47,7 @@ import { MantenimientosBalonModule } from './modules/mantenimientos-balon/manten
 import { FacturacionApisperuModule } from './integrations/facturacion-apisperu/facturacion-apisperu.module';
 import { FacturacionElectronicaModule } from './modules/facturacion-electronica/facturacion-electronica.module';
 import { ComprobantesModule } from './modules/comprobantes/comprobantes.module';
+import { BajasClienteModule } from './modules/bajas-cliente/bajas-cliente.module';
 import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-bancarias.module';
 import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/documentos-vencimiento.module';
 
@@ -101,6 +102,7 @@ import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/do
     FacturacionApisperuModule,
     FacturacionElectronicaModule,
     ComprobantesModule,
+    BajasClienteModule,
     CuentasBancariasModule,
     DocumentosVencimientoModule,
   ],
