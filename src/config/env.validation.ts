@@ -39,5 +39,9 @@ export const envValidationSchema = Joi.object({
   FACTURACION_APISPERU_USERNAME: Joi.string().optional().allow(''),
   FACTURACION_APISPERU_PASSWORD: Joi.string().optional().allow(''),
   FACTURACION_APISPERU_RUC: Joi.string().optional().allow(''),
+  FACTURACION_APISPERU_CLIENT_ID: Joi.string().optional().allow(''),
+  FACTURACION_APISPERU_CLIENT_SECRET: Joi.string().optional().allow(''),
+  FACTURACION_APISPERU_GRE_CLIENT_ID: Joi.string().optional().allow(''),
+  FACTURACION_APISPERU_GRE_CLIENT_SECRET: Joi.string().optional().allow(''),
   FACTURACION_APISPERU_TIMEOUT_MS: Joi.number().integer().min(1000).default(60000),
 });
