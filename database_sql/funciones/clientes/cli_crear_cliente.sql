@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION cli_crear_clientes(
+CREATE OR REPLACE FUNCTION cli_crear_cliente(
     p_codigo_interno              VARCHAR  DEFAULT NULL,
     p_razon_social                VARCHAR  DEFAULT NULL,
     p_id_tipo_cliente             INT      DEFAULT NULL,
@@ -25,7 +25,7 @@ CREATE OR REPLACE FUNCTION cli_crear_clientes(
     p_id_provincia                INT      DEFAULT NULL,
     p_id_distrito                 INT      DEFAULT NULL,
     p_id_pais                     INT      DEFAULT NULL,
-    p_id_usuario                  INT      DEFAULT NULL
+    p_id_usuario_auditoria                  INT      DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -68,7 +68,7 @@ BEGIN
             p_telefono, p_email,
             p_es_agente_percepcion, p_es_buen_contribuyente, p_es_agente_retenedor, p_afecto_rus,
             p_situacion_sunat, p_estado_contribuyente_sunat, p_observacion,
-            1, p_id_usuario, p_id_usuario
+            1, p_id_usuario_auditoria, p_id_usuario_auditoria
         )
         RETURNING id INTO v_id_cliente;
 
@@ -83,7 +83,7 @@ BEGIN
                 v_id_cliente, p_direccion, p_referencia, p_latitud, p_longitud,
                 p_id_departamento, p_id_provincia, p_id_distrito, p_id_pais,
                 TRUE, 1,
-                p_id_usuario, p_id_usuario
+                p_id_usuario_auditoria, p_id_usuario_auditoria
             );
         END IF;
 
@@ -119,7 +119,7 @@ p_afecto_rus                  BOOLEAN  DEFAULT FALSE,
 p_situacion_sunat             VARCHAR  DEFAULT NULL,
 p_estado_contribuyente_sunat  VARCHAR  DEFAULT NULL,
 p_observacion                 VARCHAR  DEFAULT NULL,
-p_id_usuario                  INT      DEFAULT NULL
+p_id_usuario_auditoria                  INT      DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -162,7 +162,7 @@ p_id_tipo_documento, p_numero_documento,
 p_direccion, p_referencia, p_telefono, p_email,
 p_es_agente_percepcion, p_es_buen_contribuyente, p_es_agente_retenedor, p_afecto_rus,
 p_situacion_sunat, p_estado_contribuyente_sunat, p_observacion,
-1, p_id_usuario, p_id_usuario
+1, p_id_usuario_auditoria, p_id_usuario_auditoria
 )
 RETURNING id INTO v_id;
 

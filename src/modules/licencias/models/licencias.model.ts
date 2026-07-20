@@ -20,7 +20,7 @@ export class LicenciasModel {
       filtros.soloActivos ?? null,
       filtros.buscar ?? '',
       filtros.limite ?? 10,
-      filtros.pagina ?? 1,
+      filtros.offset ?? 0,
       filtros.idChofer ?? null,
     ]);
   }

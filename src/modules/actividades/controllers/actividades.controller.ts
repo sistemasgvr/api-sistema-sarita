@@ -19,6 +19,7 @@ import {
   UpdateActividadDto,
 } from '../dto/actividades.dto';
 import { ActividadesLogic } from '../logic/actividades.logic';
+import { Public } from 'src/common/decorators/public.decorator';
 
 @ApiTags('Operativa - Actividades')
 @Controller('operativa/actividades')
@@ -43,6 +44,7 @@ export class ActividadesController {
 
   @Post()
   @Permisos(PermisoBanderas.ACTIVIDADES_CREAR)
+  @Public()
   @ApiOperation({ summary: 'Crear actividad' })
   crear(@Body() dto: CreateActividadDto) {
     return this.actividadesLogic.crear(dto);

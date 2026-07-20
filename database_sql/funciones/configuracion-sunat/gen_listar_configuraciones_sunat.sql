@@ -34,6 +34,8 @@ BEGIN
             cs.certificado_digital,
             (cs.clave_sol IS NOT NULL AND TRIM(cs.clave_sol) <> '') AS tiene_clave_sol,
             (cs.clave_certificado IS NOT NULL AND TRIM(cs.clave_certificado) <> '') AS tiene_clave_certificado,
+            cs.client_id_gre,
+            (cs.client_secret_gre IS NOT NULL AND TRIM(cs.client_secret_gre) <> '') AS tiene_client_secret_gre,
             cs.id_ambiente,
             lo.nombre AS nombre_ambiente,
             cs.estado,

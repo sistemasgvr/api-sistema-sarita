@@ -40,6 +40,7 @@ export class FacturacionApisperuClient {
     const password = this.configService.get<string>('facturacion.password') ?? '';
     const defaultRuc =
       this.configService.get<string>('facturacion.defaultRuc') ?? '';
+    const gre = this.getGreCredentials();
 
     return {
       enabled,
@@ -47,6 +48,7 @@ export class FacturacionApisperuClient {
       baseUrl: this.getBaseUrl(),
       hasToken: Boolean(token),
       hasCredentials: Boolean(username) && Boolean(password),
+      hasGreCredentials: Boolean(gre.clientId && gre.clientSecret),
       defaultRuc: defaultRuc || null,
     };
   }
@@ -120,7 +122,7 @@ export class FacturacionApisperuClient {
     payload: Partial<FacturacionApisperuCompanyPayload>,
   ): Promise<FacturacionApisperuPayload> {
     return this.request<FacturacionApisperuPayload>(
-      'PATCH',
+      'PUT',
       `/companies/${companyId}`,
       payload,
     );
@@ -231,6 +233,9 @@ export class FacturacionApisperuClient {
   async enviarGuiaRemision(
     payload: FacturacionApisperuPayload,
   ): Promise<FacturacionApisperuDocumentResponse> {
+    const ruc = this.extractCompanyRuc(payload);
+    await this.asegurarCredencialesGreEnEmpresa(ruc);
+
     return this.request<FacturacionApisperuDocumentResponse>(
       'POST',
       '/despatch/send',
@@ -239,11 +244,73 @@ export class FacturacionApisperuClient {
   }
 
   async consultarEstadoGuiaRemision(
-    query: FacturacionComprobanteStatusQuery,
+    query: FacturacionResumenStatusQuery,
   ): Promise<FacturacionApisperuPayload> {
     return this.request<FacturacionApisperuPayload>('GET', '/despatch/status', undefined, {
       params: this.withDefaultRuc(query),
     });
+  }
+
+  /**
+   * APIsPERU exige client_id/client_secret GRE en la empresa (swagger tag despatch).
+   * Los toma del .env y los sincroniza vía PUT /companies/{id}.
+   */
+  async asegurarCredencialesGreEnEmpresa(ruc?: string): Promise<void> {
+    const { clientId, clientSecret } = this.getGreCredentials();
+
+    if (!clientId || !clientSecret) {
+      throw new BadRequestException(
+        'Configure FACTURACION_APISPERU_CLIENT_ID y FACTURACION_APISPERU_CLIENT_SECRET en el .env (credenciales OAuth GRE del portal SUNAT CPE).',
+      );
+    }
+
+    const companyId = await this.resolveCompanyId(ruc);
+    if (companyId == null) {
+      throw new BadRequestException(
+        'No se encontró la empresa emisora en APIsPERU para sincronizar credenciales GRE',
+      );
+    }
+
+    this.logger.log(
+      `Sincronizando credenciales GRE (client_id) en empresa APIsPERU ${companyId}`,
+    );
+
+    await this.actualizarEmpresa(companyId, {
+      client_id: clientId,
+      client_secret: clientSecret,
+    });
+  }
+
+  private getGreCredentials() {
+    return {
+      clientId: (this.configService.get<string>('facturacion.clientId') ?? '').trim(),
+      clientSecret: (
+        this.configService.get<string>('facturacion.clientSecret') ?? ''
+      ).trim(),
+    };
+  }
+
+  private async resolveCompanyId(ruc?: string): Promise<number | null> {
+    const rucNorm = String(
+      ruc ?? this.configService.get<string>('facturacion.defaultRuc') ?? '',
+    ).trim();
+
+    const empresas = await this.listarEmpresas();
+    if (!Array.isArray(empresas) || empresas.length === 0) {
+      return null;
+    }
+
+    const empresa =
+      (rucNorm
+        ? empresas.find(
+            (item) =>
+              String((item as { ruc?: string | number }).ruc ?? '').trim() ===
+              rucNorm,
+          )
+        : undefined) ?? empresas[0];
+
+    const companyId = (empresa as { id?: number } | undefined)?.id;
+    return companyId ?? null;
   }
 
   /**
@@ -479,6 +546,9 @@ export class FacturacionApisperuClient {
       }
 
       if (response.status === 400) {
+        this.logger.warn(
+          `APIsPERU 400 ${method} ${path}: ${this.safeJson(response.data)}`,
+        );
         throw new BadRequestException(
           this.formatValidationErrors(response.data),
         );
@@ -506,10 +576,27 @@ export class FacturacionApisperuClient {
         axiosError.response?.data,
       );
 
+      const providerMessage = this.extractProviderErrorMessage(
+        axiosError.response?.data,
+      );
       throw new BadGatewayException(
-        'No se pudo comunicar con el servicio de facturación electrónica',
+        providerMessage
+          ? `APIsPERU Facturación: ${providerMessage}`
+          : 'No se pudo comunicar con el servicio de facturación electrónica',
       );
     }
+  }
+
+  private extractProviderErrorMessage(data: unknown): string | null {
+    if (!data || typeof data !== 'object') return null;
+    const obj = data as Record<string, unknown>;
+    if (typeof obj.error === 'string' && obj.error.trim()) {
+      return obj.error.trim();
+    }
+    if (typeof obj.message === 'string' && obj.message.trim()) {
+      return obj.message.trim();
+    }
+    return null;
   }
 
   private formatValidationErrors(data: unknown): string {
@@ -522,10 +609,65 @@ export class FacturacionApisperuClient {
         .join('; ');
     }
 
-    if (data && typeof data === 'object' && 'message' in data) {
-      return String((data as { message: unknown }).message);
+    if (data && typeof data === 'object') {
+      const obj = data as Record<string, unknown>;
+
+      if (typeof obj.message === 'string' && obj.message.trim()) {
+        const payloadHint =
+          obj.payload != null ? ` | ${this.safeJson(obj.payload).slice(0, 400)}` : '';
+        return `${obj.message}${payloadHint}`;
+      }
+
+      if (Array.isArray(obj.errors)) {
+        return (obj.errors as FacturacionApisperuValidationError[])
+          .map((item) => {
+            const field = item.field ? `${item.field}: ` : '';
+            return `${field}${item.message ?? 'Error de validación'}`;
+          })
+          .join('; ');
+      }
+
+      if (obj.errors && typeof obj.errors === 'object') {
+        return Object.entries(obj.errors as Record<string, unknown>)
+          .map(([field, value]) => {
+            const msg = Array.isArray(value)
+              ? value.map(String).join(', ')
+              : String(value);
+            return `${field}: ${msg}`;
+          })
+          .join('; ');
+      }
+
+      if (typeof obj.error === 'string' && obj.error.trim()) {
+        return obj.error;
+      }
+
+      if (obj.error && typeof obj.error === 'object') {
+        const err = obj.error as Record<string, unknown>;
+        if (typeof err.message === 'string') {
+          const code = err.code != null ? `[${String(err.code)}] ` : '';
+          return `${code}${err.message}`;
+        }
+      }
+
+      const serialized = this.safeJson(data);
+      if (serialized && serialized !== '{}') {
+        return `Error de validación en APIsPERU Facturación: ${serialized.slice(0, 500)}`;
+      }
+    }
+
+    if (typeof data === 'string' && data.trim()) {
+      return data.trim().slice(0, 500);
     }
 
     return 'Error de validación en APIsPERU Facturación';
+  }
+
+  private safeJson(value: unknown): string {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
   }
 }

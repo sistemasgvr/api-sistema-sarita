@@ -225,6 +225,32 @@ export const PermisoBanderas = {
   COMPROBANTES_ELIMINAR: 'comprobantes.eliminar',
   COMPROBANTES_EMITIR: 'comprobantes.emitir',
   COMPROBANTES_CONSULTAR_CDR: 'comprobantes.consultar_cdr',
+
+  GUIAS_REMISION_LISTAR: 'guias_remision.listar',
+  GUIAS_REMISION_VER: 'guias_remision.ver',
+  GUIAS_REMISION_CREAR: 'guias_remision.crear',
+  GUIAS_REMISION_EDITAR: 'guias_remision.editar',
+  GUIAS_REMISION_ELIMINAR: 'guias_remision.eliminar',
+  GUIAS_REMISION_EMITIR: 'guias_remision.emitir',
+
+  CUENTAS_BANCARIAS_LISTAR: 'cuentas_bancarias.listar',
+  CUENTAS_BANCARIAS_VER: 'cuentas_bancarias.ver',
+  CUENTAS_BANCARIAS_CREAR: 'cuentas_bancarias.crear',
+  CUENTAS_BANCARIAS_EDITAR: 'cuentas_bancarias.editar',
+  CUENTAS_BANCARIAS_ELIMINAR: 'cuentas_bancarias.eliminar',
+
+  DOCUMENTOS_VENCIMIENTO_LISTAR: 'documentos_vencimiento.listar',
+  DOCUMENTOS_VENCIMIENTO_VER: 'documentos_vencimiento.ver',
+  DOCUMENTOS_VENCIMIENTO_CREAR: 'documentos_vencimiento.crear',
+  DOCUMENTOS_VENCIMIENTO_EDITAR: 'documentos_vencimiento.editar',
+  DOCUMENTOS_VENCIMIENTO_ELIMINAR: 'documentos_vencimiento.eliminar',
+
+  BAJAS_CLIENTE_LISTAR: 'bajas_cliente.listar',
+  BAJAS_CLIENTE_VER: 'bajas_cliente.ver',
+  BAJAS_CLIENTE_SOLICITAR: 'bajas_cliente.solicitar',
+  BAJAS_CLIENTE_APROBAR: 'bajas_cliente.aprobar',
+  BAJAS_CLIENTE_RECHAZAR: 'bajas_cliente.rechazar',
+  BAJAS_CLIENTE_ELIMINAR: 'bajas_cliente.eliminar',
 } as const;
 
 export type PermisoBandera =

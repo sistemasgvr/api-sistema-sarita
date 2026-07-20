@@ -56,13 +56,24 @@ BEGIN
             c.id_usuario_modificacion,
             um.nombre AS nombre_usuario_modificacion,
             c.fecha_creacion,
-            c.fecha_modificacion
+            c.fecha_modificacion,
+            -- Datos de baja (si tiene solicitud pendiente)
+            bc.id AS id_baja_pendiente,
+            ea.nombre AS estado_baja_aprobacion,
+            bc.motivo_detalle AS motivo_baja_detalle,
+            mb.nombre AS motivo_baja_opciones
         FROM cli_clientes c
         LEFT JOIN gen_lista_opciones tc ON c.id_tipo_cliente = tc.id
         LEFT JOIN gen_lista_opciones tp ON c.id_tipo_persona = tp.id
         LEFT JOIN gen_lista_opciones td ON c.id_tipo_documento = td.id
         LEFT JOIN auth_usuarios uc ON c.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON c.id_usuario_modificacion = um.id
+
+        LEFT JOIN cli_baja_cliente bc ON bc.id_cliente = c.id
+                                     AND bc.estado = 1
+        LEFT JOIN gen_lista_opciones ea ON bc.id_estado_aprobacion = ea.id
+                                       AND ea.nombre = 'PENDIENTE'
+        LEFT JOIN gen_lista_opciones mb ON bc.id_motivo_baja = mb.id
 
         -- Dirección principal del cliente
         LEFT JOIN LATERAL (

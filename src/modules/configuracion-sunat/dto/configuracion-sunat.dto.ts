@@ -44,6 +44,24 @@ export class CreateConfiguracionSunatDto extends AuditoriaDto {
   @Type(() => Number)
   @IsInt()
   idAmbiente?: number;
+
+  @ApiPropertyOptional({
+    description: 'Client ID OAuth GRE (portal SUNAT CPE). Requerido para emitir guías.',
+    maxLength: 255,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  clientIdGre?: string;
+
+  @ApiPropertyOptional({
+    description: 'Client Secret OAuth GRE (portal SUNAT CPE).',
+    maxLength: 255,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  clientSecretGre?: string;
 }
 
 export class UpdateConfiguracionSunatDto extends AuditoriaDto {
@@ -82,4 +100,16 @@ export class UpdateConfiguracionSunatDto extends AuditoriaDto {
   @Type(() => Number)
   @IsInt()
   idAmbiente?: number;
+
+  @ApiPropertyOptional({ maxLength: 255 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  clientIdGre?: string;
+
+  @ApiPropertyOptional({ maxLength: 255 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  clientSecretGre?: string;
 }

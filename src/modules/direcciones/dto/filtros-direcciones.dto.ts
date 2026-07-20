@@ -92,4 +92,14 @@ export class CreateDireccionDto extends AuditoriaDto {
   esPrincipal?: boolean;
 }
 
+export class ObtenerCoordenadasDto {
+  @ApiProperty({
+    example: 'https://maps.app.goo.gl/xxxxxxxxx',
+    description:
+      'Link de Google Maps a procesar. Acepta links completos (con @lat,lng o !3d!4d), links con ?q=lat,lng, o links acortados (maps.app.goo.gl / goo.gl/maps).',
+  })
+  @IsNotEmpty({ message: 'El link de Google Maps es obligatorio' })
+  @IsString()
+  link!: string;
+}
 export class UpdateDireccionDto extends PartialType(CreateDireccionDto) {}

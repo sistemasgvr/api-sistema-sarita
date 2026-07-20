@@ -95,7 +95,7 @@ export class FacturacionElectronicaLogic {
     return this.facturacionClient.enviarGuiaRemision(dto);
   }
 
-  async consultarEstadoGuiaRemision(query: FacturacionComprobanteStatusDto) {
+  async consultarEstadoGuiaRemision(query: FacturacionTicketStatusDto) {
     this.assertConfigured();
     return this.facturacionClient.consultarEstadoGuiaRemision(query);
   }

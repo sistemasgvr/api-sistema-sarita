@@ -1,6 +1,6 @@
-DROP FUNCTION IF EXISTS cli_editar_contacto(INT, INT, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, BOOLEAN, INT);
+DROP FUNCTION IF EXISTS cli_actualizar_contacto(INT, INT, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, BOOLEAN, INT);
 
-CREATE OR REPLACE FUNCTION cli_editar_contacto(
+CREATE OR REPLACE FUNCTION cli_actualizar_contacto(
     p_id               INT,
     p_id_cliente       INT     DEFAULT NULL,
     p_nombre           VARCHAR DEFAULT NULL,
@@ -12,7 +12,7 @@ CREATE OR REPLACE FUNCTION cli_editar_contacto(
     p_telefono2        VARCHAR DEFAULT NULL,
     p_telefono3        VARCHAR DEFAULT NULL,
     p_es_principal     BOOLEAN DEFAULT NULL,
-    p_id_usuario       INT     DEFAULT NULL
+    p_id_usuario_auditoria       INT     DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -44,7 +44,7 @@ BEGIN
         telefono2        = COALESCE(p_telefono2, telefono2),
         telefono3        = COALESCE(p_telefono3, telefono3),
         es_principal     = COALESCE(p_es_principal, es_principal),
-        id_usuario_modificacion = COALESCE(p_id_usuario, id_usuario_modificacion),
+        id_usuario_modificacion = COALESCE(p_id_usuario_auditoria, id_usuario_modificacion),
         fecha_modificacion = NOW()
     WHERE id = p_id;
 

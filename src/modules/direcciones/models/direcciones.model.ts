@@ -17,7 +17,7 @@ export class DireccionesModel {
       filtros.idCliente ?? null,
       filtros.buscar ?? '',
       filtros.limite ?? 10,
-      filtros.pagina ?? 1,
+      filtros.offset ?? 0,
     ]);
   }
 
