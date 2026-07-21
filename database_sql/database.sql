@@ -741,8 +741,10 @@ CREATE TABLE bal_balon (
     vigencia_prueba_hidrostatica_anios INT DEFAULT 5,
     fecha_proxima_prueba_hidrostatica  DATE,
     -- Datos técnicos adicionales
-    fecha_fabricacion    DATE,
+    fecha_fabricacion    DATE,                        -- siempre día 1 del mes (formato mes/año)
     anio_fabricacion     SMALLINT,                    -- año de fabricación (consulta rápida)
+    mes_fabricacion      SMALLINT,                    -- mes de fabricación grabado en el lomo (1-12)
+    id_planta            INT REFERENCES cli_clientes(id), -- planta proveedora asociada
     numero_recepcion     varchar(30),
     presion_actual       NUMERIC(8,2),
     observacion         varchar(500),

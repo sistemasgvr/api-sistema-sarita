@@ -34,6 +34,7 @@ export class BalonesModel {
       filtros.phVencida ?? null,
       filtros.phPorVencerDias ?? null,
       filtros.idClienteRelacionado ?? null,
+      filtros.soloBajas ?? null,
     ]);
   }
 
@@ -67,6 +68,8 @@ export class BalonesModel {
       dto.idOrganoInspector ?? null,
       dto.organoInspectorNoAplica ?? false,
       dto.anioFabricacion ?? null,
+      dto.mesFabricacion ?? null,
+      dto.idPlanta ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }
@@ -98,6 +101,8 @@ export class BalonesModel {
       dto.idOrganoInspector ?? null,
       dto.organoInspectorNoAplica ?? null,
       dto.anioFabricacion ?? null,
+      dto.mesFabricacion ?? null,
+      dto.idPlanta ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }

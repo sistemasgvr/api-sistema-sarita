@@ -2,6 +2,8 @@ export interface ApiMeta {
   pagina: number;
   limite: number;
   total: number;
+  /** Datos adicionales de reportes (p. ej. resumen de antigüedad). */
+  resumen?: Record<string, unknown> | null;
 }
 
 export interface ApiResponse<T = unknown> {

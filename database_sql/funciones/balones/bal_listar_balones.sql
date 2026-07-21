@@ -9,7 +9,8 @@ CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_id_marca_cilindro INTEGER DEFAULT NULL,
     p_ph_vencida BOOLEAN DEFAULT NULL,
     p_ph_por_vencer_dias INTEGER DEFAULT NULL,
-    p_id_cliente_relacionado INTEGER DEFAULT NULL
+    p_id_cliente_relacionado INTEGER DEFAULT NULL,
+    p_solo_bajas BOOLEAN DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -17,6 +18,7 @@ AS $function$
 DECLARE
     v_registros JSON;
     v_total BIGINT;
+    v_alertas JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -41,6 +43,17 @@ BEGIN
           p_id_cliente_relacionado IS NULL
           OR eb.nombre IS NULL
           OR eb.nombre NOT IN ('DADO_DE_BAJA', 'ROBO')
+      )
+      AND (
+          p_solo_bajas IS NULL
+          OR (
+              p_solo_bajas = TRUE
+              AND eb.nombre IN ('DADO_DE_BAJA', 'ROBO')
+          )
+          OR (
+              p_solo_bajas = FALSE
+              AND (eb.nombre IS NULL OR eb.nombre NOT IN ('DADO_DE_BAJA', 'ROBO'))
+          )
       )
       AND (
           p_ph_vencida IS NULL
@@ -92,13 +105,21 @@ BEGIN
             b.id_cliente_propietario,
             b.id_tipo_balon,
             tb.nombre AS nombre_tipo_balon,
+            tb.capacidad,
+            um.nombre AS nombre_unidad_medida,
             b.id_producto_gas,
             pg.nombre AS nombre_producto_gas,
             b.id_estado_balon,
             eb.nombre AS nombre_estado_balon,
             b.id_marca_cilindro,
             mc.nombre AS nombre_marca_cilindro,
+            b.id_organo_inspector,
+            oi.nombre AS nombre_organo_inspector,
+            b.organo_inspector_no_aplica,
+            b.id_planta,
+            COALESCE(pl.razon_social, TRIM(CONCAT_WS(' ', pl.nombres, pl.apellido_paterno))) AS nombre_planta,
             b.anio_fabricacion,
+            b.mes_fabricacion,
             b.fecha_proxima_prueba_hidrostatica,
             CASE
                 WHEN b.fecha_proxima_prueba_hidrostatica IS NULL THEN NULL
@@ -114,16 +135,26 @@ BEGIN
                   AND bb.estado = 1
                   AND bb.estado_aprobacion = 'PENDIENTE'
             ) AS tiene_solicitud_baja_pendiente,
+            EXISTS (
+                SELECT 1
+                FROM bal_baja_balon bb
+                WHERE bb.id_balon = b.id
+                  AND bb.estado = 1
+                  AND bb.estado_aprobacion = 'APROBADA'
+            ) AS tiene_baja_aprobada,
             b.estado,
             b.fecha_creacion,
             b.fecha_modificacion
         FROM bal_balon b
         LEFT JOIN bal_tipo_balon tb ON b.id_tipo_balon = tb.id
+        LEFT JOIN gen_lista_opciones um ON tb.id_unidad_medida = um.id
         LEFT JOIN gen_almacen a ON b.id_almacen = a.id
         LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
         LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
         LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
+        LEFT JOIN gen_lista_opciones oi ON b.id_organo_inspector = oi.id
         LEFT JOIN gen_lista_opciones prop ON b.id_propietario = prop.id
+        LEFT JOIN cli_clientes pl ON b.id_planta = pl.id
         WHERE b.estado = 1
           AND (p_id_tipo_balon IS NULL OR b.id_tipo_balon = p_id_tipo_balon)
           AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
@@ -139,6 +170,17 @@ BEGIN
               p_id_cliente_relacionado IS NULL
               OR eb.nombre IS NULL
               OR eb.nombre NOT IN ('DADO_DE_BAJA', 'ROBO')
+          )
+          AND (
+              p_solo_bajas IS NULL
+              OR (
+                  p_solo_bajas = TRUE
+                  AND eb.nombre IN ('DADO_DE_BAJA', 'ROBO')
+              )
+              OR (
+                  p_solo_bajas = FALSE
+                  AND (eb.nombre IS NULL OR eb.nombre NOT IN ('DADO_DE_BAJA', 'ROBO'))
+              )
           )
           AND (
               p_ph_vencida IS NULL
@@ -177,6 +219,31 @@ BEGIN
         OFFSET p_offset
     ) t;
 
-    RETURN json_build_object('registros', v_registros, 'total', v_total);
+    SELECT json_build_object(
+        'ph_por_vencer_90', COUNT(*) FILTER (
+            WHERE b.fecha_proxima_prueba_hidrostatica IS NOT NULL
+              AND b.fecha_proxima_prueba_hidrostatica >= CURRENT_DATE
+              AND b.fecha_proxima_prueba_hidrostatica <= CURRENT_DATE + INTERVAL '90 days'
+              AND (eb.nombre IS NULL OR eb.nombre NOT IN ('DADO_DE_BAJA', 'ROBO'))
+        ),
+        'ph_vencida', COUNT(*) FILTER (
+            WHERE b.fecha_proxima_prueba_hidrostatica IS NOT NULL
+              AND b.fecha_proxima_prueba_hidrostatica < CURRENT_DATE
+              AND (eb.nombre IS NULL OR eb.nombre NOT IN ('DADO_DE_BAJA', 'ROBO'))
+        ),
+        'dados_de_baja', COUNT(*) FILTER (
+            WHERE eb.nombre IN ('DADO_DE_BAJA', 'ROBO')
+        )
+    )
+    INTO v_alertas
+    FROM bal_balon b
+    LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
+    WHERE b.estado = 1;
+
+    RETURN json_build_object(
+        'registros', v_registros,
+        'total', v_total,
+        'alertas', v_alertas
+    );
 END;
 $function$;

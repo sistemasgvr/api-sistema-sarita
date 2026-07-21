@@ -69,6 +69,15 @@ export class FiltroBalonesDto extends FiltroPaginacionDto {
   @IsOptional()
   @IsNumber()
   phPorVencerDias?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'true = solo dados de baja/robados (historial); false = excluir bajas; omitir = todos',
+  })
+  @Transform(({ value }) => toOptionalBoolean(value))
+  @IsOptional()
+  @IsBoolean()
+  soloBajas?: boolean;
 }
 
 export class CreateBalonesDto extends AuditoriaDto {
@@ -205,11 +214,23 @@ export class CreateBalonesDto extends AuditoriaDto {
   @IsBoolean()
   organoInspectorNoAplica?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Año de fabricación (pH del lomo)' })
   @Type(() => Number)
   @IsOptional()
   @IsNumber()
   anioFabricacion?: number;
+
+  @ApiPropertyOptional({ description: 'Mes de fabricación 1-12 (pH del lomo)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  mesFabricacion?: number;
+
+  @ApiPropertyOptional({ description: 'Planta proveedora asociada al cilindro' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idPlanta?: number;
 }
 
 export class UpdateBalonesDto extends AuditoriaDto {
@@ -346,11 +367,23 @@ export class UpdateBalonesDto extends AuditoriaDto {
   @IsBoolean()
   organoInspectorNoAplica?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Año de fabricación (pH del lomo)' })
   @Type(() => Number)
   @IsOptional()
   @IsNumber()
   anioFabricacion?: number;
+
+  @ApiPropertyOptional({ description: 'Mes de fabricación 1-12 (pH del lomo)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  mesFabricacion?: number;
+
+  @ApiPropertyOptional({ description: 'Planta proveedora asociada al cilindro' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idPlanta?: number;
 }
 
 export class FiltroPhHistorialDto extends FiltroPaginacionDto {}
