@@ -52,6 +52,7 @@ export class ProductosLogic {
   }
 
   async crear(dto: CreateProductoDto) {
+    const esAlquilable = dto.esAlquilable ?? false;
     const result = await this.productosModel.crear(
       dto.codigo,
       dto.nombre,
@@ -62,11 +63,13 @@ export class ProductosLogic {
       dto.presentacion ?? null,
       dto.esGas ?? false,
       dto.esServicio ?? false,
-      dto.esAlquilable ?? false,
+      esAlquilable,
       dto.afectaStock ?? true,
       dto.precio ?? 0,
       dto.codigoUbicacion?.trim() || null,
       dto.idUsuarioAuditoria,
+      dto.precioCompra ?? 0,
+      esAlquilable ? (dto.precioGarantia ?? 0) : 0,
     );
     return mapSingleResult(result, 'No se pudo crear el producto');
   }
@@ -90,6 +93,10 @@ export class ProductosLogic {
         ? undefined
         : dto.codigoUbicacion.trim() || '',
       dto.idUsuarioAuditoria,
+      dto.precioCompra ?? null,
+      dto.esAlquilable === false
+        ? 0
+        : (dto.precioGarantia ?? null),
     );
     return mapSingleResult(result, `Producto ${id} no encontrado`);
   }

@@ -603,7 +603,9 @@ CREATE TABLE pro_producto (
     es_servicio      BOOLEAN DEFAULT FALSE,   -- true si es un servicio (Mantenimiento, Alquiler...)
     es_alquilable    BOOLEAN DEFAULT FALSE,   -- puede ser alquilado
     afecta_stock     BOOLEAN DEFAULT TRUE,    -- false para servicios puros
-    precio          NUMERIC(12,4) DEFAULT 0,
+    precio          NUMERIC(12,4) DEFAULT 0,  -- precio de venta base (POS)
+    precio_compra   NUMERIC(12,4) DEFAULT 0,  -- costo/precio de compra
+    precio_garantia NUMERIC(12,4) DEFAULT 0,  -- depósito si es_alquilable
     estado          INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),

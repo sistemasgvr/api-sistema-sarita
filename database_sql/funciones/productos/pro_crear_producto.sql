@@ -1,5 +1,3 @@
-DROP FUNCTION IF EXISTS pro_crear_producto(VARCHAR, VARCHAR, INTEGER, VARCHAR, INTEGER, VARCHAR, VARCHAR, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, NUMERIC, INTEGER);
-
 CREATE OR REPLACE FUNCTION pro_crear_producto(
     p_codigo VARCHAR,
     p_nombre VARCHAR,
@@ -14,7 +12,9 @@ CREATE OR REPLACE FUNCTION pro_crear_producto(
     p_afecta_stock BOOLEAN DEFAULT TRUE,
     p_precio NUMERIC DEFAULT 0,
     p_codigo_ubicacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_precio_compra NUMERIC DEFAULT 0,
+    p_precio_garantia NUMERIC DEFAULT 0
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -22,6 +22,7 @@ AS $function$
 DECLARE
     v_id INTEGER;
     v_codigo_ubicacion VARCHAR;
+    v_es_alquilable BOOLEAN;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -41,6 +42,7 @@ BEGIN
     END IF;
 
     v_codigo_ubicacion := NULLIF(TRIM(p_codigo_ubicacion), '');
+    v_es_alquilable := COALESCE(p_es_alquilable, FALSE);
 
     IF v_codigo_ubicacion IS NOT NULL AND EXISTS (
         SELECT 1 FROM pro_producto
@@ -78,6 +80,8 @@ BEGIN
         es_alquilable,
         afecta_stock,
         precio,
+        precio_compra,
+        precio_garantia,
         id_usuario_creacion,
         id_usuario_modificacion
     )
@@ -92,9 +96,11 @@ BEGIN
         p_presentacion,
         COALESCE(p_es_gas, FALSE),
         COALESCE(p_es_servicio, FALSE),
-        COALESCE(p_es_alquilable, FALSE),
+        v_es_alquilable,
         COALESCE(p_afecta_stock, TRUE),
         COALESCE(p_precio, 0),
+        COALESCE(p_precio_compra, 0),
+        CASE WHEN v_es_alquilable THEN COALESCE(p_precio_garantia, 0) ELSE 0 END,
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     )

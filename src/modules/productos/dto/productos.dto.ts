@@ -197,12 +197,30 @@ export class CreateProductoDto extends AuditoriaDto {
   @IsBoolean()
   afectaStock?: boolean;
 
-  @ApiPropertyOptional({ example: 0, default: 0 })
+  @ApiPropertyOptional({ example: 0, default: 0, description: 'Precio de venta base' })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
   precio?: number;
+
+  @ApiPropertyOptional({ example: 0, default: 0, description: 'Precio de compra / costo' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  precioCompra?: number;
+
+  @ApiPropertyOptional({
+    example: 0,
+    default: 0,
+    description: 'Depósito/garantía (solo si es alquilable)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  precioGarantia?: number;
 }
 
 export class UpdateProductoDto extends AuditoriaDto {
@@ -280,4 +298,18 @@ export class UpdateProductoDto extends AuditoriaDto {
   @IsNumber()
   @Min(0)
   precio?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  precioCompra?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  precioGarantia?: number;
 }

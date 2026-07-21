@@ -28,6 +28,8 @@ BEGIN
             p.es_alquilable,
             p.afecta_stock,
             p.precio,
+            p.precio_compra,
+            p.precio_garantia,
             p.estado,
             p.fecha_creacion,
             p.fecha_modificacion,

@@ -1,5 +1,3 @@
-DROP FUNCTION IF EXISTS pro_actualizar_producto(INTEGER, VARCHAR, VARCHAR, VARCHAR, INTEGER, INTEGER, VARCHAR, VARCHAR, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, NUMERIC, INTEGER);
-
 CREATE OR REPLACE FUNCTION pro_actualizar_producto(
     p_id INTEGER,
     p_codigo VARCHAR DEFAULT NULL,
@@ -15,7 +13,9 @@ CREATE OR REPLACE FUNCTION pro_actualizar_producto(
     p_afecta_stock BOOLEAN DEFAULT NULL,
     p_precio NUMERIC DEFAULT NULL,
     p_codigo_ubicacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_precio_compra NUMERIC DEFAULT NULL,
+    p_precio_garantia NUMERIC DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -24,6 +24,7 @@ DECLARE
     v_codigo VARCHAR;
     v_nombre VARCHAR;
     v_codigo_ubicacion VARCHAR;
+    v_es_alquilable BOOLEAN;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -67,6 +68,15 @@ BEGIN
         RETURN json_build_object('error', 'La unidad de medida indicada no existe o está inactiva', 'registro', NULL);
     END IF;
 
+    SELECT COALESCE(p_es_alquilable, es_alquilable)
+    INTO v_es_alquilable
+    FROM pro_producto
+    WHERE id = p_id AND estado = 1;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('registro', NULL);
+    END IF;
+
     UPDATE pro_producto
     SET
         codigo = COALESCE(v_codigo, codigo),
@@ -82,16 +92,18 @@ BEGIN
         presentacion = COALESCE(p_presentacion, presentacion),
         es_gas = COALESCE(p_es_gas, es_gas),
         es_servicio = COALESCE(p_es_servicio, es_servicio),
-        es_alquilable = COALESCE(p_es_alquilable, es_alquilable),
+        es_alquilable = v_es_alquilable,
         afecta_stock = COALESCE(p_afecta_stock, afecta_stock),
         precio = COALESCE(p_precio, precio),
+        precio_compra = COALESCE(p_precio_compra, precio_compra),
+        precio_garantia = CASE
+            WHEN NOT v_es_alquilable THEN 0
+            WHEN p_precio_garantia IS NULL THEN precio_garantia
+            ELSE p_precio_garantia
+        END,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;
-
-    IF NOT FOUND THEN
-        RETURN json_build_object('registro', NULL);
-    END IF;
 
     RETURN pro_obtener_producto(p_id);
 END;

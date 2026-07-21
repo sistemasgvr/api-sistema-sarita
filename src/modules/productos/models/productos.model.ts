@@ -53,6 +53,8 @@ export class ProductosModel {
     precio: number,
     codigoUbicacion: string | null,
     idUsuarioAuditoria?: number,
+    precioCompra?: number,
+    precioGarantia?: number,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('pro_crear_producto', [
       codigo,
@@ -69,6 +71,8 @@ export class ProductosModel {
       precio,
       codigoUbicacion,
       idUsuarioAuditoria ?? null,
+      precioCompra ?? 0,
+      precioGarantia ?? 0,
     ]);
   }
 
@@ -88,6 +92,8 @@ export class ProductosModel {
     precio: number | null,
     codigoUbicacion: string | null | undefined,
     idUsuarioAuditoria?: number,
+    precioCompra?: number | null,
+    precioGarantia?: number | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('pro_actualizar_producto', [
       id,
@@ -105,6 +111,8 @@ export class ProductosModel {
       precio,
       codigoUbicacion === undefined ? null : codigoUbicacion,
       idUsuarioAuditoria ?? null,
+      precioCompra ?? null,
+      precioGarantia ?? null,
     ]);
   }
 
