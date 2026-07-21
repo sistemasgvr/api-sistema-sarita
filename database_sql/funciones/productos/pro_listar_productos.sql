@@ -67,6 +67,13 @@ BEGIN
             p.afecta_stock,
             p.precio,
             p.estado,
+            EXISTS (
+                SELECT 1
+                FROM pro_stock s
+                WHERE s.id_producto = p.id
+                  AND s.estado = 1
+                  AND s.stock <> 0
+            ) AS tiene_stock,
             CASE
                 WHEN p_id_almacen IS NULL THEN NULL
                 ELSE COALESCE(st.stock, 0)
