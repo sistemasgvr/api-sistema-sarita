@@ -5,6 +5,16 @@ CREATE OR REPLACE FUNCTION gen_crear_configuracion_sunat(
     p_certificado_digital VARCHAR DEFAULT NULL,
     p_clave_certificado VARCHAR DEFAULT NULL,
     p_id_ambiente INTEGER DEFAULT NULL,
+    p_proveedor_pse VARCHAR DEFAULT NULL,
+    p_pse_habilitado BOOLEAN DEFAULT TRUE,
+    p_api_base_url VARCHAR DEFAULT NULL,
+    p_api_token TEXT DEFAULT NULL,
+    p_api_usuario VARCHAR DEFAULT NULL,
+    p_api_clave VARCHAR DEFAULT NULL,
+    p_ruc_emisor VARCHAR DEFAULT NULL,
+    p_client_id VARCHAR DEFAULT NULL,
+    p_client_secret VARCHAR DEFAULT NULL,
+    p_timeout_ms INTEGER DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -22,6 +32,16 @@ BEGIN
         certificado_digital,
         clave_certificado,
         id_ambiente,
+        proveedor_pse,
+        pse_habilitado,
+        api_base_url,
+        api_token,
+        api_usuario,
+        api_clave,
+        ruc_emisor,
+        client_id,
+        client_secret,
+        timeout_ms,
         id_usuario_creacion,
         id_usuario_modificacion
     )
@@ -32,6 +52,16 @@ BEGIN
         p_certificado_digital,
         p_clave_certificado,
         p_id_ambiente,
+        NULLIF(TRIM(p_proveedor_pse), ''),
+        COALESCE(p_pse_habilitado, TRUE),
+        NULLIF(TRIM(p_api_base_url), ''),
+        NULLIF(TRIM(p_api_token), ''),
+        NULLIF(TRIM(p_api_usuario), ''),
+        NULLIF(TRIM(p_api_clave), ''),
+        NULLIF(TRIM(p_ruc_emisor), ''),
+        NULLIF(TRIM(p_client_id), ''),
+        NULLIF(TRIM(p_client_secret), ''),
+        p_timeout_ms,
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     )

@@ -115,7 +115,7 @@ export class ComprobantesLogic {
   }
 
   async enviarResumenDiario(dto: EnviarResumenDiarioDto) {
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     const items = await this.model.listarParaResumenDiario(
       dto.fecha,
@@ -219,7 +219,7 @@ export class ComprobantesLogic {
   }
 
   async consultarEstadoResumenPorId(id: number, dto: AuditoriaDto) {
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     const resumen = await this.model.obtenerResumenDiario(id);
 
@@ -286,7 +286,7 @@ export class ComprobantesLogic {
   }
 
   async consultarEstadoResumen(ticket: string) {
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     if (!ticket.trim()) {
       throw new BadRequestException('El ticket del resumen es obligatorio');
@@ -336,7 +336,7 @@ export class ComprobantesLogic {
   }
 
   async consultarCdr(id: number, dto: AuditoriaDto) {
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     const comprobante = await this.model.obtenerCompleto(id);
 
@@ -391,7 +391,7 @@ export class ComprobantesLogic {
   }
 
   async anular(id: number, dto: AnularComprobanteDto) {
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     const motivo = dto.motivo?.trim();
 
@@ -494,7 +494,7 @@ export class ComprobantesLogic {
       );
     }
 
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     if (comprobante.registro.nombre_estado_sunat === 'ACEPTADO') {
       throw new BadRequestException('El comprobante ya fue aceptado por SUNAT');
@@ -583,7 +583,7 @@ export class ComprobantesLogic {
       comprobante.registro.codigo_tipo_comprobante === CODIGO_NOTA_VENTA;
 
     if (!esNotaVenta) {
-      this.assertFacturacionConfigurada();
+      await this.assertFacturacionConfigurada();
     }
 
     const empresa = await this.model.obtenerEmpresaEmisora();
@@ -746,8 +746,8 @@ export class ComprobantesLogic {
     return this.resolverEstadoSunatNombre(sunatResponse);
   }
 
-  private assertFacturacionConfigurada() {
-    const status = this.facturacionClient.getConfigStatus();
+  private async assertFacturacionConfigurada() {
+    const status = await this.facturacionClient.getConfigStatus();
 
     if (!status.enabled) {
       throw new ServiceUnavailableException(
@@ -757,7 +757,7 @@ export class ComprobantesLogic {
 
     if (!status.configured) {
       throw new BadRequestException(
-        'Configure FACTURACION_APISPERU_TOKEN o credenciales en el entorno',
+        'Configure token o usuario/clave del PSE en Configuración → SUNAT',
       );
     }
   }

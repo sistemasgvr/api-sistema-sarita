@@ -310,6 +310,17 @@ CREATE TABLE gen_configuracion_sunat (
     certificado_digital  varchar(255),             -- ruta o referencia al .pfx
     clave_certificado    varchar(255),             -- cifrar en aplicación
     id_ambiente          INT REFERENCES gen_lista_opciones(id),  -- (gen_lista: AmbienteSunat) BETA, PRODUCCION
+    -- Credenciales genéricas del PSE/OSE (no atadas a un proveedor concreto)
+    proveedor_pse        varchar(50),              -- ej. APISPERU
+    pse_habilitado       BOOLEAN NOT NULL DEFAULT TRUE,
+    api_base_url         varchar(255),
+    api_token            TEXT,                     -- cifrar en aplicación
+    api_usuario          varchar(150),
+    api_clave            varchar(255),             -- cifrar en aplicación
+    ruc_emisor           varchar(11),              -- override; si NULL usa gen_empresa.ruc
+    client_id            varchar(255),             -- OAuth (ej. GRE SUNAT CPE)
+    client_secret        varchar(255),             -- cifrar en aplicación
+    timeout_ms           INTEGER,
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion       INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion   INT REFERENCES auth_usuarios(id),

@@ -7,9 +7,12 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { firstValueFrom } from 'rxjs';
+import {
+  FacturacionCredentials,
+  FacturacionCredentialsService,
+} from '../facturacion-electronica/facturacion-credentials.service';
 import type {
   FacturacionApisperuCompanyPayload,
   FacturacionApisperuDocumentResponse,
@@ -30,35 +33,36 @@ export class FacturacionApisperuClient {
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
+    private readonly credentialsService: FacturacionCredentialsService,
   ) {}
 
-  getConfigStatus(): FacturacionConfigStatus {
-    const enabled = this.isEnabled();
-    const token = this.getStaticToken();
-    const username = this.configService.get<string>('facturacion.username') ?? '';
-    const password = this.configService.get<string>('facturacion.password') ?? '';
-    const defaultRuc =
-      this.configService.get<string>('facturacion.defaultRuc') ?? '';
-    const gre = this.getGreCredentials();
+  async getConfigStatus(): Promise<FacturacionConfigStatus> {
+    const creds = await this.credentialsService.resolve();
+    const enabled = creds.enabled;
+    const token = creds.token;
+    const username = creds.username;
+    const password = creds.password;
 
     return {
       enabled,
-      configured: enabled && (Boolean(token) || (Boolean(username) && Boolean(password))),
-      baseUrl: this.getBaseUrl(),
+      configured:
+        enabled &&
+        (Boolean(token) || (Boolean(username) && Boolean(password))),
+      baseUrl: creds.baseUrl,
       hasToken: Boolean(token),
       hasCredentials: Boolean(username) && Boolean(password),
-      hasGreCredentials: Boolean(gre.clientId && gre.clientSecret),
-      defaultRuc: defaultRuc || null,
+      hasGreCredentials: Boolean(creds.clientId && creds.clientSecret),
+      defaultRuc: creds.defaultRuc || null,
     };
   }
 
-  isEnabled(): boolean {
-    return this.configService.get<boolean>('facturacion.enabled') !== false;
+  async isEnabled(): Promise<boolean> {
+    const creds = await this.credentialsService.resolve();
+    return creds.enabled;
   }
 
-  assertEnabled(): void {
-    if (!this.isEnabled()) {
+  async assertEnabled(): Promise<void> {
+    if (!(await this.isEnabled())) {
       throw new ServiceUnavailableException(
         'La integración de facturación electrónica está deshabilitada',
       );
@@ -68,18 +72,15 @@ export class FacturacionApisperuClient {
   async login(
     credentials?: FacturacionApisperuLoginRequest,
   ): Promise<FacturacionApisperuLoginResponse> {
-    this.assertEnabled();
+    await this.assertEnabled();
+    const creds = await this.credentialsService.resolve();
 
-    const username =
-      credentials?.username ??
-      this.configService.get<string>('facturacion.username');
-    const password =
-      credentials?.password ??
-      this.configService.get<string>('facturacion.password');
+    const username = credentials?.username ?? creds.username;
+    const password = credentials?.password ?? creds.password;
 
     if (!username || !password) {
       throw new BadRequestException(
-        'Credenciales de APIsPERU Facturación no configuradas',
+        'Credenciales de facturación electrónica no configuradas (usuario/clave PSE)',
       );
     }
 
@@ -166,7 +167,7 @@ export class FacturacionApisperuClient {
     query: FacturacionComprobanteStatusQuery,
   ): Promise<FacturacionApisperuPayload> {
     return this.request<FacturacionApisperuPayload>('GET', '/invoice/status', undefined, {
-      params: this.withDefaultRuc(query),
+      params: await this.withDefaultRuc(query),
     });
   }
 
@@ -208,7 +209,7 @@ export class FacturacionApisperuClient {
     query: FacturacionResumenStatusQuery,
   ): Promise<FacturacionApisperuPayload> {
     return this.request<FacturacionApisperuPayload>('GET', '/summary/status', undefined, {
-      params: this.withDefaultRuc(query),
+      params: await this.withDefaultRuc(query),
     });
   }
 
@@ -226,14 +227,14 @@ export class FacturacionApisperuClient {
     query: FacturacionResumenStatusQuery,
   ): Promise<FacturacionApisperuPayload> {
     return this.request<FacturacionApisperuPayload>('GET', '/voided/status', undefined, {
-      params: this.withDefaultRuc(query),
+      params: await this.withDefaultRuc(query),
     });
   }
 
   async enviarGuiaRemision(
     payload: FacturacionApisperuPayload,
   ): Promise<FacturacionApisperuDocumentResponse> {
-    const ruc = this.extractCompanyRuc(payload);
+    const ruc = await this.extractCompanyRuc(payload);
     await this.asegurarCredencialesGreEnEmpresa(ruc);
 
     return this.request<FacturacionApisperuDocumentResponse>(
@@ -247,32 +248,33 @@ export class FacturacionApisperuClient {
     query: FacturacionResumenStatusQuery,
   ): Promise<FacturacionApisperuPayload> {
     return this.request<FacturacionApisperuPayload>('GET', '/despatch/status', undefined, {
-      params: this.withDefaultRuc(query),
+      params: await this.withDefaultRuc(query),
     });
   }
 
   /**
    * APIsPERU exige client_id/client_secret GRE en la empresa (swagger tag despatch).
-   * Los toma del .env y los sincroniza vía PUT /companies/{id}.
+   * Los toma de configuración SUNAT (BD) o .env y los sincroniza vía PUT /companies/{id}.
    */
   async asegurarCredencialesGreEnEmpresa(ruc?: string): Promise<void> {
-    const { clientId, clientSecret } = this.getGreCredentials();
+    const creds = await this.credentialsService.resolve();
+    const { clientId, clientSecret } = creds;
 
     if (!clientId || !clientSecret) {
       throw new BadRequestException(
-        'Configure FACTURACION_APISPERU_CLIENT_ID y FACTURACION_APISPERU_CLIENT_SECRET en el .env (credenciales OAuth GRE del portal SUNAT CPE).',
+        'Configure client_id y client_secret OAuth GRE en Configuración → SUNAT (o variables de entorno de facturación).',
       );
     }
 
-    const companyId = await this.resolveCompanyId(ruc);
+    const companyId = await this.resolveCompanyId(ruc, creds);
     if (companyId == null) {
       throw new BadRequestException(
-        'No se encontró la empresa emisora en APIsPERU para sincronizar credenciales GRE',
+        'No se encontró la empresa emisora en el PSE para sincronizar credenciales GRE',
       );
     }
 
     this.logger.log(
-      `Sincronizando credenciales GRE (client_id) en empresa APIsPERU ${companyId}`,
+      `Sincronizando credenciales GRE (client_id) en empresa PSE ${companyId}`,
     );
 
     await this.actualizarEmpresa(companyId, {
@@ -281,19 +283,12 @@ export class FacturacionApisperuClient {
     });
   }
 
-  private getGreCredentials() {
-    return {
-      clientId: (this.configService.get<string>('facturacion.clientId') ?? '').trim(),
-      clientSecret: (
-        this.configService.get<string>('facturacion.clientSecret') ?? ''
-      ).trim(),
-    };
-  }
-
-  private async resolveCompanyId(ruc?: string): Promise<number | null> {
-    const rucNorm = String(
-      ruc ?? this.configService.get<string>('facturacion.defaultRuc') ?? '',
-    ).trim();
+  private async resolveCompanyId(
+    ruc?: string,
+    creds?: FacturacionCredentials,
+  ): Promise<number | null> {
+    const resolved = creds ?? (await this.credentialsService.resolve());
+    const rucNorm = String(ruc ?? resolved.defaultRuc ?? '').trim();
 
     const empresas = await this.listarEmpresas();
     if (!Array.isArray(empresas) || empresas.length === 0) {
@@ -321,7 +316,7 @@ export class FacturacionApisperuClient {
     payload: FacturacionApisperuPayload,
     formato: 'a4' | 'ticket',
   ): Promise<FacturacionApisperuPayload> {
-    const ruc = this.extractCompanyRuc(payload);
+    const ruc = await this.extractCompanyRuc(payload);
     const hash =
       typeof payload.hash === 'string' && payload.hash.trim()
         ? payload.hash.trim()
@@ -363,10 +358,13 @@ export class FacturacionApisperuClient {
     };
   }
 
-  private extractCompanyRuc(payload: FacturacionApisperuPayload): string {
+  private async extractCompanyRuc(
+    payload: FacturacionApisperuPayload,
+  ): Promise<string> {
     const company = payload.company as { ruc?: string | number } | undefined;
     if (company?.ruc != null) return String(company.ruc);
-    return this.configService.get<string>('facturacion.defaultRuc') ?? '';
+    const creds = await this.credentialsService.resolve();
+    return creds.defaultRuc;
   }
 
   private normalizeLogoBase64(value: string): string {
@@ -446,10 +444,11 @@ export class FacturacionApisperuClient {
 
   private async logoValueToBase64(logo: string): Promise<string> {
     if (logo.startsWith('http://') || logo.startsWith('https://')) {
+      const creds = await this.credentialsService.resolve();
       const response = await firstValueFrom(
         this.httpService.get<ArrayBuffer>(logo, {
           responseType: 'arraybuffer',
-          timeout: this.getTimeoutMs(),
+          timeout: creds.timeoutMs,
         }),
       );
       return Buffer.from(response.data).toString('base64');
@@ -458,35 +457,22 @@ export class FacturacionApisperuClient {
     return this.normalizeLogoBase64(logo);
   }
 
-  private getBaseUrl(): string {
-    return (
-      this.configService.get<string>('facturacion.baseUrl') ??
-      'https://facturacion.apisperu.com/api/v1'
-    ).replace(/\/$/, '');
-  }
-
-  private getTimeoutMs(): number {
-    return this.configService.get<number>('facturacion.timeoutMs') ?? 60_000;
-  }
-
-  private getStaticToken(): string {
-    return this.configService.get<string>('facturacion.token') ?? '';
-  }
-
-  private withDefaultRuc<T extends { ruc?: string }>(
+  private async withDefaultRuc<T extends { ruc?: string }>(
     query: T,
-  ): Record<string, string | undefined> {
+  ): Promise<Record<string, string | undefined>> {
     if (query.ruc) return { ...query } as Record<string, string | undefined>;
 
-    const defaultRuc = this.configService.get<string>('facturacion.defaultRuc');
-    if (!defaultRuc) return { ...query } as Record<string, string | undefined>;
+    const creds = await this.credentialsService.resolve();
+    if (!creds.defaultRuc) {
+      return { ...query } as Record<string, string | undefined>;
+    }
 
-    return { ...query, ruc: defaultRuc };
+    return { ...query, ruc: creds.defaultRuc };
   }
 
   private async resolveAuthToken(): Promise<string> {
-    const staticToken = this.getStaticToken();
-    if (staticToken) return staticToken;
+    const creds = await this.credentialsService.resolve();
+    if (creds.token) return creds.token;
 
     if (this.sessionToken && Date.now() < this.sessionTokenExpiresAt) {
       return this.sessionToken;
@@ -507,7 +493,8 @@ export class FacturacionApisperuClient {
       accept?: string;
     },
   ): Promise<T> {
-    this.assertEnabled();
+    await this.assertEnabled();
+    const creds = await this.credentialsService.resolve();
 
     const auth = options?.auth !== false;
     const headers: Record<string, string> = {
@@ -523,7 +510,7 @@ export class FacturacionApisperuClient {
       headers['Content-Type'] = 'application/json';
     }
 
-    const url = `${this.getBaseUrl()}${path}`;
+    const url = `${creds.baseUrl}${path}`;
 
     try {
       const response: AxiosResponse<T> = await firstValueFrom(
@@ -533,7 +520,7 @@ export class FacturacionApisperuClient {
           data,
           params: options?.params,
           headers,
-          timeout: this.getTimeoutMs(),
+          timeout: creds.timeoutMs,
           responseType: options?.responseType ?? 'json',
           validateStatus: (status) => status < 500,
         }),
@@ -541,7 +528,7 @@ export class FacturacionApisperuClient {
 
       if (response.status === 401) {
         throw new UnauthorizedException(
-          'Credenciales inválidas en APIsPERU Facturación',
+          'Credenciales inválidas en el servicio de facturación electrónica',
         );
       }
 

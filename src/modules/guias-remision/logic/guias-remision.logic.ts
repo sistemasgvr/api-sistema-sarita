@@ -132,7 +132,7 @@ export class GuiasRemisionLogic {
       throw new BadRequestException('La guía ya fue aceptada por SUNAT');
     }
 
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     const empresa = await this.model.obtenerEmpresaEmisora();
 
@@ -205,7 +205,7 @@ export class GuiasRemisionLogic {
   }
 
   async consultarEstado(id: number, dto: AuditoriaDto) {
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     const guia = await this.model.obtenerCompleto(id);
 
@@ -313,8 +313,8 @@ export class GuiasRemisionLogic {
     return this.resolverEstadoSunatNombre(nested as SunatResponsePayload);
   }
 
-  private assertFacturacionConfigurada() {
-    const status = this.facturacionClient.getConfigStatus();
+  private async assertFacturacionConfigurada() {
+    const status = await this.facturacionClient.getConfigStatus();
 
     if (!status.enabled) {
       throw new ServiceUnavailableException(
@@ -324,7 +324,7 @@ export class GuiasRemisionLogic {
 
     if (!status.configured) {
       throw new BadRequestException(
-        'Configure FACTURACION_APISPERU_TOKEN o credenciales en el entorno',
+        'Configure token o usuario/clave del PSE en Configuración → SUNAT',
       );
     }
   }
