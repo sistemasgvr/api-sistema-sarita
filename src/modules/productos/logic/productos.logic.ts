@@ -4,6 +4,7 @@ import {
   mapListResult,
   mapSingleResult,
 } from '../../../common/helpers/auth-response.helper';
+import { ProductoImagenesLogic } from '../../producto-imagenes/logic/producto-imagenes.logic';
 import {
   CreateProductoDto,
   FiltroProductosDto,
@@ -13,7 +14,10 @@ import { ProductosModel } from '../models/productos.model';
 
 @Injectable()
 export class ProductosLogic {
-  constructor(private readonly productosModel: ProductosModel) {}
+  constructor(
+    private readonly productosModel: ProductosModel,
+    private readonly productoImagenesLogic: ProductoImagenesLogic,
+  ) {}
 
   async listar(filtros: FiltroProductosDto) {
     const result = await this.productosModel.listar(filtros);
@@ -66,6 +70,16 @@ export class ProductosLogic {
 
   async eliminar(id: number, idUsuarioAuditoria?: number) {
     const result = await this.productosModel.eliminar(id, idUsuarioAuditoria);
-    return mapDeleteResult(result, `Producto ${id} no encontrado`);
+    const eliminado = mapDeleteResult(
+      result,
+      `Producto ${id} no encontrado`,
+    );
+
+    await this.productoImagenesLogic.eliminarTodasDeProducto(
+      id,
+      idUsuarioAuditoria,
+    );
+
+    return eliminado;
   }
 }

@@ -39,6 +39,7 @@ import { SubCategoriasProductoModule } from './modules/sub-categorias-producto/s
 import { CatalogoPreciosModule } from './modules/catalogo-precios/catalogo-precios.module';
 import { StockProductoModule } from './modules/stock-producto/stock-producto.module';
 import { MovimientosInventarioModule } from './modules/movimientos-inventario/movimientos-inventario.module';
+import { ProductoImagenesModule } from './modules/producto-imagenes/producto-imagenes.module';
 import { ProductosModule } from './modules/productos/productos.module';
 import { TiposBalonModule } from './modules/tipos-balon/tipos-balon.module';
 import { BalonesModule } from './modules/balones/balones.module';
@@ -99,6 +100,7 @@ import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/do
     CatalogoPreciosModule,
     StockProductoModule,
     MovimientosInventarioModule,
+    ProductoImagenesModule,
     ProductosModule,
     TiposBalonModule,
     MovimientosBalonModule,

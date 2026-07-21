@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ImageCompressionService } from '../../../common/services/image-compression.service';
 import { SupabaseStorageService } from '../../../integrations/supabase-storage/supabase-storage.service';
 import { ArchivosLogic } from '../../archivos/logic/archivos.logic';
 
@@ -7,6 +8,7 @@ export class StorageLogic {
   constructor(
     private readonly supabaseStorage: SupabaseStorageService,
     private readonly archivosLogic: ArchivosLogic,
+    private readonly imageCompression: ImageCompressionService,
   ) {}
 
   status() {
@@ -38,27 +40,33 @@ export class StorageLogic {
       throw new BadRequestException('Debes indicar la ruta destino en "path"');
     }
 
-    const cleanPath = path.trim().replace(/^\/+/, '');
+    const fileToUpload = await this.imageCompression.compressMulterFile(file);
+    const cleanPath = this.ajustarExtensionSiCorresponde(
+      path.trim().replace(/^\/+/, ''),
+      file,
+      fileToUpload,
+    );
+
     const uploaded = await this.supabaseStorage.upload(
       cleanPath,
-      file.buffer,
-      file.mimetype,
+      fileToUpload.buffer,
+      fileToUpload.mimetype,
       upsert,
     );
 
     const nombreAlmacenado =
       cleanPath.split('/').filter(Boolean).pop() || cleanPath;
     const nombreOriginal = file.originalname?.trim() || nombreAlmacenado;
-    const extension = this.extraerExtension(nombreOriginal);
+    const extension = this.extraerExtension(nombreAlmacenado);
 
     const archivo = await this.archivosLogic.crear({
       nombreOriginal,
       nombreAlmacenado,
       ruta: uploaded.path,
       bucket: uploaded.bucket,
-      mimeType: file.mimetype || undefined,
+      mimeType: fileToUpload.mimetype || undefined,
       extension: extension || undefined,
-      tamanioBytes: file.size,
+      tamanioBytes: fileToUpload.size,
       idEmpresa,
       idUsuarioAuditoria,
     });
@@ -66,6 +74,14 @@ export class StorageLogic {
     return {
       ...uploaded,
       archivo,
+      compression:
+        fileToUpload.size !== file.size
+          ? {
+              originalBytes: file.size,
+              compressedBytes: fileToUpload.size,
+              savedBytes: file.size - fileToUpload.size,
+            }
+          : null,
     };
   }
 
@@ -98,6 +114,42 @@ export class StorageLogic {
     }
 
     return { eliminado: true, paths };
+  }
+
+  private ajustarExtensionSiCorresponde(
+    path: string,
+    original: Express.Multer.File,
+    compressed: Express.Multer.File,
+  ): string {
+    if (original.mimetype === compressed.mimetype) return path;
+
+    const newExt = this.extraerExtensionFromMime(compressed.mimetype);
+    if (!newExt) return path;
+
+    const lastSlash = path.lastIndexOf('/');
+    const dir = lastSlash >= 0 ? path.slice(0, lastSlash + 1) : '';
+    const filename = lastSlash >= 0 ? path.slice(lastSlash + 1) : path;
+    const dot = filename.lastIndexOf('.');
+    const base = dot > 0 ? filename.slice(0, dot) : filename;
+    return `${dir}${base}.${newExt}`;
+  }
+
+  private extraerExtensionFromMime(mime?: string): string | null {
+    switch ((mime ?? '').toLowerCase()) {
+      case 'image/jpeg':
+      case 'image/jpg':
+        return 'jpg';
+      case 'image/png':
+        return 'png';
+      case 'image/webp':
+        return 'webp';
+      case 'image/gif':
+        return 'gif';
+      case 'image/avif':
+        return 'avif';
+      default:
+        return null;
+    }
   }
 
   private extraerExtension(nombre: string): string | null {

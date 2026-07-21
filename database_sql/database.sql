@@ -610,6 +610,20 @@ CREATE TABLE pro_producto (
     fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
+-- Catálogo de imágenes del producto (archivo físico en storage vía gen_archivo)
+CREATE TABLE pro_producto_imagen (
+    id                      SERIAL PRIMARY KEY,
+    id_producto             INT NOT NULL REFERENCES pro_producto(id),
+    id_archivo              INT NOT NULL REFERENCES gen_archivo(id),
+    orden                   INT NOT NULL DEFAULT 0,
+    es_principal            BOOLEAN NOT NULL DEFAULT FALSE,
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion      TIMESTAMP DEFAULT NOW()
+);
+
 -- Catálogo unificado de precios (cilindro recargado, garantía, accesorios)
 -- id_tipo_catalogo: RECARGADO | GARANTIA | ACCESORIO (gen_lista TipoCatalogoPrecio)
 -- id_tipo_catalogo: RECARGADO (gas+cilindro vendido), GARANTIA (depósito préstamo),
