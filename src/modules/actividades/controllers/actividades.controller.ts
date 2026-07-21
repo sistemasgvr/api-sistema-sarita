@@ -19,7 +19,6 @@ import {
   UpdateActividadDto,
 } from '../dto/actividades.dto';
 import { ActividadesLogic } from '../logic/actividades.logic';
-import { Public } from 'src/common/decorators/public.decorator';
 
 @ApiTags('Operativa - Actividades')
 @Controller('operativa/actividades')
@@ -35,7 +34,7 @@ export class ActividadesController {
 
   @Get(':id')
   @Permisos(PermisoBanderas.ACTIVIDADES_VER)
-  @ApiOperation({ summary: 'Obtener actividad por ID' })
+  @ApiOperation({ summary: 'Obtener actividad por ID' }) 
   @ApiOkResponse({ description: 'Actividad obtenida correctamente' }) 
   @ApiNotFoundResponse({ description: 'La actividad solicitada no existe o fue eliminada' })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
@@ -44,7 +43,6 @@ export class ActividadesController {
 
   @Post()
   @Permisos(PermisoBanderas.ACTIVIDADES_CREAR)
-  @Public()
   @ApiOperation({ summary: 'Crear actividad' })
   crear(@Body() dto: CreateActividadDto) {
     return this.actividadesLogic.crear(dto);
@@ -63,7 +61,7 @@ export class ActividadesController {
   }
 
   @Delete(':id')
-  @Permisos(PermisoBanderas.ACTIVIDADES_ELIMINAR)
+  @Permisos(PermisoBanderas.ACTIVIDADES_ELIMINAR) 
   @ApiOperation({ summary: 'Eliminar actividad (baja lógica)' })
   @ApiOkResponse({ description: 'Actividad eliminada correctamente' }) 
   @ApiNotFoundResponse({ description: 'La actividad que intenta eliminar no existe o ya fue dada de baja' })
