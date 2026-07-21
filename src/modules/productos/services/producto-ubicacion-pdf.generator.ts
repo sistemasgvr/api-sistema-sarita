@@ -14,10 +14,10 @@ const MARGIN_Y = 18;
 const GAP_X = 8;
 const GAP_Y = 8;
 const COLS = 3;
-/** Altura fija compacta (sin huecos internos). */
-const CARD_HEIGHT = 78;
+/** Altura fija al contenido (sin línea decorativa ni huecos). */
+const CARD_HEIGHT = 64;
 const PAD_X = 8;
-const PAD_Y = 7;
+const PAD_Y = 6;
 
 function truncateText(text: string, maxChars: number): string {
   const value = text.trim();
@@ -82,7 +82,7 @@ export class ProductoUbicacionPdfGenerator {
             align: 'center',
             lineBreak: false,
           });
-        cursorY += 10;
+        cursorY += 9;
 
         doc
           .fillColor('#141414')
@@ -96,24 +96,16 @@ export class ProductoUbicacionPdfGenerator {
         cursorY += 16;
 
         doc
-          .moveTo(x + PAD_X + 4, cursorY)
-          .lineTo(x + cardWidth - PAD_X - 4, cursorY)
-          .lineWidth(0.5)
-          .strokeColor('#c8c8c8')
-          .stroke();
-        cursorY += 5;
-
-        doc
           .fillColor('#1e1e1e')
           .font('Helvetica-Bold')
           .fontSize(8)
           .text(truncateText(item.nombre, 56), x + PAD_X, cursorY, {
             width: contentWidth,
             align: 'center',
-            height: 20,
+            height: 18,
             ellipsis: true,
           });
-        cursorY += 20;
+        cursorY += 18;
 
         doc
           .fillColor('#5a5a5a')
