@@ -127,6 +127,7 @@ FROM (
         ('productos.crear', 'Crear productos'),
         ('productos.editar', 'Editar productos'),
         ('productos.eliminar', 'Eliminar productos'),
+        ('productos.restaurar', 'Restaurar productos eliminados'),
         ('catalogo_precios.listar', 'Listar catálogo de precios'),
         ('catalogo_precios.ver', 'Ver detalle de catálogo de precios'),
         ('catalogo_precios.crear', 'Crear ítems de catálogo de precios'),

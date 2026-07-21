@@ -29,6 +29,7 @@ BEGIN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id);
     END IF;
 
+    -- Las imágenes y archivos en storage se conservan para poder restaurar el producto
     RETURN json_build_object('eliminado', TRUE, 'id', p_id);
 END;
 $function$;

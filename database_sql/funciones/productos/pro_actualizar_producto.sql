@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS pro_actualizar_producto(INTEGER, VARCHAR, VARCHAR, VARCHAR, INTEGER, INTEGER, VARCHAR, VARCHAR, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, NUMERIC, INTEGER);
+
 CREATE OR REPLACE FUNCTION pro_actualizar_producto(
     p_id INTEGER,
     p_codigo VARCHAR DEFAULT NULL,
@@ -12,6 +14,7 @@ CREATE OR REPLACE FUNCTION pro_actualizar_producto(
     p_es_alquilable BOOLEAN DEFAULT NULL,
     p_afecta_stock BOOLEAN DEFAULT NULL,
     p_precio NUMERIC DEFAULT NULL,
+    p_codigo_ubicacion VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -20,11 +23,16 @@ AS $function$
 DECLARE
     v_codigo VARCHAR;
     v_nombre VARCHAR;
+    v_codigo_ubicacion VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
     v_codigo := NULLIF(TRIM(p_codigo), '');
     v_nombre := NULLIF(TRIM(p_nombre), '');
+    v_codigo_ubicacion := CASE
+        WHEN p_codigo_ubicacion IS NULL THEN NULL
+        ELSE NULLIF(TRIM(p_codigo_ubicacion), '')
+    END;
 
     IF v_codigo IS NOT NULL AND EXISTS (
         SELECT 1 FROM pro_producto
@@ -32,6 +40,19 @@ BEGIN
           AND id <> p_id
     ) THEN
         RETURN json_build_object('error', 'Ya existe otro producto con el código ' || v_codigo, 'registro', NULL);
+    END IF;
+
+    IF p_codigo_ubicacion IS NOT NULL
+       AND v_codigo_ubicacion IS NOT NULL
+       AND EXISTS (
+           SELECT 1 FROM pro_producto
+           WHERE LOWER(TRIM(codigo_ubicacion)) = LOWER(v_codigo_ubicacion)
+             AND id <> p_id
+       ) THEN
+        RETURN json_build_object(
+            'error', 'Ya existe otro producto con el código de ubicación ' || v_codigo_ubicacion,
+            'registro', NULL
+        );
     END IF;
 
     IF p_id_sub_categoria IS NOT NULL AND NOT EXISTS (
@@ -50,6 +71,10 @@ BEGIN
     SET
         codigo = COALESCE(v_codigo, codigo),
         codigo_barra = COALESCE(p_codigo_barra, codigo_barra),
+        codigo_ubicacion = CASE
+            WHEN p_codigo_ubicacion IS NULL THEN codigo_ubicacion
+            ELSE v_codigo_ubicacion
+        END,
         nombre = COALESCE(v_nombre, nombre),
         id_sub_categoria = COALESCE(p_id_sub_categoria, id_sub_categoria),
         id_unidad_medida = COALESCE(p_id_unidad_medida, id_unidad_medida),

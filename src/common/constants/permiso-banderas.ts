@@ -141,6 +141,7 @@ export const PermisoBanderas = {
   PRODUCTOS_CREAR: 'productos.crear',
   PRODUCTOS_EDITAR: 'productos.editar',
   PRODUCTOS_ELIMINAR: 'productos.eliminar',
+  PRODUCTOS_RESTAURAR: 'productos.restaurar',
 
   CATALOGO_PRECIOS_LISTAR: 'catalogo_precios.listar',
   CATALOGO_PRECIOS_VER: 'catalogo_precios.ver',

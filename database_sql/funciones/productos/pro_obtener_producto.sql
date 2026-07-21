@@ -13,6 +13,7 @@ BEGIN
             p.id,
             p.codigo,
             p.codigo_barra,
+            p.codigo_ubicacion,
             p.nombre,
             p.id_sub_categoria,
             sc.nombre AS nombre_sub_categoria,
@@ -40,7 +41,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones um ON p.id_unidad_medida = um.id
         LEFT JOIN auth_usuarios uc ON p.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um2 ON p.id_usuario_modificacion = um2.id
-        WHERE p.id = p_id AND p.estado = 1
+        WHERE p.id = p_id
     ) t;
 
     RETURN json_build_object('registro', v_registro);

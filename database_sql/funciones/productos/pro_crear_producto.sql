@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS pro_crear_producto(VARCHAR, VARCHAR, INTEGER, VARCHAR, INTEGER, VARCHAR, VARCHAR, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, NUMERIC, INTEGER);
+
 CREATE OR REPLACE FUNCTION pro_crear_producto(
     p_codigo VARCHAR,
     p_nombre VARCHAR,
@@ -11,6 +13,7 @@ CREATE OR REPLACE FUNCTION pro_crear_producto(
     p_es_alquilable BOOLEAN DEFAULT FALSE,
     p_afecta_stock BOOLEAN DEFAULT TRUE,
     p_precio NUMERIC DEFAULT 0,
+    p_codigo_ubicacion VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -18,6 +21,7 @@ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
+    v_codigo_ubicacion VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -36,6 +40,18 @@ BEGIN
         RETURN json_build_object('error', 'Ya existe un producto con el código ' || TRIM(p_codigo), 'registro', NULL);
     END IF;
 
+    v_codigo_ubicacion := NULLIF(TRIM(p_codigo_ubicacion), '');
+
+    IF v_codigo_ubicacion IS NOT NULL AND EXISTS (
+        SELECT 1 FROM pro_producto
+        WHERE LOWER(TRIM(codigo_ubicacion)) = LOWER(v_codigo_ubicacion)
+    ) THEN
+        RETURN json_build_object(
+            'error', 'Ya existe un producto con el código de ubicación ' || v_codigo_ubicacion,
+            'registro', NULL
+        );
+    END IF;
+
     IF p_id_sub_categoria IS NOT NULL AND NOT EXISTS (
         SELECT 1 FROM pro_sub_categoria WHERE id = p_id_sub_categoria AND estado = 1
     ) THEN
@@ -51,6 +67,7 @@ BEGIN
     INSERT INTO pro_producto (
         codigo,
         codigo_barra,
+        codigo_ubicacion,
         nombre,
         id_sub_categoria,
         id_unidad_medida,
@@ -67,6 +84,7 @@ BEGIN
     VALUES (
         TRIM(p_codigo),
         p_codigo_barra,
+        v_codigo_ubicacion,
         TRIM(p_nombre),
         p_id_sub_categoria,
         p_id_unidad_medida,

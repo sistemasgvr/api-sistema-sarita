@@ -592,6 +592,7 @@ CREATE TABLE pro_producto (
     id              SERIAL PRIMARY KEY,
     codigo          varchar(30) NOT NULL UNIQUE,
     codigo_barra     varchar(50),
+    codigo_ubicacion varchar(20),             -- ubicación/cajón digitable (ej. ARO-GEN-01)
     nombre          varchar(300) NOT NULL,
     id_sub_categoria  INT REFERENCES pro_sub_categoria(id),
     id_unidad_medida  INT REFERENCES gen_lista_opciones(id), -- UNID, MT3, KG, MTS, PAR...
