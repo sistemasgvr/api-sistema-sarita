@@ -11,9 +11,11 @@ import {
   AprobarBajaBalonDto,
   DarBajaBalonDto,
   FiltroBalonesDto,
+  FiltroEstadoHistorialDto,
   FiltroPhHistorialDto,
   RechazarBajaBalonDto,
   RegistrarPhHistorialDto,
+  RestaurarBalonDto,
   UpdateBalonesDto,
 } from '../dto/balones.dto';
 
@@ -181,6 +183,23 @@ export class BalonesModel {
       dto.idUsuarioAutoriza ?? null,
       dto.motivoRechazo ?? null,
       dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  listarEstadoHistorial(idBalon: number, filtros: FiltroEstadoHistorialDto) {
+    return this.db.callFunctionJson<AuthListResult>('bal_listar_estado_historial', [
+      idBalon,
+      filtros.limite ?? 50,
+      filtros.offset,
+    ]);
+  }
+
+  restaurar(idBalon: number, dto: RestaurarBalonDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_restaurar_balon', [
+      idBalon,
+      dto.idUsuarioAuditoria ?? null,
+      dto.observacion ?? null,
+      dto.idAlmacen ?? null,
     ]);
   }
 }

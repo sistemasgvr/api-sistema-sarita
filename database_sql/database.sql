@@ -947,7 +947,7 @@ CREATE TABLE bal_baja_balon (
     id_usuario_solicita      INT NOT NULL REFERENCES auth_usuarios(id),
     id_usuario_autoriza      INT REFERENCES auth_usuarios(id),
     fecha_autorizacion       TIMESTAMP,
-    estado_aprobacion        VARCHAR(20) NOT NULL DEFAULT 'APROBADA', -- PENDIENTE | APROBADA | RECHAZADA
+    estado_aprobacion        VARCHAR(20) NOT NULL DEFAULT 'APROBADA', -- PENDIENTE | APROBADA | RECHAZADA | REACTIVADA
     motivo_detalle           varchar(500),  -- texto adicional (ej. cuando motivo = OTROS)
     id_cliente_comprador     INT REFERENCES cli_clientes(id),
     id_comprobante_venta     INT REFERENCES ven_comprobante(id),
@@ -961,6 +961,28 @@ CREATE TABLE bal_baja_balon (
     id_usuario_modificacion       INT REFERENCES auth_usuarios(id),
     fecha_creacion           TIMESTAMP DEFAULT NOW(),
     fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+-- Timeline de baja / reactivación por cilindro
+CREATE TABLE bal_balon_estado_historial (
+    id                  SERIAL PRIMARY KEY,
+    id_balon             INT NOT NULL REFERENCES bal_balon(id),
+    tipo_evento          VARCHAR(30) NOT NULL, -- SOLICITUD_BAJA | BAJA_APROBADA | BAJA_RECHAZADA | REACTIVACION
+    id_baja              INT REFERENCES bal_baja_balon(id),
+    id_motivo_baja       INT REFERENCES gen_lista_opciones(id),
+    id_estado_anterior   INT REFERENCES gen_lista_opciones(id),
+    id_estado_nuevo      INT REFERENCES gen_lista_opciones(id),
+    observacion         varchar(500),
+    id_usuario           INT REFERENCES auth_usuarios(id),
+    fecha_evento         TIMESTAMP NOT NULL DEFAULT NOW(),
+    estado              INT NOT NULL DEFAULT 1,
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW(),
+    CONSTRAINT chk_bal_estado_historial_tipo CHECK (
+        tipo_evento IN ('SOLICITUD_BAJA', 'BAJA_APROBADA', 'BAJA_RECHAZADA', 'REACTIVACION')
+    )
 );
 
 
@@ -1473,6 +1495,8 @@ CREATE INDEX idx_bal_balon_ph_historial_vigente ON bal_balon_ph_historial(id_bal
 CREATE INDEX idx_bal_baja_balon_balon ON bal_baja_balon(id_balon);
 CREATE UNIQUE INDEX idx_bal_baja_balon_pendiente ON bal_baja_balon(id_balon) WHERE estado = 1 AND estado_aprobacion = 'PENDIENTE';
 CREATE UNIQUE INDEX idx_bal_baja_balon_aprobada ON bal_baja_balon(id_balon) WHERE estado = 1 AND estado_aprobacion = 'APROBADA';
+CREATE INDEX idx_bal_estado_historial_balon ON bal_balon_estado_historial(id_balon, fecha_evento DESC);
+CREATE INDEX idx_bal_estado_historial_tipo ON bal_balon_estado_historial(tipo_evento);
 CREATE INDEX idx_bal_movimiento_balon ON bal_movimiento(id_balon);
 CREATE INDEX idx_bal_movimiento_fecha ON bal_movimiento(fecha_movimiento);
 CREATE INDEX idx_bal_movimiento_recarga_balon ON bal_movimiento_recarga(id_balon);

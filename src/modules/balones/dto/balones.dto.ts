@@ -388,6 +388,22 @@ export class UpdateBalonesDto extends AuditoriaDto {
 
 export class FiltroPhHistorialDto extends FiltroPaginacionDto {}
 
+export class FiltroEstadoHistorialDto extends FiltroPaginacionDto {}
+
+export class RestaurarBalonDto extends AuditoriaDto {
+  @ApiPropertyOptional({ description: 'Observación de la reactivación' })
+  @MaxLength(500)
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+
+  @ApiPropertyOptional({ description: 'Almacén destino al reactivar (opcional)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idAlmacen?: number;
+}
+
 export class RegistrarPhHistorialDto extends AuditoriaDto {
   @ApiProperty()
   @IsDateString()

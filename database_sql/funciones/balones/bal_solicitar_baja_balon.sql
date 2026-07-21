@@ -18,6 +18,8 @@ AS $function$
 DECLARE
     v_id_baja INTEGER;
     v_nombre_motivo VARCHAR;
+    v_id_estado_actual INTEGER;
+    v_id_usuario INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -29,7 +31,11 @@ BEGIN
         RETURN json_build_object('error', 'Debe indicar el usuario solicitante', 'registro', NULL);
     END IF;
 
-    IF NOT EXISTS (SELECT 1 FROM bal_balon WHERE id = p_id_balon AND estado = 1) THEN
+    SELECT id_estado_balon INTO v_id_estado_actual
+    FROM bal_balon
+    WHERE id = p_id_balon AND estado = 1;
+
+    IF NOT FOUND THEN
         RETURN json_build_object('error', 'El balón indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
@@ -59,6 +65,8 @@ BEGIN
         RETURN json_build_object('error', 'Debe indicar el detalle cuando el motivo de baja es OTROS', 'registro', NULL);
     END IF;
 
+    v_id_usuario := COALESCE(p_id_usuario_auditoria, p_id_usuario_solicita);
+
     INSERT INTO bal_baja_balon (
         id_balon, id_motivo_baja, fecha_baja,
         id_usuario_solicita, estado_aprobacion,
@@ -71,10 +79,22 @@ BEGIN
         p_id_usuario_solicita, 'PENDIENTE',
         NULLIF(TRIM(p_motivo_detalle), ''), p_id_cliente_comprador, p_id_comprobante_venta,
         p_serie_comprobante, p_numero_comprobante, p_monto_venta, p_observacion,
-        COALESCE(p_id_usuario_auditoria, p_id_usuario_solicita),
-        COALESCE(p_id_usuario_auditoria, p_id_usuario_solicita)
+        v_id_usuario,
+        v_id_usuario
     )
     RETURNING id INTO v_id_baja;
+
+    PERFORM bal_registrar_estado_historial(
+        p_id_balon,
+        'SOLICITUD_BAJA',
+        v_id_baja,
+        p_id_motivo_baja,
+        v_id_estado_actual,
+        NULL,
+        COALESCE(NULLIF(TRIM(p_motivo_detalle), ''), NULLIF(TRIM(p_observacion), ''), 'Solicitud de baja'),
+        v_id_usuario,
+        NOW()
+    );
 
     RETURN bal_obtener_baja_balon(v_id_baja);
 END;
