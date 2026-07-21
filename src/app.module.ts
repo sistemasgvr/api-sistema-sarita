@@ -4,10 +4,14 @@ import { APP_GUARD } from '@nestjs/core';
 import databaseConfig from './config/database.config';
 import facturacionConfig from './config/facturacion.config';
 import jwtConfig from './config/jwt.config';
+import supabaseConfig from './config/supabase.config';
 import { envValidationSchema } from './config/env.validation';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermisosGuard } from './common/guards/permisos.guard';
 import { DatabaseModule } from './database/database.module';
+import { SupabaseStorageModule } from './integrations/supabase-storage/supabase-storage.module';
+import { ArchivosModule } from './modules/archivos/archivos.module';
+import { StorageModule } from './modules/storage/storage.module';
 import { ActividadesModule } from './modules/actividades/actividades.module';
 import { AlmacenesModule } from './modules/almacenes/almacenes.module';
 import { CondicionesPagoModule } from './modules/condiciones-pago/condiciones-pago.module';
@@ -57,7 +61,7 @@ import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/do
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig, facturacionConfig],
+      load: [databaseConfig, jwtConfig, facturacionConfig, supabaseConfig],
       validationSchema: envValidationSchema,
       validationOptions: {
         allowUnknown: true,
@@ -65,6 +69,9 @@ import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/do
       },
     }),
     DatabaseModule,
+    SupabaseStorageModule,
+    ArchivosModule,
+    StorageModule,
     LoginModule,
     UsuariosModule,
     RolesModule,

@@ -301,6 +301,25 @@ CREATE TABLE gen_empresa (
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
+-- Metadatos de archivos en storage (Supabase u otro). Usar id como FK donde se necesite adjunto.
+CREATE TABLE gen_archivo (
+    id                      SERIAL PRIMARY KEY,
+    nombre_original         VARCHAR(255) NOT NULL,
+    nombre_almacenado       VARCHAR(255) NOT NULL,
+    ruta                    VARCHAR(500) NOT NULL,
+    bucket                  VARCHAR(100) NOT NULL,
+    mime_type               VARCHAR(150),
+    extension               VARCHAR(20),
+    tamanio_bytes           BIGINT,
+    id_empresa              INT REFERENCES gen_empresa(id),
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion      TIMESTAMP DEFAULT NOW(),
+    UNIQUE (bucket, ruta)
+);
+
 -- Credenciales SUNAT / facturación electrónica (SOL)
 CREATE TABLE gen_configuracion_sunat (
     id                  SERIAL PRIMARY KEY,
