@@ -8,6 +8,7 @@ import {
 import {
   FiltroBajaClienteDto,
   SolicitarBajaClienteDto,
+  SolicitarReactivacionClienteDto,
 } from '../dto/bajas-cliente.dto';
 
 @Injectable()
@@ -22,6 +23,7 @@ export class BajasClienteModel {
       filtros.offset ?? 0,
       filtros.idCliente ?? null,
       filtros.idEstadoAprobacion ?? null,
+      filtros.tipoSolicitud ?? null,
     ]);
   }
 
@@ -29,6 +31,17 @@ export class BajasClienteModel {
     return this.db.callFunctionJson<AuthSingleResult<any>>(
       'cli_obtener_baja_cliente',
       [id],
+    );
+  }
+
+  solicitarReactivacion(dto: SolicitarReactivacionClienteDto) {
+    return this.db.callFunctionJson<AuthSingleResult<any>>(
+      'cli_solicitar_reactivacion_cliente',
+      [
+        dto.idCliente,
+        dto.motivoDetalle ?? null,
+        dto.idUsuarioAuditoria ?? null,
+      ],
     );
   }
 

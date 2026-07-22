@@ -6,7 +6,8 @@ CREATE OR REPLACE FUNCTION cli_listar_bajas_cliente(
     p_limite INTEGER DEFAULT 10,
     p_offset INTEGER DEFAULT 0,
     p_id_cliente INTEGER DEFAULT NULL,
-    p_id_estado_aprobacion INTEGER DEFAULT NULL
+    p_id_estado_aprobacion INTEGER DEFAULT NULL,
+    p_tipo_solicitud VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -22,6 +23,7 @@ BEGIN
     WHERE (p_solo_activos IS NULL OR bc.estado = p_solo_activos)
       AND (p_id_cliente IS NULL OR bc.id_cliente = p_id_cliente)
       AND (p_id_estado_aprobacion IS NULL OR bc.id_estado_aprobacion = p_id_estado_aprobacion)
+      AND (p_tipo_solicitud IS NULL OR bc.tipo_solicitud = p_tipo_solicitud)
       AND (
           p_buscar = ''
           OR LOWER(COALESCE(bc.motivo_detalle, '')) LIKE LOWER('%' || p_buscar || '%')
@@ -31,6 +33,7 @@ BEGIN
     FROM (
         SELECT
             bc.id,
+            bc.tipo_solicitud,
             bc.id_cliente,
             c.razon_social AS cliente_razon_social,
             c.nombres AS cliente_nombres,
@@ -66,6 +69,7 @@ BEGIN
         WHERE (p_solo_activos IS NULL OR bc.estado = p_solo_activos)
           AND (p_id_cliente IS NULL OR bc.id_cliente = p_id_cliente)
           AND (p_id_estado_aprobacion IS NULL OR bc.id_estado_aprobacion = p_id_estado_aprobacion)
+          AND (p_tipo_solicitud IS NULL OR bc.tipo_solicitud = p_tipo_solicitud)
           AND (
               p_buscar = ''
               OR LOWER(COALESCE(bc.motivo_detalle, '')) LIKE LOWER('%' || p_buscar || '%')

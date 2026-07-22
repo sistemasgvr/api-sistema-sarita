@@ -7,6 +7,7 @@ import {
 import {
   FiltroBajaClienteDto,
   SolicitarBajaClienteDto,
+  SolicitarReactivacionClienteDto,
 } from '../dto/bajas-cliente.dto';
 import { BajasClienteModel } from '../models/bajas-cliente.model';
 
@@ -22,6 +23,11 @@ export class BajasClienteLogic {
   async obtenerPorId(id: number) {
     const result = await this.bajasClienteModel.obtenerPorId(id);
     return mapSingleResult(result, `Solicitud de baja ${id} no encontrada`);
+  }
+
+  async solicitarReactivacion(dto: SolicitarReactivacionClienteDto) {
+    const result = await this.bajasClienteModel.solicitarReactivacion(dto);
+    return mapSingleResult(result, 'No se pudo crear la solicitud de reactivación');
   }
 
   async solicitar(dto: SolicitarBajaClienteDto) {

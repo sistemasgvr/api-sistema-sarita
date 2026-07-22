@@ -13,6 +13,7 @@ BEGIN
     FROM (
         SELECT
             bc.id,
+            bc.tipo_solicitud,
             bc.id_cliente,
             c.razon_social AS cliente_razon_social,
             c.nombres AS cliente_nombres,
