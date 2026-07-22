@@ -96,4 +96,11 @@ export class ActividadesModel {
       idUsuarioAuditoria ?? null,
     ]);
   }
+
+  marcarComoRealizada(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('age_cambiar_estado_actividad_realizada', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
 }

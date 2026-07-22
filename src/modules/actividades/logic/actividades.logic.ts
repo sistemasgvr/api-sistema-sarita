@@ -66,4 +66,9 @@ export class ActividadesLogic {
     const result = await this.actividadesModel.eliminar(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Actividad ${id} no encontrada`);
   }
+
+  async marcarComoRealizada(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.actividadesModel.marcarComoRealizada(id, idUsuarioAuditoria);
+    return mapSingleResult(result, `Actividad ${id} no encontrada`)
+  }
 }
