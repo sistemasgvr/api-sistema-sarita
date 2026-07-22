@@ -23,7 +23,7 @@ export class BajasClienteModel {
       filtros.offset ?? 0,
       filtros.idCliente ?? null,
       filtros.idEstadoAprobacion ?? null,
-      filtros.tipoSolicitud ?? null,
+      filtros.idTipoSolicitud ?? null,
     ]);
   }
 
@@ -41,6 +41,7 @@ export class BajasClienteModel {
         dto.idCliente,
         dto.motivoDetalle ?? null,
         dto.idUsuarioAuditoria ?? null,
+        dto.idTipoSolicitud ?? null,
       ],
     );
   }
@@ -53,6 +54,7 @@ export class BajasClienteModel {
         dto.idMotivoBaja ?? null,
         dto.motivoDetalle ?? null,
         dto.idUsuarioAuditoria ?? null,
+        dto.idTipoSolicitud ?? null,
       ],
     );
   }

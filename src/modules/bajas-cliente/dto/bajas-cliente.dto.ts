@@ -29,6 +29,12 @@ export class SolicitarBajaClienteDto extends AuditoriaDto {
   @IsString()
   @MaxLength(500)
   motivoDetalle?: string;
+
+  @ApiPropertyOptional({ example: 233, description: 'ID de tipo de solicitud (TipoSolicitud: BAJA)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idTipoSolicitud?: number;
 }
 
 export class AprobarRechazarBajaDto extends AuditoriaDto {
@@ -51,6 +57,12 @@ export class SolicitarReactivacionClienteDto extends AuditoriaDto {
   @IsString()
   @MaxLength(500)
   motivoDetalle?: string;
+
+  @ApiPropertyOptional({ example: 234, description: 'ID de tipo de solicitud (TipoSolicitud: REACTIVACION)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idTipoSolicitud?: number;
 }
 
 export class FiltroBajaClienteDto extends FiltroPaginacionDto {
@@ -72,8 +84,9 @@ export class FiltroBajaClienteDto extends FiltroPaginacionDto {
   @IsInt()
   idEstadoAprobacion?: number;
 
-  @ApiPropertyOptional({ example: 'BAJA', description: 'Filtrar por tipo de solicitud: BAJA | REACTIVACION' })
+  @ApiPropertyOptional({ example: 1, description: 'Filtrar por tipo de solicitud (ID gen_lista_opciones: BAJA/REACTIVACION)' })
   @IsOptional()
-  @IsString()
-  tipoSolicitud?: string;
+  @Type(() => Number)
+  @IsInt()
+  idTipoSolicitud?: number;
 }
