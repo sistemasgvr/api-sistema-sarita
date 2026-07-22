@@ -7,6 +7,7 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import {
   CreatePrestamosDetalleDto,
+  DevolverPrestamosDetalleDto,
   FiltroPrestamosDetalleDto,
   UpdatePrestamosDetalleDto,
 } from '../dto/prestamos-detalle.dto';
@@ -68,6 +69,15 @@ export class PrestamosDetalleModel {
       dto.numeroGuiaDevolucion ?? null,
       dto.idEstado ?? null,
       dto.observacion ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  devolver(id: number, dto: DevolverPrestamosDetalleDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_devolver_prestamo_detalle', [
+      id,
+      dto.fechaDevolucion ?? null,
+      dto.idAlmacenDestino ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }

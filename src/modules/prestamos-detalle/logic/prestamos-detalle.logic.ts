@@ -6,6 +6,7 @@ import {
 } from '../../../common/helpers/auth-response.helper';
 import {
   CreatePrestamosDetalleDto,
+  DevolverPrestamosDetalleDto,
   FiltroPrestamosDetalleDto,
   UpdatePrestamosDetalleDto,
 } from '../dto/prestamos-detalle.dto';
@@ -32,6 +33,11 @@ export class PrestamosDetalleLogic {
 
   async actualizar(id: number, dto: UpdatePrestamosDetalleDto) {
     const result = await this.model.actualizar(id, dto);
+    return mapSingleResult(result, `Detalle de préstamo ${id} no encontrado`);
+  }
+
+  async devolver(id: number, dto: DevolverPrestamosDetalleDto) {
+    const result = await this.model.devolver(id, dto);
     return mapSingleResult(result, `Detalle de préstamo ${id} no encontrado`);
   }
 

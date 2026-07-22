@@ -206,3 +206,18 @@ export class UpdatePrestamosDetalleDto extends AuditoriaDto {
   @IsString()
   observacion?: string;
 }
+
+export class DevolverPrestamosDetalleDto extends AuditoriaDto {
+  @ApiPropertyOptional({ description: 'Fecha de devolución (default: hoy)' })
+  @IsOptional()
+  @IsDateString()
+  fechaDevolucion?: string;
+
+  @ApiPropertyOptional({
+    description: 'Almacén destino del reingreso (default: almacén del préstamo)',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idAlmacenDestino?: number;
+}

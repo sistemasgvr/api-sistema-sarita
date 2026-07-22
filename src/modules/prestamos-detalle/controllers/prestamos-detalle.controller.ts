@@ -16,6 +16,7 @@ import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   CreatePrestamosDetalleDto,
+  DevolverPrestamosDetalleDto,
   FiltroPrestamosDetalleDto,
   UpdatePrestamosDetalleDto,
 } from '../dto/prestamos-detalle.dto';
@@ -46,6 +47,17 @@ export class PrestamosDetalleController {
   @ApiOperation({ summary: 'Crear' })
   crear(@Body() dto: CreatePrestamosDetalleDto) {
     return this.logic.crear(dto);
+  }
+
+  @Post(':id/devolver')
+  @Permisos(PermisoBanderas.PRESTAMOS_DETALLE_EDITAR)
+  @ApiOperation({ summary: 'Registrar devolución / reingreso del cilindro' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  devolver(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: DevolverPrestamosDetalleDto,
+  ) {
+    return this.logic.devolver(id, dto);
   }
 
   @Patch(':id')
