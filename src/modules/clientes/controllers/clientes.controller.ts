@@ -15,6 +15,7 @@ import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroClienteDto } from '../dto/filtros-cliente.dto';
+import { FiltroClienteMapaDto } from '../dto/filtros-cliente-mapa.dto';
 import { ClientesLogic } from '../logic/clientes.logic';
 import { ValidarDocumentoClienteDto } from '../dto/validar-documento.dto';
 import { CreateClienteDto, UpdateClienteDto } from '../dto/crear-cliente.dto';
@@ -31,6 +32,16 @@ export class ClientesController {
   })
   validarDocumento(@Query() dto: ValidarDocumentoClienteDto) {
     return this.clientesLogic.validarDocumento(dto);
+  }
+
+  @Get('mapa')
+  @Permisos(PermisoBanderas.CLIENTES_LISTAR)
+  @ApiOperation({
+    summary:
+      'Listar clientes con coordenadas para mapa (incluye balones en préstamo/alquiler/propios)',
+  })
+  listarMapa(@Query() filtros: FiltroClienteMapaDto) {
+    return this.clientesLogic.listarMapa(filtros);
   }
 
   @Get()

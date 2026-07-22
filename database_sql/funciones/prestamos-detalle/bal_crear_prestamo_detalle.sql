@@ -21,14 +21,27 @@ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
+    v_id_cliente INTEGER;
+    v_id_estado_prestado INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    IF NOT EXISTS (
+    SELECT id_cliente
+    INTO v_id_cliente
+    FROM bal_prestamo
+    WHERE id = p_id_prestamo AND estado = 1;
+
+    IF v_id_cliente IS NULL AND NOT EXISTS (
         SELECT 1 FROM bal_prestamo WHERE id = p_id_prestamo AND estado = 1
     ) THEN
         RETURN json_build_object('error', 'El préstamo indicado no existe o está inactivo', 'registro', NULL);
     END IF;
+
+    SELECT lo.id INTO v_id_estado_prestado
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'PRESTADO_CLIENTE' AND lo.estado = 1
+    LIMIT 1;
 
     INSERT INTO bal_prestamo_detalle (
         id_prestamo, id_balon, id_producto, motivo_especifico,
@@ -45,6 +58,17 @@ BEGIN
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;
+
+    IF p_id_balon IS NOT NULL AND v_id_cliente IS NOT NULL THEN
+        UPDATE bal_balon
+        SET
+            id_cliente_ubicacion = v_id_cliente,
+            id_almacen = NULL,
+            id_estado_balon = COALESCE(v_id_estado_prestado, id_estado_balon),
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id = p_id_balon AND estado = 1;
+    END IF;
 
     RETURN bal_obtener_prestamo_detalle(v_id);
 END;
