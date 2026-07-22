@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
   mapDeleteResult,
   mapListResult,
   mapSingleResult,
 } from '../../../common/helpers/auth-response.helper';
+import { StorageLogic } from '../../storage/logic/storage.logic';
 import {
   CreateProductoDto,
   FiltroProductosDto,
@@ -25,16 +26,64 @@ type ProductoUbicacionRegistro = {
   nombre?: string | null;
 };
 
+type ProductoListadoRegistro = {
+  imagen_principal_ruta?: string | null;
+  url_imagen_principal?: string | null;
+  [key: string]: unknown;
+};
+
 @Injectable()
 export class ProductosLogic {
+  private readonly logger = new Logger(ProductosLogic.name);
+
   constructor(
     private readonly productosModel: ProductosModel,
     private readonly ubicacionPdfGenerator: ProductoUbicacionPdfGenerator,
+    private readonly storageLogic: StorageLogic,
   ) {}
 
   async listar(filtros: FiltroProductosDto) {
     const result = await this.productosModel.listar(filtros);
-    return mapListResult(result, filtros);
+    const mapped = mapListResult(result, filtros);
+    const registros = (mapped.data ?? []) as ProductoListadoRegistro[];
+    mapped.data = await this.conUrlsImagenPrincipal(registros);
+    return mapped;
+  }
+
+  private async conUrlsImagenPrincipal(
+    registros: ProductoListadoRegistro[],
+  ): Promise<ProductoListadoRegistro[]> {
+    const rutas = [
+      ...new Set(
+        registros
+          .map((registro) => registro.imagen_principal_ruta?.trim())
+          .filter((ruta): ruta is string => Boolean(ruta)),
+      ),
+    ];
+
+    const urlPorRuta = new Map<string, string>();
+    await Promise.all(
+      rutas.map(async (ruta) => {
+        try {
+          const signed = await this.storageLogic.firmarUrl(ruta);
+          urlPorRuta.set(ruta, signed.signedUrl);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          this.logger.warn(
+            `No se pudo firmar imagen principal [${ruta}]: ${message}`,
+          );
+        }
+      }),
+    );
+
+    return registros.map((registro) => {
+      const ruta = registro.imagen_principal_ruta?.trim() || null;
+      const { imagen_principal_ruta: _ruta, ...rest } = registro;
+      return {
+        ...rest,
+        url_imagen_principal: ruta ? (urlPorRuta.get(ruta) ?? null) : null,
+      };
+    });
   }
 
   async obtenerPorId(id: number) {

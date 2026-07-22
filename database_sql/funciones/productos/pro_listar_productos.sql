@@ -88,6 +88,7 @@ BEGIN
                 WHEN p_id_almacen IS NULL THEN NULL
                 ELSE COALESCE(st.stock, 0) <= COALESCE(st.stock_minimo, 0)
             END AS stock_bajo,
+            img.ruta AS imagen_principal_ruta,
             p.fecha_creacion,
             p.fecha_modificacion,
             p.id_usuario_creacion,
@@ -105,6 +106,15 @@ BEGIN
            AND st.estado = 1
            AND p_id_almacen IS NOT NULL
            AND st.id_almacen = p_id_almacen
+        LEFT JOIN LATERAL (
+            SELECT a.ruta
+            FROM pro_producto_imagen pi
+            INNER JOIN gen_archivo a ON a.id = pi.id_archivo
+            WHERE pi.id_producto = p.id
+              AND pi.estado = 1
+            ORDER BY pi.es_principal DESC, pi.orden ASC, pi.id ASC
+            LIMIT 1
+        ) img ON TRUE
         WHERE (p_solo_activos IS NULL OR p.estado = p_solo_activos)
           AND (p_id_sub_categoria IS NULL OR p.id_sub_categoria = p_id_sub_categoria)
           AND (p_id_categoria IS NULL OR sc.id_categoria = p_id_categoria)
