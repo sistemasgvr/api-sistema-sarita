@@ -72,6 +72,7 @@ FROM (
         ('PRESTAMO', 'Préstamo de cilindro'),
         ('ALQUILER', 'Alquiler de cilindro'),
         ('RECARGA', 'Recarga de gas'),
+        ('MANTENIMIENTO', 'Mantenimiento de cilindro'),
         ('COMPRA', 'Comprobante de compra'),
         ('DEVOLUCION', 'Devolución de cilindro o mercadería')
 ) AS v(nombre, descripcion)

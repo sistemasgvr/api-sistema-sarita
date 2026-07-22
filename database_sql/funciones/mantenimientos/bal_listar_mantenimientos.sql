@@ -45,12 +45,32 @@ BEGIN
             m.es_externo,
             m.id_estado,
             em.nombre AS nombre_estado,
+            m.id_comprobante_venta,
+            CASE
+                WHEN cv.id IS NULL THEN NULL
+                ELSE CONCAT_WS('-', cv.serie, cv.numero)
+            END AS comprobante_venta,
+            m.id_comprobante_compra,
+            CASE
+                WHEN cc.id IS NULL THEN NULL
+                ELSE CONCAT_WS('-', cc.serie, cc.numero)
+            END AS comprobante_compra,
             m.estado,
-            m.fecha_creacion
+            m.fecha_creacion,
+            (
+                m.id_comprobante_venta IS NULL
+                AND m.id_comprobante_compra IS NULL
+                AND NOT EXISTS (
+                    SELECT 1 FROM bal_balon_ph_historial ph
+                    WHERE ph.id_mantenimiento = m.id AND ph.estado = 1
+                )
+            ) AS puede_eliminar
         FROM bal_mantenimiento m
         INNER JOIN bal_balon b ON m.id_balon = b.id
         LEFT JOIN gen_lista_opciones tm ON m.id_tipo_mantenimiento = tm.id
         LEFT JOIN gen_lista_opciones em ON m.id_estado = em.id
+        LEFT JOIN ven_comprobante cv ON m.id_comprobante_venta = cv.id
+        LEFT JOIN com_comprobante_compra cc ON m.id_comprobante_compra = cc.id
         WHERE m.estado = 1
           AND (p_id_balon IS NULL OR m.id_balon = p_id_balon)
           AND (p_id_tipo_mantenimiento IS NULL OR m.id_tipo_mantenimiento = p_id_tipo_mantenimiento)

@@ -1592,7 +1592,7 @@ INSERT INTO gen_lista (nombre, descripcion) VALUES
 ('MotivoNotaCredito', '01=Anulación, 07=Descuento, 08=Devolución, 13=Ajuste de precio'),
 ('MotivoNotaDebito',  '01=Intereses por mora, 02=Aumento de valor, 03=Penalidades'),
 ('TipoOperacionSunat','0101=Venta interna, 0112=Sustento gastos, 0200=Exportación'),
-('TipoDocumentoRef',  'Tipos de documento origen en movimientos: FACTURA, GRE, PRESTAMO, ALQUILER, RECARGA, COMPRA, DEVOLUCION'),
+('TipoDocumentoRef',  'Tipos de documento origen en movimientos: FACTURA, GRE, PRESTAMO, ALQUILER, RECARGA, MANTENIMIENTO, COMPRA, DEVOLUCION'),
 ('EstadoSunat',       'PENDIENTE, ACEPTADO, RECHAZADO, BAJA, NO_APLICA'),
 ('TipoGuiaRemision',  '09=GRE Remitente, 31=GRE Transportista'),
 ('AfectacionIgv',     '10=Gravado, 20=Exonerado, 30=Inafecto, 40=Exportación'),

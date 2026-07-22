@@ -55,6 +55,13 @@ BEGIN
         );
     END IF;
 
+    IF EXISTS (SELECT 1 FROM bal_movimiento_recarga WHERE id_balon = p_id AND estado = 1) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE, 'id', p_id,
+            'error', 'No se puede eliminar el balón porque tiene recargas. Solicite baja si corresponde.'
+        );
+    END IF;
+
     IF EXISTS (SELECT 1 FROM bal_prestamo_detalle WHERE id_balon = p_id AND estado = 1) THEN
         RETURN json_build_object(
             'eliminado', FALSE, 'id', p_id,
@@ -80,6 +87,27 @@ BEGIN
         RETURN json_build_object(
             'eliminado', FALSE, 'id', p_id,
             'error', 'No se puede eliminar el balón porque tiene historial de P.H. Solicite baja para conservarlo.'
+        );
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM bal_balon_estado_historial WHERE id_balon = p_id AND estado = 1) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE, 'id', p_id,
+            'error', 'No se puede eliminar el balón porque tiene historial de baja/reactivación. Solicite baja si corresponde.'
+        );
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM ven_comprobante_detalle WHERE id_balon = p_id AND estado = 1) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE, 'id', p_id,
+            'error', 'No se puede eliminar el balón porque está referenciado en comprobantes de venta.'
+        );
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM gre_guia_remision_detalle WHERE id_balon = p_id AND estado = 1) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE, 'id', p_id,
+            'error', 'No se puede eliminar el balón porque está referenciado en guías de remisión.'
         );
     END IF;
 

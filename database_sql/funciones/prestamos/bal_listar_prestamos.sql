@@ -43,17 +43,46 @@ BEGIN
             pr.titulo,
             pr.id_estado,
             ep.nombre AS nombre_estado,
+            pr.id_comprobante_venta,
+            CASE
+                WHEN cv.id IS NULL THEN NULL
+                ELSE CONCAT_WS('-', cv.serie, cv.numero)
+            END AS comprobante_venta,
+            pr.id_comprobante_compra,
+            CASE
+                WHEN cc.id IS NULL THEN NULL
+                ELSE CONCAT_WS('-', cc.serie, cc.numero)
+            END AS comprobante_compra,
             pr.estado,
             pr.fecha_creacion,
             (
                 SELECT COUNT(*)::INTEGER
                 FROM bal_prestamo_detalle pd
                 WHERE pd.id_prestamo = pr.id AND pd.estado = 1
-            ) AS total_detalles
+            ) AS total_detalles,
+            (
+                SELECT COUNT(*)::INTEGER
+                FROM ven_garantia vg
+                WHERE vg.id_prestamo = pr.id AND vg.estado = 1
+            ) AS total_garantias,
+            (
+                pr.id_comprobante_venta IS NULL
+                AND pr.id_comprobante_compra IS NULL
+                AND NOT EXISTS (
+                    SELECT 1 FROM bal_prestamo_detalle pd
+                    WHERE pd.id_prestamo = pr.id AND pd.estado = 1
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM ven_garantia vg
+                    WHERE vg.id_prestamo = pr.id AND vg.estado = 1
+                )
+            ) AS puede_eliminar
         FROM bal_prestamo pr
         LEFT JOIN gen_lista_opciones tp ON pr.id_tipo_prestamo = tp.id
         LEFT JOIN cli_clientes c ON pr.id_cliente = c.id
         LEFT JOIN gen_lista_opciones ep ON pr.id_estado = ep.id
+        LEFT JOIN ven_comprobante cv ON pr.id_comprobante_venta = cv.id
+        LEFT JOIN com_comprobante_compra cc ON pr.id_comprobante_compra = cc.id
         WHERE pr.estado = 1
           AND (p_id_tipo_prestamo IS NULL OR pr.id_tipo_prestamo = p_id_tipo_prestamo)
           AND (p_id_cliente IS NULL OR pr.id_cliente = p_id_cliente)

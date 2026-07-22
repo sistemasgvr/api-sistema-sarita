@@ -27,6 +27,61 @@ BEGIN
         );
     END IF;
 
+    IF EXISTS (
+        SELECT 1 FROM bal_prestamo
+        WHERE estado = 1 AND id_comprobante_venta = p_id
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede eliminar el comprobante porque está vinculado a un préstamo'
+        );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM bal_alquiler
+        WHERE estado = 1 AND id_comprobante_venta = p_id
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede eliminar el comprobante porque está vinculado a un alquiler'
+        );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM bal_mantenimiento
+        WHERE estado = 1 AND id_comprobante_venta = p_id
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede eliminar el comprobante porque está vinculado a un mantenimiento'
+        );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM bal_movimiento_recarga
+        WHERE estado = 1 AND id_comprobante = p_id
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede eliminar el comprobante porque está vinculado a una recarga'
+        );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM ven_garantia_movimiento
+        WHERE estado = 1 AND id_comprobante = p_id
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede eliminar el comprobante porque está vinculado a un movimiento de garantía'
+        );
+    END IF;
+
     UPDATE ven_comprobante_detalle
     SET estado = 0,
         id_usuario_modificacion = p_id_usuario_auditoria,

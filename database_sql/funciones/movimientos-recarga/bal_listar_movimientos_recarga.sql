@@ -58,7 +58,12 @@ BEGIN
             mr.id_almacen,
             a.nombre AS nombre_almacen,
             mr.estado,
-            mr.fecha_creacion
+            mr.fecha_creacion,
+            mr.id_comprobante IS NULL
+            AND NOT EXISTS (
+                SELECT 1 FROM bal_balon_ph_historial ph
+                WHERE ph.id_movimiento_recarga = mr.id AND ph.estado = 1
+            ) AS puede_eliminar
         FROM bal_movimiento_recarga mr
         INNER JOIN bal_balon b ON mr.id_balon = b.id
         LEFT JOIN cli_clientes cli ON mr.id_cliente = cli.id

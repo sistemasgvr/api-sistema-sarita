@@ -25,7 +25,17 @@ BEGIN
             m.id_estado,
             em.nombre AS nombre_estado,
             m.id_comprobante_venta,
+            cv.serie AS serie_comprobante_venta,
+            cv.numero AS numero_comprobante_venta,
+            cv.fecha AS fecha_comprobante_venta,
+            cv_cli.razon_social AS nombre_cliente_comprobante_venta,
+            cv.total_importe AS total_comprobante_venta,
             m.id_comprobante_compra,
+            cc.serie AS serie_comprobante_compra,
+            cc.numero AS numero_comprobante_compra,
+            cc.fecha AS fecha_comprobante_compra,
+            cc_prov.razon_social AS nombre_proveedor_comprobante_compra,
+            cc.total_importe AS total_comprobante_compra,
             m.observacion,
             m.estado,
             m.fecha_creacion,
@@ -39,6 +49,10 @@ BEGIN
         LEFT JOIN gen_lista_opciones tm ON m.id_tipo_mantenimiento = tm.id
         LEFT JOIN cli_clientes prov ON m.id_proveedor = prov.id
         LEFT JOIN gen_lista_opciones em ON m.id_estado = em.id
+        LEFT JOIN ven_comprobante cv ON m.id_comprobante_venta = cv.id
+        LEFT JOIN cli_clientes cv_cli ON cv.id_cliente = cv_cli.id
+        LEFT JOIN com_comprobante_compra cc ON m.id_comprobante_compra = cc.id
+        LEFT JOIN cli_clientes cc_prov ON cc.id_proveedor = cc_prov.id
         LEFT JOIN auth_usuarios uc ON m.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON m.id_usuario_modificacion = um.id
         WHERE m.id = p_id AND m.estado = 1

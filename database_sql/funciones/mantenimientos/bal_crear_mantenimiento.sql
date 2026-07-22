@@ -55,7 +55,7 @@ BEGIN
     SELECT lo.id INTO v_id_tipo_documento_ref
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'FACTURA' AND lo.estado = 1
+    WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'MANTENIMIENTO' AND lo.estado = 1
     LIMIT 1;
 
     SELECT lo.id INTO v_id_estado_mantenimiento

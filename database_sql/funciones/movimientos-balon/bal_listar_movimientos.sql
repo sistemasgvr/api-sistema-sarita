@@ -42,6 +42,9 @@ BEGIN
             b.codigo_balon,
             m.id_tipo_movimiento,
             tm.nombre AS nombre_tipo_movimiento,
+            m.id_documento_ref,
+            m.id_tipo_documento_ref,
+            tdr.nombre AS nombre_tipo_documento_ref,
             m.id_cliente,
             c.razon_social AS nombre_cliente,
             m.id_almacen_origen,
@@ -51,10 +54,18 @@ BEGIN
             m.fecha_movimiento,
             m.observacion,
             m.estado,
-            m.fecha_creacion
+            m.fecha_creacion,
+            (
+                m.id_documento_ref IS NULL
+                AND NOT EXISTS (
+                    SELECT 1 FROM bal_baja_balon bb
+                    WHERE bb.id_movimiento = m.id AND bb.estado = 1
+                )
+            ) AS puede_eliminar
         FROM bal_movimiento m
         INNER JOIN bal_balon b ON m.id_balon = b.id
         LEFT JOIN gen_lista_opciones tm ON m.id_tipo_movimiento = tm.id
+        LEFT JOIN gen_lista_opciones tdr ON m.id_tipo_documento_ref = tdr.id
         LEFT JOIN cli_clientes c ON m.id_cliente = c.id
         LEFT JOIN gen_almacen ao ON m.id_almacen_origen = ao.id
         LEFT JOIN gen_almacen ad ON m.id_almacen_destino = ad.id

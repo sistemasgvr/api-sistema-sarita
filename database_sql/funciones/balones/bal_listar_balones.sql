@@ -142,6 +142,23 @@ BEGIN
                   AND bb.estado = 1
                   AND bb.estado_aprobacion = 'APROBADA'
             ) AS tiene_baja_aprobada,
+            NOT (
+                COALESCE(eb.nombre, '') IN ('DADO_DE_BAJA', 'ROBO')
+                OR EXISTS (
+                    SELECT 1 FROM bal_baja_balon bb
+                    WHERE bb.id_balon = b.id AND bb.estado = 1
+                      AND bb.estado_aprobacion IN ('PENDIENTE', 'APROBADA')
+                )
+                OR EXISTS (SELECT 1 FROM bal_movimiento m WHERE m.id_balon = b.id AND m.estado = 1)
+                OR EXISTS (SELECT 1 FROM bal_movimiento_recarga mr WHERE mr.id_balon = b.id AND mr.estado = 1)
+                OR EXISTS (SELECT 1 FROM bal_prestamo_detalle pd WHERE pd.id_balon = b.id AND pd.estado = 1)
+                OR EXISTS (SELECT 1 FROM bal_alquiler_detalle ad WHERE ad.id_balon = b.id AND ad.estado = 1)
+                OR EXISTS (SELECT 1 FROM bal_mantenimiento mt WHERE mt.id_balon = b.id AND mt.estado = 1)
+                OR EXISTS (SELECT 1 FROM bal_balon_ph_historial ph WHERE ph.id_balon = b.id AND ph.estado = 1)
+                OR EXISTS (SELECT 1 FROM bal_balon_estado_historial eh WHERE eh.id_balon = b.id AND eh.estado = 1)
+                OR EXISTS (SELECT 1 FROM ven_comprobante_detalle vd WHERE vd.id_balon = b.id AND vd.estado = 1)
+                OR EXISTS (SELECT 1 FROM gre_guia_remision_detalle gd WHERE gd.id_balon = b.id AND gd.estado = 1)
+            ) AS puede_eliminar,
             b.estado,
             b.fecha_creacion,
             b.fecha_modificacion
