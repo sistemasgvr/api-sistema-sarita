@@ -67,7 +67,7 @@ FROM (
         ('BOLETA', 'Boleta de venta'),
         ('NOTA_CREDITO', 'Nota de crédito'),
         ('NOTA_DEBITO', 'Nota de débito'),
-        ('NOTA_VENTA', 'Nota de venta interna (no CPE)'),
+        ('NOTA_VENTA', 'Venta sin documento / nota de venta interna (no CPE)'),
         ('GRE', 'Guía de remisión electrónica'),
         ('PRESTAMO', 'Préstamo de cilindro'),
         ('ALQUILER', 'Alquiler de cilindro'),

@@ -4,7 +4,7 @@ INSERT INTO gen_lista (nombre, descripcion)
 SELECT v.nombre, v.descripcion
 FROM (
     VALUES
-        ('TipoComprobante', 'Tipos: 01=Factura, 03=Boleta, 07=NC, 08=ND, NV=Nota de venta (interno)'),
+        ('TipoComprobante', 'Tipos: 01=Factura, 03=Boleta, 07=NC, 08=ND, NV=Venta sin documento (interno)'),
         ('MotivoNotaCredito', 'Motivos nota de crédito SUNAT'),
         ('MotivoNotaDebito', 'Motivos nota de débito SUNAT'),
         ('TipoOperacionSunat', 'Catálogo 51 - tipo de operación'),
@@ -20,7 +20,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM gen_lista l WHERE l.nombre = v.nombre
 );
 
--- TipoComprobante (código SUNAT en descripcion)
+-- TipoComprobante (código en descripcion: SUNAT 01/03/07/08; NV = venta sin documento / nota de venta interna)
 INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
@@ -37,6 +37,22 @@ WHERE l.nombre = 'TipoComprobante'
       SELECT 1 FROM gen_lista_opciones lo
       WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
   );
+
+-- Normaliza alias VSD / "venta sin documento" → NOTA_VENTA (NV)
+UPDATE gen_lista_opciones lo
+SET nombre = 'NOTA_VENTA',
+    descripcion = 'NV'
+FROM gen_lista l
+WHERE lo.id_lista = l.id
+  AND l.nombre = 'TipoComprobante'
+  AND (
+      UPPER(lo.descripcion) = 'VSD'
+      OR UPPER(lo.nombre) IN ('VSD', 'VENTA_SIN_DOCUMENTO', 'VENTA SIN DOCUMENTO')
+  );
+
+UPDATE gen_lista
+SET descripcion = 'Tipos: 01=Factura, 03=Boleta, 07=NC, 08=ND, NV=Venta sin documento (interno)'
+WHERE nombre = 'TipoComprobante';
 
 -- MotivoNotaCredito
 INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)

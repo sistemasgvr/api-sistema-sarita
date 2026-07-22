@@ -31,6 +31,27 @@ import { ComprobanteTicketPdfGenerator } from '../services/comprobante-ticket-pd
 
 const CODIGO_NOTA_VENTA = 'NV';
 
+function esCodigoVentaSinDocumento(codigo?: string | null): boolean {
+  const value = (codigo ?? '').trim().toUpperCase();
+  return value === CODIGO_NOTA_VENTA || value === 'VSD';
+}
+
+/** Plazo máximo de emisión SUNAT (días calendario desde la fecha del comprobante). */
+function diasPlazoEmisionSunat(codigoTipo?: string | null): number | null {
+  if (codigoTipo === '01') return 3;
+  if (codigoTipo === '03') return 5;
+  return null;
+}
+
+function diasDesdeFechaComprobante(fecha: string | Date): number {
+  const raw = typeof fecha === 'string' ? fecha.slice(0, 10) : fecha.toISOString().slice(0, 10);
+  const [y, m, d] = raw.split('-').map(Number);
+  const inicio = Date.UTC(y, m - 1, d);
+  const ahora = new Date();
+  const hoy = Date.UTC(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+  return Math.floor((hoy - inicio) / 86_400_000);
+}
+
 interface SunatResponsePayload {
   success?: boolean;
   error?: { code?: string; message?: string };
@@ -488,9 +509,9 @@ export class ComprobantesLogic {
       throw new NotFoundException(`Comprobante ${id} no encontrado`);
     }
 
-    if (comprobante.registro.codigo_tipo_comprobante === CODIGO_NOTA_VENTA) {
+    if (esCodigoVentaSinDocumento(comprobante.registro.codigo_tipo_comprobante)) {
       throw new BadRequestException(
-        'La nota de venta es un documento interno y no se emite a SUNAT',
+        'La venta sin documento es un documento interno y no se emite a SUNAT',
       );
     }
 
@@ -502,6 +523,22 @@ export class ComprobantesLogic {
 
     if (comprobante.registro.nombre_estado_sunat === 'BAJA') {
       throw new BadRequestException('El comprobante está dado de baja');
+    }
+
+    const plazoDias = diasPlazoEmisionSunat(
+      comprobante.registro.codigo_tipo_comprobante,
+    );
+    if (plazoDias != null && comprobante.registro.fecha) {
+      const transcurridos = diasDesdeFechaComprobante(comprobante.registro.fecha);
+      if (transcurridos > plazoDias) {
+        const tipoLabel =
+          comprobante.registro.codigo_tipo_comprobante === '01'
+            ? 'factura'
+            : 'boleta';
+        throw new BadRequestException(
+          `No se puede emitir: la ${tipoLabel} supera el plazo de ${plazoDias} días desde su fecha`,
+        );
+      }
     }
 
     const empresa = await this.model.obtenerEmpresaEmisora();
@@ -579,8 +616,9 @@ export class ComprobantesLogic {
       throw new NotFoundException(`Comprobante ${id} no encontrado`);
     }
 
-    const esNotaVenta =
-      comprobante.registro.codigo_tipo_comprobante === CODIGO_NOTA_VENTA;
+    const esNotaVenta = esCodigoVentaSinDocumento(
+      comprobante.registro.codigo_tipo_comprobante,
+    );
 
     if (!esNotaVenta) {
       await this.assertFacturacionConfigurada();

@@ -30,7 +30,6 @@ import {
   UpdateComprobantesDto,
 } from '../dto/comprobantes.dto';
 import { ComprobantesLogic } from '../logic/comprobantes.logic';
-import { Public } from 'src/common/decorators/public.decorator';
 
 @ApiTags('Comprobantes')
 @Controller('comprobantes')
@@ -38,7 +37,6 @@ export class ComprobantesController {
   constructor(private readonly logic: ComprobantesLogic) {}
 
   @Get()
-  @Public()
   @Permisos(PermisoBanderas.COMPROBANTES_LISTAR)
   @ApiOperation({ summary: 'Listar comprobantes de venta' })
   listar(@Query() filtros: FiltroComprobantesDto) {

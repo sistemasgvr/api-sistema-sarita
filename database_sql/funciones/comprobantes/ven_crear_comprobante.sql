@@ -134,10 +134,10 @@ BEGIN
         );
     END IF;
 
-    IF v_codigo_tipo = 'NV' AND left(v_serie, 2) <> 'NV' THEN
+    IF v_codigo_tipo IN ('NV', 'VSD') AND left(v_serie, 2) <> 'NV' THEN
         RETURN json_build_object(
             'error',
-            'La nota de venta debe usar serie que inicie con NV (ej. NV01)',
+            'La venta sin documento debe usar serie que inicie con NV (ej. NV01)',
             'registro',
             NULL
         );
@@ -195,7 +195,7 @@ BEGIN
     INNER JOIN gen_lista l ON lo.id_lista = l.id
     WHERE l.nombre = 'EstadoSunat'
       AND lo.nombre = CASE
-        WHEN v_codigo_tipo = 'NV' THEN 'NO_APLICA'
+        WHEN v_codigo_tipo IN ('NV', 'VSD') THEN 'NO_APLICA'
         ELSE 'PENDIENTE'
       END
       AND lo.estado = 1
@@ -318,7 +318,7 @@ BEGIN
             WHEN v_codigo_tipo = '03' THEN 'BOLETA'
             WHEN v_codigo_tipo = '07' THEN 'NOTA_CREDITO'
             WHEN v_codigo_tipo = '08' THEN 'NOTA_DEBITO'
-            WHEN v_codigo_tipo = 'NV' THEN 'NOTA_VENTA'
+            WHEN v_codigo_tipo IN ('NV', 'VSD') THEN 'NOTA_VENTA'
             ELSE 'FACTURA'
           END
           AND lo.estado = 1
