@@ -45,7 +45,10 @@ function diasPlazoEmisionSunat(codigoTipo?: string | null): number | null {
 }
 
 function diasDesdeFechaComprobante(fecha: string | Date): number {
-  const raw = typeof fecha === 'string' ? fecha.slice(0, 10) : fecha.toISOString().slice(0, 10);
+  const raw =
+    typeof fecha === 'string'
+      ? fecha.slice(0, 10)
+      : fecha.toISOString().slice(0, 10);
   const [y, m, d] = raw.split('-').map(Number);
   const inicio = Date.UTC(y, m - 1, d);
   const ahora = new Date();
@@ -100,7 +103,10 @@ export class ComprobantesLogic {
 
   async previewResumenDiario(fecha: string) {
     const items = await this.model.listarParaResumenDiario(fecha);
-    const total = items.reduce((acc, item) => acc + Number(item.total_importe ?? 0), 0);
+    const total = items.reduce(
+      (acc, item) => acc + Number(item.total_importe ?? 0),
+      0,
+    );
 
     return {
       fecha,
@@ -160,7 +166,9 @@ export class ComprobantesLogic {
 
     let correlativo = dto.correlativo?.trim();
     if (!correlativo) {
-      const siguiente = await this.model.obtenerSiguienteCorrelativoResumen(dto.fecha);
+      const siguiente = await this.model.obtenerSiguienteCorrelativoResumen(
+        dto.fecha,
+      );
       correlativo = siguiente.correlativo || '001';
     }
 
@@ -172,16 +180,21 @@ export class ComprobantesLogic {
     );
 
     const respuesta = await this.facturacionClient.enviarResumenDiario(payload);
-    const sunatResponse = (respuesta.sunatResponse ?? {}) as SunatResponsePayload;
+    const sunatResponse = (respuesta.sunatResponse ??
+      {}) as SunatResponsePayload;
     const estadoSunatNombre = this.resolverEstadoSunatNombre(sunatResponse);
-    const idEstadoSunat = await this.model.resolverIdEstadoSunat(estadoSunatNombre);
+    const idEstadoSunat =
+      await this.model.resolverIdEstadoSunat(estadoSunatNombre);
     const ticket = sunatResponse.ticket ?? null;
 
     const totalImporte = items.reduce(
       (acc, item) => acc + Number(item.total_importe ?? 0),
       0,
     );
-    const totalIgv = items.reduce((acc, item) => acc + Number(item.igv ?? 0), 0);
+    const totalIgv = items.reduce(
+      (acc, item) => acc + Number(item.igv ?? 0),
+      0,
+    );
     const totalValorVenta = items.reduce(
       (acc, item) => acc + Number(item.valor_venta ?? 0),
       0,
@@ -204,7 +217,8 @@ export class ComprobantesLogic {
 
     if (resumenCreado.error || !resumenCreado.registro) {
       throw new BadRequestException(
-        resumenCreado.error ?? 'No se pudo registrar el historial del resumen diario',
+        resumenCreado.error ??
+          'No se pudo registrar el historial del resumen diario',
       );
     }
 
@@ -261,10 +275,13 @@ export class ComprobantesLogic {
       );
     }
 
-    const respuesta = await this.facturacionClient.consultarEstadoResumen({ ticket });
+    const respuesta = await this.facturacionClient.consultarEstadoResumen({
+      ticket,
+    });
     const sunatResponse = respuesta as SunatResponsePayload;
     const estadoSunatNombre = this.resolverEstadoSunatDesdeConsulta(respuesta);
-    const idEstadoSunat = await this.model.resolverIdEstadoSunat(estadoSunatNombre);
+    const idEstadoSunat =
+      await this.model.resolverIdEstadoSunat(estadoSunatNombre);
 
     const actualizado = await this.model.registrarRespuestaResumenDiario(id, {
       idEstadoSunat,
@@ -327,7 +344,9 @@ export class ComprobantesLogic {
     };
   }
 
-  async obtenerSiguienteNumero(query: SiguienteNumeroQueryDto): Promise<SiguienteNumeroResult> {
+  async obtenerSiguienteNumero(
+    query: SiguienteNumeroQueryDto,
+  ): Promise<SiguienteNumeroResult> {
     const result = await this.model.obtenerSiguienteNumero(query);
 
     if (result.error) {
@@ -375,28 +394,38 @@ export class ComprobantesLogic {
     const numero = comprobante.registro.numero;
 
     if (!tipo || !serie || !numero) {
-      throw new BadRequestException('El comprobante no tiene tipo, serie o número');
+      throw new BadRequestException(
+        'El comprobante no tiene tipo, serie o número',
+      );
     }
 
-    const respuesta = await this.facturacionClient.consultarEstadoFacturaBoleta({
-      tipo,
-      serie,
-      numero: numero.replace(/^0+/, '') || '0',
-    });
+    const respuesta = await this.facturacionClient.consultarEstadoFacturaBoleta(
+      {
+        tipo,
+        serie,
+        numero: numero.replace(/^0+/, '') || '0',
+      },
+    );
 
     const sunatResponse = (respuesta.sunatResponse ??
       respuesta) as SunatResponsePayload;
     const estadoSunatNombre = this.resolverEstadoSunatNombre(sunatResponse);
-    const idEstadoSunat = await this.model.resolverIdEstadoSunat(estadoSunatNombre);
+    const idEstadoSunat =
+      await this.model.resolverIdEstadoSunat(estadoSunatNombre);
 
-    const comprobanteActualizado = await this.model.registrarRespuestaSunat(id, {
-      idEstadoSunat: idEstadoSunat ?? undefined,
-      ticketSunat:
-        sunatResponse.ticket ?? comprobante.registro.ticket_sunat ?? undefined,
-      hashDocumento: comprobante.registro.hash_documento ?? undefined,
-      cdrRespuesta: JSON.stringify(respuesta),
-      idUsuarioAuditoria: dto.idUsuarioAuditoria,
-    });
+    const comprobanteActualizado = await this.model.registrarRespuestaSunat(
+      id,
+      {
+        idEstadoSunat: idEstadoSunat ?? undefined,
+        ticketSunat:
+          sunatResponse.ticket ??
+          comprobante.registro.ticket_sunat ??
+          undefined,
+        hashDocumento: comprobante.registro.hash_documento ?? undefined,
+        cdrRespuesta: JSON.stringify(respuesta),
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      },
+    );
 
     if (comprobanteActualizado.error) {
       throw new BadRequestException(comprobanteActualizado.error);
@@ -463,8 +492,10 @@ export class ComprobantesLogic {
       motivo,
     );
 
-    const respuesta = await this.facturacionClient.enviarComunicacionBaja(payload);
-    const sunatResponse = (respuesta.sunatResponse ?? {}) as SunatResponsePayload;
+    const respuesta =
+      await this.facturacionClient.enviarComunicacionBaja(payload);
+    const sunatResponse = (respuesta.sunatResponse ??
+      {}) as SunatResponsePayload;
     const estadoSunatNombre =
       this.resolverEstadoBajaNombre(sunatResponse) ??
       (sunatResponse.ticket ? 'PENDIENTE' : 'RECHAZADO');
@@ -472,17 +503,21 @@ export class ComprobantesLogic {
       estadoSunatNombre === 'ACEPTADO' ? 'BAJA' : estadoSunatNombre,
     );
 
-    const comprobanteActualizado = await this.model.registrarRespuestaSunat(id, {
-      idEstadoSunat: idEstadoSunat ?? undefined,
-      ticketSunat: sunatResponse.ticket ?? undefined,
-      hashDocumento: respuesta.hash ?? comprobante.registro.hash_documento ?? undefined,
-      cdrRespuesta: JSON.stringify({
-        tipo: 'comunicacion_baja',
-        motivo,
-        voided: respuesta.sunatResponse ?? respuesta,
-      }),
-      idUsuarioAuditoria: dto.idUsuarioAuditoria,
-    });
+    const comprobanteActualizado = await this.model.registrarRespuestaSunat(
+      id,
+      {
+        idEstadoSunat: idEstadoSunat ?? undefined,
+        ticketSunat: sunatResponse.ticket ?? undefined,
+        hashDocumento:
+          respuesta.hash ?? comprobante.registro.hash_documento ?? undefined,
+        cdrRespuesta: JSON.stringify({
+          tipo: 'comunicacion_baja',
+          motivo,
+          voided: respuesta.sunatResponse ?? respuesta,
+        }),
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      },
+    );
 
     if (comprobanteActualizado.error) {
       throw new BadRequestException(comprobanteActualizado.error);
@@ -510,12 +545,6 @@ export class ComprobantesLogic {
       throw new NotFoundException(`Comprobante ${id} no encontrado`);
     }
 
-    if (esCodigoVentaSinDocumento(comprobante.registro.codigo_tipo_comprobante)) {
-      throw new BadRequestException(
-        'La venta sin documento es un documento interno y no se emite a SUNAT',
-      );
-    }
-
     await this.assertFacturacionConfigurada();
 
     if (comprobante.registro.nombre_estado_sunat === 'ACEPTADO') {
@@ -530,7 +559,9 @@ export class ComprobantesLogic {
       comprobante.registro.codigo_tipo_comprobante,
     );
     if (plazoDias != null && comprobante.registro.fecha) {
-      const transcurridos = diasDesdeFechaComprobante(comprobante.registro.fecha);
+      const transcurridos = diasDesdeFechaComprobante(
+        comprobante.registro.fecha,
+      );
       if (transcurridos > plazoDias) {
         const tipoLabel =
           comprobante.registro.codigo_tipo_comprobante === '01'
@@ -558,8 +589,19 @@ export class ComprobantesLogic {
       throw new BadRequestException('El cliente del comprobante no existe');
     }
 
+    if (
+      esCodigoVentaSinDocumento(
+        comprobante.registro.codigo_tipo_comprobante_origen,
+      ) &&
+      !clienteResult.registro.numero_documento?.trim()
+    ) {
+      clienteResult.registro.numero_documento = '00000000';
+    }
+
     const ubigeo = clienteResult.registro.id_distrito
-      ? await this.model.obtenerCodigoUbigeoDistrito(clienteResult.registro.id_distrito)
+      ? await this.model.obtenerCodigoUbigeoDistrito(
+          clienteResult.registro.id_distrito,
+        )
       : '150101';
 
     const payload = this.invoiceMapper.mapComprobanteToInvoicePayload(
@@ -578,18 +620,23 @@ export class ComprobantesLogic {
       respuesta = await this.facturacionClient.enviarFacturaBoleta(payload);
     }
 
-    const sunatResponse = (respuesta.sunatResponse ?? {}) as SunatResponsePayload;
+    const sunatResponse = (respuesta.sunatResponse ??
+      {}) as SunatResponsePayload;
     const estadoSunatNombre = this.resolverEstadoSunatNombre(sunatResponse);
-    const idEstadoSunat = await this.model.resolverIdEstadoSunat(estadoSunatNombre);
+    const idEstadoSunat =
+      await this.model.resolverIdEstadoSunat(estadoSunatNombre);
 
-    const comprobanteActualizado = await this.model.registrarRespuestaSunat(id, {
-      idEstadoSunat: idEstadoSunat ?? undefined,
-      ticketSunat: sunatResponse.ticket ?? undefined,
-      hashDocumento: respuesta.hash ?? undefined,
-      xmlFirmado: respuesta.xml ?? undefined,
-      cdrRespuesta: JSON.stringify(respuesta.sunatResponse ?? respuesta),
-      idUsuarioAuditoria: dto.idUsuarioAuditoria,
-    });
+    const comprobanteActualizado = await this.model.registrarRespuestaSunat(
+      id,
+      {
+        idEstadoSunat: idEstadoSunat ?? undefined,
+        ticketSunat: sunatResponse.ticket ?? undefined,
+        hashDocumento: respuesta.hash ?? undefined,
+        xmlFirmado: respuesta.xml ?? undefined,
+        cdrRespuesta: JSON.stringify(respuesta.sunatResponse ?? respuesta),
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      },
+    );
 
     if (comprobanteActualizado.error) {
       throw new BadRequestException(comprobanteActualizado.error);
@@ -690,7 +737,7 @@ export class ComprobantesLogic {
         );
 
         if (comprobante.registro.hash_documento) {
-          ;(payload as Record<string, unknown>).hash =
+          (payload as Record<string, unknown>).hash =
             comprobante.registro.hash_documento;
         }
 
@@ -711,7 +758,9 @@ export class ComprobantesLogic {
 
   mapComprobanteToInvoicePayload(
     comprobante: Awaited<ReturnType<ComprobantesModel['obtenerCompleto']>>,
-    empresa: NonNullable<Awaited<ReturnType<ComprobantesModel['obtenerEmpresaEmisora']>>>,
+    empresa: NonNullable<
+      Awaited<ReturnType<ComprobantesModel['obtenerEmpresaEmisora']>>
+    >,
     cliente: NonNullable<
       Awaited<ReturnType<ClientesModel['obtenerPorId']>>['registro']
     >,
@@ -773,7 +822,10 @@ export class ComprobantesLogic {
     const code = Number(codeRaw);
     if (code === 0) return 'ACEPTADO';
     if (code === 98) return 'PENDIENTE';
-    if (!Number.isNaN(code) && ((code >= 2000 && code <= 3999) || code === 99)) {
+    if (
+      !Number.isNaN(code) &&
+      ((code >= 2000 && code <= 3999) || code === 99)
+    ) {
       return 'RECHAZADO';
     }
 
