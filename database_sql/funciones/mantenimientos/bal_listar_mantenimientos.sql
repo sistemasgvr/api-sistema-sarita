@@ -36,6 +36,18 @@ BEGIN
             m.id,
             m.id_balon,
             b.codigo_balon,
+            b.id_propietario,
+            prop.nombre AS nombre_propietario,
+            b.id_cliente_propietario,
+            COALESCE(
+                NULLIF(TRIM(cp.razon_social), ''),
+                NULLIF(
+                    TRIM(CONCAT_WS(' ', cp.nombres, cp.apellido_paterno, cp.apellido_materno)),
+                    ''
+                ),
+                cp.numero_documento
+            ) AS nombre_cliente_propietario,
+            b.id_cliente_ubicacion,
             m.id_tipo_mantenimiento,
             tm.nombre AS nombre_tipo_mantenimiento,
             m.fecha_ingreso,
@@ -67,6 +79,8 @@ BEGIN
             ) AS puede_eliminar
         FROM bal_mantenimiento m
         INNER JOIN bal_balon b ON m.id_balon = b.id
+        LEFT JOIN gen_lista_opciones prop ON b.id_propietario = prop.id
+        LEFT JOIN cli_clientes cp ON b.id_cliente_propietario = cp.id
         LEFT JOIN gen_lista_opciones tm ON m.id_tipo_mantenimiento = tm.id
         LEFT JOIN gen_lista_opciones em ON m.id_estado = em.id
         LEFT JOIN ven_comprobante cv ON m.id_comprobante_venta = cv.id

@@ -223,3 +223,47 @@ export class UpdateMantenimientosBalonDto extends AuditoriaDto {
   @IsString()
   numeroCertificadoPh?: string;
 }
+
+export class FinalizarMantenimientosBalonDto extends AuditoriaDto {
+  @ApiPropertyOptional({ description: 'Fecha de salida / reingreso (default: hoy)' })
+  @IsOptional()
+  @IsDateString()
+  fechaSalida?: string;
+
+  @ApiPropertyOptional({
+    description: 'Almacén destino del reingreso (default: almacén actual del cilindro)',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idAlmacenDestino?: number;
+
+  @ApiPropertyOptional()
+  @MaxLength(500)
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+
+  @ApiPropertyOptional({ description: 'Solo aplica si el tipo es P.H. o recertificación' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  vigenciaPhAnios?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idOrganoInspector?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  organoInspectorNoAplica?: boolean;
+
+  @ApiPropertyOptional()
+  @MaxLength(50)
+  @IsOptional()
+  @IsString()
+  numeroCertificadoPh?: string;
+}

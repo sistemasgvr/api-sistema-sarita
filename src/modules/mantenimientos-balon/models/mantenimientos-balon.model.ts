@@ -7,6 +7,7 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import {
   CreateMantenimientosBalonDto,
+  FinalizarMantenimientosBalonDto,
   FiltroMantenimientosBalonDto,
   UpdateMantenimientosBalonDto,
 } from '../dto/mantenimientos-balon.dto';
@@ -66,6 +67,20 @@ export class MantenimientosBalonModel {
       dto.idEstado ?? null,
       dto.idComprobanteVenta ?? null,
       dto.idComprobanteCompra ?? null,
+      dto.observacion ?? null,
+      dto.idUsuarioAuditoria ?? null,
+      dto.vigenciaPhAnios ?? null,
+      dto.idOrganoInspector ?? null,
+      dto.organoInspectorNoAplica ?? null,
+      dto.numeroCertificadoPh ?? null,
+    ]);
+  }
+
+  finalizar(id: number, dto: FinalizarMantenimientosBalonDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_finalizar_mantenimiento', [
+      id,
+      dto.fechaSalida ?? null,
+      dto.idAlmacenDestino ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
       dto.vigenciaPhAnios ?? null,

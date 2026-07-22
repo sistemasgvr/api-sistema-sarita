@@ -761,7 +761,7 @@ CREATE TABLE bal_movimiento (
     id_balon             INT NOT NULL REFERENCES bal_balon(id),
     id_tipo_movimiento    INT REFERENCES gen_lista_opciones(id),
     -- Tipos: SALIDA_VENTA, SALIDA_PRESTAMO, SALIDA_ALQUILER, SALIDA_MANTENIMIENTO,
-    --        ENTRADA_DEVOLUCION, ENTRADA_LLENADO, TRASLADO_LIMA, RETORNO_LIMA
+    --        ENTRADA_DEVOLUCION, ENTRADA_MANTENIMIENTO, ENTRADA_LLENADO, TRASLADO_LIMA, RETORNO_LIMA
     id_documento_ref      INT,                                              -- ID del documento asociado (polimórfico)
     id_tipo_documento_ref  INT REFERENCES gen_lista_opciones(id),            -- (gen_lista: TipoDocumentoRef)
     id_cliente           INT REFERENCES cli_clientes(id),

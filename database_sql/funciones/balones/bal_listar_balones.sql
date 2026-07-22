@@ -28,6 +28,8 @@ BEGIN
     LEFT JOIN gen_almacen a ON b.id_almacen = a.id
     LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
     LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
+    LEFT JOIN cli_clientes cu ON b.id_cliente_ubicacion = cu.id
+    LEFT JOIN cli_clientes cp ON b.id_cliente_propietario = cp.id
     WHERE b.estado = 1
       AND (p_id_tipo_balon IS NULL OR b.id_tipo_balon = p_id_tipo_balon)
       AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
@@ -86,6 +88,12 @@ BEGIN
           OR LOWER(COALESCE(tb.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(a.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(mc.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(cu.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(cu.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(cu.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(cp.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(cp.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(cp.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -100,9 +108,19 @@ BEGIN
             b.id_almacen,
             a.nombre AS nombre_almacen,
             b.id_cliente_ubicacion,
+            COALESCE(
+                NULLIF(TRIM(cu.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', cu.nombres, cu.apellido_paterno, cu.apellido_materno)), ''),
+                cu.numero_documento
+            ) AS nombre_cliente_ubicacion,
             b.id_propietario,
             prop.nombre AS nombre_propietario,
             b.id_cliente_propietario,
+            COALESCE(
+                NULLIF(TRIM(cp.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', cp.nombres, cp.apellido_paterno, cp.apellido_materno)), ''),
+                cp.numero_documento
+            ) AS nombre_cliente_propietario,
             b.id_tipo_balon,
             tb.nombre AS nombre_tipo_balon,
             tb.capacidad,
@@ -171,6 +189,8 @@ BEGIN
         LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
         LEFT JOIN gen_lista_opciones oi ON b.id_organo_inspector = oi.id
         LEFT JOIN gen_lista_opciones prop ON b.id_propietario = prop.id
+        LEFT JOIN cli_clientes cu ON b.id_cliente_ubicacion = cu.id
+        LEFT JOIN cli_clientes cp ON b.id_cliente_propietario = cp.id
         LEFT JOIN cli_clientes pl ON b.id_planta = pl.id
         WHERE b.estado = 1
           AND (p_id_tipo_balon IS NULL OR b.id_tipo_balon = p_id_tipo_balon)
@@ -230,6 +250,12 @@ BEGIN
               OR LOWER(COALESCE(tb.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(a.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(mc.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(cu.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(cu.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(cu.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(cp.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(cp.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(cp.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
           )
         ORDER BY b.codigo_balon ASC
         LIMIT p_limite

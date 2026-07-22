@@ -6,6 +6,7 @@ import {
 } from '../../../common/helpers/auth-response.helper';
 import {
   CreateMantenimientosBalonDto,
+  FinalizarMantenimientosBalonDto,
   FiltroMantenimientosBalonDto,
   UpdateMantenimientosBalonDto,
 } from '../dto/mantenimientos-balon.dto';
@@ -32,6 +33,11 @@ export class MantenimientosBalonLogic {
 
   async actualizar(id: number, dto: UpdateMantenimientosBalonDto) {
     const result = await this.model.actualizar(id, dto);
+    return mapSingleResult(result, `Mantenimiento ${id} no encontrado`);
+  }
+
+  async finalizar(id: number, dto: FinalizarMantenimientosBalonDto) {
+    const result = await this.model.finalizar(id, dto);
     return mapSingleResult(result, `Mantenimiento ${id} no encontrado`);
   }
 
