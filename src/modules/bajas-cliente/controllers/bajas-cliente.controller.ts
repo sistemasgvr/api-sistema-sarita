@@ -17,6 +17,7 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   FiltroBajaClienteDto,
   SolicitarBajaClienteDto,
+  SolicitarReactivacionClienteDto,
 } from '../dto/bajas-cliente.dto';
 import { BajasClienteLogic } from '../logic/bajas-cliente.logic';
 import { Public } from '../../../common/decorators/public.decorator';
@@ -46,6 +47,13 @@ export class BajasClienteController {
   @ApiOperation({ summary: 'Solicitar baja de cliente (estado PENDIENTE)' })
   solicitar(@Body() dto: SolicitarBajaClienteDto) {
     return this.bajasClienteLogic.solicitar(dto);
+  }
+
+  @Post('solicitar-reactivacion')
+  @Public()
+  @ApiOperation({ summary: 'Solicitar reactivación de cliente (estado PENDIENTE)' })
+  solicitarReactivacion(@Body() dto: SolicitarReactivacionClienteDto) {
+    return this.bajasClienteLogic.solicitarReactivacion(dto);
   }
 
   @Patch(':id/aprobar')

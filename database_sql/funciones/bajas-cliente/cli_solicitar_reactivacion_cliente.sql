@@ -1,8 +1,7 @@
-DROP FUNCTION IF EXISTS cli_solicitar_baja_cliente;
+DROP FUNCTION IF EXISTS cli_solicitar_reactivacion_cliente;
 
-CREATE OR REPLACE FUNCTION cli_solicitar_baja_cliente(
+CREATE OR REPLACE FUNCTION cli_solicitar_reactivacion_cliente(
     p_id_cliente INTEGER,
-    p_id_motivo_baja INTEGER DEFAULT NULL,
     p_motivo_detalle VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL,
     p_id_tipo_solicitud INTEGER DEFAULT NULL
@@ -24,8 +23,8 @@ BEGIN
         RETURN json_build_object('registro', NULL, 'error', 'El cliente no existe');
     END IF;
 
-    IF v_estado_cliente = 0 THEN
-        RETURN json_build_object('registro', NULL, 'error', 'El cliente ya está inactivo');
+    IF v_estado_cliente = 1 THEN
+        RETURN json_build_object('registro', NULL, 'error', 'El cliente ya está activo');
     END IF;
 
     SELECT lo.id INTO v_id_pendiente
@@ -36,29 +35,30 @@ BEGIN
     v_id_tipo := COALESCE(p_id_tipo_solicitud, (SELECT lo.id
         FROM gen_lista_opciones lo
         INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoSolicitud' AND lo.nombre = 'BAJA'));
+        WHERE l.nombre = 'TipoSolicitud' AND lo.nombre = 'REACTIVACION'));
 
     IF EXISTS (
         SELECT 1 FROM cli_baja_cliente
         WHERE id_cliente = p_id_cliente
           AND estado = 1
           AND id_estado_aprobacion = v_id_pendiente
+          AND id_tipo_solicitud = v_id_tipo
     ) THEN
-        RETURN json_build_object('registro', NULL, 'error', 'El cliente ya tiene una solicitud de baja pendiente');
+        RETURN json_build_object('registro', NULL, 'error', 'El cliente ya tiene una solicitud de reactivación pendiente');
     END IF;
 
     INSERT INTO cli_baja_cliente (
-        id_cliente, id_motivo_baja, fecha_baja,
+        id_cliente, id_tipo_solicitud, motivo_detalle,
         id_usuario_solicita, id_estado_aprobacion,
-        id_tipo_solicitud, motivo_detalle,
         id_usuario_creacion, id_usuario_modificacion
     )
     VALUES (
-        p_id_cliente, p_id_motivo_baja, CURRENT_DATE,
+        p_id_cliente, v_id_tipo, NULLIF(TRIM(p_motivo_detalle), ''),
         p_id_usuario_auditoria, v_id_pendiente,
-        v_id_tipo, NULLIF(TRIM(p_motivo_detalle), ''),
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
+
+
     RETURNING id INTO v_id_baja;
 
     RETURN cli_obtener_baja_cliente(v_id_baja);

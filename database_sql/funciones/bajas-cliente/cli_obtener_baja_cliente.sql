@@ -13,6 +13,8 @@ BEGIN
     FROM (
         SELECT
             bc.id,
+            bc.id_tipo_solicitud,
+            ts.nombre AS nombre_tipo_solicitud,
             bc.id_cliente,
             c.razon_social AS cliente_razon_social,
             c.nombres AS cliente_nombres,
@@ -39,6 +41,7 @@ BEGIN
             um.nombre AS nombre_usuario_modificacion
         FROM cli_baja_cliente bc
         INNER JOIN cli_clientes c ON bc.id_cliente = c.id
+        LEFT JOIN gen_lista_opciones ts ON bc.id_tipo_solicitud = ts.id
         LEFT JOIN gen_lista_opciones mb ON bc.id_motivo_baja = mb.id
         LEFT JOIN gen_lista_opciones ea ON bc.id_estado_aprobacion = ea.id
         LEFT JOIN auth_usuarios us ON bc.id_usuario_solicita = us.id
