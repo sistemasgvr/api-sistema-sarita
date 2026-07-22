@@ -107,8 +107,20 @@ BEGIN
     FROM gen_lista_opciones lo
     WHERE lo.id = p_id_tipo_comprobante;
 
-    -- Serie electrónica SUNAT: 4 caracteres y prefijo según tipo
-    IF char_length(v_serie) <> 4 THEN
+    -- Serie: CPE SUNAT = 4 caracteres; venta sin documento (VSD) = 5 (ej. VSD01). Legacy NV01 = 4.
+    IF v_codigo_tipo IN ('NV', 'VSD') THEN
+        IF NOT (
+            (char_length(v_serie) = 5 AND left(v_serie, 3) = 'VSD')
+            OR (char_length(v_serie) = 4 AND left(v_serie, 2) = 'NV')
+        ) THEN
+            RETURN json_build_object(
+                'error',
+                'La venta sin documento debe usar serie VSD## (ej. VSD01)',
+                'registro',
+                NULL
+            );
+        END IF;
+    ELSIF char_length(v_serie) <> 4 THEN
         RETURN json_build_object(
             'error',
             'La serie electrónica debe tener 4 caracteres (ej. F001, B001, FC01)',
@@ -129,15 +141,6 @@ BEGIN
         RETURN json_build_object(
             'error',
             'La nota de crédito/débito debe usar serie que inicie con F o B según el comprobante origen (ej. FC01 / BC01)',
-            'registro',
-            NULL
-        );
-    END IF;
-
-    IF v_codigo_tipo IN ('NV', 'VSD') AND left(v_serie, 2) <> 'NV' THEN
-        RETURN json_build_object(
-            'error',
-            'La venta sin documento debe usar serie que inicie con NV (ej. NV01)',
             'registro',
             NULL
         );

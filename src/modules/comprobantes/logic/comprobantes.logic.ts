@@ -29,11 +29,12 @@ import type { SiguienteNumeroResult } from '../models/comprobantes.model';
 import { ComprobanteNotaVentaPdfGenerator } from '../services/comprobante-nota-venta-pdf.generator';
 import { ComprobanteTicketPdfGenerator } from '../services/comprobante-ticket-pdf.generator';
 
-const CODIGO_NOTA_VENTA = 'NV';
+const CODIGO_VENTA_SIN_DOC = 'VSD';
+const CODIGO_NOTA_VENTA_LEGACY = 'NV';
 
 function esCodigoVentaSinDocumento(codigo?: string | null): boolean {
   const value = (codigo ?? '').trim().toUpperCase();
-  return value === CODIGO_NOTA_VENTA || value === 'VSD';
+  return value === CODIGO_VENTA_SIN_DOC || value === CODIGO_NOTA_VENTA_LEGACY;
 }
 
 /** Plazo máximo de emisión SUNAT (días calendario desde la fecha del comprobante). */

@@ -4,7 +4,7 @@ INSERT INTO gen_lista (nombre, descripcion)
 SELECT v.nombre, v.descripcion
 FROM (
     VALUES
-        ('TipoComprobante', 'Tipos: 01=Factura, 03=Boleta, 07=NC, 08=ND, NV=Venta sin documento (interno)'),
+        ('TipoComprobante', 'Tipos: 01=Factura, 03=Boleta, 07=NC, 08=ND, VSD=Venta sin documento (interno)'),
         ('MotivoNotaCredito', 'Motivos nota de crédito SUNAT'),
         ('MotivoNotaDebito', 'Motivos nota de débito SUNAT'),
         ('TipoOperacionSunat', 'Catálogo 51 - tipo de operación'),
@@ -20,7 +20,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM gen_lista l WHERE l.nombre = v.nombre
 );
 
--- TipoComprobante (código en descripcion: SUNAT 01/03/07/08; NV = venta sin documento / nota de venta interna)
+-- TipoComprobante (código en descripcion: SUNAT 01/03/07/08; VSD = venta sin documento interna)
 INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
@@ -29,7 +29,7 @@ FROM (
         ('BOLETA', '03'),
         ('NOTA_CREDITO', '07'),
         ('NOTA_DEBITO', '08'),
-        ('NOTA_VENTA', 'NV')
+        ('NOTA_VENTA', 'VSD')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'TipoComprobante'
@@ -38,20 +38,20 @@ WHERE l.nombre = 'TipoComprobante'
       WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
   );
 
--- Normaliza alias VSD / "venta sin documento" → NOTA_VENTA (NV)
+-- Normaliza alias NV / "venta sin documento" → NOTA_VENTA (VSD)
 UPDATE gen_lista_opciones lo
 SET nombre = 'NOTA_VENTA',
-    descripcion = 'NV'
+    descripcion = 'VSD'
 FROM gen_lista l
 WHERE lo.id_lista = l.id
   AND l.nombre = 'TipoComprobante'
   AND (
-      UPPER(lo.descripcion) = 'VSD'
-      OR UPPER(lo.nombre) IN ('VSD', 'VENTA_SIN_DOCUMENTO', 'VENTA SIN DOCUMENTO')
+      UPPER(lo.descripcion) IN ('NV', 'VSD')
+      OR UPPER(lo.nombre) IN ('NV', 'VSD', 'VENTA_SIN_DOCUMENTO', 'VENTA SIN DOCUMENTO', 'NOTA_VENTA')
   );
 
 UPDATE gen_lista
-SET descripcion = 'Tipos: 01=Factura, 03=Boleta, 07=NC, 08=ND, NV=Venta sin documento (interno)'
+SET descripcion = 'Tipos: 01=Factura, 03=Boleta, 07=NC, 08=ND, VSD=Venta sin documento (interno)'
 WHERE nombre = 'TipoComprobante';
 
 -- MotivoNotaCredito
