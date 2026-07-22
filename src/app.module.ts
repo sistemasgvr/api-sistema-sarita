@@ -23,6 +23,7 @@ import { SesionesModule } from './modules/sesiones/sesiones.module';
 import { UsuariosModule } from './modules/usuarios/usuarios.module';
 import { UsuariosRolesModule } from './modules/usuarios-roles/usuarios-roles.module';
 import { ClientesModule } from './modules/clientes/clientes.module';
+import { ComprasModule } from './modules/compras/compras.module';
 import { ConsultasModule } from './modules/consultas/consultas.module';
 import { CatalogosModule } from './modules/catalogos/catalogos.module';
 import { ContactosModule } from './modules/contactos/contactos.module';
@@ -80,6 +81,7 @@ import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/do
     ConfiguracionSunatModule,
     ConfiguracionServiciosModule,
     ClientesModule,
+    ComprasModule,
     ConsultasModule,
     CatalogosModule,
     ContactosModule,

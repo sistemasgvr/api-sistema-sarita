@@ -19,7 +19,6 @@ import {
   UpdateActividadDto,
 } from '../dto/actividades.dto';
 import { ActividadesLogic } from '../logic/actividades.logic';
-import { Public } from 'src/common/decorators/public.decorator';
 
 @ApiTags('Operativa - Actividades')
 @Controller('operativa/actividades')
@@ -76,7 +75,6 @@ export class ActividadesController {
   @Patch(':id/realizada')
   @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
   @ApiOperation({ summary: 'Marcar actividad como realizada' })
-  @Public()
   marcarComoRealizada(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
