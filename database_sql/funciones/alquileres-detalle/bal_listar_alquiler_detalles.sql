@@ -37,6 +37,7 @@ BEGIN
             al.numero_alquiler,
             ad.id_balon,
             b.codigo_balon,
+            ad.fecha_devolucion,
             al.id_cliente,
             c.razon_social AS nombre_cliente,
             al.fecha_inicio,
@@ -45,6 +46,10 @@ BEGIN
             al.tarifa_diaria,
             al.id_estado,
             ea.nombre AS nombre_estado,
+            CASE
+                WHEN ad.fecha_devolucion IS NOT NULL THEN 'DEVUELTO'
+                ELSE 'PENDIENTE'
+            END AS estado_devolucion,
             ad.estado,
             ad.fecha_creacion
         FROM bal_alquiler_detalle ad

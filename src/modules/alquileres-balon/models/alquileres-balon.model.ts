@@ -7,9 +7,20 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import {
   CreateAlquileresBalonDto,
+  FiltroAlquileresAntiguedadDto,
   FiltroAlquileresBalonDto,
   UpdateAlquileresBalonDto,
 } from '../dto/alquileres-balon.dto';
+
+export interface AlquileresAntiguedadResult extends AuthListResult {
+  resumen?: {
+    total_pendientes?: number;
+    reciente_0_30?: number;
+    atencion_30_90?: number;
+    seguimiento_90_180?: number;
+    critico_180?: number;
+  };
+}
 
 @Injectable()
 export class AlquileresBalonModel {
@@ -24,6 +35,21 @@ export class AlquileresBalonModel {
       filtros.idAlmacen ?? null,
       filtros.idEstado ?? null,
     ]);
+  }
+
+  reporteAntiguedad(filtros: FiltroAlquileresAntiguedadDto) {
+    return this.db.callFunctionJson<AlquileresAntiguedadResult>(
+      'bal_reporte_alquileres_antiguedad',
+      [
+        filtros.buscar ?? '',
+        filtros.limite ?? 50,
+        filtros.offset,
+        filtros.idCliente ?? null,
+        filtros.rangoDias ?? null,
+        filtros.excluirBajas ?? true,
+        filtros.soloPendientes ?? true,
+      ],
+    );
   }
 
   obtenerPorId(id: number) {

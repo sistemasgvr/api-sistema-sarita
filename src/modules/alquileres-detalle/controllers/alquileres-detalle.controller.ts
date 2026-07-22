@@ -16,6 +16,7 @@ import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   CreateAlquileresDetalleDto,
+  DevolverAlquileresDetalleDto,
   FiltroAlquileresDetalleDto,
   UpdateAlquileresDetalleDto,
 } from '../dto/alquileres-detalle.dto';
@@ -46,6 +47,17 @@ export class AlquileresDetalleController {
   @ApiOperation({ summary: 'Crear' })
   crear(@Body() dto: CreateAlquileresDetalleDto) {
     return this.logic.crear(dto);
+  }
+
+  @Post(':id/devolver')
+  @Permisos(PermisoBanderas.ALQUILERES_DETALLE_EDITAR)
+  @ApiOperation({ summary: 'Registrar devolución del cilindro' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  devolver(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: DevolverAlquileresDetalleDto,
+  ) {
+    return this.logic.devolver(id, dto);
   }
 
   @Patch(':id')

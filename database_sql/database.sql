@@ -885,6 +885,7 @@ CREATE TABLE bal_alquiler_detalle (
     id              SERIAL PRIMARY KEY,
     id_alquiler      INT NOT NULL REFERENCES bal_alquiler(id),
     id_balon         INT NOT NULL REFERENCES bal_balon(id),
+    fecha_devolucion DATE, -- NULL = pendiente de devolución
     estado          INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),

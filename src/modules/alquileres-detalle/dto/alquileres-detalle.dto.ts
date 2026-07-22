@@ -1,22 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type, Transform } from 'class-transformer';
-import {
-  IsBoolean,
-  IsDateString,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsDateString, IsNumber, IsOptional } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
-
-function toOptionalBoolean(value: unknown) {
-  if (value === 'true' || value === true) return true;
-  if (value === 'false' || value === false) return false;
-  return undefined;
-}
 
 export class FiltroAlquileresDetalleDto extends FiltroPaginacionDto {
   @ApiPropertyOptional()
@@ -50,4 +36,19 @@ export class UpdateAlquileresDetalleDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   idBalon?: number;
+}
+
+export class DevolverAlquileresDetalleDto extends AuditoriaDto {
+  @ApiPropertyOptional({ description: 'Fecha de devolución (default: hoy)' })
+  @IsOptional()
+  @IsDateString()
+  fechaDevolucion?: string;
+
+  @ApiPropertyOptional({
+    description: 'Almacén destino (default: almacén del alquiler)',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idAlmacenDestino?: number;
 }

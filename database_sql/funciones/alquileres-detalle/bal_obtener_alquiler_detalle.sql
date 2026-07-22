@@ -15,6 +15,7 @@ BEGIN
             al.numero_alquiler,
             ad.id_balon,
             b.codigo_balon,
+            ad.fecha_devolucion,
             ad.estado,
             ad.fecha_creacion,
             ad.fecha_modificacion,

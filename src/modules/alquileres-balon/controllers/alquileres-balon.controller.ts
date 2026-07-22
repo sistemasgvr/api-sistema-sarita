@@ -16,6 +16,7 @@ import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   CreateAlquileresBalonDto,
+  FiltroAlquileresAntiguedadDto,
   FiltroAlquileresBalonDto,
   UpdateAlquileresBalonDto,
 } from '../dto/alquileres-balon.dto';
@@ -31,6 +32,13 @@ export class AlquileresBalonController {
   @ApiOperation({ summary: 'Listar' })
   listar(@Query() filtros: FiltroAlquileresBalonDto) {
     return this.logic.listar(filtros);
+  }
+
+  @Get('reporte/antiguedad')
+  @Permisos(PermisoBanderas.ALQUILERES_BALON_LISTAR)
+  @ApiOperation({ summary: 'Reporte de antigüedad de alquileres pendientes' })
+  reporteAntiguedad(@Query() filtros: FiltroAlquileresAntiguedadDto) {
+    return this.logic.reporteAntiguedad(filtros);
   }
 
   @Get(':id')

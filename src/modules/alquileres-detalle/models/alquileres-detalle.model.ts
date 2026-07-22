@@ -7,6 +7,7 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import {
   CreateAlquileresDetalleDto,
+  DevolverAlquileresDetalleDto,
   FiltroAlquileresDetalleDto,
   UpdateAlquileresDetalleDto,
 } from '../dto/alquileres-detalle.dto';
@@ -41,6 +42,15 @@ export class AlquileresDetalleModel {
     return this.db.callFunctionJson<AuthSingleResult>('bal_actualizar_alquiler_detalle', [
       id,
       dto.idBalon ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  devolver(id: number, dto: DevolverAlquileresDetalleDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_devolver_alquiler_detalle', [
+      id,
+      dto.fechaDevolucion ?? null,
+      dto.idAlmacenDestino ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }
