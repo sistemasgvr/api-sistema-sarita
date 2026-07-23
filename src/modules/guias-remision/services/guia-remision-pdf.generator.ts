@@ -215,9 +215,12 @@ export class GuiaRemisionPdfGenerator {
       doc.font('Helvetica').fontSize(8).fillColor('#111827');
       for (const detalle of detalles) {
         const desc =
+          detalle.glosa?.trim() ||
           detalle.descripcion?.trim() ||
           detalle.nombre_producto ||
           `Producto ${detalle.id_producto}`;
+        const codigo =
+          detalle.codigo_balon?.trim() || detalle.codigo_producto || '—';
         const rowH = Math.max(
           16,
           doc.heightOfString(desc, { width: cols.desc - 6 }) + 8,
@@ -237,7 +240,7 @@ export class GuiaRemisionPdfGenerator {
         doc.text(detalle.nombre_unidad_medida ?? '—', xs.und + 2, y + 4, {
           width: cols.und - 4,
         });
-        doc.text(detalle.codigo_producto ?? '—', xs.codigo + 2, y + 4, {
+        doc.text(codigo, xs.codigo + 2, y + 4, {
           width: cols.codigo - 4,
         });
         doc.text(desc, xs.desc + 2, y + 4, { width: cols.desc - 6 });
