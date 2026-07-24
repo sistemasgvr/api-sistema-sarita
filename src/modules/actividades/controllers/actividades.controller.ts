@@ -71,4 +71,14 @@ export class ActividadesController {
   ) {
     return this.actividadesLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
+
+  @Patch(':id/realizada')
+  @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
+  @ApiOperation({ summary: 'Marcar actividad como realizada' })
+  marcarComoRealizada(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.actividadesLogic.marcarComoRealizada(id, dto.idUsuarioAuditoria);
+  }
 }

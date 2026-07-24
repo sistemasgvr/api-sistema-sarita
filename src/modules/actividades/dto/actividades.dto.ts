@@ -1,16 +1,23 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, IsDateString } from 'class-validator';
-import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
-import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
+import {
+  IsDateString,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
+import { AuditoriaDto } from '../../../common/dto/auditoria.dto'; 
+import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto'; 
 
-export class FiltroActividadesDto extends FiltroPaginacionDto {
-  @ApiPropertyOptional({ example: '2026-07-01' })
+export class FiltroActividadesDto extends FiltroPaginacionDto { 
+  @ApiPropertyOptional({ description: 'Filtrar desde la fecha programada (YYYY-MM-DD)' })
   @IsOptional()
   @IsDateString()
   fechaDesde?: string;
 
-  @ApiPropertyOptional({ example: '2026-07-31' })
+  @ApiPropertyOptional({ description: 'Filtrar hasta la fecha programada (YYYY-MM-DD)' })
   @IsOptional()
   @IsDateString()
   fechaHasta?: string;
@@ -22,28 +29,29 @@ export class FiltroActividadesDto extends FiltroPaginacionDto {
   idEstado?: number;
 }
 
-export class CreateActividadDto extends AuditoriaDto {
-  @ApiProperty({ example: 'Entrega de Oxígeno Medicinal' })
+export class CreateActividadDto extends AuditoriaDto { 
+  @ApiProperty({ example: 'Reunión de coordinación', maxLength: 150 })
   @IsString()
   @IsNotEmpty()
   @MaxLength(150)
-  titulo!: string;
+  titulo!: string; 
 
-  @ApiPropertyOptional({ example: 'Descripción de prueba de la actividad' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   descripcion?: string;
 
-  @ApiProperty({ example: '2026-07-13' })
+  @ApiProperty({ example: '2026-07-17' })
   @IsDateString()
-  fechaProgramada!: string;
+  @IsNotEmpty()
+  fechaProgramada!: string; 
 
-  @ApiPropertyOptional({ example: '08:00:00' })
+  @ApiPropertyOptional({ example: '09:00:00' })
   @IsOptional()
   @IsString()
   horaInicioEstimada?: string;
 
-  @ApiPropertyOptional({ example: '10:00:00' })
+  @ApiPropertyOptional({ example: '10:30:00' })
   @IsOptional()
   @IsString()
   horaFinEstimada?: string;
@@ -51,12 +59,12 @@ export class CreateActividadDto extends AuditoriaDto {
   @ApiProperty({ example: 1 })
   @Type(() => Number)
   @IsInt()
-  idTipoActividad!: number;
+  idTipoActividad!: number; 
 
   @ApiProperty({ example: 1 })
   @Type(() => Number)
   @IsInt()
-  idPrioridad!: number;
+  idPrioridad!: number; 
 
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
@@ -73,78 +81,73 @@ export class CreateActividadDto extends AuditoriaDto {
   @ApiProperty({ example: 1 })
   @Type(() => Number)
   @IsInt()
-  idEstadoActividad!: number;
+  idEstadoActividad!: number; 
 
-  @ApiPropertyOptional({ maxLength: 500, example: 'Ninguna observación' })
+  @ApiPropertyOptional({ maxLength: 500 })
   @IsOptional()
   @IsString()
   @MaxLength(500)
   observaciones?: string;
 }
 
-export class UpdateActividadDto extends AuditoriaDto {
-  @ApiPropertyOptional({ example: 'Entrega de Oxígeno Medicinal' })
+export class UpdateActividadDto extends AuditoriaDto { 
+  @ApiPropertyOptional({ maxLength: 150 })
   @IsOptional()
   @IsString()
   @MaxLength(150)
-  titulo?: string;
+  titulo?: string; 
 
-  @ApiPropertyOptional({ example: 'Descripción actualizada' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   descripcion?: string;
 
-  @ApiPropertyOptional({ example: '2026-07-13' })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsDateString()
   fechaProgramada?: string;
 
-  @ApiPropertyOptional({ example: '08:00:00' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   horaInicioEstimada?: string;
 
-  @ApiPropertyOptional({ example: '10:00:00' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   horaFinEstimada?: string;
 
-  @ApiPropertyOptional({ example: '2026-07-13 11:00:00' })
-  @IsOptional()
-  @IsString() 
-  fechaHoraCierre?: string;
-
-  @ApiPropertyOptional({ example: 1 })
+  @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idTipoActividad?: number;
+  idTipoActividad?: number; 
 
-  @ApiPropertyOptional({ example: 1 })
+  @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idPrioridad?: number;
+  idPrioridad?: number; 
 
-  @ApiPropertyOptional({ example: 1 })
+  @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   idCliente?: number;
 
-  @ApiPropertyOptional({ example: 1 })
+  @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   idUsuarioResponsable?: number;
 
-  @ApiPropertyOptional({ example: 1 })
+  @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idEstadoActividad?: number;
+  idEstadoActividad?: number; 
 
-  @ApiPropertyOptional({ maxLength: 500, example: 'Observaciones actualizadas' })
+  @ApiPropertyOptional({ maxLength: 500 })
   @IsOptional()
   @IsString()
   @MaxLength(500)
