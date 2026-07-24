@@ -11,6 +11,7 @@ CREATE OR REPLACE FUNCTION bal_actualizar_alquiler(
     p_id_estado INTEGER DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
     p_id_comprobante_venta INTEGER DEFAULT NULL,
+    p_id_producto_regulador INTEGER DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -29,6 +30,12 @@ BEGIN
         RETURN json_build_object('error', 'Ya existe otro alquiler con el número ' || v_numero, 'registro', NULL);
     END IF;
 
+    IF p_id_producto_regulador IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM pro_producto WHERE id = p_id_producto_regulador AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El producto regulador indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
     UPDATE bal_alquiler
     SET
         numero_alquiler = COALESCE(v_numero, numero_alquiler),
@@ -42,6 +49,7 @@ BEGIN
         id_estado = COALESCE(p_id_estado, id_estado),
         observacion = COALESCE(p_observacion, observacion),
         id_comprobante_venta = COALESCE(p_id_comprobante_venta, id_comprobante_venta),
+        id_producto_regulador = COALESCE(p_id_producto_regulador, id_producto_regulador),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;

@@ -50,6 +50,7 @@ import { PrestamosDetalleModule } from './modules/prestamos-detalle/prestamos-de
 import { AlquileresBalonModule } from './modules/alquileres-balon/alquileres-balon.module';
 import { AlquileresDetalleModule } from './modules/alquileres-detalle/alquileres-detalle.module';
 import { MantenimientosBalonModule } from './modules/mantenimientos-balon/mantenimientos-balon.module';
+import { GarantiasModule } from './modules/garantias/garantias.module';
 import { FacturacionApisperuModule } from './integrations/facturacion-apisperu/facturacion-apisperu.module';
 import { FacturacionElectronicaModule } from './modules/facturacion-electronica/facturacion-electronica.module';
 import { ComprobantesModule } from './modules/comprobantes/comprobantes.module';
@@ -110,6 +111,7 @@ import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/do
     AlquileresBalonModule,
     AlquileresDetalleModule,
     MantenimientosBalonModule,
+    GarantiasModule,
     BalonesModule,
     FacturacionApisperuModule,
     FacturacionElectronicaModule,

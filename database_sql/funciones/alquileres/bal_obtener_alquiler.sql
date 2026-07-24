@@ -30,6 +30,10 @@ BEGIN
             cv.fecha AS fecha_comprobante_venta,
             cv_cli.razon_social AS nombre_cliente_comprobante_venta,
             cv.total_importe AS total_comprobante_venta,
+            al.id_producto_regulador,
+            pr.codigo AS codigo_producto_regulador,
+            pr.nombre AS nombre_producto_regulador,
+            al.dias_periodo,
             al.estado,
             al.fecha_creacion,
             al.fecha_modificacion,
@@ -48,6 +52,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones ea ON al.id_estado = ea.id
         LEFT JOIN ven_comprobante cv ON al.id_comprobante_venta = cv.id
         LEFT JOIN cli_clientes cv_cli ON cv.id_cliente = cv_cli.id
+        LEFT JOIN pro_producto pr ON al.id_producto_regulador = pr.id
         LEFT JOIN auth_usuarios uc ON al.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON al.id_usuario_modificacion = um.id
         WHERE al.id = p_id AND al.estado = 1

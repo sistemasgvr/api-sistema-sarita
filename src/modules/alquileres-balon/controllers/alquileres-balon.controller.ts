@@ -18,6 +18,8 @@ import {
   CreateAlquileresBalonDto,
   FiltroAlquileresAntiguedadDto,
   FiltroAlquileresBalonDto,
+  RegistrarAlquilerPeriodoDto,
+  RenovarAlquilerDto,
   UpdateAlquileresBalonDto,
 } from '../dto/alquileres-balon.dto';
 import { AlquileresBalonLogic } from '../logic/alquileres-balon.logic';
@@ -36,9 +38,44 @@ export class AlquileresBalonController {
 
   @Get('reporte/antiguedad')
   @Permisos(PermisoBanderas.ALQUILERES_BALON_LISTAR)
-  @ApiOperation({ summary: 'Reporte de antigüedad de alquileres pendientes' })
+  @ApiOperation({ summary: 'Reporte de días de atraso de alquileres pendientes' })
   reporteAntiguedad(@Query() filtros: FiltroAlquileresAntiguedadDto) {
     return this.logic.reporteAntiguedad(filtros);
+  }
+
+  @Get(':id/periodos')
+  @Permisos(PermisoBanderas.ALQUILERES_BALON_VER)
+  @ApiOperation({ summary: 'Listar periodos / renovaciones del alquiler' })
+  listarPeriodos(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('pagina') pagina?: string,
+    @Query('limite') limite?: string,
+  ) {
+    return this.logic.listarPeriodos(
+      id,
+      Number(pagina) || 1,
+      Number(limite) || 100,
+    );
+  }
+
+  @Post(':id/periodos')
+  @Permisos(PermisoBanderas.ALQUILERES_BALON_CREAR)
+  @ApiOperation({ summary: 'Registrar periodo (kit o renovación ya cobrada)' })
+  registrarPeriodo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RegistrarAlquilerPeriodoDto,
+  ) {
+    return this.logic.registrarPeriodo(id, dto);
+  }
+
+  @Post(':id/renovar')
+  @Permisos(PermisoBanderas.ALQUILERES_BALON_EDITAR)
+  @ApiOperation({ summary: 'Renovar periodo quincenal del regulador' })
+  renovar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RenovarAlquilerDto,
+  ) {
+    return this.logic.renovar(id, dto);
   }
 
   @Get(':id')
