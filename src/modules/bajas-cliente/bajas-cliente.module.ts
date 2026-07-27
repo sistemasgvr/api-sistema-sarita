@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ClientesModule } from '../clientes/clientes.module';
+import { NotificacionesModule } from '../notificaciones/notificaciones.module';
 import { BajasClienteController } from './controllers/bajas-cliente.controller';
 import { BajasClienteLogic } from './logic/bajas-cliente.logic';
 import { BajasClienteModel } from './models/bajas-cliente.model';
 
 @Module({
-  imports: [ClientesModule],
+  imports: [ClientesModule, NotificacionesModule],
   controllers: [BajasClienteController],
   providers: [BajasClienteLogic, BajasClienteModel],
   exports: [BajasClienteLogic, BajasClienteModel],

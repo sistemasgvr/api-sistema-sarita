@@ -146,6 +146,57 @@ export class NotificacionesLogic {
     return result.creada === false ? null : registro;
   }
 
+  /**
+   * Notifica a quienes tienen un permiso (incluye auth.todo).
+   * Opcionalmente excluye al solicitante.
+   */
+  async notificarPorPermiso(params: {
+    permiso: string;
+    codigoTipo: string;
+    titulo: string;
+    mensaje?: string;
+    payload?: Record<string, unknown>;
+    idReferencia?: number;
+    tipoReferencia?: string;
+    claveDedupePrefix?: string;
+    excluirUsuarioId?: number;
+    idUsuarioAuditoria?: number;
+  }) {
+    const byPermiso = await this.model.listarIdsPorPermiso(params.permiso);
+    let destinatarios = this.normalizeIds(byPermiso.ids);
+    if (params.excluirUsuarioId) {
+      destinatarios = destinatarios.filter((id) => id !== params.excluirUsuarioId);
+    }
+
+    if (destinatarios.length === 0) {
+      this.logger.warn(
+        `Sin destinatarios para permiso ${params.permiso} (${params.codigoTipo})`,
+      );
+      return { destinatarios: 0, creadas: 0 };
+    }
+
+    let creadas = 0;
+    for (const idUsuario of destinatarios) {
+      const claveDedupe = params.claveDedupePrefix
+        ? `${params.claveDedupePrefix}:${idUsuario}`
+        : undefined;
+      const registro = await this.crearYEmitir({
+        idUsuario,
+        codigoTipo: params.codigoTipo,
+        titulo: params.titulo,
+        mensaje: params.mensaje,
+        payload: params.payload,
+        idReferencia: params.idReferencia,
+        tipoReferencia: params.tipoReferencia,
+        claveDedupe,
+        idUsuarioAuditoria: params.idUsuarioAuditoria,
+      });
+      if (registro) creadas += 1;
+    }
+
+    return { destinatarios: destinatarios.length, creadas };
+  }
+
   async detectarYNotificarAlquileresVencidos(idUsuarioAuditoria?: number) {
     const raw = await this.model.listarAlquileresVencidos();
     const alquileres = (raw.registros ?? []) as AlquilerVencidoRow[];
