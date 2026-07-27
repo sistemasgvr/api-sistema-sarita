@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import {
-  mapDeleteResult,
   mapListResult,
   mapSingleResult,
 } from '../../../common/helpers/auth-response.helper';
 import {
+  ActualizarCompraCabeceraDto,
+  CreateCompraDetalleLineaDto,
   CreateCompraDto,
   FiltroComprasDto,
-  UpdateCompraDto,
 } from '../dto/compras.dto';
 import { ComprasModel } from '../models/compras.model';
 
@@ -27,16 +27,38 @@ export class ComprasLogic {
 
   async crear(dto: CreateCompraDto) {
     const result = await this.comprasModel.crear(dto);
-    return mapSingleResult(result, 'No se pudo registrar el comprobante de compra');
+    return mapSingleResult(
+      result,
+      'No se pudo registrar el comprobante de compra',
+    );
   }
 
-  async actualizar(id: number, dto: UpdateCompraDto) {
-    const result = await this.comprasModel.actualizar(id, dto);
+  async actualizarCabecera(id: number, dto: ActualizarCompraCabeceraDto) {
+    const result = await this.comprasModel.actualizarCabecera(id, dto);
     return mapSingleResult(result, `Comprobante de compra ${id} no encontrado`);
   }
 
-  async eliminar(id: number, idUsuarioAuditoria?: number) {
-    const result = await this.comprasModel.eliminar(id, idUsuarioAuditoria);
-    return mapDeleteResult(result, `Comprobante de compra ${id} no encontrado`);
+  async crearDetalle(idComprobante: number, dto: CreateCompraDetalleLineaDto) {
+    const result = await this.comprasModel.crearDetalle(idComprobante, dto);
+    return mapSingleResult(
+      result,
+      `No se pudo agregar línea a la compra ${idComprobante}`,
+    );
+  }
+
+  async eliminarDetalle(idDetalle: number, idUsuarioAuditoria?: number) {
+    const result = await this.comprasModel.eliminarDetalle(
+      idDetalle,
+      idUsuarioAuditoria,
+    );
+    return mapSingleResult(
+      result,
+      `Detalle de compra ${idDetalle} no encontrado`,
+    );
+  }
+
+  async anular(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.comprasModel.anular(id, idUsuarioAuditoria);
+    return mapSingleResult(result, `Comprobante de compra ${id} no encontrado`);
   }
 }
