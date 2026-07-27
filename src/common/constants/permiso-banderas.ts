@@ -252,6 +252,12 @@ export const PermisoBanderas = {
   BAJAS_CLIENTE_APROBAR: 'bajas_cliente.aprobar',
   BAJAS_CLIENTE_RECHAZAR: 'bajas_cliente.rechazar',
   BAJAS_CLIENTE_ELIMINAR: 'bajas_cliente.eliminar',
+
+  NOTIFICACIONES_LISTAR: 'notificaciones.listar',
+  NOTIFICACIONES_VER: 'notificaciones.ver',
+  NOTIFICACIONES_MARCAR_LEIDA: 'notificaciones.marcar_leida',
+  NOTIFICACIONES_CREAR: 'notificaciones.crear',
+  NOTIFICACIONES_EJECUTAR_JOBS: 'notificaciones.ejecutar_jobs',
 } as const;
 
 export type PermisoBandera =

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import databaseConfig from './config/database.config';
 import facturacionConfig from './config/facturacion.config';
 import jwtConfig from './config/jwt.config';
@@ -58,6 +59,7 @@ import { GuiasRemisionModule } from './modules/guias-remision/guias-remision.mod
 import { BajasClienteModule } from './modules/bajas-cliente/bajas-cliente.module';
 import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-bancarias.module';
 import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/documentos-vencimiento.module';
+import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 
 @Module({
   imports: [
@@ -70,6 +72,7 @@ import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/do
         abortEarly: false,
       },
     }),
+    ScheduleModule.forRoot(),
     DatabaseModule,
     SupabaseStorageModule,
     ArchivosModule,
@@ -120,6 +123,7 @@ import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/do
     BajasClienteModule,
     CuentasBancariasModule,
     DocumentosVencimientoModule,
+    NotificacionesModule,
   ],
   providers: [
     {
