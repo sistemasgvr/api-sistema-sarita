@@ -133,7 +133,7 @@ export class BalonesLogic {
     const hoy = new Date().toISOString().slice(0, 10);
 
     await this.notificacionesLogic.notificarPorPermiso({
-      permiso: PermisoBanderas.BALONES_EDITAR,
+      permiso: PermisoBanderas.BAJAS_BALON_APROBAR,
       codigoTipo: TipoNotificacion.BAJA_CILINDRO_SOLICITADA,
       titulo: 'Solicitud de baja de cilindro',
       mensaje: `${solicitante} solicitó baja del cilindro ${codigo} (motivo: ${motivo}).`,
@@ -150,6 +150,7 @@ export class BalonesLogic {
       claveDedupePrefix: `BAJA_CILINDRO_SOLICITADA:${idBaja}:${hoy}`,
       excluirUsuarioId: dto.idUsuarioSolicita ?? dto.idUsuarioAuditoria,
       idUsuarioAuditoria: dto.idUsuarioAuditoria ?? dto.idUsuarioSolicita,
+      soloAdmins: true,
     });
   }
 }

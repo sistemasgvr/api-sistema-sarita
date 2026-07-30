@@ -150,6 +150,7 @@ export class BajasClienteLogic {
       claveDedupePrefix: `${esBaja ? 'BAJA_CLIENTE' : 'REACTIVACION_CLIENTE'}_SOLICITADA:${idBaja}:${hoy}`,
       excluirUsuarioId: dto.idUsuarioAuditoria,
       idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      soloAdmins: true,
     });
   }
 }

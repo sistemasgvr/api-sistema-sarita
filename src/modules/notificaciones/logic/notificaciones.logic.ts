@@ -147,7 +147,8 @@ export class NotificacionesLogic {
   }
 
   /**
-   * Notifica a quienes tienen un permiso (incluye auth.todo).
+   * Notifica a usuarios con un permiso (incluye auth.todo).
+   * Si soloAdmins=true, exige además rol Administrador.
    * Opcionalmente excluye al solicitante.
    */
   async notificarPorPermiso(params: {
@@ -161,8 +162,11 @@ export class NotificacionesLogic {
     claveDedupePrefix?: string;
     excluirUsuarioId?: number;
     idUsuarioAuditoria?: number;
+    soloAdmins?: boolean;
   }) {
-    const byPermiso = await this.model.listarIdsPorPermiso(params.permiso);
+    const byPermiso = params.soloAdmins
+      ? await this.model.listarIdsAdminConPermiso(params.permiso)
+      : await this.model.listarIdsPorPermiso(params.permiso);
     let destinatarios = this.normalizeIds(byPermiso.ids);
     if (params.excluirUsuarioId) {
       destinatarios = destinatarios.filter((id) => id !== params.excluirUsuarioId);

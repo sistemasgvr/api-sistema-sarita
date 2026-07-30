@@ -82,6 +82,13 @@ export class NotificacionesModel {
     );
   }
 
+  listarIdsAdminConPermiso(permiso: string) {
+    return this.db.callFunctionJson<{ ids: number[] }>(
+      'auth_listar_ids_usuarios_admin_con_permiso',
+      [permiso],
+    );
+  }
+
   listarIdsPorRoles(idsRoles: number[]) {
     return this.db.callFunctionJson<{ ids: number[] }>(
       'auth_listar_ids_usuarios_por_roles',

@@ -9,7 +9,6 @@ AS $function$
 DECLARE
     v_id_balon INTEGER;
     v_id_motivo_baja INTEGER;
-    v_id_usuario_solicita INTEGER;
     v_motivo_detalle VARCHAR;
     v_id_cliente_comprador INTEGER;
     v_observacion VARCHAR;
@@ -29,22 +28,19 @@ BEGIN
         RETURN json_build_object('error', 'Debe indicar el administrador autorizador', 'registro', NULL);
     END IF;
 
-    IF NOT EXISTS (
-        SELECT 1
-        FROM auth_usuarios_roles ur
-        INNER JOIN auth_roles r ON ur.id_rol = r.id
-        WHERE ur.id_usuario = p_id_usuario_autoriza
-          AND ur.estado = TRUE
-          AND r.estado = TRUE
-          AND r.nombre = 'Administrador'
-    ) THEN
-        RETURN json_build_object('error', 'La baja debe ser autorizada por un administrador de la empresa', 'registro', NULL);
+    -- Rol Administrador + permiso bajas_balon.aprobar (o auth.todo). Permite auto-aprobación.
+    IF NOT auth_usuario_es_admin_con_permiso(p_id_usuario_autoriza, 'bajas_balon.aprobar') THEN
+        RETURN json_build_object(
+            'error',
+            'La baja debe ser autorizada por un administrador con permiso de aprobar bajas de cilindro',
+            'registro',
+            NULL
+        );
     END IF;
 
     SELECT
         bb.id_balon,
         bb.id_motivo_baja,
-        bb.id_usuario_solicita,
         bb.motivo_detalle,
         bb.id_cliente_comprador,
         bb.observacion,
@@ -52,7 +48,6 @@ BEGIN
     INTO
         v_id_balon,
         v_id_motivo_baja,
-        v_id_usuario_solicita,
         v_motivo_detalle,
         v_id_cliente_comprador,
         v_observacion,
@@ -64,10 +59,6 @@ BEGIN
 
     IF v_id_balon IS NULL THEN
         RETURN json_build_object('error', 'La solicitud de baja no existe o ya fue procesada', 'registro', NULL);
-    END IF;
-
-    IF v_id_usuario_solicita = p_id_usuario_autoriza THEN
-        RETURN json_build_object('error', 'Un administrador distinto al solicitante debe aprobar la baja', 'registro', NULL);
     END IF;
 
     SELECT id_estado_balon, id_almacen

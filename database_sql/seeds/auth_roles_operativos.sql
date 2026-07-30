@@ -230,5 +230,5 @@ WHERE r.nombre = 'Supervisor'
       WHERE rp.id_rol = r.id AND rp.id_permiso = p.id
   );
 
--- Nota: la aprobación de bajas de cilindros sigue restringida al rol
--- "Administrador" en bal_aprobar_baja_balon / bal_rechazar_baja_balon.
+-- Nota: la aprobación de bajas de cilindros exige rol Administrador +
+-- permiso bajas_balon.aprobar / bajas_balon.rechazar (SQL + API).

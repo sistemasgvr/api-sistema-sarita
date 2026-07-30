@@ -246,6 +246,12 @@ export const PermisoBanderas = {
   DOCUMENTOS_VENCIMIENTO_EDITAR: 'documentos_vencimiento.editar',
   DOCUMENTOS_VENCIMIENTO_ELIMINAR: 'documentos_vencimiento.eliminar',
 
+  BAJAS_BALON_LISTAR: 'bajas_balon.listar',
+  BAJAS_BALON_VER: 'bajas_balon.ver',
+  BAJAS_BALON_SOLICITAR: 'bajas_balon.solicitar',
+  BAJAS_BALON_APROBAR: 'bajas_balon.aprobar',
+  BAJAS_BALON_RECHAZAR: 'bajas_balon.rechazar',
+
   BAJAS_CLIENTE_LISTAR: 'bajas_cliente.listar',
   BAJAS_CLIENTE_VER: 'bajas_cliente.ver',
   BAJAS_CLIENTE_SOLICITAR: 'bajas_cliente.solicitar',
