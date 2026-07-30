@@ -252,6 +252,16 @@ export const PermisoBanderas = {
   BAJAS_CLIENTE_APROBAR: 'bajas_cliente.aprobar',
   BAJAS_CLIENTE_RECHAZAR: 'bajas_cliente.rechazar',
   BAJAS_CLIENTE_ELIMINAR: 'bajas_cliente.eliminar',
+
+  DASHBOARD_VER_CLIENTES: 'dashboard.ver_clientes',
+  DASHBOARD_VER_BALONES: 'dashboard.ver_balones',
+
+  FINANZAS_CXC_VER: 'finanzas.cxc.ver',
+  FINANZAS_CXC_CREAR: 'finanzas.cxc.crear',
+  FINANZAS_CXC_REGISTRAR_PAGO: 'finanzas.cxc.registrar_pago',
+  FINANZAS_CXP_VER: 'finanzas.cxp.ver',
+  FINANZAS_CXP_CREAR: 'finanzas.cxp.crear',
+  FINANZAS_CXP_REGISTRAR_PAGO: 'finanzas.cxp.registrar_pago',
 } as const;
 
 export type PermisoBandera =

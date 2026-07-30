@@ -1,0 +1,121 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
+import { Permisos } from '../../../common/decorators/permisos.decorator';
+import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import { FinanzasLogic } from '../logic/finanzas.logic';
+import { FiltroCuentaDto } from '../dto/filtro-cuenta.dto';
+import { RegistrarPagoDto } from '../dto/registrar-pago.dto';
+import { CrearCuentaDto } from '../dto/crear-cuenta.dto';
+
+@ApiTags('Finanzas')
+@Controller('finanzas')
+export class FinanzasController {
+  constructor(private readonly finanzasLogic: FinanzasLogic) {}
+
+  @Get('medios-pago')
+  @ApiOperation({ summary: 'Listar medios de pago disponibles' })
+  mediosPago() {
+    return this.finanzasLogic.listarMediosPago();
+  }
+
+  // ---------------- Cuentas por Cobrar ----------------
+
+  @Get('cuentas-por-cobrar')
+  @Permisos(PermisoBanderas.FINANZAS_CXC_VER)
+  @ApiOperation({ summary: 'Listar cuentas por cobrar (clientes)' })
+  listarCobrar(@Query() filtros: FiltroCuentaDto) {
+    return this.finanzasLogic.listarCuentas('COBRAR', filtros);
+  }
+
+  @Get('cuentas-por-cobrar/resumen')
+  @Permisos(PermisoBanderas.FINANZAS_CXC_VER)
+  @ApiOperation({ summary: 'Resumen (KPIs) de cuentas por cobrar' })
+  resumenCobrar() {
+    return this.finanzasLogic.resumen('COBRAR');
+  }
+
+  @Get('cuentas-por-cobrar/:id')
+  @Permisos(PermisoBanderas.FINANZAS_CXC_VER)
+  @ApiOperation({ summary: 'Detalle de una cuenta por cobrar con sus pagos' })
+  obtenerCobrar(@Param('id', ParseIntPipe) id: number) {
+    return this.finanzasLogic.obtenerCuenta(id, 'COBRAR');
+  }
+
+  @Post('cuentas-por-cobrar')
+  @Permisos(PermisoBanderas.FINANZAS_CXC_CREAR)
+  @ApiOperation({ summary: 'Crear una cuenta por cobrar manual (externa a ventas)' })
+  crearCobrar(@Body() dto: CrearCuentaDto) {
+    return this.finanzasLogic.crearCuenta('COBRAR', dto);
+  }
+
+  @Post('cuentas-por-cobrar/pagos')
+  @Permisos(PermisoBanderas.FINANZAS_CXC_REGISTRAR_PAGO)
+  @ApiOperation({ summary: 'Registrar una cobranza sobre una cuenta por cobrar' })
+  registrarCobranza(@Body() dto: RegistrarPagoDto) {
+    return this.finanzasLogic.registrarPago('COBRAR', dto);
+  }
+
+  @Patch('cuentas-por-cobrar/pagos/:id/anular')
+  @Permisos(PermisoBanderas.FINANZAS_CXC_REGISTRAR_PAGO)
+  @ApiOperation({ summary: 'Anular una cobranza registrada' })
+  anularCobranza(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.finanzasLogic.anularPago(id, 'COBRAR', dto.idUsuarioAuditoria);
+  }
+
+  // ---------------- Cuentas por Pagar ----------------
+
+  @Get('cuentas-por-pagar')
+  @Permisos(PermisoBanderas.FINANZAS_CXP_VER)
+  @ApiOperation({ summary: 'Listar cuentas por pagar (proveedores)' })
+  listarPagar(@Query() filtros: FiltroCuentaDto) {
+    return this.finanzasLogic.listarCuentas('PAGAR', filtros);
+  }
+
+  @Get('cuentas-por-pagar/resumen')
+  @Permisos(PermisoBanderas.FINANZAS_CXP_VER)
+  @ApiOperation({ summary: 'Resumen (KPIs) de cuentas por pagar' })
+  resumenPagar() {
+    return this.finanzasLogic.resumen('PAGAR');
+  }
+
+  @Get('cuentas-por-pagar/:id')
+  @Permisos(PermisoBanderas.FINANZAS_CXP_VER)
+  @ApiOperation({ summary: 'Detalle de una cuenta por pagar con sus pagos' })
+  obtenerPagar(@Param('id', ParseIntPipe) id: number) {
+    return this.finanzasLogic.obtenerCuenta(id, 'PAGAR');
+  }
+
+  @Post('cuentas-por-pagar')
+  @Permisos(PermisoBanderas.FINANZAS_CXP_CREAR)
+  @ApiOperation({ summary: 'Crear una cuenta por pagar manual (externa a compras)' })
+  crearPagar(@Body() dto: CrearCuentaDto) {
+    return this.finanzasLogic.crearCuenta('PAGAR', dto);
+  }
+
+  @Post('cuentas-por-pagar/pagos')
+  @Permisos(PermisoBanderas.FINANZAS_CXP_REGISTRAR_PAGO)
+  @ApiOperation({ summary: 'Registrar un pago sobre una cuenta por pagar' })
+  registrarPago(@Body() dto: RegistrarPagoDto) {
+    return this.finanzasLogic.registrarPago('PAGAR', dto);
+  }
+
+  @Patch('cuentas-por-pagar/pagos/:id/anular')
+  @Permisos(PermisoBanderas.FINANZAS_CXP_REGISTRAR_PAGO)
+  @ApiOperation({ summary: 'Anular un pago registrado' })
+  anularPago(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+    return this.finanzasLogic.anularPago(id, 'PAGAR', dto.idUsuarioAuditoria);
+  }
+}

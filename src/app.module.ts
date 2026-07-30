@@ -58,6 +58,12 @@ import { BajasClienteModule } from './modules/bajas-cliente/bajas-cliente.module
 import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-bancarias.module';
 import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/documentos-vencimiento.module';
 
+//Módulo Dashboard
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+
+//Módulo Finanzas
+import { FinanzasModule } from './modules/finanzas/finanzas.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -118,6 +124,12 @@ import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/do
     BajasClienteModule,
     CuentasBancariasModule,
     DocumentosVencimientoModule,
+
+    //Módulo Dashboard
+    DashboardModule,
+
+    //Módulo Finanzas
+    FinanzasModule,
   ],
   providers: [
     {
