@@ -20,8 +20,43 @@ CREATE OR REPLACE FUNCTION bal_actualizar_mantenimiento(
 RETURNS JSON
 LANGUAGE plpgsql
 AS $function$
+DECLARE
+    v_id_estado_finalizado INTEGER;
+    v_nombre_estado_actual VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
+
+    SELECT em.nombre
+    INTO v_nombre_estado_actual
+    FROM bal_mantenimiento m
+    LEFT JOIN gen_lista_opciones em ON em.id = m.id_estado
+    WHERE m.id = p_id AND m.estado = 1;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('registro', NULL);
+    END IF;
+
+    IF UPPER(COALESCE(v_nombre_estado_actual, '')) = 'FINALIZADO' THEN
+        RETURN json_build_object(
+            'error', 'El mantenimiento finalizado no se puede editar. Use Finalizar solo para cerrar el ciclo.',
+            'registro', NULL
+        );
+    END IF;
+
+    SELECT lo.id INTO v_id_estado_finalizado
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'EstadoMantenimiento' AND lo.nombre = 'FINALIZADO' AND lo.estado = 1
+    LIMIT 1;
+
+    IF v_id_estado_finalizado IS NOT NULL
+       AND p_id_estado IS NOT NULL
+       AND p_id_estado = v_id_estado_finalizado THEN
+        RETURN json_build_object(
+            'error', 'Para marcar como finalizado use la acción Finalizar (reingresa el cilindro).',
+            'registro', NULL
+        );
+    END IF;
 
     UPDATE bal_mantenimiento
     SET

@@ -9,9 +9,11 @@ import {
   AprobarBajaBalonDto,
   DarBajaBalonDto,
   FiltroBalonesDto,
+  FiltroEstadoHistorialDto,
   FiltroPhHistorialDto,
   RechazarBajaBalonDto,
   RegistrarPhHistorialDto,
+  RestaurarBalonDto,
   UpdateBalonesDto,
 } from '../dto/balones.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
@@ -84,5 +86,15 @@ export class BalonesLogic {
   async rechazarBaja(idBaja: number, dto: RechazarBajaBalonDto) {
     const result = await this.model.rechazarBaja(idBaja, dto);
     return mapSingleResult(result, 'No se pudo rechazar la solicitud de baja');
+  }
+
+  async listarEstadoHistorial(idBalon: number, filtros: FiltroEstadoHistorialDto) {
+    const result = await this.model.listarEstadoHistorial(idBalon, filtros);
+    return mapListResult(result, filtros);
+  }
+
+  async restaurar(idBalon: number, dto: RestaurarBalonDto) {
+    const result = await this.model.restaurar(idBalon, dto);
+    return mapSingleResult(result, 'No se pudo reactivar el cilindro');
   }
 }

@@ -7,9 +7,20 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import {
   CreatePrestamosBalonDto,
+  FiltroPrestamosAntiguedadDto,
   FiltroPrestamosBalonDto,
   UpdatePrestamosBalonDto,
 } from '../dto/prestamos-balon.dto';
+
+export interface PrestamosAntiguedadResult extends AuthListResult {
+  resumen?: {
+    total_pendientes?: number;
+    reciente_0_30?: number;
+    atencion_30_90?: number;
+    seguimiento_90_180?: number;
+    critico_180?: number;
+  };
+}
 
 @Injectable()
 export class PrestamosBalonModel {
@@ -24,6 +35,21 @@ export class PrestamosBalonModel {
       filtros.idCliente ?? null,
       filtros.idEstado ?? null,
     ]);
+  }
+
+  reporteAntiguedad(filtros: FiltroPrestamosAntiguedadDto) {
+    return this.db.callFunctionJson<PrestamosAntiguedadResult>(
+      'bal_reporte_prestamos_antiguedad',
+      [
+        filtros.buscar ?? '',
+        filtros.limite ?? 50,
+        filtros.offset,
+        filtros.idCliente ?? null,
+        filtros.rangoDias ?? null,
+        filtros.excluirBajas ?? true,
+        filtros.soloPendientes ?? true,
+      ],
+    );
   }
 
   obtenerPorId(id: number) {

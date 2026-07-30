@@ -25,6 +25,11 @@ BEGIN
             ea.nombre AS nombre_estado,
             al.observacion,
             al.id_comprobante_venta,
+            cv.serie AS serie_comprobante_venta,
+            cv.numero AS numero_comprobante_venta,
+            cv.fecha AS fecha_comprobante_venta,
+            cv_cli.razon_social AS nombre_cliente_comprobante_venta,
+            cv.total_importe AS total_comprobante_venta,
             al.estado,
             al.fecha_creacion,
             al.fecha_modificacion,
@@ -41,6 +46,8 @@ BEGIN
         INNER JOIN cli_clientes c ON al.id_cliente = c.id
         INNER JOIN gen_almacen a ON al.id_almacen = a.id
         LEFT JOIN gen_lista_opciones ea ON al.id_estado = ea.id
+        LEFT JOIN ven_comprobante cv ON al.id_comprobante_venta = cv.id
+        LEFT JOIN cli_clientes cv_cli ON cv.id_cliente = cv_cli.id
         LEFT JOIN auth_usuarios uc ON al.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON al.id_usuario_modificacion = um.id
         WHERE al.id = p_id AND al.estado = 1

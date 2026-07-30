@@ -29,7 +29,29 @@ import type { SiguienteNumeroResult } from '../models/comprobantes.model';
 import { ComprobanteNotaVentaPdfGenerator } from '../services/comprobante-nota-venta-pdf.generator';
 import { ComprobanteTicketPdfGenerator } from '../services/comprobante-ticket-pdf.generator';
 
-const CODIGO_NOTA_VENTA = 'NV';
+const CODIGO_VENTA_SIN_DOC = 'VSD';
+const CODIGO_NOTA_VENTA_LEGACY = 'NV';
+
+function esCodigoVentaSinDocumento(codigo?: string | null): boolean {
+  const value = (codigo ?? '').trim().toUpperCase();
+  return value === CODIGO_VENTA_SIN_DOC || value === CODIGO_NOTA_VENTA_LEGACY;
+}
+
+/** Plazo máximo de emisión SUNAT (días calendario desde la fecha del comprobante). */
+function diasPlazoEmisionSunat(codigoTipo?: string | null): number | null {
+  if (codigoTipo === '01') return 3;
+  if (codigoTipo === '03') return 5;
+  return null;
+}
+
+function diasDesdeFechaComprobante(fecha: string | Date): number {
+  const raw = typeof fecha === 'string' ? fecha.slice(0, 10) : fecha.toISOString().slice(0, 10);
+  const [y, m, d] = raw.split('-').map(Number);
+  const inicio = Date.UTC(y, m - 1, d);
+  const ahora = new Date();
+  const hoy = Date.UTC(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+  return Math.floor((hoy - inicio) / 86_400_000);
+}
 
 interface SunatResponsePayload {
   success?: boolean;
@@ -115,7 +137,7 @@ export class ComprobantesLogic {
   }
 
   async enviarResumenDiario(dto: EnviarResumenDiarioDto) {
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     const items = await this.model.listarParaResumenDiario(
       dto.fecha,
@@ -219,7 +241,7 @@ export class ComprobantesLogic {
   }
 
   async consultarEstadoResumenPorId(id: number, dto: AuditoriaDto) {
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     const resumen = await this.model.obtenerResumenDiario(id);
 
@@ -286,7 +308,7 @@ export class ComprobantesLogic {
   }
 
   async consultarEstadoResumen(ticket: string) {
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     if (!ticket.trim()) {
       throw new BadRequestException('El ticket del resumen es obligatorio');
@@ -336,7 +358,7 @@ export class ComprobantesLogic {
   }
 
   async consultarCdr(id: number, dto: AuditoriaDto) {
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     const comprobante = await this.model.obtenerCompleto(id);
 
@@ -391,7 +413,7 @@ export class ComprobantesLogic {
   }
 
   async anular(id: number, dto: AnularComprobanteDto) {
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     const motivo = dto.motivo?.trim();
 
@@ -488,13 +510,13 @@ export class ComprobantesLogic {
       throw new NotFoundException(`Comprobante ${id} no encontrado`);
     }
 
-    if (comprobante.registro.codigo_tipo_comprobante === CODIGO_NOTA_VENTA) {
+    if (esCodigoVentaSinDocumento(comprobante.registro.codigo_tipo_comprobante)) {
       throw new BadRequestException(
-        'La nota de venta es un documento interno y no se emite a SUNAT',
+        'La venta sin documento es un documento interno y no se emite a SUNAT',
       );
     }
 
-    this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada();
 
     if (comprobante.registro.nombre_estado_sunat === 'ACEPTADO') {
       throw new BadRequestException('El comprobante ya fue aceptado por SUNAT');
@@ -502,6 +524,22 @@ export class ComprobantesLogic {
 
     if (comprobante.registro.nombre_estado_sunat === 'BAJA') {
       throw new BadRequestException('El comprobante está dado de baja');
+    }
+
+    const plazoDias = diasPlazoEmisionSunat(
+      comprobante.registro.codigo_tipo_comprobante,
+    );
+    if (plazoDias != null && comprobante.registro.fecha) {
+      const transcurridos = diasDesdeFechaComprobante(comprobante.registro.fecha);
+      if (transcurridos > plazoDias) {
+        const tipoLabel =
+          comprobante.registro.codigo_tipo_comprobante === '01'
+            ? 'factura'
+            : 'boleta';
+        throw new BadRequestException(
+          `No se puede emitir: la ${tipoLabel} supera el plazo de ${plazoDias} días desde su fecha`,
+        );
+      }
     }
 
     const empresa = await this.model.obtenerEmpresaEmisora();
@@ -579,11 +617,12 @@ export class ComprobantesLogic {
       throw new NotFoundException(`Comprobante ${id} no encontrado`);
     }
 
-    const esNotaVenta =
-      comprobante.registro.codigo_tipo_comprobante === CODIGO_NOTA_VENTA;
+    const esNotaVenta = esCodigoVentaSinDocumento(
+      comprobante.registro.codigo_tipo_comprobante,
+    );
 
     if (!esNotaVenta) {
-      this.assertFacturacionConfigurada();
+      await this.assertFacturacionConfigurada();
     }
 
     const empresa = await this.model.obtenerEmpresaEmisora();
@@ -746,8 +785,8 @@ export class ComprobantesLogic {
     return this.resolverEstadoSunatNombre(sunatResponse);
   }
 
-  private assertFacturacionConfigurada() {
-    const status = this.facturacionClient.getConfigStatus();
+  private async assertFacturacionConfigurada() {
+    const status = await this.facturacionClient.getConfigStatus();
 
     if (!status.enabled) {
       throw new ServiceUnavailableException(
@@ -757,7 +796,7 @@ export class ComprobantesLogic {
 
     if (!status.configured) {
       throw new BadRequestException(
-        'Configure FACTURACION_APISPERU_TOKEN o credenciales en el entorno',
+        'Configure token o usuario/clave del PSE en Configuración → SUNAT',
       );
     }
   }

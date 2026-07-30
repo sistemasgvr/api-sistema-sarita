@@ -56,4 +56,9 @@ export const envValidationSchema = Joi.object({
   FACTURACION_APISPERU_GRE_CLIENT_ID: Joi.string().optional().allow(''),
   FACTURACION_APISPERU_GRE_CLIENT_SECRET: Joi.string().optional().allow(''),
   FACTURACION_APISPERU_TIMEOUT_MS: Joi.number().integer().min(1000).default(60000),
+
+  // Supabase Storage
+  SUPABASE_URL: Joi.string().uri().optional().allow(''),
+  SUPABASE_SERVICE_ROLE_KEY: Joi.string().optional().allow(''),
+  SUPABASE_STORAGE_BUCKET: Joi.string().default('storage-sarita'),
 });

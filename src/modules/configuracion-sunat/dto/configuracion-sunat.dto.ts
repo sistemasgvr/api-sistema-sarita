@@ -1,13 +1,39 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
+
+export class FiltroConfiguracionSunatDto extends FiltroPaginacionDto {
+  @ApiPropertyOptional({ example: 1, description: 'Filtrar por empresa' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idEmpresa?: number;
+}
+
+/** Campos genéricos de PSE/OSE (facturación electrónica). */
+const pseFieldsDocs = {
+  proveedorPse: 'Código del proveedor PSE/OSE (ej. APISPERU). Orientativo.',
+  pseHabilitado: 'Si la emisión electrónica está habilitada.',
+  apiBaseUrl: 'URL base del API de facturación electrónica.',
+  apiToken: 'Token Bearer / API key. Vacío en actualización = no cambiar.',
+  apiUsuario: 'Usuario del PSE (si usa login en lugar de token).',
+  apiClave: 'Clave del PSE. Vacío en actualización = no cambiar.',
+  rucEmisor: 'RUC emisor. Si se omite, se usa el RUC de la empresa.',
+  clientId: 'OAuth client_id (ej. GRE portal SUNAT CPE).',
+  clientSecret: 'OAuth client_secret. Vacío en actualización = no cambiar.',
+  timeoutMs: 'Timeout HTTP en milisegundos.',
+};
 
 export class CreateConfiguracionSunatDto extends AuditoriaDto {
   @ApiProperty({ example: 1 })
@@ -45,23 +71,65 @@ export class CreateConfiguracionSunatDto extends AuditoriaDto {
   @IsInt()
   idAmbiente?: number;
 
-  @ApiPropertyOptional({
-    description: 'Client ID OAuth GRE (portal SUNAT CPE). Requerido para emitir guías.',
-    maxLength: 255,
-  })
+  @ApiPropertyOptional({ description: pseFieldsDocs.proveedorPse, example: 'APISPERU' })
   @IsOptional()
   @IsString()
-  @MaxLength(255)
-  clientIdGre?: string;
+  @MaxLength(50)
+  proveedorPse?: string;
 
-  @ApiPropertyOptional({
-    description: 'Client Secret OAuth GRE (portal SUNAT CPE).',
-    maxLength: 255,
-  })
+  @ApiPropertyOptional({ description: pseFieldsDocs.pseHabilitado, default: true })
+  @IsOptional()
+  @IsBoolean()
+  pseHabilitado?: boolean;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.apiBaseUrl })
   @IsOptional()
   @IsString()
   @MaxLength(255)
-  clientSecretGre?: string;
+  apiBaseUrl?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.apiToken })
+  @IsOptional()
+  @IsString()
+  apiToken?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.apiUsuario })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  apiUsuario?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.apiClave })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  apiClave?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.rucEmisor, example: '20100000000' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(11)
+  rucEmisor?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.clientId })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  clientId?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.clientSecret })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  clientSecret?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.timeoutMs, example: 60000 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1000)
+  @Max(300000)
+  timeoutMs?: number;
 }
 
 export class UpdateConfiguracionSunatDto extends AuditoriaDto {
@@ -101,15 +169,63 @@ export class UpdateConfiguracionSunatDto extends AuditoriaDto {
   @IsInt()
   idAmbiente?: number;
 
-  @ApiPropertyOptional({ maxLength: 255 })
+  @ApiPropertyOptional({ description: pseFieldsDocs.proveedorPse })
   @IsOptional()
   @IsString()
-  @MaxLength(255)
-  clientIdGre?: string;
+  @MaxLength(50)
+  proveedorPse?: string;
 
-  @ApiPropertyOptional({ maxLength: 255 })
+  @ApiPropertyOptional({ description: pseFieldsDocs.pseHabilitado })
+  @IsOptional()
+  @IsBoolean()
+  pseHabilitado?: boolean;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.apiBaseUrl })
   @IsOptional()
   @IsString()
   @MaxLength(255)
-  clientSecretGre?: string;
+  apiBaseUrl?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.apiToken })
+  @IsOptional()
+  @IsString()
+  apiToken?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.apiUsuario })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  apiUsuario?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.apiClave })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  apiClave?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.rucEmisor })
+  @IsOptional()
+  @IsString()
+  @MaxLength(11)
+  rucEmisor?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.clientId })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  clientId?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.clientSecret })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  clientSecret?: string;
+
+  @ApiPropertyOptional({ description: pseFieldsDocs.timeoutMs })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1000)
+  @Max(300000)
+  timeoutMs?: number;
 }

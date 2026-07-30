@@ -16,6 +16,7 @@ import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   CreatePrestamosBalonDto,
+  FiltroPrestamosAntiguedadDto,
   FiltroPrestamosBalonDto,
   UpdatePrestamosBalonDto,
 } from '../dto/prestamos-balon.dto';
@@ -31,6 +32,16 @@ export class PrestamosBalonController {
   @ApiOperation({ summary: 'Listar' })
   listar(@Query() filtros: FiltroPrestamosBalonDto) {
     return this.logic.listar(filtros);
+  }
+
+  @Get('reporte/antiguedad')
+  @Permisos(PermisoBanderas.PRESTAMOS_BALON_LISTAR)
+  @ApiOperation({
+    summary:
+      'Reporte de cilindros en préstamo por antigüedad (30 / 90–180 / 180+ días)',
+  })
+  reporteAntiguedad(@Query() filtros: FiltroPrestamosAntiguedadDto) {
+    return this.logic.reporteAntiguedad(filtros);
   }
 
   @Get(':id')

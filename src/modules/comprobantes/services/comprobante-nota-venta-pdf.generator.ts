@@ -20,7 +20,7 @@ interface ClienteReceptor {
 }
 
 /**
- * PDF A4 local para Nota de venta (documento interno, no CPE).
+ * PDF A4 local para Venta sin documento (documento interno, no CPE).
  * Layout alineado a boleta A4: cabecera 3 columnas, caja cliente, tabla bordada y totales.
  */
 @Injectable()
@@ -60,7 +60,7 @@ export class ComprobanteNotaVentaPdfGenerator {
         size: 'A4',
         margin: 36,
         info: {
-          Title: `Nota de venta ${serieNumero}`,
+          Title: `Venta sin documento ${serieNumero}`,
           Author: empresaNombre,
         },
       });
@@ -150,7 +150,7 @@ export class ComprobanteNotaVentaPdfGenerator {
       const boxInnerW = boxW - boxPad * 2;
       let boxContentY = headerTop + boxPad;
       doc.font('Helvetica-Bold').fontSize(9);
-      doc.text('NOTA DE VENTA', boxX + boxPad, boxContentY, {
+      doc.text('VENTA SIN DOCUMENTO', boxX + boxPad, boxContentY, {
         width: boxInnerW,
         align: 'center',
       });

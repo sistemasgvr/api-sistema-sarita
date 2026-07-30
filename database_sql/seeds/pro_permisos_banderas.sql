@@ -67,11 +67,12 @@ FROM (
         ('BOLETA', 'Boleta de venta'),
         ('NOTA_CREDITO', 'Nota de crédito'),
         ('NOTA_DEBITO', 'Nota de débito'),
-        ('NOTA_VENTA', 'Nota de venta interna (no CPE)'),
+        ('NOTA_VENTA', 'Venta sin documento / nota de venta interna (no CPE)'),
         ('GRE', 'Guía de remisión electrónica'),
         ('PRESTAMO', 'Préstamo de cilindro'),
         ('ALQUILER', 'Alquiler de cilindro'),
         ('RECARGA', 'Recarga de gas'),
+        ('MANTENIMIENTO', 'Mantenimiento de cilindro'),
         ('COMPRA', 'Comprobante de compra'),
         ('DEVOLUCION', 'Devolución de cilindro o mercadería')
 ) AS v(nombre, descripcion)
@@ -127,6 +128,7 @@ FROM (
         ('productos.crear', 'Crear productos'),
         ('productos.editar', 'Editar productos'),
         ('productos.eliminar', 'Eliminar productos'),
+        ('productos.restaurar', 'Restaurar productos eliminados'),
         ('catalogo_precios.listar', 'Listar catálogo de precios'),
         ('catalogo_precios.ver', 'Ver detalle de catálogo de precios'),
         ('catalogo_precios.crear', 'Crear ítems de catálogo de precios'),

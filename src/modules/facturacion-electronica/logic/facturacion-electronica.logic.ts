@@ -22,16 +22,16 @@ export class FacturacionElectronicaLogic {
   }
 
   async verificarConexion() {
-    this.assertConfigured();
+    await this.assertConfigured();
     await this.facturacionClient.listarEmpresas();
     return {
       ok: true,
-      message: 'Conexión exitosa con APIsPERU Facturación',
+      message: 'Conexión exitosa con el servicio de facturación electrónica',
     };
   }
 
   async iniciarSesion(dto: FacturacionLoginDto) {
-    this.facturacionClient.assertEnabled();
+    await this.facturacionClient.assertEnabled();
     const result = await this.facturacionClient.login(dto);
     return {
       token: result.token,
@@ -40,63 +40,63 @@ export class FacturacionElectronicaLogic {
   }
 
   async listarEmpresas() {
-    this.assertConfigured();
+    await this.assertConfigured();
     return this.facturacionClient.listarEmpresas();
   }
 
   async obtenerEmpresa(companyId: number) {
-    this.assertConfigured();
+    await this.assertConfigured();
     return this.facturacionClient.obtenerEmpresa(companyId);
   }
 
   async enviarFacturaBoleta(dto: FacturacionDocumentoPayload) {
-    this.assertConfigured();
+    await this.assertConfigured();
     return this.facturacionClient.enviarFacturaBoleta(dto);
   }
 
   async generarXmlFacturaBoleta(dto: FacturacionDocumentoPayload) {
-    this.assertConfigured();
+    await this.assertConfigured();
     const xml = await this.facturacionClient.generarXmlFacturaBoleta(dto);
     return { xml };
   }
 
   async consultarEstadoFacturaBoleta(query: FacturacionComprobanteStatusDto) {
-    this.assertConfigured();
+    await this.assertConfigured();
     return this.facturacionClient.consultarEstadoFacturaBoleta(query);
   }
 
   async enviarNota(dto: FacturacionDocumentoPayload) {
-    this.assertConfigured();
+    await this.assertConfigured();
     return this.facturacionClient.enviarNota(dto);
   }
 
   async enviarResumenDiario(dto: FacturacionDocumentoPayload) {
-    this.assertConfigured();
+    await this.assertConfigured();
     return this.facturacionClient.enviarResumenDiario(dto);
   }
 
   async consultarEstadoResumen(query: FacturacionTicketStatusDto) {
-    this.assertConfigured();
+    await this.assertConfigured();
     return this.facturacionClient.consultarEstadoResumen(query);
   }
 
   async enviarComunicacionBaja(dto: FacturacionDocumentoPayload) {
-    this.assertConfigured();
+    await this.assertConfigured();
     return this.facturacionClient.enviarComunicacionBaja(dto);
   }
 
   async consultarEstadoComunicacionBaja(query: FacturacionTicketStatusDto) {
-    this.assertConfigured();
+    await this.assertConfigured();
     return this.facturacionClient.consultarEstadoComunicacionBaja(query);
   }
 
   async enviarGuiaRemision(dto: FacturacionDocumentoPayload) {
-    this.assertConfigured();
+    await this.assertConfigured();
     return this.facturacionClient.enviarGuiaRemision(dto);
   }
 
   async consultarEstadoGuiaRemision(query: FacturacionTicketStatusDto) {
-    this.assertConfigured();
+    await this.assertConfigured();
     return this.facturacionClient.consultarEstadoGuiaRemision(query);
   }
 
@@ -110,8 +110,8 @@ export class FacturacionElectronicaLogic {
     );
   }
 
-  private assertConfigured(): void {
-    const status = this.facturacionClient.getConfigStatus();
+  private async assertConfigured(): Promise<void> {
+    const status = await this.facturacionClient.getConfigStatus();
 
     if (!status.enabled) {
       throw new ServiceUnavailableException(
@@ -121,7 +121,7 @@ export class FacturacionElectronicaLogic {
 
     if (!status.configured) {
       throw new BadRequestException(
-        'Configure FACTURACION_APISPERU_TOKEN o FACTURACION_APISPERU_USERNAME/PASSWORD en el entorno',
+        'Configure token o usuario/clave del PSE en Configuración → SUNAT (o variables de entorno de facturación)',
       );
     }
   }

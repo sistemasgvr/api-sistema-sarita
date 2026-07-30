@@ -22,11 +22,20 @@ export class ProductosModel {
       filtros.esServicio ?? null,
       filtros.esAlquilable ?? null,
       filtros.afectaStock ?? null,
+      filtros.soloActivos === undefined ? 1 : filtros.soloActivos,
+      filtros.idAlmacen ?? null,
     ]);
   }
 
   obtenerPorId(id: number) {
     return this.db.callFunctionJson<AuthSingleResult>('pro_obtener_producto', [id]);
+  }
+
+  generarCodigoUbicacion(prefijo?: string | null, idProducto?: number | null) {
+    return this.db.callFunctionJson<AuthSingleResult<{ codigo_ubicacion: string }>>(
+      'pro_generar_codigo_ubicacion',
+      [prefijo?.trim() || null, idProducto ?? null],
+    );
   }
 
   crear(
@@ -42,7 +51,10 @@ export class ProductosModel {
     esAlquilable: boolean,
     afectaStock: boolean,
     precio: number,
+    codigoUbicacion: string | null,
     idUsuarioAuditoria?: number,
+    precioCompra?: number,
+    precioGarantia?: number,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('pro_crear_producto', [
       codigo,
@@ -57,7 +69,10 @@ export class ProductosModel {
       esAlquilable,
       afectaStock,
       precio,
+      codigoUbicacion,
       idUsuarioAuditoria ?? null,
+      precioCompra ?? 0,
+      precioGarantia ?? 0,
     ]);
   }
 
@@ -75,7 +90,10 @@ export class ProductosModel {
     esAlquilable: boolean | null,
     afectaStock: boolean | null,
     precio: number | null,
+    codigoUbicacion: string | null | undefined,
     idUsuarioAuditoria?: number,
+    precioCompra?: number | null,
+    precioGarantia?: number | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('pro_actualizar_producto', [
       id,
@@ -91,12 +109,22 @@ export class ProductosModel {
       esAlquilable,
       afectaStock,
       precio,
+      codigoUbicacion === undefined ? null : codigoUbicacion,
       idUsuarioAuditoria ?? null,
+      precioCompra ?? null,
+      precioGarantia ?? null,
     ]);
   }
 
   eliminar(id: number, idUsuarioAuditoria?: number) {
     return this.db.callFunctionJson<AuthDeleteResult>('pro_eliminar_producto', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  restaurar(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthDeleteResult>('pro_restaurar_producto', [
       id,
       idUsuarioAuditoria ?? null,
     ]);

@@ -301,6 +301,25 @@ CREATE TABLE gen_empresa (
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
+-- Metadatos de archivos en storage (Supabase u otro). Usar id como FK donde se necesite adjunto.
+CREATE TABLE gen_archivo (
+    id                      SERIAL PRIMARY KEY,
+    nombre_original         VARCHAR(255) NOT NULL,
+    nombre_almacenado       VARCHAR(255) NOT NULL,
+    ruta                    VARCHAR(500) NOT NULL,
+    bucket                  VARCHAR(100) NOT NULL,
+    mime_type               VARCHAR(150),
+    extension               VARCHAR(20),
+    tamanio_bytes           BIGINT,
+    id_empresa              INT REFERENCES gen_empresa(id),
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion      TIMESTAMP DEFAULT NOW(),
+    UNIQUE (bucket, ruta)
+);
+
 -- Credenciales SUNAT / facturación electrónica (SOL)
 CREATE TABLE gen_configuracion_sunat (
     id                  SERIAL PRIMARY KEY,
@@ -310,6 +329,17 @@ CREATE TABLE gen_configuracion_sunat (
     certificado_digital  varchar(255),             -- ruta o referencia al .pfx
     clave_certificado    varchar(255),             -- cifrar en aplicación
     id_ambiente          INT REFERENCES gen_lista_opciones(id),  -- (gen_lista: AmbienteSunat) BETA, PRODUCCION
+    -- Credenciales genéricas del PSE/OSE (no atadas a un proveedor concreto)
+    proveedor_pse        varchar(50),              -- ej. APISPERU
+    pse_habilitado       BOOLEAN NOT NULL DEFAULT TRUE,
+    api_base_url         varchar(255),
+    api_token            TEXT,                     -- cifrar en aplicación
+    api_usuario          varchar(150),
+    api_clave            varchar(255),             -- cifrar en aplicación
+    ruc_emisor           varchar(11),              -- override; si NULL usa gen_empresa.ruc
+    client_id            varchar(255),             -- OAuth (ej. GRE SUNAT CPE)
+    client_secret        varchar(255),             -- cifrar en aplicación
+    timeout_ms           INTEGER,
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion       INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
@@ -562,6 +592,7 @@ CREATE TABLE pro_producto (
     id              SERIAL PRIMARY KEY,
     codigo          varchar(30) NOT NULL UNIQUE,
     codigo_barra     varchar(50),
+    codigo_ubicacion varchar(20),             -- ubicación/cajón digitable (ej. ARO-GEN-01)
     nombre          varchar(300) NOT NULL,
     id_sub_categoria  INT REFERENCES pro_sub_categoria(id),
     id_unidad_medida  INT REFERENCES gen_lista_opciones(id), -- UNID, MT3, KG, MTS, PAR...
@@ -572,12 +603,28 @@ CREATE TABLE pro_producto (
     es_servicio      BOOLEAN DEFAULT FALSE,   -- true si es un servicio (Mantenimiento, Alquiler...)
     es_alquilable    BOOLEAN DEFAULT FALSE,   -- puede ser alquilado
     afecta_stock     BOOLEAN DEFAULT TRUE,    -- false para servicios puros
-    precio          NUMERIC(12,4) DEFAULT 0,
+    precio          NUMERIC(12,4) DEFAULT 0,  -- precio de venta base (POS)
+    precio_compra   NUMERIC(12,4) DEFAULT 0,  -- costo/precio de compra
+    precio_garantia NUMERIC(12,4) DEFAULT 0,  -- depósito si es_alquilable
     estado          INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),
     fecha_creacion   TIMESTAMP DEFAULT NOW(),
     fecha_modificacion TIMESTAMP DEFAULT NOW()
+);
+
+-- Catálogo de imágenes del producto (archivo físico en storage vía gen_archivo)
+CREATE TABLE pro_producto_imagen (
+    id                      SERIAL PRIMARY KEY,
+    id_producto             INT NOT NULL REFERENCES pro_producto(id),
+    id_archivo              INT NOT NULL REFERENCES gen_archivo(id),
+    orden                   INT NOT NULL DEFAULT 0,
+    es_principal            BOOLEAN NOT NULL DEFAULT FALSE,
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion      TIMESTAMP DEFAULT NOW()
 );
 
 -- Catálogo unificado de precios (cilindro recargado, garantía, accesorios)
@@ -694,8 +741,10 @@ CREATE TABLE bal_balon (
     vigencia_prueba_hidrostatica_anios INT DEFAULT 5,
     fecha_proxima_prueba_hidrostatica  DATE,
     -- Datos técnicos adicionales
-    fecha_fabricacion    DATE,
+    fecha_fabricacion    DATE,                        -- siempre día 1 del mes (formato mes/año)
     anio_fabricacion     SMALLINT,                    -- año de fabricación (consulta rápida)
+    mes_fabricacion      SMALLINT,                    -- mes de fabricación grabado en el lomo (1-12)
+    id_planta            INT REFERENCES cli_clientes(id), -- planta proveedora asociada
     numero_recepcion     varchar(30),
     presion_actual       NUMERIC(8,2),
     observacion         varchar(500),
@@ -712,7 +761,7 @@ CREATE TABLE bal_movimiento (
     id_balon             INT NOT NULL REFERENCES bal_balon(id),
     id_tipo_movimiento    INT REFERENCES gen_lista_opciones(id),
     -- Tipos: SALIDA_VENTA, SALIDA_PRESTAMO, SALIDA_ALQUILER, SALIDA_MANTENIMIENTO,
-    --        ENTRADA_DEVOLUCION, ENTRADA_LLENADO, TRASLADO_LIMA, RETORNO_LIMA
+    --        ENTRADA_DEVOLUCION, ENTRADA_MANTENIMIENTO, ENTRADA_LLENADO, TRASLADO_LIMA, RETORNO_LIMA
     id_documento_ref      INT,                                              -- ID del documento asociado (polimórfico)
     id_tipo_documento_ref  INT REFERENCES gen_lista_opciones(id),            -- (gen_lista: TipoDocumentoRef)
     id_cliente           INT REFERENCES cli_clientes(id),
@@ -836,6 +885,7 @@ CREATE TABLE bal_alquiler_detalle (
     id              SERIAL PRIMARY KEY,
     id_alquiler      INT NOT NULL REFERENCES bal_alquiler(id),
     id_balon         INT NOT NULL REFERENCES bal_balon(id),
+    fecha_devolucion DATE, -- NULL = pendiente de devolución
     estado          INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),
@@ -898,7 +948,7 @@ CREATE TABLE bal_baja_balon (
     id_usuario_solicita      INT NOT NULL REFERENCES auth_usuarios(id),
     id_usuario_autoriza      INT REFERENCES auth_usuarios(id),
     fecha_autorizacion       TIMESTAMP,
-    estado_aprobacion        VARCHAR(20) NOT NULL DEFAULT 'APROBADA', -- PENDIENTE | APROBADA | RECHAZADA
+    estado_aprobacion        VARCHAR(20) NOT NULL DEFAULT 'APROBADA', -- PENDIENTE | APROBADA | RECHAZADA | REACTIVADA
     motivo_detalle           varchar(500),  -- texto adicional (ej. cuando motivo = OTROS)
     id_cliente_comprador     INT REFERENCES cli_clientes(id),
     id_comprobante_venta     INT REFERENCES ven_comprobante(id),
@@ -912,6 +962,28 @@ CREATE TABLE bal_baja_balon (
     id_usuario_modificacion       INT REFERENCES auth_usuarios(id),
     fecha_creacion           TIMESTAMP DEFAULT NOW(),
     fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+-- Timeline de baja / reactivación por cilindro
+CREATE TABLE bal_balon_estado_historial (
+    id                  SERIAL PRIMARY KEY,
+    id_balon             INT NOT NULL REFERENCES bal_balon(id),
+    tipo_evento          VARCHAR(30) NOT NULL, -- SOLICITUD_BAJA | BAJA_APROBADA | BAJA_RECHAZADA | REACTIVACION
+    id_baja              INT REFERENCES bal_baja_balon(id),
+    id_motivo_baja       INT REFERENCES gen_lista_opciones(id),
+    id_estado_anterior   INT REFERENCES gen_lista_opciones(id),
+    id_estado_nuevo      INT REFERENCES gen_lista_opciones(id),
+    observacion         varchar(500),
+    id_usuario           INT REFERENCES auth_usuarios(id),
+    fecha_evento         TIMESTAMP NOT NULL DEFAULT NOW(),
+    estado              INT NOT NULL DEFAULT 1,
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion       TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion   TIMESTAMP DEFAULT NOW(),
+    CONSTRAINT chk_bal_estado_historial_tipo CHECK (
+        tipo_evento IN ('SOLICITUD_BAJA', 'BAJA_APROBADA', 'BAJA_RECHAZADA', 'REACTIVACION')
+    )
 );
 
 
@@ -1424,6 +1496,8 @@ CREATE INDEX idx_bal_balon_ph_historial_vigente ON bal_balon_ph_historial(id_bal
 CREATE INDEX idx_bal_baja_balon_balon ON bal_baja_balon(id_balon);
 CREATE UNIQUE INDEX idx_bal_baja_balon_pendiente ON bal_baja_balon(id_balon) WHERE estado = 1 AND estado_aprobacion = 'PENDIENTE';
 CREATE UNIQUE INDEX idx_bal_baja_balon_aprobada ON bal_baja_balon(id_balon) WHERE estado = 1 AND estado_aprobacion = 'APROBADA';
+CREATE INDEX idx_bal_estado_historial_balon ON bal_balon_estado_historial(id_balon, fecha_evento DESC);
+CREATE INDEX idx_bal_estado_historial_tipo ON bal_balon_estado_historial(tipo_evento);
 CREATE INDEX idx_bal_movimiento_balon ON bal_movimiento(id_balon);
 CREATE INDEX idx_bal_movimiento_fecha ON bal_movimiento(fecha_movimiento);
 CREATE INDEX idx_bal_movimiento_recarga_balon ON bal_movimiento_recarga(id_balon);
@@ -1515,11 +1589,11 @@ INSERT INTO gen_lista (nombre, descripcion) VALUES
 ('MotivoTraslado',    '01=Venta, 02=Compra, 04=Entre establecimientos, 09=Exportación, 13=Otros'),
 ('MedioPago',         'Medios de pago'),
 ('Moneda',            'Monedas'),
-('TipoComprobante',   'Tipos: 01=Factura, 03=Boleta, 07=NC, 08=ND, 09=GRE, NV=Nota de venta'),
+('TipoComprobante',   'Tipos: 01=Factura, 03=Boleta, 07=NC, 08=ND, 09=GRE, VSD=Venta sin documento'),
 ('MotivoNotaCredito', '01=Anulación, 07=Descuento, 08=Devolución, 13=Ajuste de precio'),
 ('MotivoNotaDebito',  '01=Intereses por mora, 02=Aumento de valor, 03=Penalidades'),
 ('TipoOperacionSunat','0101=Venta interna, 0112=Sustento gastos, 0200=Exportación'),
-('TipoDocumentoRef',  'Tipos de documento origen en movimientos: FACTURA, GRE, PRESTAMO, ALQUILER, RECARGA, COMPRA, DEVOLUCION'),
+('TipoDocumentoRef',  'Tipos de documento origen en movimientos: FACTURA, GRE, PRESTAMO, ALQUILER, RECARGA, MANTENIMIENTO, COMPRA, DEVOLUCION'),
 ('EstadoSunat',       'PENDIENTE, ACEPTADO, RECHAZADO, BAJA, NO_APLICA'),
 ('TipoGuiaRemision',  '09=GRE Remitente, 31=GRE Transportista'),
 ('AfectacionIgv',     '10=Gravado, 20=Exonerado, 30=Inafecto, 40=Exportación'),

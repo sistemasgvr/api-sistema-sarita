@@ -25,6 +25,14 @@ BEGIN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id);
     END IF;
 
+    IF v_movimiento.id_documento_ref IS NOT NULL THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede anular un movimiento vinculado a una venta/comprobante'
+        );
+    END IF;
+
     SELECT afecta_stock INTO v_afecta_stock
     FROM pro_producto
     WHERE id = v_movimiento.id_producto;

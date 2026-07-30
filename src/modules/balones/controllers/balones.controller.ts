@@ -20,9 +20,11 @@ import {
   CreateBalonesDto,
   DarBajaBalonDto,
   FiltroBalonesDto,
+  FiltroEstadoHistorialDto,
   FiltroPhHistorialDto,
   RechazarBajaBalonDto,
   RegistrarPhHistorialDto,
+  RestaurarBalonDto,
   UpdateBalonesDto,
 } from '../dto/balones.dto';
 import { BalonesLogic } from '../logic/balones.logic';
@@ -86,6 +88,16 @@ export class BalonesController {
     return this.logic.registrarPhHistorial(id, dto);
   }
 
+  @Get(':id/estado-historial')
+  @Permisos(PermisoBanderas.BALONES_VER)
+  @ApiOperation({ summary: 'Listar historial de bajas y reactivaciones' })
+  listarEstadoHistorial(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() filtros: FiltroEstadoHistorialDto,
+  ) {
+    return this.logic.listarEstadoHistorial(id, filtros);
+  }
+
   @Get(':id/baja')
   @Permisos(PermisoBanderas.BALONES_VER)
   @ApiOperation({ summary: 'Obtener baja activa del cilindro' })
@@ -98,6 +110,13 @@ export class BalonesController {
   @ApiOperation({ summary: 'Solicitar baja de cilindro (requiere aprobación de administrador)' })
   darBaja(@Param('id', ParseIntPipe) id: number, @Body() dto: DarBajaBalonDto) {
     return this.logic.darBaja(id, dto);
+  }
+
+  @Post(':id/restaurar')
+  @Permisos(PermisoBanderas.BALONES_EDITAR)
+  @ApiOperation({ summary: 'Reactivar cilindro dado de baja o reportado como robo' })
+  restaurar(@Param('id', ParseIntPipe) id: number, @Body() dto: RestaurarBalonDto) {
+    return this.logic.restaurar(id, dto);
   }
 
   @Get(':id')

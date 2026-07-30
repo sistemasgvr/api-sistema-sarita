@@ -4,7 +4,8 @@ CREATE OR REPLACE FUNCTION cli_solicitar_baja_cliente(
     p_id_cliente INTEGER,
     p_id_motivo_baja INTEGER DEFAULT NULL,
     p_motivo_detalle VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_id_tipo_solicitud INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -13,6 +14,7 @@ DECLARE
     v_id_baja INTEGER;
     v_estado_cliente INT;
     v_id_pendiente INTEGER;
+    v_id_tipo INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -31,6 +33,11 @@ BEGIN
     INNER JOIN gen_lista l ON lo.id_lista = l.id
     WHERE l.nombre = 'EstadoAprobacion' AND lo.nombre = 'PENDIENTE';
 
+    v_id_tipo := COALESCE(p_id_tipo_solicitud, (SELECT lo.id
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON lo.id_lista = l.id
+        WHERE l.nombre = 'TipoSolicitud' AND lo.nombre = 'BAJA'));
+
     IF EXISTS (
         SELECT 1 FROM cli_baja_cliente
         WHERE id_cliente = p_id_cliente
@@ -43,13 +50,13 @@ BEGIN
     INSERT INTO cli_baja_cliente (
         id_cliente, id_motivo_baja, fecha_baja,
         id_usuario_solicita, id_estado_aprobacion,
-        motivo_detalle,
+        id_tipo_solicitud, motivo_detalle,
         id_usuario_creacion, id_usuario_modificacion
     )
     VALUES (
         p_id_cliente, p_id_motivo_baja, CURRENT_DATE,
         p_id_usuario_auditoria, v_id_pendiente,
-        NULLIF(TRIM(p_motivo_detalle), ''),
+        v_id_tipo, NULLIF(TRIM(p_motivo_detalle), ''),
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id_baja;

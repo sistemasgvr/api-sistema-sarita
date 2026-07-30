@@ -18,6 +18,16 @@ BEGIN
         );
     END IF;
 
+    IF EXISTS (
+        SELECT 1 FROM pro_catalogo_precio WHERE id_tipo_balon = p_id AND estado = 1
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede eliminar el tipo de balón porque está usado en el catálogo de precios'
+        );
+    END IF;
+
     UPDATE bal_tipo_balon
     SET estado = 0,
         id_usuario_modificacion = p_id_usuario_auditoria,

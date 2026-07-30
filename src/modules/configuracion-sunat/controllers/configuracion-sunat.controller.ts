@@ -14,9 +14,9 @@ import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
-import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 import {
   CreateConfiguracionSunatDto,
+  FiltroConfiguracionSunatDto,
   UpdateConfiguracionSunatDto,
 } from '../dto/configuracion-sunat.dto';
 import { ConfiguracionSunatLogic } from '../logic/configuracion-sunat.logic';
@@ -31,7 +31,7 @@ export class ConfiguracionSunatController {
   @Get()
   @Permisos(PermisoBanderas.CONFIGURACION_SUNAT_LISTAR)
   @ApiOperation({ summary: 'Listar configuraciones SUNAT' })
-  listar(@Query() filtros: FiltroPaginacionDto) {
+  listar(@Query() filtros: FiltroConfiguracionSunatDto) {
     return this.configuracionSunatLogic.listar(filtros);
   }
 

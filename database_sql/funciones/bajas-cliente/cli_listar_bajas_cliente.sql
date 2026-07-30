@@ -6,7 +6,8 @@ CREATE OR REPLACE FUNCTION cli_listar_bajas_cliente(
     p_limite INTEGER DEFAULT 10,
     p_offset INTEGER DEFAULT 0,
     p_id_cliente INTEGER DEFAULT NULL,
-    p_id_estado_aprobacion INTEGER DEFAULT NULL
+    p_id_estado_aprobacion INTEGER DEFAULT NULL,
+    p_id_tipo_solicitud INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -22,6 +23,7 @@ BEGIN
     WHERE (p_solo_activos IS NULL OR bc.estado = p_solo_activos)
       AND (p_id_cliente IS NULL OR bc.id_cliente = p_id_cliente)
       AND (p_id_estado_aprobacion IS NULL OR bc.id_estado_aprobacion = p_id_estado_aprobacion)
+      AND (p_id_tipo_solicitud IS NULL OR bc.id_tipo_solicitud = p_id_tipo_solicitud)
       AND (
           p_buscar = ''
           OR LOWER(COALESCE(bc.motivo_detalle, '')) LIKE LOWER('%' || p_buscar || '%')
@@ -31,6 +33,8 @@ BEGIN
     FROM (
         SELECT
             bc.id,
+            bc.id_tipo_solicitud,
+            ts.nombre AS nombre_tipo_solicitud,
             bc.id_cliente,
             c.razon_social AS cliente_razon_social,
             c.nombres AS cliente_nombres,
@@ -57,6 +61,7 @@ BEGIN
             um.nombre AS nombre_usuario_modificacion
         FROM cli_baja_cliente bc
         INNER JOIN cli_clientes c ON bc.id_cliente = c.id
+        LEFT JOIN gen_lista_opciones ts ON bc.id_tipo_solicitud = ts.id
         LEFT JOIN gen_lista_opciones mb ON bc.id_motivo_baja = mb.id
         LEFT JOIN gen_lista_opciones ea ON bc.id_estado_aprobacion = ea.id
         LEFT JOIN auth_usuarios us ON bc.id_usuario_solicita = us.id
@@ -66,6 +71,7 @@ BEGIN
         WHERE (p_solo_activos IS NULL OR bc.estado = p_solo_activos)
           AND (p_id_cliente IS NULL OR bc.id_cliente = p_id_cliente)
           AND (p_id_estado_aprobacion IS NULL OR bc.id_estado_aprobacion = p_id_estado_aprobacion)
+          AND (p_id_tipo_solicitud IS NULL OR bc.id_tipo_solicitud = p_id_tipo_solicitud)
           AND (
               p_buscar = ''
               OR LOWER(COALESCE(bc.motivo_detalle, '')) LIKE LOWER('%' || p_buscar || '%')

@@ -16,9 +16,12 @@ DECLARE
     v_fecha_baja DATE;
     v_id_movimiento INTEGER;
     v_id_estado_baja INTEGER;
+    v_id_estado_anterior INTEGER;
     v_nombre_motivo VARCHAR;
+    v_nombre_estado_destino VARCHAR;
     v_id_tipo_mov_venta INTEGER;
     v_id_almacen INTEGER;
+    v_id_usuario INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -67,7 +70,12 @@ BEGIN
         RETURN json_build_object('error', 'Un administrador distinto al solicitante debe aprobar la baja', 'registro', NULL);
     END IF;
 
-    IF NOT EXISTS (SELECT 1 FROM bal_balon WHERE id = v_id_balon AND estado = 1) THEN
+    SELECT id_estado_balon, id_almacen
+    INTO v_id_estado_anterior, v_id_almacen
+    FROM bal_balon
+    WHERE id = v_id_balon AND estado = 1;
+
+    IF NOT FOUND THEN
         RETURN json_build_object('error', 'El balón indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
@@ -79,16 +87,25 @@ BEGIN
       AND l.nombre = 'MotivoBajaBalon'
       AND lo.estado = 1;
 
+    v_nombre_estado_destino := CASE
+        WHEN v_nombre_motivo = 'ROBO' THEN 'ROBO'
+        ELSE 'DADO_DE_BAJA'
+    END;
+
     SELECT lo.id INTO v_id_estado_baja
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DADO_DE_BAJA' AND lo.estado = 1;
+    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = v_nombre_estado_destino AND lo.estado = 1;
 
     IF v_id_estado_baja IS NULL THEN
-        RETURN json_build_object('error', 'No está configurado el estado DADO_DE_BAJA', 'registro', NULL);
+        RETURN json_build_object(
+            'error',
+            format('No está configurado el estado %s', v_nombre_estado_destino),
+            'registro', NULL
+        );
     END IF;
 
-    SELECT id_almacen INTO v_id_almacen FROM bal_balon WHERE id = v_id_balon;
+    v_id_usuario := COALESCE(p_id_usuario_auditoria, p_id_usuario_autoriza);
 
     IF v_nombre_motivo = 'VENDIDO' THEN
         SELECT lo.id INTO v_id_tipo_mov_venta
@@ -106,8 +123,8 @@ BEGIN
                 v_id_balon, v_id_tipo_mov_venta, v_id_cliente_comprador,
                 v_id_almacen, NOW(),
                 COALESCE(v_observacion, 'Baja por venta de cilindro'),
-                COALESCE(p_id_usuario_auditoria, p_id_usuario_autoriza),
-                COALESCE(p_id_usuario_auditoria, p_id_usuario_autoriza)
+                v_id_usuario,
+                v_id_usuario
             )
             RETURNING id INTO v_id_movimiento;
         END IF;
@@ -119,7 +136,7 @@ BEGIN
         id_usuario_autoriza = p_id_usuario_autoriza,
         fecha_autorizacion = NOW(),
         id_movimiento = v_id_movimiento,
-        id_usuario_modificacion = COALESCE(p_id_usuario_auditoria, p_id_usuario_autoriza),
+        id_usuario_modificacion = v_id_usuario,
         fecha_modificacion = NOW()
     WHERE id = p_id_baja;
 
@@ -128,9 +145,21 @@ BEGIN
         id_estado_balon = v_id_estado_baja,
         id_almacen = NULL,
         id_cliente_ubicacion = CASE WHEN v_nombre_motivo = 'VENDIDO' THEN v_id_cliente_comprador ELSE id_cliente_ubicacion END,
-        id_usuario_modificacion = COALESCE(p_id_usuario_auditoria, p_id_usuario_autoriza),
+        id_usuario_modificacion = v_id_usuario,
         fecha_modificacion = NOW()
     WHERE id = v_id_balon AND estado = 1;
+
+    PERFORM bal_registrar_estado_historial(
+        v_id_balon,
+        'BAJA_APROBADA',
+        p_id_baja,
+        v_id_motivo_baja,
+        v_id_estado_anterior,
+        v_id_estado_baja,
+        COALESCE(NULLIF(TRIM(v_observacion), ''), NULLIF(TRIM(v_motivo_detalle), ''), 'Baja aprobada'),
+        v_id_usuario,
+        NOW()
+    );
 
     RETURN bal_obtener_baja_balon(p_id_baja);
 END;

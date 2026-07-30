@@ -45,6 +45,7 @@ BEGIN
             m.id_producto,
             p.codigo AS codigo_producto,
             p.nombre AS nombre_producto,
+            p.afecta_stock,
             m.id_almacen,
             a.nombre AS nombre_almacen,
             m.id_tipo_movimiento,
@@ -57,6 +58,28 @@ BEGIN
             tdr.nombre AS nombre_tipo_documento_ref,
             m.glosa,
             m.estado,
+            CASE
+                WHEN m.id_documento_ref IS NOT NULL THEN FALSE
+                WHEN NOT COALESCE(p.afecta_stock, FALSE)
+                  OR m.stock_anterior IS NULL
+                  OR m.stock_nuevo IS NULL
+                THEN TRUE
+                WHEN st.id IS NULL THEN FALSE
+                WHEN tm.nombre ILIKE '%SALIDA%' THEN TRUE
+                WHEN COALESCE(st.stock, 0) - m.cantidad < 0 THEN FALSE
+                ELSE TRUE
+            END AS puede_anular,
+            CASE
+                WHEN m.id_documento_ref IS NOT NULL THEN 'Vinculado a una venta'
+                WHEN NOT COALESCE(p.afecta_stock, FALSE)
+                  OR m.stock_anterior IS NULL
+                  OR m.stock_nuevo IS NULL
+                THEN NULL
+                WHEN st.id IS NULL THEN 'Sin registro de stock para revertir'
+                WHEN tm.nombre ILIKE '%SALIDA%' THEN NULL
+                WHEN COALESCE(st.stock, 0) - m.cantidad < 0 THEN 'Revertiría stock negativo'
+                ELSE NULL
+            END AS motivo_bloqueo_anulacion,
             m.fecha_creacion,
             m.fecha_modificacion,
             m.id_usuario_creacion,
@@ -70,6 +93,10 @@ BEGIN
         LEFT JOIN gen_lista_opciones tdr ON m.id_tipo_documento_ref = tdr.id
         LEFT JOIN auth_usuarios uc ON m.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON m.id_usuario_modificacion = um.id
+        LEFT JOIN pro_stock st
+            ON st.id_almacen = m.id_almacen
+           AND st.id_producto = m.id_producto
+           AND st.estado = 1
         WHERE m.estado = 1
           AND (p_id_producto IS NULL OR m.id_producto = p_id_producto)
           AND (p_id_almacen IS NULL OR m.id_almacen = p_id_almacen)

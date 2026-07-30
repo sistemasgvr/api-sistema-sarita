@@ -31,8 +31,13 @@ BEGIN
             b.id_organo_inspector,
             oi.nombre AS nombre_organo_inspector,
             b.organo_inspector_no_aplica,
+            b.id_planta,
+            COALESCE(pl.razon_social, TRIM(CONCAT_WS(' ', pl.nombres, pl.apellido_paterno))) AS nombre_planta,
             b.id_tipo_balon,
             tb.nombre AS nombre_tipo_balon,
+            tb.capacidad,
+            tb.peso AS peso_tipo_balon,
+            um.nombre AS nombre_unidad_medida,
             tb.vigencia_ph_anios AS vigencia_ph_tipo_anios,
             b.id_producto_gas,
             pg.nombre AS nombre_producto_gas,
@@ -49,6 +54,7 @@ BEGIN
             END AS estado_ph,
             b.fecha_fabricacion,
             b.anio_fabricacion,
+            b.mes_fabricacion,
             b.numero_recepcion,
             b.presion_actual,
             b.observacion,
@@ -58,7 +64,7 @@ BEGIN
             b.id_usuario_creacion,
             uc.nombre AS nombre_usuario_creacion,
             b.id_usuario_modificacion,
-            um.nombre AS nombre_usuario_modificacion,
+            umu.nombre AS nombre_usuario_modificacion,
             EXISTS (
                 SELECT 1
                 FROM bal_baja_balon bb
@@ -85,13 +91,15 @@ BEGIN
                         us.nombre AS nombre_usuario_solicita,
                         bb.id_usuario_autoriza,
                         ua.nombre AS nombre_usuario_autoriza,
-                        bb.fecha_autorizacion
+                        bb.fecha_autorizacion,
+                        bb.estado_aprobacion
                     FROM bal_baja_balon bb
                     LEFT JOIN gen_lista_opciones mb ON bb.id_motivo_baja = mb.id
                     LEFT JOIN cli_clientes cc ON bb.id_cliente_comprador = cc.id
                     LEFT JOIN auth_usuarios us ON bb.id_usuario_solicita = us.id
                     LEFT JOIN auth_usuarios ua ON bb.id_usuario_autoriza = ua.id
                     WHERE bb.id_balon = b.id AND bb.estado = 1 AND bb.estado_aprobacion = 'APROBADA'
+                    ORDER BY bb.fecha_autorizacion DESC NULLS LAST, bb.id DESC
                     LIMIT 1
                 ) bj
             ) AS baja
@@ -103,11 +111,13 @@ BEGIN
         LEFT JOIN gen_lista_opciones ref ON b.id_referencia = ref.id
         LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
         LEFT JOIN gen_lista_opciones oi ON b.id_organo_inspector = oi.id
+        LEFT JOIN cli_clientes pl ON b.id_planta = pl.id
         LEFT JOIN bal_tipo_balon tb ON b.id_tipo_balon = tb.id
+        LEFT JOIN gen_lista_opciones um ON tb.id_unidad_medida = um.id
         LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
         LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
         LEFT JOIN auth_usuarios uc ON b.id_usuario_creacion = uc.id
-        LEFT JOIN auth_usuarios um ON b.id_usuario_modificacion = um.id
+        LEFT JOIN auth_usuarios umu ON b.id_usuario_modificacion = umu.id
         WHERE b.id = p_id AND b.estado = 1
     ) t;
 

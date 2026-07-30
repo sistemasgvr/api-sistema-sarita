@@ -6,6 +6,7 @@ import {
 } from '../../../common/helpers/auth-response.helper';
 import {
   CreateAlquileresDetalleDto,
+  DevolverAlquileresDetalleDto,
   FiltroAlquileresDetalleDto,
   UpdateAlquileresDetalleDto,
 } from '../dto/alquileres-detalle.dto';
@@ -32,6 +33,11 @@ export class AlquileresDetalleLogic {
 
   async actualizar(id: number, dto: UpdateAlquileresDetalleDto) {
     const result = await this.model.actualizar(id, dto);
+    return mapSingleResult(result, `Detalle de alquiler ${id} no encontrado`);
+  }
+
+  async devolver(id: number, dto: DevolverAlquileresDetalleDto) {
+    const result = await this.model.devolver(id, dto);
     return mapSingleResult(result, `Detalle de alquiler ${id} no encontrado`);
   }
 

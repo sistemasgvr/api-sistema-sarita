@@ -4,10 +4,14 @@ import { APP_GUARD } from '@nestjs/core';
 import databaseConfig from './config/database.config';
 import facturacionConfig from './config/facturacion.config';
 import jwtConfig from './config/jwt.config';
+import supabaseConfig from './config/supabase.config';
 import { envValidationSchema } from './config/env.validation';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermisosGuard } from './common/guards/permisos.guard';
 import { DatabaseModule } from './database/database.module';
+import { SupabaseStorageModule } from './integrations/supabase-storage/supabase-storage.module';
+import { ArchivosModule } from './modules/archivos/archivos.module';
+import { StorageModule } from './modules/storage/storage.module';
 import { ActividadesModule } from './modules/actividades/actividades.module';
 import { AlmacenesModule } from './modules/almacenes/almacenes.module';
 import { CondicionesPagoModule } from './modules/condiciones-pago/condiciones-pago.module';
@@ -36,6 +40,7 @@ import { SubCategoriasProductoModule } from './modules/sub-categorias-producto/s
 import { CatalogoPreciosModule } from './modules/catalogo-precios/catalogo-precios.module';
 import { StockProductoModule } from './modules/stock-producto/stock-producto.module';
 import { MovimientosInventarioModule } from './modules/movimientos-inventario/movimientos-inventario.module';
+import { ProductoImagenesModule } from './modules/producto-imagenes/producto-imagenes.module';
 import { ProductosModule } from './modules/productos/productos.module';
 import { TiposBalonModule } from './modules/tipos-balon/tipos-balon.module';
 import { BalonesModule } from './modules/balones/balones.module';
@@ -54,11 +59,17 @@ import { BajasClienteModule } from './modules/bajas-cliente/bajas-cliente.module
 import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-bancarias.module';
 import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/documentos-vencimiento.module';
 
+//Módulo Dashboard
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+
+//Módulo Finanzas
+import { FinanzasModule } from './modules/finanzas/finanzas.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig, facturacionConfig],
+      load: [databaseConfig, jwtConfig, facturacionConfig, supabaseConfig],
       validationSchema: envValidationSchema,
       validationOptions: {
         allowUnknown: true,
@@ -66,6 +77,9 @@ import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/do
       },
     }),
     DatabaseModule,
+    SupabaseStorageModule,
+    ArchivosModule,
+    StorageModule,
     LoginModule,
     UsuariosModule,
     RolesModule,
@@ -94,6 +108,7 @@ import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/do
     CatalogoPreciosModule,
     StockProductoModule,
     MovimientosInventarioModule,
+    ProductoImagenesModule,
     ProductosModule,
     TiposBalonModule,
     MovimientosBalonModule,
@@ -111,6 +126,12 @@ import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/do
     BajasClienteModule,
     CuentasBancariasModule,
     DocumentosVencimientoModule,
+
+    //Módulo Dashboard
+    DashboardModule,
+
+    //Módulo Finanzas
+    FinanzasModule,
   ],
   providers: [
     {

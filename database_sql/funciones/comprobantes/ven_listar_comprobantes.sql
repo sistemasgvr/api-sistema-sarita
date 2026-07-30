@@ -16,8 +16,15 @@ AS $function$
 DECLARE
     v_registros JSON;
     v_total BIGINT;
+    v_busqueda TEXT;
+    v_busqueda_norm TEXT;
+    v_busqueda_sin_guion TEXT;
 BEGIN
     SET TIME ZONE 'America/Lima';
+
+    v_busqueda := TRIM(COALESCE(p_busqueda, ''));
+    v_busqueda_norm := LOWER(REPLACE(REPLACE(v_busqueda, ' ', ''), '/', '-'));
+    v_busqueda_sin_guion := REPLACE(v_busqueda_norm, '-', '');
 
     SELECT COUNT(*) INTO v_total
     FROM ven_comprobante c
@@ -32,14 +39,17 @@ BEGIN
       AND (p_fecha_hasta IS NULL OR c.fecha <= p_fecha_hasta)
       AND (p_serie IS NULL OR p_serie = '' OR c.serie = TRIM(p_serie))
       AND (
-          p_busqueda = ''
-          OR LOWER(c.serie) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(c.numero) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(co.serie, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(co.numero, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cl.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cl.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
+          v_busqueda = ''
+          OR LOWER(c.serie) LIKE '%' || v_busqueda_norm || '%'
+          OR LOWER(c.numero) LIKE '%' || v_busqueda_norm || '%'
+          OR LOWER(c.serie || '-' || c.numero) LIKE '%' || v_busqueda_norm || '%'
+          OR LOWER(c.serie || c.numero) LIKE '%' || v_busqueda_sin_guion || '%'
+          OR LOWER(COALESCE(co.serie, '')) LIKE '%' || v_busqueda_norm || '%'
+          OR LOWER(COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
+          OR LOWER(COALESCE(co.serie, '') || '-' || COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
+          OR LOWER(COALESCE(cl.razon_social, '')) LIKE LOWER('%' || v_busqueda || '%')
+          OR LOWER(COALESCE(cl.numero_documento, '')) LIKE LOWER('%' || v_busqueda || '%')
+          OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || v_busqueda || '%')
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -67,6 +77,11 @@ BEGIN
             co.numero AS numero_comprobante_origen,
             tc_origen.descripcion AS codigo_tipo_comprobante_origen,
             tc_origen.nombre AS nombre_tipo_comprobante_origen,
+            cd.id AS id_comprobante_destino,
+            cd.serie AS serie_comprobante_destino,
+            cd.numero AS numero_comprobante_destino,
+            tc_destino.descripcion AS codigo_tipo_comprobante_destino,
+            tc_destino.nombre AS nombre_tipo_comprobante_destino,
             c.id_motivo_nota,
             mn.nombre AS nombre_motivo_nota,
             mn.descripcion AS codigo_motivo_nota,
@@ -84,6 +99,14 @@ BEGIN
         LEFT JOIN gen_lista_opciones tc ON c.id_tipo_comprobante = tc.id
         LEFT JOIN ven_comprobante co ON c.id_comprobante_origen = co.id
         LEFT JOIN gen_lista_opciones tc_origen ON co.id_tipo_comprobante = tc_origen.id
+        LEFT JOIN LATERAL (
+            SELECT d.id, d.serie, d.numero, d.id_tipo_comprobante
+            FROM ven_comprobante d
+            WHERE d.id_comprobante_origen = c.id AND d.estado = 1
+            ORDER BY d.id DESC
+            LIMIT 1
+        ) cd ON TRUE
+        LEFT JOIN gen_lista_opciones tc_destino ON cd.id_tipo_comprobante = tc_destino.id
         LEFT JOIN gen_lista_opciones mn ON c.id_motivo_nota = mn.id
         LEFT JOIN cli_clientes cl ON c.id_cliente = cl.id
         LEFT JOIN gen_lista_opciones ed ON c.id_estado = ed.id
@@ -98,14 +121,17 @@ BEGIN
           AND (p_fecha_hasta IS NULL OR c.fecha <= p_fecha_hasta)
           AND (p_serie IS NULL OR p_serie = '' OR c.serie = TRIM(p_serie))
           AND (
-              p_busqueda = ''
-              OR LOWER(c.serie) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(c.numero) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(co.serie, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(co.numero, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cl.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cl.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
+              v_busqueda = ''
+              OR LOWER(c.serie) LIKE '%' || v_busqueda_norm || '%'
+              OR LOWER(c.numero) LIKE '%' || v_busqueda_norm || '%'
+              OR LOWER(c.serie || '-' || c.numero) LIKE '%' || v_busqueda_norm || '%'
+              OR LOWER(c.serie || c.numero) LIKE '%' || v_busqueda_sin_guion || '%'
+              OR LOWER(COALESCE(co.serie, '')) LIKE '%' || v_busqueda_norm || '%'
+              OR LOWER(COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
+              OR LOWER(COALESCE(co.serie, '') || '-' || COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
+              OR LOWER(COALESCE(cl.razon_social, '')) LIKE LOWER('%' || v_busqueda || '%')
+              OR LOWER(COALESCE(cl.numero_documento, '')) LIKE LOWER('%' || v_busqueda || '%')
+              OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || v_busqueda || '%')
           )
         ORDER BY c.fecha DESC, c.id DESC
         LIMIT p_limite

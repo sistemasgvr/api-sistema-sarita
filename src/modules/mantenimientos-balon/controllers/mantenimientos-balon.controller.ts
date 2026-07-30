@@ -16,6 +16,7 @@ import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   CreateMantenimientosBalonDto,
+  FinalizarMantenimientosBalonDto,
   FiltroMantenimientosBalonDto,
   UpdateMantenimientosBalonDto,
 } from '../dto/mantenimientos-balon.dto';
@@ -46,6 +47,19 @@ export class MantenimientosBalonController {
   @ApiOperation({ summary: 'Crear' })
   crear(@Body() dto: CreateMantenimientosBalonDto) {
     return this.logic.crear(dto);
+  }
+
+  @Post(':id/finalizar')
+  @Permisos(PermisoBanderas.MANTENIMIENTOS_BALON_EDITAR)
+  @ApiOperation({
+    summary: 'Finalizar mantenimiento (reingreso del cilindro a almacén)',
+  })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  finalizar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: FinalizarMantenimientosBalonDto,
+  ) {
+    return this.logic.finalizar(id, dto);
   }
 
   @Patch(':id')

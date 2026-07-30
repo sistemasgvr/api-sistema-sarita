@@ -5,6 +5,7 @@ import {
   mapSingleResult,
 } from '../../../common/helpers/auth-response.helper';
 import { FiltroClienteDto } from '../dto/filtros-cliente.dto';
+import { FiltroClienteMapaDto } from '../dto/filtros-cliente-mapa.dto';
 import { ClientesModel } from '../models/clientes.model';
 import { ValidarDocumentoClienteDto } from '../dto/validar-documento.dto';
 import { CreateClienteDto, UpdateClienteDto } from '../dto/crear-cliente.dto';
@@ -15,6 +16,11 @@ export class ClientesLogic {
 
   async listar(filtros: FiltroClienteDto) {
     const result = await this.clientesModel.listar(filtros);
+    return mapListResult(result, filtros);
+  }
+
+  async listarMapa(filtros: FiltroClienteMapaDto) {
+    const result = await this.clientesModel.listarMapa(filtros);
     return mapListResult(result, filtros);
   }
 

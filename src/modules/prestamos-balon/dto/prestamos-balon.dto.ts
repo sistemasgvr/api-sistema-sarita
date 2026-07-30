@@ -38,6 +38,35 @@ export class FiltroPrestamosBalonDto extends FiltroPaginacionDto {
   idEstado?: number;
 }
 
+export class FiltroPrestamosAntiguedadDto extends FiltroPaginacionDto {
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idCliente?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'RECIENTE_0_30 | ATENCION_30_90 | SEGUIMIENTO_90_180 | CRITICO_180 | DEVUELTO',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  rangoDias?: string;
+
+  @ApiPropertyOptional({ description: 'Excluir cilindros dados de baja/robados (default true)' })
+  @Transform(({ value }) => toOptionalBoolean(value))
+  @IsOptional()
+  @IsBoolean()
+  excluirBajas?: boolean;
+
+  @ApiPropertyOptional({ description: 'Solo pendientes de devolución (default true)' })
+  @Transform(({ value }) => toOptionalBoolean(value))
+  @IsOptional()
+  @IsBoolean()
+  soloPendientes?: boolean;
+}
+
 export class CreatePrestamosBalonDto extends AuditoriaDto {
   @ApiProperty()
   @Type(() => Number)
