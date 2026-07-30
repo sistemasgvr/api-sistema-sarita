@@ -8,20 +8,13 @@ import {
   Post,
   Query,
   Req,
-  UseGuards,
 } from '@nestjs/common';
-import {
-  ApiHeader,
-  ApiNotFoundResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
+import { NotificacionesJobsAuth } from '../../../common/decorators/notificaciones-jobs.decorator';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
-import { Public } from '../../../common/decorators/public.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
-import { NotificacionesJobsTokenGuard } from '../../../common/guards/notificaciones-jobs-token.guard';
 import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   CrearNotificacionDto,
@@ -94,14 +87,7 @@ export class NotificacionesController {
   }
 
   @Post('jobs/alquileres-vencidos')
-  @Public()
-  @UseGuards(NotificacionesJobsTokenGuard)
-  @ApiHeader({
-    name: 'X-Notificaciones-Jobs-Token',
-    description:
-      'Token de entorno NOTIFICACIONES_JOBS_TOKEN (también acepta Authorization: Bearer <token>)',
-    required: true,
-  })
+  @NotificacionesJobsAuth()
   @ApiOperation({
     summary: 'Ejecutar detección/notificación de alquileres vencidos (manual)',
   })
@@ -110,14 +96,7 @@ export class NotificacionesController {
   }
 
   @Post('jobs/alquileres-por-vencer')
-  @Public()
-  @UseGuards(NotificacionesJobsTokenGuard)
-  @ApiHeader({
-    name: 'X-Notificaciones-Jobs-Token',
-    description:
-      'Token de entorno NOTIFICACIONES_JOBS_TOKEN (también acepta Authorization: Bearer <token>)',
-    required: true,
-  })
+  @NotificacionesJobsAuth()
   @ApiOperation({
     summary: 'Detectar alquileres por vencer en 3–7 días (manual)',
   })
@@ -126,28 +105,14 @@ export class NotificacionesController {
   }
 
   @Post('jobs/prestamos-vencidos')
-  @Public()
-  @UseGuards(NotificacionesJobsTokenGuard)
-  @ApiHeader({
-    name: 'X-Notificaciones-Jobs-Token',
-    description:
-      'Token de entorno NOTIFICACIONES_JOBS_TOKEN (también acepta Authorization: Bearer <token>)',
-    required: true,
-  })
+  @NotificacionesJobsAuth()
   @ApiOperation({ summary: 'Detectar préstamos vencidos (manual)' })
   ejecutarPrestamosVencidos() {
     return this.logic.detectarYNotificarPrestamosVencidos();
   }
 
   @Post('jobs/prestamos-por-vencer')
-  @Public()
-  @UseGuards(NotificacionesJobsTokenGuard)
-  @ApiHeader({
-    name: 'X-Notificaciones-Jobs-Token',
-    description:
-      'Token de entorno NOTIFICACIONES_JOBS_TOKEN (también acepta Authorization: Bearer <token>)',
-    required: true,
-  })
+  @NotificacionesJobsAuth()
   @ApiOperation({
     summary: 'Detectar préstamos por vencer en 3–7 días (manual)',
   })
@@ -156,16 +121,58 @@ export class NotificacionesController {
   }
 
   @Post('jobs/stock-bajo')
-  @Public()
-  @UseGuards(NotificacionesJobsTokenGuard)
-  @ApiHeader({
-    name: 'X-Notificaciones-Jobs-Token',
-    description:
-      'Token de entorno NOTIFICACIONES_JOBS_TOKEN (también acepta Authorization: Bearer <token>)',
-    required: true,
-  })
+  @NotificacionesJobsAuth()
   @ApiOperation({ summary: 'Detectar stock bajo / cero (manual)' })
   ejecutarStockBajo() {
     return this.logic.detectarYNotificarStockBajo();
+  }
+
+  @Post('jobs/documentos-por-vencer')
+  @NotificacionesJobsAuth()
+  @ApiOperation({
+    summary: 'Detectar documentos de vencimiento por vencer (3–7 días)',
+  })
+  ejecutarDocumentosPorVencer() {
+    return this.logic.detectarYNotificarDocumentosPorVencer();
+  }
+
+  @Post('jobs/documentos-vencidos')
+  @NotificacionesJobsAuth()
+  @ApiOperation({ summary: 'Detectar documentos de vencimiento ya vencidos' })
+  ejecutarDocumentosVencidos() {
+    return this.logic.detectarYNotificarDocumentosVencidos();
+  }
+
+  @Post('jobs/licencias-por-vencer')
+  @NotificacionesJobsAuth()
+  @ApiOperation({ summary: 'Detectar licencias por vencer (3–7 días)' })
+  ejecutarLicenciasPorVencer() {
+    return this.logic.detectarYNotificarLicenciasPorVencer();
+  }
+
+  @Post('jobs/licencias-vencidas')
+  @NotificacionesJobsAuth()
+  @ApiOperation({ summary: 'Detectar licencias ya vencidas' })
+  ejecutarLicenciasVencidas() {
+    return this.logic.detectarYNotificarLicenciasVencidas();
+  }
+
+  @Post('jobs/comprobantes-pendientes-sunat')
+  @NotificacionesJobsAuth()
+  @ApiOperation({
+    summary:
+      'Detectar comprobantes con ticket SUNAT aún en PENDIENTE (≥1 día)',
+  })
+  ejecutarComprobantesPendientesSunat() {
+    return this.logic.detectarYNotificarComprobantesPendientesSunat();
+  }
+
+  @Post('jobs/guias-pendientes-sunat')
+  @NotificacionesJobsAuth()
+  @ApiOperation({
+    summary: 'Detectar guías de remisión con ticket SUNAT aún en PENDIENTE (≥1 día)',
+  })
+  ejecutarGuiasPendientesSunat() {
+    return this.logic.detectarYNotificarGuiasPendientesSunat();
   }
 }

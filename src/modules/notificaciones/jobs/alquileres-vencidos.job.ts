@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { NotificacionesLogic } from '../logic/notificaciones.logic';
 
-/** Detección diaria: alquileres, préstamos y stock (08:00 America/Lima). */
+/** Detección diaria de alertas operativas (08:00 America/Lima). */
 @Injectable()
 export class AlquileresVencidosJob {
   private readonly logger = new Logger(AlquileresVencidosJob.name);
@@ -20,6 +20,18 @@ export class AlquileresVencidosJob {
       ['prestamosVencidos', () => this.notificacionesLogic.detectarYNotificarPrestamosVencidos()],
       ['prestamosPorVencer', () => this.notificacionesLogic.detectarYNotificarPrestamosPorVencer()],
       ['stockBajo', () => this.notificacionesLogic.detectarYNotificarStockBajo()],
+      ['documentosPorVencer', () => this.notificacionesLogic.detectarYNotificarDocumentosPorVencer()],
+      ['documentosVencidos', () => this.notificacionesLogic.detectarYNotificarDocumentosVencidos()],
+      ['licenciasPorVencer', () => this.notificacionesLogic.detectarYNotificarLicenciasPorVencer()],
+      ['licenciasVencidas', () => this.notificacionesLogic.detectarYNotificarLicenciasVencidas()],
+      [
+        'comprobantesPendientesSunat',
+        () => this.notificacionesLogic.detectarYNotificarComprobantesPendientesSunat(),
+      ],
+      [
+        'guiasPendientesSunat',
+        () => this.notificacionesLogic.detectarYNotificarGuiasPendientesSunat(),
+      ],
     ] as const) {
       try {
         resultados[clave] = await fn();

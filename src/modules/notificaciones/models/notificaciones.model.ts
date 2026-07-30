@@ -138,4 +138,57 @@ export class NotificacionesModel {
       [],
     );
   }
+
+  listarDocumentosPorVencer(
+    diasMin = 3,
+    diasMax = 7,
+    fecha?: string | null,
+  ) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'gen_listar_documentos_por_vencer_notificar',
+      [diasMin, diasMax, fecha ?? null],
+    );
+  }
+
+  listarDocumentosVencidos(fecha?: string | null) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'gen_listar_documentos_vencidos_notificar',
+      [fecha ?? null],
+    );
+  }
+
+  listarLicenciasPorVencer(
+    diasMin = 3,
+    diasMax = 7,
+    fecha?: string | null,
+  ) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'gen_listar_licencias_por_vencer_notificar',
+      [diasMin, diasMax, fecha ?? null],
+    );
+  }
+
+  listarLicenciasVencidas(fecha?: string | null) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'gen_listar_licencias_vencidas_notificar',
+      [fecha ?? null],
+    );
+  }
+
+  listarComprobantesPendientesSunat(
+    diasMin = 1,
+    fecha?: string | null,
+  ) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'ven_listar_comprobantes_pendientes_notificar',
+      [diasMin, fecha ?? null],
+    );
+  }
+
+  listarGuiasPendientesSunat(diasMin = 1, fecha?: string | null) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'gre_listar_guias_pendientes_notificar',
+      [diasMin, fecha ?? null],
+    );
+  }
 }

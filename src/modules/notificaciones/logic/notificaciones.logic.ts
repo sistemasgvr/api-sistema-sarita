@@ -63,6 +63,48 @@ interface StockBajoRow {
   es_cero?: boolean;
 }
 
+interface DocumentoVencimientoRow {
+  id: number;
+  descripcion?: string | null;
+  numero_documento?: string | null;
+  fecha_vencimiento?: string;
+  dias_vencido?: number;
+  dias_para_vencer?: number;
+  nombre_categoria?: string | null;
+  id_vehiculo?: number | null;
+  vehiculo_placa?: string | null;
+}
+
+interface LicenciaRow {
+  id: number;
+  codigo?: string | null;
+  fecha_vencimiento?: string;
+  dias_vencido?: number;
+  dias_para_vencer?: number;
+  nombre_tipo_licencia?: string | null;
+  chofer_nombre?: string | null;
+  id_chofer?: number | null;
+}
+
+interface ComprobantePendienteRow {
+  id: number;
+  serie?: string | null;
+  numero?: string | null;
+  fecha?: string;
+  dias_pendiente?: number;
+  ticket_sunat?: string | null;
+  codigo_tipo_comprobante?: string | null;
+}
+
+interface GuiaPendienteRow {
+  id: number;
+  serie?: string | null;
+  numero?: string | null;
+  fecha?: string;
+  dias_pendiente?: number;
+  ticket_sunat?: string | null;
+}
+
 @Injectable()
 export class NotificacionesLogic {
   private readonly logger = new Logger(NotificacionesLogic.name);
@@ -344,6 +386,317 @@ export class NotificacionesLogic {
 
     return {
       items: items.length,
+      destinatarios: destinatarios.length,
+      notificaciones,
+    };
+  }
+
+  async detectarYNotificarDocumentosPorVencer(idUsuarioAuditoria?: number) {
+    const raw = await this.model.listarDocumentosPorVencer(3, 7);
+    const docs = (raw.registros ?? []) as DocumentoVencimientoRow[];
+    return this.notificarDocumentos({
+      docs,
+      codigoTipo: TipoNotificacion.DOCUMENTO_POR_VENCER,
+      titulo: 'Documento por vencer',
+      mensajeFn: (d) => {
+        const label =
+          [d.nombre_categoria, d.descripcion || d.numero_documento]
+            .filter(Boolean)
+            .join(' · ') || `Documento #${d.id}`;
+        const placa = d.vehiculo_placa ? ` (${d.vehiculo_placa})` : '';
+        return `${label}${placa} vence en ${Number(d.dias_para_vencer ?? 0)} día(s) (${d.fecha_vencimiento}).`;
+      },
+      clavePrefix: 'DOCUMENTO_POR_VENCER',
+      idUsuarioAuditoria,
+    });
+  }
+
+  async detectarYNotificarDocumentosVencidos(idUsuarioAuditoria?: number) {
+    const raw = await this.model.listarDocumentosVencidos();
+    const docs = (raw.registros ?? []) as DocumentoVencimientoRow[];
+    return this.notificarDocumentos({
+      docs,
+      codigoTipo: TipoNotificacion.DOCUMENTO_VENCIDO,
+      titulo: 'Documento vencido',
+      mensajeFn: (d) => {
+        const label =
+          [d.nombre_categoria, d.descripcion || d.numero_documento]
+            .filter(Boolean)
+            .join(' · ') || `Documento #${d.id}`;
+        const placa = d.vehiculo_placa ? ` (${d.vehiculo_placa})` : '';
+        return `${label}${placa} venció hace ${Number(d.dias_vencido ?? 0)} día(s) (${d.fecha_vencimiento}).`;
+      },
+      clavePrefix: 'DOCUMENTO_VENCIDO',
+      idUsuarioAuditoria,
+    });
+  }
+
+  async detectarYNotificarLicenciasPorVencer(idUsuarioAuditoria?: number) {
+    const raw = await this.model.listarLicenciasPorVencer(3, 7);
+    const licencias = (raw.registros ?? []) as LicenciaRow[];
+    return this.notificarLicencias({
+      licencias,
+      codigoTipo: TipoNotificacion.LICENCIA_POR_VENCER,
+      titulo: 'Licencia por vencer',
+      mensajeFn: (l) => {
+        const chofer = l.chofer_nombre?.trim() || 'Chofer';
+        const codigo = l.codigo || `#${l.id}`;
+        return `${chofer} · licencia ${codigo} vence en ${Number(l.dias_para_vencer ?? 0)} día(s) (${l.fecha_vencimiento}).`;
+      },
+      clavePrefix: 'LICENCIA_POR_VENCER',
+      idUsuarioAuditoria,
+    });
+  }
+
+  async detectarYNotificarLicenciasVencidas(idUsuarioAuditoria?: number) {
+    const raw = await this.model.listarLicenciasVencidas();
+    const licencias = (raw.registros ?? []) as LicenciaRow[];
+    return this.notificarLicencias({
+      licencias,
+      codigoTipo: TipoNotificacion.LICENCIA_VENCIDA,
+      titulo: 'Licencia vencida',
+      mensajeFn: (l) => {
+        const chofer = l.chofer_nombre?.trim() || 'Chofer';
+        const codigo = l.codigo || `#${l.id}`;
+        return `${chofer} · licencia ${codigo} venció hace ${Number(l.dias_vencido ?? 0)} día(s) (${l.fecha_vencimiento}).`;
+      },
+      clavePrefix: 'LICENCIA_VENCIDA',
+      idUsuarioAuditoria,
+    });
+  }
+
+  async detectarYNotificarComprobantesPendientesSunat(
+    idUsuarioAuditoria?: number,
+  ) {
+    const raw = await this.model.listarComprobantesPendientesSunat(1);
+    const items = (raw.registros ?? []) as ComprobantePendienteRow[];
+    const destinatarios = this.normalizeIds(
+      (await this.model.listarIdsPorPermiso(PermisoBanderas.COMPROBANTES_EMITIR))
+        .ids,
+    );
+
+    if (destinatarios.length === 0) {
+      return { items: items.length, destinatarios: 0, notificaciones: 0 };
+    }
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    let notificaciones = 0;
+
+    for (const item of items) {
+      const doc =
+        [item.serie, item.numero].filter(Boolean).join('-') ||
+        `Comprobante #${item.id}`;
+      const mensaje = `${doc} lleva ${Number(item.dias_pendiente ?? 0)} día(s) pendiente en SUNAT (ticket ${item.ticket_sunat ?? '—'}). Consulta el CDR.`;
+
+      for (const idUsuario of destinatarios) {
+        const creado = await this.crearYEmitir({
+          idUsuario,
+          codigoTipo: TipoNotificacion.COMPROBANTE_SUNAT_PENDIENTE,
+          titulo: 'Comprobante pendiente en SUNAT',
+          mensaje,
+          payload: {
+            idComprobante: item.id,
+            serie: item.serie,
+            numero: item.numero,
+            fecha: item.fecha,
+            diasPendiente: item.dias_pendiente,
+            ticketSunat: item.ticket_sunat,
+          },
+          idReferencia: item.id,
+          tipoReferencia: TipoReferenciaNotificacion.COMPROBANTE,
+          claveDedupe: `COMPROBANTE_SUNAT_PENDIENTE:${item.id}:${hoy}`,
+          idUsuarioAuditoria,
+        });
+        if (creado) notificaciones += 1;
+      }
+    }
+
+    this.logger.log(
+      `Comprobantes PENDIENTE: ${items.length} | dest: ${destinatarios.length} | notifs: ${notificaciones}`,
+    );
+
+    return {
+      items: items.length,
+      destinatarios: destinatarios.length,
+      notificaciones,
+    };
+  }
+
+  async detectarYNotificarGuiasPendientesSunat(idUsuarioAuditoria?: number) {
+    const raw = await this.model.listarGuiasPendientesSunat(1);
+    const items = (raw.registros ?? []) as GuiaPendienteRow[];
+    const destinatarios = this.normalizeIds(
+      (
+        await this.model.listarIdsPorPermiso(PermisoBanderas.GUIAS_REMISION_EMITIR)
+      ).ids,
+    );
+
+    if (destinatarios.length === 0) {
+      return { items: items.length, destinatarios: 0, notificaciones: 0 };
+    }
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    let notificaciones = 0;
+
+    for (const item of items) {
+      const doc =
+        [item.serie, item.numero].filter(Boolean).join('-') ||
+        `Guía #${item.id}`;
+      const mensaje = `${doc} lleva ${Number(item.dias_pendiente ?? 0)} día(s) pendiente en SUNAT (ticket ${item.ticket_sunat ?? '—'}). Consulta el estado.`;
+
+      for (const idUsuario of destinatarios) {
+        const creado = await this.crearYEmitir({
+          idUsuario,
+          codigoTipo: TipoNotificacion.GUIA_SUNAT_PENDIENTE,
+          titulo: 'Guía de remisión pendiente en SUNAT',
+          mensaje,
+          payload: {
+            idGuia: item.id,
+            serie: item.serie,
+            numero: item.numero,
+            fecha: item.fecha,
+            diasPendiente: item.dias_pendiente,
+            ticketSunat: item.ticket_sunat,
+          },
+          idReferencia: item.id,
+          tipoReferencia: TipoReferenciaNotificacion.GUIA_REMISION,
+          claveDedupe: `GUIA_SUNAT_PENDIENTE:${item.id}:${hoy}`,
+          idUsuarioAuditoria,
+        });
+        if (creado) notificaciones += 1;
+      }
+    }
+
+    this.logger.log(
+      `Guías PENDIENTE: ${items.length} | dest: ${destinatarios.length} | notifs: ${notificaciones}`,
+    );
+
+    return {
+      items: items.length,
+      destinatarios: destinatarios.length,
+      notificaciones,
+    };
+  }
+
+  private async notificarDocumentos(params: {
+    docs: DocumentoVencimientoRow[];
+    codigoTipo: string;
+    titulo: string;
+    mensajeFn: (d: DocumentoVencimientoRow) => string;
+    clavePrefix: string;
+    idUsuarioAuditoria?: number;
+  }) {
+    const destinatarios = this.normalizeIds(
+      (
+        await this.model.listarIdsPorPermiso(
+          PermisoBanderas.DOCUMENTOS_VENCIMIENTO_LISTAR,
+        )
+      ).ids,
+    );
+
+    if (destinatarios.length === 0) {
+      return {
+        documentos: params.docs.length,
+        destinatarios: 0,
+        notificaciones: 0,
+      };
+    }
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    let notificaciones = 0;
+
+    for (const doc of params.docs) {
+      const mensaje = params.mensajeFn(doc);
+      for (const idUsuario of destinatarios) {
+        const creado = await this.crearYEmitir({
+          idUsuario,
+          codigoTipo: params.codigoTipo,
+          titulo: params.titulo,
+          mensaje,
+          payload: {
+            idDocumento: doc.id,
+            descripcion: doc.descripcion,
+            numeroDocumento: doc.numero_documento,
+            fechaVencimiento: doc.fecha_vencimiento,
+            idVehiculo: doc.id_vehiculo,
+            vehiculoPlaca: doc.vehiculo_placa,
+            nombreCategoria: doc.nombre_categoria,
+          },
+          idReferencia: doc.id,
+          tipoReferencia: TipoReferenciaNotificacion.DOCUMENTO_VENCIMIENTO,
+          claveDedupe: `${params.clavePrefix}:${doc.id}:${hoy}`,
+          idUsuarioAuditoria: params.idUsuarioAuditoria,
+        });
+        if (creado) notificaciones += 1;
+      }
+    }
+
+    this.logger.log(
+      `${params.clavePrefix}: ${params.docs.length} | dest: ${destinatarios.length} | notifs: ${notificaciones}`,
+    );
+
+    return {
+      documentos: params.docs.length,
+      destinatarios: destinatarios.length,
+      notificaciones,
+    };
+  }
+
+  private async notificarLicencias(params: {
+    licencias: LicenciaRow[];
+    codigoTipo: string;
+    titulo: string;
+    mensajeFn: (l: LicenciaRow) => string;
+    clavePrefix: string;
+    idUsuarioAuditoria?: number;
+  }) {
+    const destinatarios = this.normalizeIds(
+      (await this.model.listarIdsPorPermiso(PermisoBanderas.LICENCIAS_LISTAR))
+        .ids,
+    );
+
+    if (destinatarios.length === 0) {
+      return {
+        licencias: params.licencias.length,
+        destinatarios: 0,
+        notificaciones: 0,
+      };
+    }
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    let notificaciones = 0;
+
+    for (const licencia of params.licencias) {
+      const mensaje = params.mensajeFn(licencia);
+      for (const idUsuario of destinatarios) {
+        const creado = await this.crearYEmitir({
+          idUsuario,
+          codigoTipo: params.codigoTipo,
+          titulo: params.titulo,
+          mensaje,
+          payload: {
+            idLicencia: licencia.id,
+            codigo: licencia.codigo,
+            fechaVencimiento: licencia.fecha_vencimiento,
+            idChofer: licencia.id_chofer,
+            choferNombre: licencia.chofer_nombre,
+            nombreTipo: licencia.nombre_tipo_licencia,
+          },
+          idReferencia: licencia.id,
+          tipoReferencia: TipoReferenciaNotificacion.LICENCIA,
+          claveDedupe: `${params.clavePrefix}:${licencia.id}:${hoy}`,
+          idUsuarioAuditoria: params.idUsuarioAuditoria,
+        });
+        if (creado) notificaciones += 1;
+      }
+    }
+
+    this.logger.log(
+      `${params.clavePrefix}: ${params.licencias.length} | dest: ${destinatarios.length} | notifs: ${notificaciones}`,
+    );
+
+    return {
+      licencias: params.licencias.length,
       destinatarios: destinatarios.length,
       notificaciones,
     };

@@ -1,16 +1,24 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   mapDeleteResult,
   mapListResult,
 } from '../../../common/helpers/auth-response.helper';
 import { FacturacionApisperuClient } from '../../../integrations/facturacion-apisperu/facturacion-apisperu.client';
+import type { FacturacionApisperuDocumentResponse } from '../../../integrations/facturacion-apisperu/interfaces/facturacion-apisperu.interface';
 import { FacturacionCredentialsService } from '../../../integrations/facturacion-electronica/facturacion-credentials.service';
+import {
+  TipoNotificacion,
+  TipoReferenciaNotificacion,
+} from '../../notificaciones/constants/tipo-notificacion';
+import { NotificacionesLogic } from '../../notificaciones/logic/notificaciones.logic';
 import {
   CreateGuiaRemisionDto,
   FiltroGuiaRemisionDto,
@@ -30,12 +38,15 @@ interface SunatResponsePayload {
 
 @Injectable()
 export class GuiasRemisionLogic {
+  private readonly logger = new Logger(GuiasRemisionLogic.name);
+
   constructor(
     private readonly model: GuiasRemisionModel,
     private readonly facturacionClient: FacturacionApisperuClient,
     private readonly credentialsService: FacturacionCredentialsService,
     private readonly despatchMapper: GuiaRemisionDespatchMapper,
     private readonly pdfGenerator: GuiaRemisionPdfGenerator,
+    private readonly notificacionesLogic: NotificacionesLogic,
   ) {}
 
   async listar(filtros: FiltroGuiaRemisionDto) {
@@ -149,7 +160,26 @@ export class GuiasRemisionLogic {
     const empresa = await this.obtenerEmpresaEmisoraResuelta();
 
     const payload = this.despatchMapper.mapToDespatchPayload(guia, empresa);
-    const respuesta = await this.facturacionClient.enviarGuiaRemision(payload);
+    let respuesta: FacturacionApisperuDocumentResponse;
+    try {
+      respuesta = await this.facturacionClient.enviarGuiaRemision(payload);
+    } catch (error) {
+      void this.notificarEmisionGuia({
+        idGuia: id,
+        serie: guia.registro.serie,
+        numero: guia.registro.numero,
+        estado: 'ERROR',
+        detalle: error instanceof Error ? error.message : String(error),
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      }).catch((notifyError: unknown) => {
+        this.logger.warn(
+          `No se pudo notificar error de emisión GRE: ${
+            notifyError instanceof Error ? notifyError.message : String(notifyError)
+          }`,
+        );
+      });
+      throw error;
+    }
 
     const sunatResponse = (respuesta.sunatResponse ?? {}) as SunatResponsePayload;
     const estadoSunatNombre = this.resolverEstadoSunatNombre(sunatResponse);
@@ -168,6 +198,23 @@ export class GuiasRemisionLogic {
 
     if (actualizada.error) {
       throw new BadRequestException(actualizada.error);
+    }
+
+    if (estadoSunatNombre === 'RECHAZADO') {
+      void this.notificarEmisionGuia({
+        idGuia: id,
+        serie: guia.registro.serie,
+        numero: guia.registro.numero,
+        estado: 'RECHAZADO',
+        detalle: 'SUNAT rechazó la guía de remisión',
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      }).catch((notifyError: unknown) => {
+        this.logger.warn(
+          `No se pudo notificar rechazo GRE: ${
+            notifyError instanceof Error ? notifyError.message : String(notifyError)
+          }`,
+        );
+      });
     }
 
     return {
@@ -248,6 +295,23 @@ export class GuiasRemisionLogic {
       throw new BadRequestException(actualizada.error);
     }
 
+    if (estadoSunatNombre === 'RECHAZADO') {
+      void this.notificarEmisionGuia({
+        idGuia: id,
+        serie: guia.registro.serie,
+        numero: guia.registro.numero,
+        estado: 'RECHAZADO',
+        detalle: 'SUNAT rechazó la guía de remisión (consulta de estado)',
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      }).catch((notifyError: unknown) => {
+        this.logger.warn(
+          `No se pudo notificar rechazo GRE (consulta): ${
+            notifyError instanceof Error ? notifyError.message : String(notifyError)
+          }`,
+        );
+      });
+    }
+
     return {
       guia: {
         ...actualizada.registro,
@@ -259,6 +323,66 @@ export class GuiasRemisionLogic {
         respuesta,
       },
     };
+  }
+
+  private async notificarEmisionGuia(params: {
+    idGuia: number;
+    serie?: string | null;
+    numero?: string | null;
+    estado: 'RECHAZADO' | 'ERROR';
+    detalle: string;
+    idUsuarioAuditoria?: number;
+  }) {
+    const doc =
+      [params.serie, params.numero].filter(Boolean).join('-') ||
+      `Guía #${params.idGuia}`;
+    const hoy = new Date().toISOString().slice(0, 10);
+    const esError = params.estado === 'ERROR';
+    const codigoTipo = esError
+      ? TipoNotificacion.GUIA_ERROR_EMISION
+      : TipoNotificacion.GUIA_SUNAT_RECHAZADA;
+    const titulo = esError
+      ? 'Error al emitir guía de remisión'
+      : 'Guía de remisión rechazada por SUNAT';
+    const mensaje = `${doc}: ${params.detalle}`;
+
+    const byEmitir = await this.notificacionesLogic.notificarPorPermiso({
+      permiso: PermisoBanderas.GUIAS_REMISION_EMITIR,
+      codigoTipo,
+      titulo,
+      mensaje,
+      payload: {
+        idGuia: params.idGuia,
+        serie: params.serie,
+        numero: params.numero,
+        estado: params.estado,
+        detalle: params.detalle,
+      },
+      idReferencia: params.idGuia,
+      tipoReferencia: TipoReferenciaNotificacion.GUIA_REMISION,
+      claveDedupePrefix: `${codigoTipo}:${params.idGuia}:${hoy}`,
+      idUsuarioAuditoria: params.idUsuarioAuditoria,
+    });
+
+    if (params.idUsuarioAuditoria && byEmitir.destinatarios === 0) {
+      await this.notificacionesLogic.crearYEmitir({
+        idUsuario: params.idUsuarioAuditoria,
+        codigoTipo,
+        titulo,
+        mensaje,
+        payload: {
+          idGuia: params.idGuia,
+          serie: params.serie,
+          numero: params.numero,
+          estado: params.estado,
+          detalle: params.detalle,
+        },
+        idReferencia: params.idGuia,
+        tipoReferencia: TipoReferenciaNotificacion.GUIA_REMISION,
+        claveDedupe: `${codigoTipo}:${params.idGuia}:${hoy}:${params.idUsuarioAuditoria}`,
+        idUsuarioAuditoria: params.idUsuarioAuditoria,
+      });
+    }
   }
 
   private resolverEstadoSunatNombre(sunatResponse: SunatResponsePayload) {
