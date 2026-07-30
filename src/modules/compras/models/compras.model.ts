@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  AuthDeleteResult,
   AuthListResult,
   AuthSingleResult,
 } from '../../../common/interfaces/auth-db.interface';
@@ -17,13 +18,14 @@ export class ComprasModel {
 
   listar(filtros: FiltroComprasDto) {
     return this.db.callFunctionJson<AuthListResult>('com_listar_compras', [
+      filtros.buscar ?? '',
+      filtros.limite ?? 10,
+      filtros.offset,
       filtros.idProveedor ?? null,
       filtros.idAlmacen ?? null,
       filtros.fechaDesde ?? null,
       filtros.fechaHasta ?? null,
       filtros.estado ?? null,
-      filtros.limite ?? 50,
-      filtros.offset,
     ]);
   }
 
@@ -86,14 +88,14 @@ export class ComprasModel {
   }
 
   eliminarDetalle(idDetalle: number, idUsuarioAuditoria?: number) {
-    return this.db.callFunctionJson<AuthSingleResult>(
+    return this.db.callFunctionJson<AuthDeleteResult>(
       'com_eliminar_compra_detalle',
       [idDetalle, idUsuarioAuditoria ?? null],
     );
   }
 
   anular(id: number, idUsuarioAuditoria?: number) {
-    return this.db.callFunctionJson<AuthSingleResult>('com_anular_compra', [
+    return this.db.callFunctionJson<AuthDeleteResult>('com_anular_compra', [
       id,
       idUsuarioAuditoria ?? null,
     ]);

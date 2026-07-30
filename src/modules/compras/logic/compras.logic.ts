@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  mapDeleteResult,
   mapListResult,
   mapSingleResult,
 } from '../../../common/helpers/auth-response.helper';
@@ -51,7 +52,7 @@ export class ComprasLogic {
       idDetalle,
       idUsuarioAuditoria,
     );
-    return mapSingleResult(
+    return mapDeleteResult(
       result,
       `Detalle de compra ${idDetalle} no encontrado`,
     );
@@ -59,6 +60,6 @@ export class ComprasLogic {
 
   async anular(id: number, idUsuarioAuditoria?: number) {
     const result = await this.comprasModel.anular(id, idUsuarioAuditoria);
-    return mapSingleResult(result, `Comprobante de compra ${id} no encontrado`);
+    return mapDeleteResult(result, `Comprobante de compra ${id} no encontrado`);
   }
 }

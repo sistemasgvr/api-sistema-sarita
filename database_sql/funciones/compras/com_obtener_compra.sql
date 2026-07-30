@@ -1,98 +1,108 @@
-DROP FUNCTION IF EXISTS com_obtener_compra;
-
-CREATE OR REPLACE FUNCTION com_obtener_compra(p_id INTEGER)
+CREATE OR REPLACE FUNCTION com_obtener_compra(
+    p_id INTEGER
+)
 RETURNS JSON
 LANGUAGE plpgsql
 AS $function$
 DECLARE
-    v_registro JSON;
+    v_cabecera JSON;
+    v_detalle  JSON;
 BEGIN
-    SET TIME ZONE 'America/Lima';
+    SELECT json_build_object(
+        'id',                        c.id,
+        'id_tipo_comprobante',       c.id_tipo_comprobante,
+        'tipo_comprobante',          tc.nombre,
+        'serie',                     c.serie,
+        'numero',                    c.numero,
+        'fecha',                     c.fecha,
+        'id_proveedor',              c.id_proveedor,
+        'proveedor',                 pr.razon_social,
+        'proveedor_documento',       pr.numero_documento,
+        'id_tipo_registro',          c.id_tipo_registro,
+        'tipo_registro',             tr.nombre,
+        'id_categoria_gasto',        c.id_categoria_gasto,
+        'categoria_gasto',           cat.nombre,
+        'id_sucursal',               c.id_sucursal,
+        'sucursal',                  suc.nombre,
+        'id_almacen',                c.id_almacen,
+        'almacen',                   alm.nombre,
+        'id_moneda',                 c.id_moneda,
+        'moneda',                    mon.nombre,
+        'id_condicion_pago',         c.id_condicion_pago,
+        'condicion_pago',            cp.nombre,
+        'sub_total',                 c.sub_total,
+        'igv',                       c.igv,
+        'total_importe',             c.total_importe,
+        'afecta_inventario',         c.afecta_inventario,
+        'declarar_sunat',            c.declarar_sunat,
+        'glosa',                     c.glosa,
+        'id_estado',                 c.id_estado,
+        'estado_pago',               est.nombre,
+        'estado',                    c.estado,
+        'id_comprobante_referencia', c.id_comprobante_referencia,
+        'tiene_movimientos_inventario', com_tiene_movimientos_inventario(c.id),
+        'puede_modificarse_parcial', NOT com_tiene_movimientos_inventario(c.id),
+        'fecha_creacion',            c.fecha_creacion,
+        'fecha_modificacion',        c.fecha_modificacion
+    )
+    INTO v_cabecera
+    FROM com_comprobante_compra c
+    LEFT JOIN cli_clientes pr             ON pr.id = c.id_proveedor
+    LEFT JOIN gen_lista_opciones tc       ON tc.id = c.id_tipo_comprobante
+    LEFT JOIN gen_lista_opciones tr       ON tr.id = c.id_tipo_registro
+    LEFT JOIN gen_lista_opciones cat      ON cat.id = c.id_categoria_gasto
+    LEFT JOIN gen_sucursal suc            ON suc.id = c.id_sucursal
+    LEFT JOIN gen_almacen alm             ON alm.id = c.id_almacen
+    LEFT JOIN gen_lista_opciones mon      ON mon.id = c.id_moneda
+    LEFT JOIN gen_condicion_pago cp       ON cp.id = c.id_condicion_pago
+    LEFT JOIN gen_lista_opciones est      ON est.id = c.id_estado
+    WHERE c.id = p_id;
 
-    SELECT row_to_json(t) INTO v_registro
+    IF v_cabecera IS NULL THEN
+        RETURN json_build_object('error', 'La compra no existe', 'registro', NULL);
+    END IF;
+
+    SELECT COALESCE(json_agg(d ORDER BY (d->>'item')::INTEGER), '[]'::json)
+    INTO v_detalle
     FROM (
-        SELECT
-            c.id,
-            c.id_tipo_comprobante,
-            tc.nombre AS nombre_tipo_comprobante,
-            c.serie,
-            c.numero,
-            c.fecha,
-            c.id_proveedor,
-            p.razon_social AS razon_social_proveedor,
-            p.numero_documento AS doc_proveedor,
-            c.id_tipo_registro,
-            tr.nombre AS nombre_tipo_registro,
-            c.id_categoria_gasto,
-            cg.nombre AS nombre_categoria_gasto,
-            c.id_sucursal,
-            s.nombre AS nombre_sucursal,
-            c.id_almacen,
-            a.nombre AS nombre_almacen,
-            c.id_moneda,
-            m.nombre AS nombre_moneda,
-            c.id_condicion_pago,
-            cp.nombre AS nombre_condicion_pago,
-            c.sub_total,
-            c.igv,
-            c.total_importe,
-            c.afecta_inventario,
-            c.declarar_sunat,
-            c.glosa,
-            c.id_estado,
-            ec.nombre AS nombre_estado,
-            c.estado,
-            c.fecha_creacion,
-            c.fecha_modificacion,
-            c.id_usuario_creacion,
-            uc.nombre AS nombre_usuario_creacion,
-            (
-                SELECT COALESCE(json_agg(row_to_json(d)), '[]'::JSON)
-                FROM (
-                    SELECT
-                        det.id,
-                        det.item,
-                        det.id_clasificacion_gasto,
-                        cg_clasif.grupo,
-                        cg_clasif.subgrupo,
-                        cg_clasif.sub_subgrupo,
-                        det.id_producto,
-                        prod.nombre AS nombre_producto,
-                        det.descripcion,
-                        det.id_unidad_medida,
-                        um.nombre AS nombre_unidad_medida,
-                        det.cantidad,
-                        det.precio_unitario,
-                        det.importe,
-                        det.id_medio_pago,
-                        mp.nombre AS nombre_medio_pago,
-                        det.fecha_pago,
-                        det.numero_operacion,
-                        det.afecta_stock,
-                        det.observacion
-                    FROM com_comprobante_compra_detalle det
-                    LEFT JOIN gen_clasificacion_gasto cg_clasif ON det.id_clasificacion_gasto = cg_clasif.id
-                    LEFT JOIN pro_producto prod ON det.id_producto = prod.id
-                    LEFT JOIN gen_lista_opciones um ON det.id_unidad_medida = um.id
-                    LEFT JOIN gen_lista_opciones mp ON det.id_medio_pago = mp.id
-                    WHERE det.id_comprobante = c.id AND det.estado = 1
-                    ORDER BY det.item ASC
-                ) d
-            ) AS detalles
-        FROM com_comprobante_compra c
-        LEFT JOIN gen_lista_opciones tc ON c.id_tipo_comprobante = tc.id
-        LEFT JOIN gen_lista_opciones tr ON c.id_tipo_registro = tr.id
-        LEFT JOIN gen_lista_opciones cg ON c.id_categoria_gasto = cg.id
-        LEFT JOIN gen_lista_opciones m ON c.id_moneda = m.id
-        LEFT JOIN gen_lista_opciones ec ON c.id_estado = ec.id
-        LEFT JOIN cli_clientes p ON c.id_proveedor = p.id
-        LEFT JOIN gen_sucursal s ON c.id_sucursal = s.id
-        LEFT JOIN gen_almacen a ON c.id_almacen = a.id
-        LEFT JOIN gen_condicion_pago cp ON c.id_condicion_pago = cp.id
-        LEFT JOIN auth_usuarios uc ON c.id_usuario_creacion = uc.id
-        WHERE c.id = p_id AND c.estado = 1
-    ) t;
+        SELECT json_build_object(
+            'id',                     cd.id,
+            'item',                   cd.item,
+            'id_producto',            cd.id_producto,
+            'codigo_producto',        p.codigo,
+            'nombre_producto',        p.nombre,
+            'descripcion',            cd.descripcion,
+            'id_unidad_medida',       cd.id_unidad_medida,
+            'unidad_medida',          um.nombre,
+            'id_almacen',             cd.id_almacen,
+            'almacen',                alm2.nombre,
+            'cantidad',               cd.cantidad,
+            'precio_unitario',        cd.precio_unitario,
+            'importe',                cd.importe,
+            'afecta_stock',           cd.afecta_stock,
+            'id_clasificacion_gasto', cd.id_clasificacion_gasto,
+            'clasificacion_gasto',    CASE WHEN cg.id IS NOT NULL
+                                          THEN cg.grupo || ' > ' || cg.subgrupo || ' > ' || cg.sub_subgrupo
+                                          ELSE NULL END,
+            'id_estado_pago',         cd.id_estado_pago,
+            'fecha_pago',             cd.fecha_pago,
+            'estado',                 cd.estado
+        ) AS d
+        FROM com_comprobante_compra_detalle cd
+        JOIN pro_producto p                        ON p.id = cd.id_producto
+        LEFT JOIN gen_lista_opciones um             ON um.id = cd.id_unidad_medida
+        LEFT JOIN gen_almacen alm2                  ON alm2.id = cd.id_almacen
+        LEFT JOIN gen_clasificacion_gasto cg        ON cg.id = cd.id_clasificacion_gasto
+        WHERE cd.id_comprobante = p_id
+          AND cd.estado = 1
+    ) sub;
 
-    RETURN json_build_object('registro', v_registro);
+    RETURN json_build_object(
+        'error', NULL,
+        'registro', json_build_object(
+            'cabecera', v_cabecera,
+            'detalle', v_detalle
+        )
+    );
 END;
 $function$;
