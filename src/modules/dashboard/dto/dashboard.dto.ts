@@ -1,6 +1,26 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Matches, Min } from 'class-validator';
+import { IsInt, IsOptional, Matches, Min, IsDateString, IsString } from 'class-validator';
+
+export class GeneralKpiQueryDto {
+  @ApiPropertyOptional({ description: 'ID de almacén específico para stock crítico' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idAlmacen?: number;
+
+  @ApiPropertyOptional({ description: 'Límite de registros para listas' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  limite?: number;
+
+  @ApiPropertyOptional({ description: 'Offset para paginación' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  offset?: number;
+}
 
 export class ClientesKpiQueryDto {
   @ApiPropertyOptional({ example: 5, description: 'Filtrar por un cliente específico' })
@@ -37,4 +57,48 @@ export class BalonesKpiQueryDto {
   @Type(() => Number)
   @IsInt()
   idCliente?: number;
+}
+
+export class ProductosKpiQueryDto {
+  @ApiPropertyOptional({ description: 'ID de almacén específico' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idAlmacen?: number;
+
+  @ApiPropertyOptional({ description: 'Término de búsqueda por nombre/código' })
+  @IsOptional()
+  @IsString()
+  busqueda?: string;
+
+  @ApiPropertyOptional({ description: 'Límite de registros para listas' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  limite?: number;
+
+  @ApiPropertyOptional({ description: 'Offset para paginación' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  offset?: number;
+}
+
+export class VentasKpiQueryDto {
+  @ApiPropertyOptional({ description: 'Fecha de consulta (YYYY-MM-DD)', example: '2026-07-30' })
+  @IsOptional()
+  @IsDateString()
+  fecha?: string;
+
+  @ApiPropertyOptional({ description: 'Límite de registros para listas' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  limite?: number;
+
+  @ApiPropertyOptional({ description: 'Offset para paginación' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  offset?: number;
 }

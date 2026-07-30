@@ -11,6 +11,23 @@ export interface ClientesKpiParams {
 export class DashboardModel {
   constructor(private readonly db: DatabaseService) {}
 
+  // ---------- General ----------
+
+  async numeroTotalSolicitudes(limite = 20, offset = 0): Promise<unknown> {
+    return this.db.callFunctionJson('dash_obtener_solicitudes_baja', [
+      limite,
+      offset,
+    ]);
+  }
+
+  async stockCritico(idAlmacen?: number | null, limite = 20, offset = 0): Promise<unknown> {
+    return this.db.callFunctionJson('dash_stock_critico', [
+      idAlmacen ?? null,
+      limite,
+      offset,
+    ]);
+  }
+
   // ---------- Clientes ----------
 
   async totalClientes(params: ClientesKpiParams = {}): Promise<number> {
@@ -70,4 +87,70 @@ export class DashboardModel {
       idCliente ?? null,
     ]);
   }
+
+  // ---------- Productos ----------
+
+  async productosRegistrados(busqueda?: string | null, limite = 20, offset = 0): Promise<unknown> {
+  return this.db.callFunctionJson('dash_productos_registrados', [
+    busqueda ?? '',
+    limite,
+    offset,
+  ]);
+}
+
+async almacenesOperativos(limite = 20, offset = 0): Promise<unknown> {
+  return this.db.callFunctionJson('dash_almacenes_operativos', [
+    limite,
+    offset,
+  ]);
+}
+
+async margenPromedio(limite = 20, offset = 0): Promise<unknown> {
+  return this.db.callFunctionJson('dash_margen_promedio', [
+    limite,
+    offset,
+  ]);
+}
+
+async valorTotalInventario(idAlmacen?: number | null, limite = 20, offset = 0): Promise<unknown> {
+  return this.db.callFunctionJson('dash_valor_total_inventario', [
+    idAlmacen ?? null,
+    limite,
+    offset,
+  ]);
+}
+
+// ---------- Ventas ----------
+
+async ventasDelDia(fecha?: string | null, limite = 20, offset = 0): Promise<unknown> {
+  return this.db.callFunctionJson('dash_ventas_del_dia', [
+    fecha ?? null,
+    limite,
+    offset,
+  ]);
+}
+
+async operacionesRegistradas(fecha?: string | null, limite = 20, offset = 0): Promise<unknown> {
+  return this.db.callFunctionJson('dash_operaciones_registradas', [
+    fecha ?? null,
+    limite,
+    offset,
+  ]);
+}
+
+async montoMora(fecha?: string | null, limite = 20, offset = 0): Promise<unknown> {
+  return this.db.callFunctionJson('dash_monto_mora', [
+    fecha ?? null,
+    limite,
+    offset,
+  ]);
+}
+
+async gananciasDelDia(fecha?: string | null, limite = 20, offset = 0): Promise<unknown> {
+  return this.db.callFunctionJson('dash_ganancias_del_dia', [
+    fecha ?? null,
+    limite,
+    offset,
+  ]);
+}
 }
