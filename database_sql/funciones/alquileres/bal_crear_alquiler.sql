@@ -10,6 +10,7 @@ CREATE OR REPLACE FUNCTION bal_crear_alquiler(
     p_id_estado INTEGER DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
     p_id_comprobante_venta INTEGER DEFAULT NULL,
+    p_id_producto_regulador INTEGER DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -46,16 +47,22 @@ BEGIN
         RETURN json_build_object('error', 'El almacén indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
+    IF p_id_producto_regulador IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM pro_producto WHERE id = p_id_producto_regulador AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El producto regulador indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
     INSERT INTO bal_alquiler (
         numero_alquiler, id_cliente, id_almacen, fecha_inicio,
         fecha_fin_pactada, fecha_fin_real, tarifa_diaria, total_cobrado,
-        id_estado, observacion, id_comprobante_venta,
+        id_estado, observacion, id_comprobante_venta, id_producto_regulador,
         id_usuario_creacion, id_usuario_modificacion
     )
     VALUES (
         TRIM(p_numero_alquiler), p_id_cliente, p_id_almacen, p_fecha_inicio,
         p_fecha_fin_pactada, p_fecha_fin_real, COALESCE(p_tarifa_diaria, 0), COALESCE(p_total_cobrado, 0),
-        p_id_estado, p_observacion, p_id_comprobante_venta,
+        p_id_estado, p_observacion, p_id_comprobante_venta, p_id_producto_regulador,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;

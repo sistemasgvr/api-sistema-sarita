@@ -38,7 +38,7 @@ export class PrestamosBalonController {
   @Permisos(PermisoBanderas.PRESTAMOS_BALON_LISTAR)
   @ApiOperation({
     summary:
-      'Reporte de cilindros en préstamo por antigüedad (30 / 90–180 / 180+ días)',
+      'Reporte de cilindros por días en préstamo (30 / 90–180 / 180+ días)',
   })
   reporteAntiguedad(@Query() filtros: FiltroPrestamosAntiguedadDto) {
     return this.logic.reporteAntiguedad(filtros);

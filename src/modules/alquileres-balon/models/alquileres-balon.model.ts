@@ -9,6 +9,8 @@ import {
   CreateAlquileresBalonDto,
   FiltroAlquileresAntiguedadDto,
   FiltroAlquileresBalonDto,
+  RegistrarAlquilerPeriodoDto,
+  RenovarAlquilerDto,
   UpdateAlquileresBalonDto,
 } from '../dto/alquileres-balon.dto';
 
@@ -69,6 +71,7 @@ export class AlquileresBalonModel {
       dto.idEstado ?? null,
       dto.observacion ?? null,
       dto.idComprobanteVenta ?? null,
+      dto.idProductoRegulador ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }
@@ -87,6 +90,7 @@ export class AlquileresBalonModel {
       dto.idEstado ?? null,
       dto.observacion ?? null,
       dto.idComprobanteVenta ?? null,
+      dto.idProductoRegulador ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }
@@ -95,6 +99,39 @@ export class AlquileresBalonModel {
     return this.db.callFunctionJson<AuthDeleteResult>('bal_eliminar_alquiler', [
       id,
       idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  listarPeriodos(idAlquiler: number, limite = 100, offset = 0) {
+    return this.db.callFunctionJson<AuthListResult>('bal_listar_alquiler_periodos', [
+      idAlquiler,
+      limite,
+      offset,
+    ]);
+  }
+
+  registrarPeriodo(idAlquiler: number, dto: RegistrarAlquilerPeriodoDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_registrar_alquiler_periodo', [
+      idAlquiler,
+      dto.fechaInicio ?? null,
+      dto.fechaFin ?? null,
+      dto.monto ?? null,
+      dto.idProducto ?? null,
+      dto.idComprobante ?? null,
+      dto.observacion ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  renovar(idAlquiler: number, dto: RenovarAlquilerDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_renovar_alquiler', [
+      idAlquiler,
+      dto.idComprobante ?? null,
+      dto.monto ?? null,
+      dto.fechaInicio ?? null,
+      dto.fechaFin ?? null,
+      dto.observacion ?? null,
+      dto.idUsuarioAuditoria ?? null,
     ]);
   }
 }

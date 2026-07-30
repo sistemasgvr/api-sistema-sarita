@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import databaseConfig from './config/database.config';
 import facturacionConfig from './config/facturacion.config';
 import jwtConfig from './config/jwt.config';
@@ -51,6 +52,7 @@ import { PrestamosDetalleModule } from './modules/prestamos-detalle/prestamos-de
 import { AlquileresBalonModule } from './modules/alquileres-balon/alquileres-balon.module';
 import { AlquileresDetalleModule } from './modules/alquileres-detalle/alquileres-detalle.module';
 import { MantenimientosBalonModule } from './modules/mantenimientos-balon/mantenimientos-balon.module';
+import { GarantiasModule } from './modules/garantias/garantias.module';
 import { FacturacionApisperuModule } from './integrations/facturacion-apisperu/facturacion-apisperu.module';
 import { FacturacionElectronicaModule } from './modules/facturacion-electronica/facturacion-electronica.module';
 import { ComprobantesModule } from './modules/comprobantes/comprobantes.module';
@@ -58,6 +60,7 @@ import { GuiasRemisionModule } from './modules/guias-remision/guias-remision.mod
 import { BajasClienteModule } from './modules/bajas-cliente/bajas-cliente.module';
 import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-bancarias.module';
 import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/documentos-vencimiento.module';
+import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 
 //Módulo Dashboard
 import { DashboardModule } from './modules/dashboard/dashboard.module';
@@ -76,6 +79,7 @@ import { FinanzasModule } from './modules/finanzas/finanzas.module';
         abortEarly: false,
       },
     }),
+    ScheduleModule.forRoot(),
     DatabaseModule,
     SupabaseStorageModule,
     ArchivosModule,
@@ -118,6 +122,7 @@ import { FinanzasModule } from './modules/finanzas/finanzas.module';
     AlquileresBalonModule,
     AlquileresDetalleModule,
     MantenimientosBalonModule,
+    GarantiasModule,
     BalonesModule,
     FacturacionApisperuModule,
     FacturacionElectronicaModule,
@@ -126,6 +131,7 @@ import { FinanzasModule } from './modules/finanzas/finanzas.module';
     BajasClienteModule,
     CuentasBancariasModule,
     DocumentosVencimientoModule,
+    NotificacionesModule,
 
     //Módulo Dashboard
     DashboardModule,

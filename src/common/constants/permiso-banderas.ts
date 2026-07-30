@@ -268,6 +268,11 @@ export const PermisoBanderas = {
   FINANZAS_CXP_VER: 'finanzas.cxp.ver',
   FINANZAS_CXP_CREAR: 'finanzas.cxp.crear',
   FINANZAS_CXP_REGISTRAR_PAGO: 'finanzas.cxp.registrar_pago',
+  NOTIFICACIONES_LISTAR: 'notificaciones.listar',
+  NOTIFICACIONES_VER: 'notificaciones.ver',
+  NOTIFICACIONES_MARCAR_LEIDA: 'notificaciones.marcar_leida',
+  NOTIFICACIONES_CREAR: 'notificaciones.crear',
+  NOTIFICACIONES_EJECUTAR_JOBS: 'notificaciones.ejecutar_jobs',
 } as const;
 
 export type PermisoBandera =
