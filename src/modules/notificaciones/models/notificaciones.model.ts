@@ -102,4 +102,40 @@ export class NotificacionesModel {
       [fecha ?? null],
     );
   }
+
+  listarAlquileresPorVencer(
+    diasMin = 3,
+    diasMax = 7,
+    fecha?: string | null,
+  ) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'bal_listar_alquileres_por_vencer_notificar',
+      [diasMin, diasMax, fecha ?? null],
+    );
+  }
+
+  listarPrestamosVencidos(fecha?: string | null) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'bal_listar_prestamos_vencidos_notificar',
+      [fecha ?? null],
+    );
+  }
+
+  listarPrestamosPorVencer(
+    diasMin = 3,
+    diasMax = 7,
+    fecha?: string | null,
+  ) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'bal_listar_prestamos_por_vencer_notificar',
+      [diasMin, diasMax, fecha ?? null],
+    );
+  }
+
+  listarStockBajo() {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'pro_listar_stock_bajo_notificar',
+      [],
+    );
+  }
 }

@@ -8,12 +8,20 @@ import {
   Post,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiHeader,
+  ApiNotFoundResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
+import { Public } from '../../../common/decorators/public.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
+import { NotificacionesJobsTokenGuard } from '../../../common/guards/notificaciones-jobs-token.guard';
 import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   CrearNotificacionDto,
@@ -86,13 +94,78 @@ export class NotificacionesController {
   }
 
   @Post('jobs/alquileres-vencidos')
-  @Permisos(PermisoBanderas.NOTIFICACIONES_EJECUTAR_JOBS)
+  @Public()
+  @UseGuards(NotificacionesJobsTokenGuard)
+  @ApiHeader({
+    name: 'X-Notificaciones-Jobs-Token',
+    description:
+      'Token de entorno NOTIFICACIONES_JOBS_TOKEN (también acepta Authorization: Bearer <token>)',
+    required: true,
+  })
   @ApiOperation({
     summary: 'Ejecutar detección/notificación de alquileres vencidos (manual)',
   })
-  ejecutarAlquileresVencidos(
-    @Req() req: Request & { user: AuthenticatedUser },
-  ) {
-    return this.logic.detectarYNotificarAlquileresVencidos(req.user.id);
+  ejecutarAlquileresVencidos() {
+    return this.logic.detectarYNotificarAlquileresVencidos();
+  }
+
+  @Post('jobs/alquileres-por-vencer')
+  @Public()
+  @UseGuards(NotificacionesJobsTokenGuard)
+  @ApiHeader({
+    name: 'X-Notificaciones-Jobs-Token',
+    description:
+      'Token de entorno NOTIFICACIONES_JOBS_TOKEN (también acepta Authorization: Bearer <token>)',
+    required: true,
+  })
+  @ApiOperation({
+    summary: 'Detectar alquileres por vencer en 3–7 días (manual)',
+  })
+  ejecutarAlquileresPorVencer() {
+    return this.logic.detectarYNotificarAlquileresPorVencer();
+  }
+
+  @Post('jobs/prestamos-vencidos')
+  @Public()
+  @UseGuards(NotificacionesJobsTokenGuard)
+  @ApiHeader({
+    name: 'X-Notificaciones-Jobs-Token',
+    description:
+      'Token de entorno NOTIFICACIONES_JOBS_TOKEN (también acepta Authorization: Bearer <token>)',
+    required: true,
+  })
+  @ApiOperation({ summary: 'Detectar préstamos vencidos (manual)' })
+  ejecutarPrestamosVencidos() {
+    return this.logic.detectarYNotificarPrestamosVencidos();
+  }
+
+  @Post('jobs/prestamos-por-vencer')
+  @Public()
+  @UseGuards(NotificacionesJobsTokenGuard)
+  @ApiHeader({
+    name: 'X-Notificaciones-Jobs-Token',
+    description:
+      'Token de entorno NOTIFICACIONES_JOBS_TOKEN (también acepta Authorization: Bearer <token>)',
+    required: true,
+  })
+  @ApiOperation({
+    summary: 'Detectar préstamos por vencer en 3–7 días (manual)',
+  })
+  ejecutarPrestamosPorVencer() {
+    return this.logic.detectarYNotificarPrestamosPorVencer();
+  }
+
+  @Post('jobs/stock-bajo')
+  @Public()
+  @UseGuards(NotificacionesJobsTokenGuard)
+  @ApiHeader({
+    name: 'X-Notificaciones-Jobs-Token',
+    description:
+      'Token de entorno NOTIFICACIONES_JOBS_TOKEN (también acepta Authorization: Bearer <token>)',
+    required: true,
+  })
+  @ApiOperation({ summary: 'Detectar stock bajo / cero (manual)' })
+  ejecutarStockBajo() {
+    return this.logic.detectarYNotificarStockBajo();
   }
 }
