@@ -37,6 +37,7 @@ export class BalonesModel {
       filtros.phPorVencerDias ?? null,
       filtros.idClienteRelacionado ?? null,
       filtros.soloBajas ?? null,
+      filtros.familiaGas ?? null,
     ]);
   }
 

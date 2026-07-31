@@ -78,6 +78,16 @@ export class FiltroBalonesDto extends FiltroPaginacionDto {
   @IsOptional()
   @IsBoolean()
   soloBajas?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Filtra por familia de gas (ej. medicinal / industrial) en tipo de balón, nombre o código del producto gas',
+    example: 'medicinal',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  familiaGas?: string;
 }
 
 export class CreateBalonesDto extends AuditoriaDto {

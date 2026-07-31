@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN);
+
 CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_busqueda VARCHAR DEFAULT '',
     p_limite INTEGER DEFAULT 10,
@@ -10,7 +12,8 @@ CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_ph_vencida BOOLEAN DEFAULT NULL,
     p_ph_por_vencer_dias INTEGER DEFAULT NULL,
     p_id_cliente_relacionado INTEGER DEFAULT NULL,
-    p_solo_bajas BOOLEAN DEFAULT NULL
+    p_solo_bajas BOOLEAN DEFAULT NULL,
+    p_familia_gas VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -19,12 +22,16 @@ DECLARE
     v_registros JSON;
     v_total BIGINT;
     v_alertas JSON;
+    v_familia_gas VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
+
+    v_familia_gas := NULLIF(TRIM(COALESCE(p_familia_gas, '')), '');
 
     SELECT COUNT(*) INTO v_total
     FROM bal_balon b
     LEFT JOIN bal_tipo_balon tb ON b.id_tipo_balon = tb.id
+    LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
     LEFT JOIN gen_almacen a ON b.id_almacen = a.id
     LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
     LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
@@ -79,6 +86,12 @@ BEGIN
               AND b.fecha_proxima_prueba_hidrostatica >= CURRENT_DATE
               AND b.fecha_proxima_prueba_hidrostatica <= CURRENT_DATE + make_interval(days => p_ph_por_vencer_dias)
           )
+      )
+      AND (
+          v_familia_gas IS NULL
+          OR gen_texto_coincide(COALESCE(tb.nombre, ''), v_familia_gas)
+          OR gen_texto_coincide(COALESCE(pg.nombre, ''), v_familia_gas)
+          OR gen_texto_coincide(COALESCE(pg.codigo, ''), v_familia_gas)
       )
       AND (
           p_busqueda = ''
@@ -241,6 +254,12 @@ BEGIN
                   AND b.fecha_proxima_prueba_hidrostatica >= CURRENT_DATE
                   AND b.fecha_proxima_prueba_hidrostatica <= CURRENT_DATE + make_interval(days => p_ph_por_vencer_dias)
               )
+          )
+          AND (
+              v_familia_gas IS NULL
+              OR gen_texto_coincide(COALESCE(tb.nombre, ''), v_familia_gas)
+              OR gen_texto_coincide(COALESCE(pg.nombre, ''), v_familia_gas)
+              OR gen_texto_coincide(COALESCE(pg.codigo, ''), v_familia_gas)
           )
           AND (
               p_busqueda = ''
