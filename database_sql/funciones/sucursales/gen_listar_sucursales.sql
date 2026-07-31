@@ -31,8 +31,11 @@ BEGIN
             s.nombre,
             s.direccion,
             s.id_departamento,
+            dep.nombre AS nombre_departamento,
             s.id_provincia,
+            prov.nombre AS nombre_provincia,
             s.id_distrito,
+            dist.nombre AS nombre_distrito,
             s.telefono,
             s.estado,
             s.fecha_creacion,
@@ -42,6 +45,9 @@ BEGIN
             s.id_usuario_modificacion,
             um.nombre AS nombre_usuario_modificacion
         FROM gen_sucursal s
+        LEFT JOIN gen_departamento dep ON dep.id = s.id_departamento
+        LEFT JOIN gen_provincia prov ON prov.id = s.id_provincia
+        LEFT JOIN gen_distrito dist ON dist.id = s.id_distrito
         LEFT JOIN auth_usuarios uc ON s.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON s.id_usuario_modificacion = um.id
         WHERE s.estado = 1

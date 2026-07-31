@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { FiltroClienteDto } from '../dto/filtros-cliente.dto';
+import { FiltroClienteMapaDto } from '../dto/filtros-cliente-mapa.dto';
 import {
   AuthDeleteResult,
   AuthExisteResult,
@@ -20,6 +21,16 @@ export class ClientesModel {
       filtros.buscar ?? null,
       filtros.limite ?? 10,
       filtros.offset ?? 1,
+    ]);
+  }
+
+  listarMapa(filtros: FiltroClienteMapaDto) {
+    return this.db.callFunctionJson<AuthListResult>('cli_listar_clientes_mapa', [
+      filtros.soloActivos ?? null,
+      filtros.buscar ?? null,
+      filtros.filtroBalones ?? null,
+      filtros.limite ?? 500,
+      filtros.offset ?? 0,
     ]);
   }
 

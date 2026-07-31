@@ -60,12 +60,20 @@ DECLARE
     v_familia_origen CHAR(1);
     v_afecta_stock BOOLEAN;
     v_requiere_stock BOOLEAN := FALSE;
+    v_es_conversion_vsd BOOLEAN := FALSE;
+    v_es_nota_credito BOOLEAN := FALSE;
+    v_codigo_tipo_origen VARCHAR;
+    v_id_almacen_origen INTEGER;
     v_id_tipo_mov_inv INTEGER;
+    v_id_tipo_mov_ingreso INTEGER;
     v_id_tipo_documento_ref INTEGER;
     v_nombre_tipo_venta VARCHAR;
     v_stock_disponible NUMERIC(12,4);
     v_mov_result JSON;
     v_glosa_mov VARCHAR;
+    v_qty_origen NUMERIC(12,4);
+    v_qty_nueva NUMERIC(12,4);
+    v_delta_stock NUMERIC(12,4);
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -154,6 +162,46 @@ BEGIN
         SELECT 1 FROM ven_comprobante WHERE id = p_id_comprobante_origen AND estado = 1
     ) THEN
         RETURN json_build_object('error', 'El comprobante de origen no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    v_es_nota_credito := (v_codigo_tipo = '07');
+
+    -- Conversión VSD/NV → boleta/factura: el stock ya se descontó en el origen
+    IF p_id_comprobante_origen IS NOT NULL AND v_codigo_tipo IN ('01', '03') THEN
+        SELECT lo.descripcion, c.id_almacen
+        INTO v_codigo_tipo_origen, v_id_almacen_origen
+        FROM ven_comprobante c
+        INNER JOIN gen_lista_opciones lo ON c.id_tipo_comprobante = lo.id
+        WHERE c.id = p_id_comprobante_origen AND c.estado = 1;
+
+        IF v_codigo_tipo_origen IN ('NV', 'VSD') THEN
+            v_es_conversion_vsd := TRUE;
+
+            IF EXISTS (
+                SELECT 1
+                FROM ven_comprobante
+                WHERE id_comprobante_origen = p_id_comprobante_origen
+                  AND estado = 1
+            ) THEN
+                RETURN json_build_object(
+                    'error',
+                    'Esta venta sin documento ya fue convertida a boleta/factura',
+                    'registro',
+                    NULL
+                );
+            END IF;
+
+            IF p_id_almacen IS NULL THEN
+                p_id_almacen := v_id_almacen_origen;
+            ELSIF v_id_almacen_origen IS NOT NULL AND p_id_almacen <> v_id_almacen_origen THEN
+                RETURN json_build_object(
+                    'error',
+                    'Al convertir, el almacén debe ser el mismo de la venta sin documento',
+                    'registro',
+                    NULL
+                );
+            END IF;
+        END IF;
     END IF;
 
     IF v_codigo_tipo IN ('07', '08') AND p_id_comprobante_origen IS NOT NULL THEN
@@ -247,7 +295,8 @@ BEGIN
         FROM pro_producto
         WHERE id = v_id_producto;
 
-        IF v_afecta_stock THEN
+        -- ND (08) no mueve stock. Conversión VSD→CPE reutiliza el descuento previo.
+        IF v_afecta_stock AND NOT v_es_conversion_vsd AND v_codigo_tipo <> '08' THEN
             v_requiere_stock := TRUE;
         END IF;
 
@@ -292,19 +341,37 @@ BEGIN
             RETURN json_build_object('error', 'El almacén indicado no existe o está inactivo', 'registro', NULL);
         END IF;
 
-        SELECT lo.id INTO v_id_tipo_mov_inv
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoMovInv' AND lo.nombre = 'SALIDA' AND lo.estado = 1
-        LIMIT 1;
+        -- NC restaura stock (INGRESO); ventas descuentan (SALIDA)
+        IF v_es_nota_credito THEN
+            SELECT lo.id INTO v_id_tipo_mov_inv
+            FROM gen_lista_opciones lo
+            INNER JOIN gen_lista l ON lo.id_lista = l.id
+            WHERE l.nombre = 'TipoMovInv' AND lo.nombre = 'INGRESO' AND lo.estado = 1
+            LIMIT 1;
 
-        IF v_id_tipo_mov_inv IS NULL THEN
-            RETURN json_build_object(
-                'error',
-                'No se encontró el tipo de movimiento de inventario SALIDA',
-                'registro',
-                NULL
-            );
+            IF v_id_tipo_mov_inv IS NULL THEN
+                RETURN json_build_object(
+                    'error',
+                    'No se encontró el tipo de movimiento de inventario INGRESO',
+                    'registro',
+                    NULL
+                );
+            END IF;
+        ELSE
+            SELECT lo.id INTO v_id_tipo_mov_inv
+            FROM gen_lista_opciones lo
+            INNER JOIN gen_lista l ON lo.id_lista = l.id
+            WHERE l.nombre = 'TipoMovInv' AND lo.nombre = 'SALIDA' AND lo.estado = 1
+            LIMIT 1;
+
+            IF v_id_tipo_mov_inv IS NULL THEN
+                RETURN json_build_object(
+                    'error',
+                    'No se encontró el tipo de movimiento de inventario SALIDA',
+                    'registro',
+                    NULL
+                );
+            END IF;
         END IF;
 
         SELECT lo.nombre INTO v_nombre_tipo_venta
@@ -327,46 +394,48 @@ BEGIN
           AND lo.estado = 1
         LIMIT 1;
 
-        -- Validar disponibilidad antes de crear el comprobante
-        FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
-        LOOP
-            v_id_producto := (v_detalle->>'id_producto')::INTEGER;
-            v_cantidad := COALESCE((v_detalle->>'cantidad')::NUMERIC, 0);
+        -- Validar disponibilidad solo cuando se descuenta (no en NC)
+        IF NOT v_es_nota_credito THEN
+            FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
+            LOOP
+                v_id_producto := (v_detalle->>'id_producto')::INTEGER;
+                v_cantidad := COALESCE((v_detalle->>'cantidad')::NUMERIC, 0);
 
-            SELECT COALESCE(afecta_stock, FALSE)
-            INTO v_afecta_stock
-            FROM pro_producto
-            WHERE id = v_id_producto;
+                SELECT COALESCE(afecta_stock, FALSE)
+                INTO v_afecta_stock
+                FROM pro_producto
+                WHERE id = v_id_producto;
 
-            IF NOT v_afecta_stock THEN
-                CONTINUE;
-            END IF;
+                IF NOT v_afecta_stock THEN
+                    CONTINUE;
+                END IF;
 
-            SELECT COALESCE(s.stock, 0)
-            INTO v_stock_disponible
-            FROM pro_stock s
-            WHERE s.id_almacen = p_id_almacen
-              AND s.id_producto = v_id_producto
-              AND s.estado = 1;
+                SELECT COALESCE(s.stock, 0)
+                INTO v_stock_disponible
+                FROM pro_stock s
+                WHERE s.id_almacen = p_id_almacen
+                  AND s.id_producto = v_id_producto
+                  AND s.estado = 1;
 
-            IF v_stock_disponible IS NULL THEN
-                v_stock_disponible := 0;
-            END IF;
+                IF v_stock_disponible IS NULL THEN
+                    v_stock_disponible := 0;
+                END IF;
 
-            IF v_stock_disponible < v_cantidad THEN
-                RETURN json_build_object(
-                    'error',
-                    format(
-                        'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
-                        v_id_producto,
-                        v_stock_disponible,
-                        v_cantidad
-                    ),
-                    'registro',
-                    NULL
-                );
-            END IF;
-        END LOOP;
+                IF v_stock_disponible < v_cantidad THEN
+                    RETURN json_build_object(
+                        'error',
+                        format(
+                            'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
+                            v_id_producto,
+                            v_stock_disponible,
+                            v_cantidad
+                        ),
+                        'registro',
+                        NULL
+                    );
+                END IF;
+            END LOOP;
+        END IF;
     END IF;
 
     INSERT INTO ven_comprobante (
@@ -450,10 +519,136 @@ BEGIN
         );
     END LOOP;
 
-    IF v_requiere_stock THEN
+    IF v_es_conversion_vsd THEN
+        -- Reasignar movimientos del VSD al CPE y ajustar solo diferencias de cantidad
+        SELECT lo.nombre INTO v_nombre_tipo_venta
+        FROM gen_lista_opciones lo
+        WHERE lo.id = p_id_tipo_venta;
+
+        SELECT lo.id INTO v_id_tipo_documento_ref
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON lo.id_lista = l.id
+        WHERE l.nombre = 'TipoDocumentoRef'
+          AND lo.nombre = CASE
+            WHEN v_nombre_tipo_venta = 'VENTA_GAS' THEN 'RECARGA'
+            WHEN v_codigo_tipo = '01' THEN 'FACTURA'
+            WHEN v_codigo_tipo = '03' THEN 'BOLETA'
+            ELSE 'FACTURA'
+          END
+          AND lo.estado = 1
+        LIMIT 1;
+
+        SELECT lo.id INTO v_id_tipo_mov_inv
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON lo.id_lista = l.id
+        WHERE l.nombre = 'TipoMovInv' AND lo.nombre = 'SALIDA' AND lo.estado = 1
+        LIMIT 1;
+
+        SELECT lo.id INTO v_id_tipo_mov_ingreso
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON lo.id_lista = l.id
+        WHERE l.nombre = 'TipoMovInv' AND lo.nombre = 'INGRESO' AND lo.estado = 1
+        LIMIT 1;
+
+        IF v_id_tipo_mov_inv IS NULL OR v_id_tipo_mov_ingreso IS NULL THEN
+            RAISE EXCEPTION 'No se encontraron tipos de movimiento SALIDA/INGRESO para la conversión';
+        END IF;
+
+        UPDATE pro_movimientos
+        SET id_documento_ref = v_id,
+            id_tipo_documento_ref = COALESCE(v_id_tipo_documento_ref, id_tipo_documento_ref),
+            glosa = COALESCE(
+                NULLIF(TRIM(p_glosa), ''),
+                format('Salida por comprobante %s-%s (desde venta sin documento)', v_serie, v_numero)
+            ),
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id_documento_ref = p_id_comprobante_origen
+          AND estado = 1;
+
+        FOR v_id_producto, v_qty_origen, v_qty_nueva IN
+            SELECT
+                COALESCE(o.id_producto, n.id_producto) AS id_producto,
+                COALESCE(o.cantidad, 0) AS qty_origen,
+                COALESCE(n.cantidad, 0) AS qty_nueva
+            FROM (
+                SELECT d.id_producto, SUM(d.cantidad) AS cantidad
+                FROM ven_comprobante_detalle d
+                INNER JOIN pro_producto p ON p.id = d.id_producto
+                WHERE d.id_comprobante = p_id_comprobante_origen
+                  AND d.estado = 1
+                  AND COALESCE(p.afecta_stock, FALSE)
+                GROUP BY d.id_producto
+            ) o
+            FULL OUTER JOIN (
+                SELECT
+                    (value->>'id_producto')::INTEGER AS id_producto,
+                    SUM(COALESCE((value->>'cantidad')::NUMERIC, 0)) AS cantidad
+                FROM json_array_elements(p_detalles)
+                GROUP BY (value->>'id_producto')::INTEGER
+            ) n ON n.id_producto = o.id_producto
+            INNER JOIN pro_producto p ON p.id = COALESCE(o.id_producto, n.id_producto)
+            WHERE COALESCE(p.afecta_stock, FALSE)
+        LOOP
+            v_delta_stock := v_qty_nueva - v_qty_origen;
+            IF v_delta_stock = 0 THEN
+                CONTINUE;
+            END IF;
+
+            IF v_delta_stock > 0 THEN
+                SELECT COALESCE(s.stock, 0)
+                INTO v_stock_disponible
+                FROM pro_stock s
+                WHERE s.id_almacen = p_id_almacen
+                  AND s.id_producto = v_id_producto
+                  AND s.estado = 1;
+
+                IF COALESCE(v_stock_disponible, 0) < v_delta_stock THEN
+                    RAISE EXCEPTION
+                        'Stock insuficiente del producto % en el almacén (disponible: %, solicitado: %)',
+                        v_id_producto,
+                        COALESCE(v_stock_disponible, 0),
+                        v_delta_stock;
+                END IF;
+
+                v_mov_result := pro_crear_movimiento(
+                    p_fecha,
+                    v_id_producto,
+                    p_id_almacen,
+                    v_id_tipo_mov_inv,
+                    v_delta_stock,
+                    v_id,
+                    v_id_tipo_documento_ref,
+                    format('Ajuste conversión %s-%s (+)', v_serie, v_numero),
+                    p_id_usuario_auditoria
+                );
+            ELSE
+                v_mov_result := pro_crear_movimiento(
+                    p_fecha,
+                    v_id_producto,
+                    p_id_almacen,
+                    v_id_tipo_mov_ingreso,
+                    ABS(v_delta_stock),
+                    v_id,
+                    v_id_tipo_documento_ref,
+                    format('Ajuste conversión %s-%s (-)', v_serie, v_numero),
+                    p_id_usuario_auditoria
+                );
+            END IF;
+
+            IF v_mov_result->>'error' IS NOT NULL THEN
+                RAISE EXCEPTION '%', v_mov_result->>'error';
+            END IF;
+        END LOOP;
+    ELSIF v_requiere_stock THEN
         v_glosa_mov := COALESCE(
             NULLIF(TRIM(p_glosa), ''),
-            format('Salida por comprobante %s-%s', v_serie, v_numero)
+            CASE
+                WHEN v_es_nota_credito THEN
+                    format('Ingreso por nota de crédito %s-%s', v_serie, v_numero)
+                ELSE
+                    format('Salida por comprobante %s-%s', v_serie, v_numero)
+            END
         );
 
         FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)

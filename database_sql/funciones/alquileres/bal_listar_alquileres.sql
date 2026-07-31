@@ -17,6 +17,7 @@ BEGIN
 
     SELECT COUNT(*) INTO v_total
     FROM bal_alquiler al
+    LEFT JOIN pro_producto pr ON al.id_producto_regulador = pr.id
     WHERE al.estado = 1
       AND (p_id_cliente IS NULL OR al.id_cliente = p_id_cliente)
       AND (p_id_almacen IS NULL OR al.id_almacen = p_id_almacen)
@@ -25,6 +26,8 @@ BEGIN
           p_busqueda = ''
           OR LOWER(al.numero_alquiler) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(al.observacion, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(pr.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(pr.codigo, '')) LIKE LOWER('%' || p_busqueda || '%')
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -48,6 +51,9 @@ BEGIN
                 WHEN cv.id IS NULL THEN NULL
                 ELSE CONCAT_WS('-', cv.serie, cv.numero)
             END AS comprobante_venta,
+            al.id_producto_regulador,
+            pr.codigo AS codigo_producto_regulador,
+            pr.nombre AS nombre_producto_regulador,
             al.estado,
             al.fecha_creacion,
             (
@@ -67,6 +73,7 @@ BEGIN
         INNER JOIN gen_almacen a ON al.id_almacen = a.id
         LEFT JOIN gen_lista_opciones ea ON al.id_estado = ea.id
         LEFT JOIN ven_comprobante cv ON al.id_comprobante_venta = cv.id
+        LEFT JOIN pro_producto pr ON al.id_producto_regulador = pr.id
         WHERE al.estado = 1
           AND (p_id_cliente IS NULL OR al.id_cliente = p_id_cliente)
           AND (p_id_almacen IS NULL OR al.id_almacen = p_id_almacen)
@@ -75,6 +82,8 @@ BEGIN
               p_busqueda = ''
               OR LOWER(al.numero_alquiler) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(al.observacion, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(pr.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(pr.codigo, '')) LIKE LOWER('%' || p_busqueda || '%')
           )
         ORDER BY al.fecha_inicio DESC, al.id DESC
         LIMIT p_limite

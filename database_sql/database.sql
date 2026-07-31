@@ -525,6 +525,34 @@ CREATE TABLE gen_documento_vencimiento (
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
+-- Notificaciones in-app (historial + leído/no leído; multi-escenario vía codigo_tipo/payload)
+CREATE TABLE gen_notificacion (
+    id                      SERIAL PRIMARY KEY,
+    id_usuario              INT NOT NULL REFERENCES auth_usuarios(id),
+    codigo_tipo             VARCHAR(50) NOT NULL,  -- ALQUILER_VENCIDO, SISTEMA...
+    titulo                  VARCHAR(200) NOT NULL,
+    mensaje                 TEXT,
+    payload                 JSONB NOT NULL DEFAULT '{}'::JSONB,
+    id_referencia           INT,
+    tipo_referencia         VARCHAR(50),           -- ALQUILER, COMPROBANTE...
+    clave_dedupe            VARCHAR(160),          -- evita duplicados por escenario/día
+    leida                   BOOLEAN NOT NULL DEFAULT FALSE,
+    fecha_lectura           TIMESTAMP,
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion      TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_gen_notificacion_usuario_leida
+    ON gen_notificacion (id_usuario, leida, fecha_creacion DESC)
+    WHERE estado = 1;
+
+CREATE UNIQUE INDEX uq_gen_notificacion_dedupe
+    ON gen_notificacion (id_usuario, clave_dedupe)
+    WHERE estado = 1 AND clave_dedupe IS NOT NULL;
+
 -- Solicitudes de baja de clientes (flujo de aprobación)
 CREATE TABLE cli_baja_cliente (
     id                  SERIAL PRIMARY KEY,
@@ -859,6 +887,8 @@ CREATE TABLE bal_prestamo_detalle (
 );
 
 -- Alquiler de balones de la empresa al cliente
+-- Medicinal: id_producto_regulador = lo que se alquila/cobra en renovaciones;
+--            los cilindros van en bal_alquiler_detalle (entrega física).
 CREATE TABLE bal_alquiler (
     id                  SERIAL PRIMARY KEY,
     numero_alquiler      varchar(30) NOT NULL UNIQUE,
@@ -873,6 +903,8 @@ CREATE TABLE bal_alquiler (
     id_estado            INT REFERENCES gen_lista_opciones(id),
     observacion         varchar(500),
     id_comprobante_venta  INT REFERENCES ven_comprobante(id),       -- factura emitida al cliente
+    id_producto_regulador INT REFERENCES pro_producto(id),      -- regulador en alquiler (medicinal)
+    dias_periodo          INT NOT NULL DEFAULT 14,               -- renovación quincenal del regulador
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),
@@ -891,6 +923,26 @@ CREATE TABLE bal_alquiler_detalle (
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),
     fecha_creacion   TIMESTAMP DEFAULT NOW(),
     fecha_modificacion TIMESTAMP DEFAULT NOW()
+);
+
+-- Periodos / renovaciones del regulador (kit = periodo 1; renovaciones = 2+)
+CREATE TABLE bal_alquiler_periodo (
+    id                      SERIAL PRIMARY KEY,
+    id_alquiler             INT NOT NULL REFERENCES bal_alquiler(id),
+    numero_periodo          INT NOT NULL,
+    fecha_inicio            DATE NOT NULL,
+    fecha_fin               DATE NOT NULL,
+    monto                   NUMERIC(12,4) NOT NULL DEFAULT 0,
+    id_producto             INT REFERENCES pro_producto(id),
+    id_comprobante          INT REFERENCES ven_comprobante(id),
+    id_estado               INT REFERENCES gen_lista_opciones(id),
+    observacion             VARCHAR(500),
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion      TIMESTAMP DEFAULT NOW(),
+    UNIQUE (id_alquiler, numero_periodo)
 );
 
 -- Mantenimiento de cilindros (recertificación, prueba hidrostática, reparación)

@@ -229,9 +229,14 @@ export class GuiasRemisionModel {
     };
   }
 
-  async obtenerEmpresaEmisora(): Promise<EmpresaEmisoraRow | null> {
-    const defaultRuc =
-      this.configService.get<string>('facturacion.defaultRuc') ?? null;
+  async obtenerEmpresaEmisora(
+    preferredRuc?: string | null,
+  ): Promise<EmpresaEmisoraRow | null> {
+    const defaultRuc = (
+      preferredRuc ||
+      this.configService.get<string>('facturacion.defaultRuc') ||
+      ''
+    ).trim();
 
     if (defaultRuc) {
       const byRuc = await this.db.query<EmpresaEmisoraRow>(

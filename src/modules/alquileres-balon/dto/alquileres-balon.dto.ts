@@ -127,6 +127,20 @@ export class CreateAlquileresBalonDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   idComprobanteVenta?: number;
+
+  @ApiPropertyOptional({
+    description: 'Producto/servicio del regulador en alquiler (flujo medicinal)',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idProductoRegulador?: number;
+
+  @ApiPropertyOptional({ description: 'Días del periodo de renovación (default 14)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  diasPeriodo?: number;
 }
 
 export class UpdateAlquileresBalonDto extends AuditoriaDto {
@@ -192,4 +206,81 @@ export class UpdateAlquileresBalonDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   idComprobanteVenta?: number;
+
+  @ApiPropertyOptional({
+    description: 'Producto/servicio del regulador en alquiler (flujo medicinal)',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idProductoRegulador?: number;
+
+  @ApiPropertyOptional({ description: 'Días del periodo de renovación (default 14)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  diasPeriodo?: number;
+}
+
+export class RegistrarAlquilerPeriodoDto extends AuditoriaDto {
+  @ApiProperty()
+  @IsDateString()
+  fechaInicio!: string;
+
+  @ApiProperty()
+  @IsDateString()
+  fechaFin!: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  monto?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idProducto?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idComprobante?: number;
+
+  @ApiPropertyOptional()
+  @MaxLength(500)
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+}
+
+export class RenovarAlquilerDto extends AuditoriaDto {
+  @ApiProperty({ description: 'Comprobante de cobro de la renovación (solo regulador)' })
+  @Type(() => Number)
+  @IsNumber()
+  idComprobante!: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  monto?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaInicio?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaFin?: string;
+
+  @ApiPropertyOptional()
+  @MaxLength(500)
+  @IsOptional()
+  @IsString()
+  observacion?: string;
 }

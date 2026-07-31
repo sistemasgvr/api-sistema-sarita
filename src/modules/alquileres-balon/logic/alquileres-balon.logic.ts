@@ -9,6 +9,8 @@ import {
   CreateAlquileresBalonDto,
   FiltroAlquileresAntiguedadDto,
   FiltroAlquileresBalonDto,
+  RegistrarAlquilerPeriodoDto,
+  RenovarAlquilerDto,
   UpdateAlquileresBalonDto,
 } from '../dto/alquileres-balon.dto';
 import { AlquileresBalonModel } from '../models/alquileres-balon.model';
@@ -53,5 +55,25 @@ export class AlquileresBalonLogic {
   async eliminar(id: number, idUsuarioAuditoria?: number) {
     const result = await this.model.eliminar(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Alquiler ${id} no encontrado`);
+  }
+
+  async listarPeriodos(idAlquiler: number, pagina = 1, limite = 100) {
+    const offset = (pagina - 1) * limite;
+    const result = await this.model.listarPeriodos(idAlquiler, limite, offset);
+    return ResponseHelper.paginated(result.registros ?? [], {
+      pagina,
+      limite,
+      total: Number(result.total ?? 0),
+    });
+  }
+
+  async registrarPeriodo(idAlquiler: number, dto: RegistrarAlquilerPeriodoDto) {
+    const result = await this.model.registrarPeriodo(idAlquiler, dto);
+    return mapSingleResult(result, 'No se pudo registrar el periodo');
+  }
+
+  async renovar(idAlquiler: number, dto: RenovarAlquilerDto) {
+    const result = await this.model.renovar(idAlquiler, dto);
+    return mapSingleResult(result, `No se pudo renovar el alquiler ${idAlquiler}`);
   }
 }

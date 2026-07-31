@@ -209,8 +209,12 @@ export class GuiaRemisionDespatchMapper {
 
   private mapDetalle(detalle: GuiaRemisionDetalleRegistro, _item: number) {
     return {
-      codigo: detalle.codigo_producto ?? String(detalle.id_producto),
+      codigo:
+        detalle.codigo_balon?.trim() ||
+        detalle.codigo_producto ||
+        String(detalle.id_producto),
       descripcion:
+        detalle.glosa?.trim() ||
         detalle.descripcion?.trim() ||
         detalle.nombre_producto ||
         `Producto ${detalle.id_producto}`,
@@ -268,7 +272,17 @@ export class GuiaRemisionDespatchMapper {
 
   private mapUnidadItem(codigo?: string | null, nombre?: string | null) {
     const raw = (codigo ?? nombre ?? 'NIU').trim().toUpperCase();
-    if (raw === 'UNID' || raw === 'UND' || raw === 'UNI') return 'NIU';
+    if (
+      raw === 'UNID' ||
+      raw === 'UND' ||
+      raw === 'UNI' ||
+      raw === 'BOTELLAS' ||
+      raw === 'BOTELLA' ||
+      raw === 'BOT' ||
+      raw.includes('BOTELL')
+    ) {
+      return 'NIU';
+    }
     return raw.length >= 2 && raw.length <= 4 ? raw : 'NIU';
   }
 

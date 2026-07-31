@@ -10,6 +10,7 @@ import {
   mapListResult,
 } from '../../../common/helpers/auth-response.helper';
 import { FacturacionApisperuClient } from '../../../integrations/facturacion-apisperu/facturacion-apisperu.client';
+import { FacturacionCredentialsService } from '../../../integrations/facturacion-electronica/facturacion-credentials.service';
 import {
   CreateGuiaRemisionDto,
   FiltroGuiaRemisionDto,
@@ -32,6 +33,7 @@ export class GuiasRemisionLogic {
   constructor(
     private readonly model: GuiasRemisionModel,
     private readonly facturacionClient: FacturacionApisperuClient,
+    private readonly credentialsService: FacturacionCredentialsService,
     private readonly despatchMapper: GuiaRemisionDespatchMapper,
     private readonly pdfGenerator: GuiaRemisionPdfGenerator,
   ) {}
@@ -132,15 +134,19 @@ export class GuiasRemisionLogic {
       throw new BadRequestException('La guía ya fue aceptada por SUNAT');
     }
 
-    await this.assertFacturacionConfigurada();
-
-    const empresa = await this.model.obtenerEmpresaEmisora();
-
-    if (!empresa) {
+    const ticketExistente = (guia.registro.ticket_sunat ?? '').trim();
+    if (
+      guia.registro.nombre_estado_sunat === 'PENDIENTE' &&
+      ticketExistente
+    ) {
       throw new BadRequestException(
-        'No hay empresa emisora configurada en gen_empresa',
+        'La guía ya tiene ticket SUNAT pendiente. Usa «Consultar estado» antes de reemitir.',
       );
     }
+
+    await this.assertFacturacionConfigurada({ requireGre: true });
+
+    const empresa = await this.obtenerEmpresaEmisoraResuelta();
 
     const payload = this.despatchMapper.mapToDespatchPayload(guia, empresa);
     const respuesta = await this.facturacionClient.enviarGuiaRemision(payload);
@@ -190,13 +196,7 @@ export class GuiasRemisionLogic {
       throw new NotFoundException(`Guía de remisión ${id} no encontrada`);
     }
 
-    const empresa = await this.model.obtenerEmpresaEmisora();
-
-    if (!empresa) {
-      throw new BadRequestException(
-        'No hay empresa emisora configurada en gen_empresa',
-      );
-    }
+    const empresa = await this.obtenerEmpresaEmisoraResuelta();
 
     const buffer = await this.pdfGenerator.generarA4(guia, empresa);
     const filename = `GRE-${guia.registro.serie}-${guia.registro.numero}.pdf`;
@@ -205,7 +205,7 @@ export class GuiasRemisionLogic {
   }
 
   async consultarEstado(id: number, dto: AuditoriaDto) {
-    await this.assertFacturacionConfigurada();
+    await this.assertFacturacionConfigurada({ requireGre: true });
 
     const guia = await this.model.obtenerCompleto(id);
 
@@ -223,6 +223,9 @@ export class GuiasRemisionLogic {
         'La guía no tiene ticket SUNAT. Emite primero para obtener el ticket y luego consulta el estado.',
       );
     }
+
+    const empresa = await this.obtenerEmpresaEmisoraResuelta();
+    await this.facturacionClient.asegurarCredencialesGreEnEmpresa(empresa.ruc);
 
     const respuesta = await this.facturacionClient.consultarEstadoGuiaRemision({
       ticket,
@@ -313,7 +316,24 @@ export class GuiasRemisionLogic {
     return this.resolverEstadoSunatNombre(nested as SunatResponsePayload);
   }
 
-  private async assertFacturacionConfigurada() {
+  private async obtenerEmpresaEmisoraResuelta() {
+    const creds = await this.credentialsService.resolve();
+    const empresa = await this.model.obtenerEmpresaEmisora(
+      creds.defaultRuc || undefined,
+    );
+
+    if (!empresa) {
+      throw new BadRequestException(
+        'No hay empresa emisora configurada en gen_empresa (revisa RUC en Configuración → SUNAT)',
+      );
+    }
+
+    return empresa;
+  }
+
+  private async assertFacturacionConfigurada(options?: {
+    requireGre?: boolean;
+  }) {
     const status = await this.facturacionClient.getConfigStatus();
 
     if (!status.enabled) {
@@ -325,6 +345,12 @@ export class GuiasRemisionLogic {
     if (!status.configured) {
       throw new BadRequestException(
         'Configure token o usuario/clave del PSE en Configuración → SUNAT',
+      );
+    }
+
+    if (options?.requireGre && !status.hasGreCredentials) {
+      throw new BadRequestException(
+        'Configure Client ID y Client Secret OAuth GRE en Configuración → SUNAT (sección OAuth GRE)',
       );
     }
   }
