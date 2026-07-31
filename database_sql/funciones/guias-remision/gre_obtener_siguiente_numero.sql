@@ -16,11 +16,11 @@ BEGIN
         RETURN json_build_object('error', 'La serie es obligatoria');
     END IF;
 
+    -- UNIQUE(serie, numero) incluye anulados: el siguiente debe considerar todos los estados.
     SELECT COALESCE(MAX(numero::BIGINT), 0)
     INTO v_ultimo
     FROM gre_guia_remision
-    WHERE estado = 1
-      AND UPPER(serie) = v_serie
+    WHERE UPPER(TRIM(serie)) = v_serie
       AND numero ~ '^[0-9]+$';
 
     v_siguiente := LPAD((v_ultimo + 1)::TEXT, 8, '0');

@@ -43,6 +43,29 @@ BEGIN
     WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'PRESTADO_CLIENTE' AND lo.estado = 1
     LIMIT 1;
 
+    IF p_id_balon IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM bal_balon WHERE id = p_id_balon AND estado = 1
+        ) THEN
+            RETURN json_build_object('error', 'El cilindro indicado no existe o está inactivo', 'registro', NULL);
+        END IF;
+
+        IF EXISTS (
+            SELECT 1
+            FROM bal_balon b
+            LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+            WHERE b.id = p_id_balon
+              AND COALESCE(eb.nombre, '') IN ('DADO_DE_BAJA', 'ROBO')
+        ) THEN
+            RETURN json_build_object(
+                'error',
+                'No se puede prestar un cilindro dado de baja o reportado como robo',
+                'registro',
+                NULL
+            );
+        END IF;
+    END IF;
+
     INSERT INTO bal_prestamo_detalle (
         id_prestamo, id_balon, id_producto, motivo_especifico,
         fecha_entregado, fecha_prestamo, dias_prestamo, fecha_vencimiento, fecha_devolucion,

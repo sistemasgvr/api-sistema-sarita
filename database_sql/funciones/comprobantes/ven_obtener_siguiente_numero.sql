@@ -12,7 +12,7 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    v_serie := TRIM(p_serie);
+    v_serie := UPPER(TRIM(p_serie));
 
     IF p_id_tipo_comprobante IS NULL THEN
         RETURN json_build_object('error', 'El tipo de comprobante es obligatorio', 'numero', NULL);
@@ -28,11 +28,10 @@ BEGIN
         RETURN json_build_object('error', 'El tipo de comprobante indicado no existe o está inactivo', 'numero', NULL);
     END IF;
 
+    -- UNIQUE(serie, numero) incluye anulados: el siguiente debe considerar todos los estados.
     SELECT COALESCE(MAX(numero::BIGINT), 0) INTO v_ultimo
     FROM ven_comprobante
-    WHERE estado = 1
-      AND id_tipo_comprobante = p_id_tipo_comprobante
-      AND serie = v_serie
+    WHERE UPPER(TRIM(serie)) = v_serie
       AND numero ~ '^[0-9]+$';
 
     v_siguiente := LPAD((v_ultimo + 1)::TEXT, 8, '0');

@@ -46,6 +46,14 @@ BEGIN
         RETURN json_build_object('error', 'El código del balón es obligatorio', 'registro', NULL);
     END IF;
 
+    IF p_id_tipo_balon IS NULL THEN
+        RETURN json_build_object('error', 'El tipo de balón es obligatorio', 'registro', NULL);
+    END IF;
+
+    IF p_id_producto_gas IS NULL THEN
+        RETURN json_build_object('error', 'El gas (producto) es obligatorio', 'registro', NULL);
+    END IF;
+
     IF EXISTS (
         SELECT 1 FROM bal_balon
         WHERE LOWER(TRIM(codigo_balon)) = LOWER(TRIM(p_codigo_balon))
@@ -59,10 +67,17 @@ BEGIN
         RETURN json_build_object('error', 'El almacén indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
-    IF p_id_tipo_balon IS NOT NULL AND NOT EXISTS (
+    IF NOT EXISTS (
         SELECT 1 FROM bal_tipo_balon WHERE id = p_id_tipo_balon AND estado = 1
     ) THEN
         RETURN json_build_object('error', 'El tipo de balón indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pro_producto
+        WHERE id = p_id_producto_gas AND estado = 1 AND es_gas = TRUE
+    ) THEN
+        RETURN json_build_object('error', 'El gas indicado no existe, está inactivo o no es un producto de gas', 'registro', NULL);
     END IF;
 
     IF p_mes_fabricacion IS NOT NULL AND (p_mes_fabricacion < 1 OR p_mes_fabricacion > 12) THEN

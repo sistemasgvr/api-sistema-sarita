@@ -237,7 +237,7 @@ BEGIN
 
     IF EXISTS (
         SELECT 1 FROM ven_comprobante
-        WHERE serie = v_serie AND numero = v_numero AND estado = 1
+        WHERE UPPER(TRIM(serie)) = v_serie AND numero = v_numero
     ) THEN
         RETURN json_build_object(
             'error', 'Ya existe un comprobante con la serie ' || v_serie || ' y número ' || v_numero,

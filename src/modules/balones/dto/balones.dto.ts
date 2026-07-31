@@ -134,17 +134,17 @@ export class CreateBalonesDto extends AuditoriaDto {
   @IsNumber()
   idReferencia?: number;
 
-  @ApiPropertyOptional()
+  @ApiProperty({ example: 1 })
   @Type(() => Number)
-  @IsOptional()
   @IsNumber()
-  idTipoBalon?: number;
+  @IsNotEmpty()
+  idTipoBalon!: number;
 
-  @ApiPropertyOptional()
+  @ApiProperty({ example: 1, description: 'Producto marcado como gas' })
   @Type(() => Number)
-  @IsOptional()
   @IsNumber()
-  idProductoGas?: number;
+  @IsNotEmpty()
+  idProductoGas!: number;
 
   @ApiPropertyOptional()
   @Type(() => Number)

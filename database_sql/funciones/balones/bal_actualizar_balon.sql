@@ -91,6 +91,38 @@ BEGIN
         RETURN json_build_object('registro', NULL);
     END IF;
 
+    IF v_id_tipo_balon IS NULL THEN
+        RETURN json_build_object('error', 'El tipo de balón es obligatorio', 'registro', NULL);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM bal_tipo_balon WHERE id = v_id_tipo_balon AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El tipo de balón indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    IF COALESCE(p_id_producto_gas, (
+        SELECT id_producto_gas FROM bal_balon WHERE id = p_id
+    )) IS NULL THEN
+        RETURN json_build_object('error', 'El gas (producto) es obligatorio', 'registro', NULL);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pro_producto
+        WHERE id = COALESCE(p_id_producto_gas, (
+            SELECT id_producto_gas FROM bal_balon WHERE id = p_id
+        ))
+          AND estado = 1
+          AND es_gas = TRUE
+    ) THEN
+        RETURN json_build_object(
+            'error',
+            'El gas indicado no existe, está inactivo o no es un producto de gas',
+            'registro',
+            NULL
+        );
+    END IF;
+
     IF v_anio_fabricacion IS NOT NULL AND v_mes_fabricacion IS NOT NULL THEN
         v_fecha_fabricacion := make_date(v_anio_fabricacion::INT, v_mes_fabricacion::INT, 1);
     ELSIF v_fecha_fabricacion IS NOT NULL THEN
