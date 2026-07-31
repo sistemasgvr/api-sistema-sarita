@@ -80,8 +80,8 @@ export class FiltroProductosDto extends FiltroPaginacionDto {
 
   @ApiPropertyOptional({
     description:
-      'Si es false, omite firmar URLs de imagen (útil en selects/autocompletado). Default: true',
-    example: false,
+      'Si es true, firma URLs de imagen principal. Default: false (selects/POS/filtros sin esperar storage).',
+    example: true,
   })
   @IsOptional()
   @Transform(({ value }) => toOptionalBoolean(value))

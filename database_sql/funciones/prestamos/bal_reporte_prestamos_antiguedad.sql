@@ -22,6 +22,7 @@ BEGIN
             pd.id AS id_detalle,
             p.id AS id_prestamo,
             p.numero_prestamo,
+            p.id_almacen,
             p.id_cliente,
             COALESCE(c.razon_social, TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno))) AS nombre_cliente,
             p.id_proveedor,
