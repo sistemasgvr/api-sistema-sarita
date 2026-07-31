@@ -37,6 +37,7 @@ export interface ComprobanteRegistro {
   exonerado?: number | null;
   glosa?: string | null;
   observaciones?: string | null;
+  origen_pos?: string | null;
   id_estado?: number | null;
   nombre_estado?: string | null;
   ticket_sunat?: string | null;

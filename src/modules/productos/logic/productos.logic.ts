@@ -46,6 +46,13 @@ export class ProductosLogic {
     const result = await this.productosModel.listar(filtros);
     const mapped = mapListResult(result, filtros);
     const registros = (mapped.data ?? []) as ProductoListadoRegistro[];
+    if (filtros.incluirImagenes === false) {
+      mapped.data = registros.map((registro) => {
+        const { imagen_principal_ruta: _ruta, ...rest } = registro;
+        return { ...rest, url_imagen_principal: null };
+      });
+      return mapped;
+    }
     mapped.data = await this.conUrlsImagenPrincipal(registros);
     return mapped;
   }

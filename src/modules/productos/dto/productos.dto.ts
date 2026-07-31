@@ -77,6 +77,16 @@ export class FiltroProductosDto extends FiltroPaginacionDto {
   @Type(() => Number)
   @IsInt()
   idAlmacen?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Si es false, omite firmar URLs de imagen (útil en selects/autocompletado). Default: true',
+    example: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => toOptionalBoolean(value))
+  @IsBoolean()
+  incluirImagenes?: boolean;
 }
 
 export class ImprimirUbicacionesProductoDto {

@@ -319,6 +319,16 @@ export class CreateComprobantesDto extends AuditoriaDto {
   @IsString()
   operacion?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Pestaña POS de emisión: accesorios|recarga|medicinal|industrial|mantenimiento',
+    example: 'accesorios',
+  })
+  @MaxLength(30)
+  @IsOptional()
+  @IsString()
+  origenPos?: string;
+
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
@@ -447,6 +457,16 @@ export class UpdateComprobantesDto extends AuditoriaDto {
   @IsOptional()
   @IsString()
   operacion?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Pestaña POS de emisión: accesorios|recarga|medicinal|industrial|mantenimiento',
+    example: 'accesorios',
+  })
+  @MaxLength(30)
+  @IsOptional()
+  @IsString()
+  origenPos?: string;
 
   @ApiPropertyOptional()
   @Type(() => Number)

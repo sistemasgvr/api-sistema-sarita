@@ -22,7 +22,8 @@ CREATE OR REPLACE FUNCTION ven_actualizar_comprobante(
     p_operacion VARCHAR DEFAULT NULL,
     p_id_estado INTEGER DEFAULT NULL,
     p_cuotas JSON DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_origen_pos VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -71,6 +72,8 @@ DECLARE
     v_mov_result JSON;
     v_id_tipo_mov_aplicar INTEGER;
     v_cantidad_aplicar NUMERIC(12,4);
+    v_nombre_unidad VARCHAR;
+    v_es_gas BOOLEAN;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -150,6 +153,27 @@ BEGIN
 
             IF v_id_producto IS NULL OR v_cantidad <= 0 THEN
                 RETURN json_build_object('error', 'Detalle inválido: producto y cantidad son obligatorios', 'registro', NULL);
+            END IF;
+
+            SELECT
+                REGEXP_REPLACE(UPPER(TRIM(COALESCE(um.nombre, ''))), '\.+$', ''),
+                COALESCE(p.es_gas, FALSE)
+            INTO v_nombre_unidad, v_es_gas
+            FROM pro_producto p
+            LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
+            WHERE p.id = v_id_producto;
+
+            IF NOT COALESCE(v_es_gas, FALSE)
+               AND v_nombre_unidad IN ('UNID', 'NIU', 'UND', 'UNI', 'UNIDAD', 'UNIDADES', 'PZ', 'PZA', 'PIEZA', 'PIEZAS')
+               AND v_cantidad <> TRUNC(v_cantidad)
+            THEN
+                RETURN json_build_object(
+                    'error',
+                    'La cantidad de ' || COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto)
+                        || ' debe ser entera (unidad de medida UNID)',
+                    'registro',
+                    NULL
+                );
             END IF;
 
             -- precio_unitario del catálogo ya incluye IGV
@@ -300,7 +324,7 @@ BEGIN
                                     'error',
                                     format(
                                         'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
-                                        v_id_producto,
+                                        COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
                                         COALESCE(v_stock_disponible, 0),
                                         v_qty_antigua
                                     ),
@@ -391,7 +415,7 @@ BEGIN
                                 'error',
                                 format(
                                     'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
-                                    v_id_producto,
+                                    COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
                                     COALESCE(v_stock_disponible, 0),
                                     v_qty_nueva
                                 ),
@@ -471,7 +495,7 @@ BEGIN
                                     'error',
                                     format(
                                         'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
-                                        v_id_producto,
+                                        COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
                                         COALESCE(v_stock_disponible, 0),
                                         v_delta_stock
                                     ),
@@ -532,6 +556,7 @@ BEGIN
         observaciones = COALESCE(p_observaciones, observaciones),
         periodo_contable = COALESCE(p_periodo_contable, periodo_contable),
         operacion = COALESCE(p_operacion, operacion),
+        origen_pos = COALESCE(NULLIF(TRIM(p_origen_pos), ''), origen_pos),
         id_estado = COALESCE(p_id_estado, id_estado),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()

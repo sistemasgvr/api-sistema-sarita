@@ -294,6 +294,7 @@ export class ComprobantesModel {
       dto.idEstado ?? null,
       mapCuotasToJson(dto.cuotas),
       dto.idUsuarioAuditoria ?? null,
+      dto.origenPos ?? null,
     ]);
   }
 
@@ -322,6 +323,7 @@ export class ComprobantesModel {
       dto.idEstado ?? null,
       dto.cuotas !== undefined ? mapCuotasToJson(dto.cuotas) : null,
       dto.idUsuarioAuditoria ?? null,
+      dto.origenPos ?? null,
     ]);
   }
 
