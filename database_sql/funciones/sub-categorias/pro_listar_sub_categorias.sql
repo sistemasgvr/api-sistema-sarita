@@ -1,8 +1,11 @@
+DROP FUNCTION IF EXISTS pro_listar_sub_categorias(VARCHAR, INTEGER, INTEGER, INTEGER);
+
 CREATE OR REPLACE FUNCTION pro_listar_sub_categorias(
     p_busqueda VARCHAR DEFAULT '',
     p_limite INTEGER DEFAULT 10,
     p_offset INTEGER DEFAULT 0,
-    p_id_categoria INTEGER DEFAULT NULL
+    p_id_categoria INTEGER DEFAULT NULL,
+    p_solo_activos INTEGER DEFAULT 1
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -16,14 +19,14 @@ BEGIN
     SELECT COUNT(*) INTO v_total
     FROM pro_sub_categoria sc
     INNER JOIN pro_categoria c ON sc.id_categoria = c.id
-    WHERE sc.estado = 1
-      AND c.estado = 1
+    WHERE (p_solo_activos IS NULL OR sc.estado = p_solo_activos)
+      AND (p_solo_activos IS DISTINCT FROM 1 OR c.estado = 1)
       AND (p_id_categoria IS NULL OR sc.id_categoria = p_id_categoria)
       AND (
           p_busqueda = ''
-          OR LOWER(sc.nombre) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(sc.descripcion, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(c.nombre) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(sc.nombre, p_busqueda)
+          OR gen_texto_coincide(COALESCE(sc.descripcion, ''), p_busqueda)
+          OR gen_texto_coincide(c.nombre, p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -50,14 +53,14 @@ BEGIN
         INNER JOIN pro_categoria c ON sc.id_categoria = c.id
         LEFT JOIN auth_usuarios uc ON sc.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON sc.id_usuario_modificacion = um.id
-        WHERE sc.estado = 1
-          AND c.estado = 1
+        WHERE (p_solo_activos IS NULL OR sc.estado = p_solo_activos)
+          AND (p_solo_activos IS DISTINCT FROM 1 OR c.estado = 1)
           AND (p_id_categoria IS NULL OR sc.id_categoria = p_id_categoria)
           AND (
               p_busqueda = ''
-              OR LOWER(sc.nombre) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(sc.descripcion, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(c.nombre) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(sc.nombre, p_busqueda)
+              OR gen_texto_coincide(COALESCE(sc.descripcion, ''), p_busqueda)
+              OR gen_texto_coincide(c.nombre, p_busqueda)
           )
         ORDER BY c.nombre ASC, sc.nombre ASC
         LIMIT p_limite

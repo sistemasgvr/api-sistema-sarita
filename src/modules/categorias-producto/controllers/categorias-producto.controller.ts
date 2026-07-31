@@ -48,6 +48,17 @@ export class CategoriasProductoController {
     return this.categoriasProductoLogic.crear(dto);
   }
 
+  @Patch(':id/restaurar')
+  @Permisos(PermisoBanderas.CATEGORIAS_RESTAURAR)
+  @ApiOperation({ summary: 'Restaurar categoría eliminada (baja lógica)' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  restaurar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.categoriasProductoLogic.restaurar(id, dto.idUsuarioAuditoria);
+  }
+
   @Patch(':id')
   @Permisos(PermisoBanderas.CATEGORIAS_EDITAR)
   @ApiOperation({ summary: 'Actualizar categoría de producto' })

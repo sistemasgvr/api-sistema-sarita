@@ -19,6 +19,7 @@ export class StockProductoModel {
       filtros.idAlmacen ?? null,
       filtros.idProducto ?? null,
       filtros.soloBajoMinimo ?? null,
+      filtros.soloActivos === undefined ? 1 : filtros.soloActivos,
     ]);
   }
 
@@ -58,6 +59,13 @@ export class StockProductoModel {
 
   eliminar(id: number, idUsuarioAuditoria?: number) {
     return this.db.callFunctionJson<AuthDeleteResult>('pro_eliminar_stock', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  restaurar(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthDeleteResult>('pro_restaurar_stock', [
       id,
       idUsuarioAuditoria ?? null,
     ]);

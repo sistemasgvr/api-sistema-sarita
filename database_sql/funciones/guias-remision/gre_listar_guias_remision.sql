@@ -32,11 +32,11 @@ BEGIN
       AND (p_serie IS NULL OR p_serie = '' OR g.serie = TRIM(p_serie))
       AND (
           p_busqueda = ''
-          OR LOWER(g.serie) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(g.numero) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(dest.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(dest.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(g.observaciones, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(g.serie, p_busqueda)
+          OR gen_texto_coincide(g.numero, p_busqueda)
+          OR gen_texto_coincide(COALESCE(dest.razon_social, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(dest.numero_documento, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(g.observaciones, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -93,11 +93,11 @@ BEGIN
           AND (p_serie IS NULL OR p_serie = '' OR g.serie = TRIM(p_serie))
           AND (
               p_busqueda = ''
-              OR LOWER(g.serie) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(g.numero) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(dest.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(dest.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(g.observaciones, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(g.serie, p_busqueda)
+              OR gen_texto_coincide(g.numero, p_busqueda)
+              OR gen_texto_coincide(COALESCE(dest.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(dest.numero_documento, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(g.observaciones, ''), p_busqueda)
           )
         ORDER BY g.fecha DESC, g.id DESC
         LIMIT p_limite

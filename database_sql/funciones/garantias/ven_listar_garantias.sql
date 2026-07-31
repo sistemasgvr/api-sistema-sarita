@@ -26,11 +26,11 @@ BEGIN
       AND (p_id_estado IS NULL OR g.id_estado = p_id_estado)
       AND (
           COALESCE(p_busqueda, '') = ''
-          OR LOWER(COALESCE(c.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(c.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(pr.numero_prestamo, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(p.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(g.ubicacion, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(c.numero_documento, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(pr.numero_prestamo, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(p.nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(g.ubicacion, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -67,11 +67,11 @@ BEGIN
           AND (p_id_estado IS NULL OR g.id_estado = p_id_estado)
           AND (
               COALESCE(p_busqueda, '') = ''
-              OR LOWER(COALESCE(c.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(c.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(pr.numero_prestamo, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(p.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(g.ubicacion, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(c.numero_documento, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(pr.numero_prestamo, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(p.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(g.ubicacion, ''), p_busqueda)
           )
         ORDER BY g.fecha_registro DESC, g.id DESC
         LIMIT p_limite

@@ -31,7 +31,7 @@ BEGIN
         INNER JOIN pro_categoria c ON sc.id_categoria = c.id
         LEFT JOIN auth_usuarios uc ON sc.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON sc.id_usuario_modificacion = um.id
-        WHERE sc.id = p_id AND sc.estado = 1
+        WHERE sc.id = p_id
     ) t;
 
     RETURN json_build_object('registro', v_registro);

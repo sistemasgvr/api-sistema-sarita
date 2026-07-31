@@ -26,8 +26,8 @@ BEGIN
       AND (p_es_externo IS NULL OR m.es_externo = p_es_externo)
       AND (
           p_busqueda = ''
-          OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(m.descripcion, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+          OR gen_texto_coincide(COALESCE(m.descripcion, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -92,8 +92,8 @@ BEGIN
           AND (p_es_externo IS NULL OR m.es_externo = p_es_externo)
           AND (
               p_busqueda = ''
-              OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(m.descripcion, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+              OR gen_texto_coincide(COALESCE(m.descripcion, ''), p_busqueda)
           )
         ORDER BY m.fecha_ingreso DESC, m.id DESC
         LIMIT p_limite

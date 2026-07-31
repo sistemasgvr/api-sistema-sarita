@@ -28,11 +28,11 @@ BEGIN
       AND (p_fecha_hasta IS NULL OR mr.fecha_salida_almacen <= p_fecha_hasta)
       AND (
           p_busqueda = ''
-          OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cli.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(mr.numero_guia_salida, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(mr.numero_factura, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(tr.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+          OR gen_texto_coincide(COALESCE(cli.razon_social, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(mr.numero_guia_salida, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(mr.numero_factura, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(tr.nombre, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -77,11 +77,11 @@ BEGIN
           AND (p_fecha_hasta IS NULL OR mr.fecha_salida_almacen <= p_fecha_hasta)
           AND (
               p_busqueda = ''
-              OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cli.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(mr.numero_guia_salida, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(mr.numero_factura, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(tr.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+              OR gen_texto_coincide(COALESCE(cli.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(mr.numero_guia_salida, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(mr.numero_factura, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(tr.nombre, ''), p_busqueda)
           )
         ORDER BY mr.fecha_salida_almacen DESC, mr.id DESC
         LIMIT p_limite

@@ -73,9 +73,9 @@ BEGIN
             AND (p_id_cliente IS NULL OR d.id_cliente = p_id_cliente)
             AND (
                 v_buscar IS NULL
-                OR d.direccion ILIKE '%' || v_buscar || '%'
-                OR COALESCE(d.descripcion, '') ILIKE '%' || v_buscar || '%'
-                OR COALESCE(d.referencia, '') ILIKE '%' || v_buscar || '%'
+                OR gen_texto_coincide(d.direccion, v_buscar)
+                OR gen_texto_coincide(COALESCE(d.descripcion, ''), v_buscar)
+                OR gen_texto_coincide(COALESCE(d.referencia, ''), v_buscar)
             )
     ),
     total_count AS (

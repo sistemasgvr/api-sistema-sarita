@@ -17,10 +17,10 @@ BEGIN
     WHERE s.estado = 1
       AND (
           p_busqueda = ''
-          OR LOWER(s.codigo) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(s.nombre) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(s.direccion, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(s.telefono, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(s.codigo, p_busqueda)
+          OR gen_texto_coincide(s.nombre, p_busqueda)
+          OR gen_texto_coincide(COALESCE(s.direccion, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(s.telefono, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -53,10 +53,10 @@ BEGIN
         WHERE s.estado = 1
           AND (
               p_busqueda = ''
-              OR LOWER(s.codigo) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(s.nombre) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(s.direccion, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(s.telefono, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(s.codigo, p_busqueda)
+              OR gen_texto_coincide(s.nombre, p_busqueda)
+              OR gen_texto_coincide(COALESCE(s.direccion, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(s.telefono, ''), p_busqueda)
           )
         ORDER BY s.nombre ASC
         LIMIT p_limite

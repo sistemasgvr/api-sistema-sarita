@@ -22,10 +22,10 @@ BEGIN
       AND bb.estado_aprobacion = COALESCE(NULLIF(TRIM(p_estado_aprobacion), ''), 'PENDIENTE')
       AND (
           p_busqueda = ''
-          OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(b.numero_serie, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(mb.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(us.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+          OR gen_texto_coincide(COALESCE(b.numero_serie, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(mb.nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(us.nombre, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -58,10 +58,10 @@ BEGIN
           AND bb.estado_aprobacion = COALESCE(NULLIF(TRIM(p_estado_aprobacion), ''), 'PENDIENTE')
           AND (
               p_busqueda = ''
-              OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(b.numero_serie, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(mb.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(us.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+              OR gen_texto_coincide(COALESCE(b.numero_serie, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(mb.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(us.nombre, ''), p_busqueda)
           )
         ORDER BY bb.fecha_creacion ASC, bb.id ASC
         LIMIT p_limite

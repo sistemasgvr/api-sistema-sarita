@@ -109,13 +109,13 @@ BEGIN
           AND (p_id_tipo_cliente IS NULL OR c.id_tipo_cliente = p_id_tipo_cliente)
           AND (
                 v_buscar IS NULL
-                OR c.razon_social ILIKE '%' || v_buscar || '%'
-                OR c.nombres ILIKE '%' || v_buscar || '%'
-                OR c.apellido_paterno ILIKE '%' || v_buscar || '%'
-                OR c.apellido_materno ILIKE '%' || v_buscar || '%'
-                OR c.numero_documento ILIKE '%' || v_buscar || '%'
-                OR c.codigo_interno ILIKE '%' || v_buscar || '%'
-                OR dir.direccion ILIKE '%' || v_buscar || '%'
+                OR gen_texto_coincide(c.razon_social, v_buscar)
+                OR gen_texto_coincide(c.nombres, v_buscar)
+                OR gen_texto_coincide(c.apellido_paterno, v_buscar)
+                OR gen_texto_coincide(c.apellido_materno, v_buscar)
+                OR gen_texto_coincide(c.numero_documento, v_buscar)
+                OR gen_texto_coincide(c.codigo_interno, v_buscar)
+                OR gen_texto_coincide(dir.direccion, v_buscar)
               )
     ),
     total_count AS (

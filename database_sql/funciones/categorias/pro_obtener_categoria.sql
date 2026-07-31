@@ -28,7 +28,7 @@ BEGIN
         FROM pro_categoria c
         LEFT JOIN auth_usuarios uc ON c.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON c.id_usuario_modificacion = um.id
-        WHERE c.id = p_id AND c.estado = 1
+        WHERE c.id = p_id
     ) t;
 
     RETURN json_build_object('registro', v_registro);

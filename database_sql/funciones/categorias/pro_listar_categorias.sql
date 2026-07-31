@@ -1,7 +1,10 @@
+DROP FUNCTION IF EXISTS pro_listar_categorias(VARCHAR, INTEGER, INTEGER);
+
 CREATE OR REPLACE FUNCTION pro_listar_categorias(
     p_busqueda VARCHAR DEFAULT '',
     p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0
+    p_offset INTEGER DEFAULT 0,
+    p_solo_activos INTEGER DEFAULT 1
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -14,11 +17,11 @@ BEGIN
 
     SELECT COUNT(*) INTO v_total
     FROM pro_categoria c
-    WHERE c.estado = 1
+    WHERE (p_solo_activos IS NULL OR c.estado = p_solo_activos)
       AND (
           p_busqueda = ''
-          OR LOWER(c.nombre) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(c.descripcion, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(c.nombre, p_busqueda)
+          OR gen_texto_coincide(COALESCE(c.descripcion, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -42,11 +45,11 @@ BEGIN
         FROM pro_categoria c
         LEFT JOIN auth_usuarios uc ON c.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON c.id_usuario_modificacion = um.id
-        WHERE c.estado = 1
+        WHERE (p_solo_activos IS NULL OR c.estado = p_solo_activos)
           AND (
               p_busqueda = ''
-              OR LOWER(c.nombre) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(c.descripcion, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(c.nombre, p_busqueda)
+              OR gen_texto_coincide(COALESCE(c.descripcion, ''), p_busqueda)
           )
         ORDER BY c.nombre ASC
         LIMIT p_limite

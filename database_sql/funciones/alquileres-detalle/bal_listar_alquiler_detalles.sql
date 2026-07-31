@@ -24,9 +24,9 @@ BEGIN
       AND (p_id_balon IS NULL OR ad.id_balon = p_id_balon)
       AND (
           p_busqueda = ''
-          OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(al.numero_alquiler, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(c.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+          OR gen_texto_coincide(COALESCE(al.numero_alquiler, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -62,9 +62,9 @@ BEGIN
           AND (p_id_balon IS NULL OR ad.id_balon = p_id_balon)
           AND (
               p_busqueda = ''
-              OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(al.numero_alquiler, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(c.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+              OR gen_texto_coincide(COALESCE(al.numero_alquiler, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
           )
         ORDER BY al.fecha_inicio DESC NULLS LAST, ad.id DESC
         LIMIT p_limite

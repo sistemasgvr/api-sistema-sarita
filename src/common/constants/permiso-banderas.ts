@@ -129,12 +129,14 @@ export const PermisoBanderas = {
   CATEGORIAS_CREAR: 'categorias.crear',
   CATEGORIAS_EDITAR: 'categorias.editar',
   CATEGORIAS_ELIMINAR: 'categorias.eliminar',
+  CATEGORIAS_RESTAURAR: 'categorias.restaurar',
 
   SUB_CATEGORIAS_LISTAR: 'sub_categorias.listar',
   SUB_CATEGORIAS_VER: 'sub_categorias.ver',
   SUB_CATEGORIAS_CREAR: 'sub_categorias.crear',
   SUB_CATEGORIAS_EDITAR: 'sub_categorias.editar',
   SUB_CATEGORIAS_ELIMINAR: 'sub_categorias.eliminar',
+  SUB_CATEGORIAS_RESTAURAR: 'sub_categorias.restaurar',
 
   PRODUCTOS_LISTAR: 'productos.listar',
   PRODUCTOS_VER: 'productos.ver',
@@ -154,6 +156,7 @@ export const PermisoBanderas = {
   STOCK_CREAR: 'stock.crear',
   STOCK_EDITAR: 'stock.editar',
   STOCK_ELIMINAR: 'stock.eliminar',
+  STOCK_RESTAURAR: 'stock.restaurar',
 
   MOVIMIENTOS_LISTAR: 'movimientos.listar',
   MOVIMIENTOS_VER: 'movimientos.ver',

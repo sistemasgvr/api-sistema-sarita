@@ -16,6 +16,15 @@ export class FiltroSubCategoriasProductoDto extends FiltroPaginacionDto {
   @Type(() => Number)
   @IsInt()
   idCategoria?: number;
+
+  @ApiPropertyOptional({
+    description: '1=activos, 0=inactivos, omitir/null=todos',
+    example: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  soloActivos?: number | null;
 }
 
 export class CreateSubCategoriaProductoDto extends AuditoriaDto {

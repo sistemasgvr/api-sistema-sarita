@@ -28,13 +28,13 @@ BEGIN
       AND (p_periodo IS NULL OR cp.periodo = p_periodo)
       AND (
           p_busqueda = ''
-          OR LOWER(cp.nombre_item) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cp.periodo, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cp.clasificacion, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cp.modelo, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(p.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(prov.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(tc.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(cp.nombre_item, p_busqueda)
+          OR gen_texto_coincide(COALESCE(cp.periodo, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(cp.clasificacion, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(cp.modelo, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(p.nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(prov.razon_social, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(tc.nombre, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -85,13 +85,13 @@ BEGIN
           AND (p_periodo IS NULL OR cp.periodo = p_periodo)
           AND (
               p_busqueda = ''
-              OR LOWER(cp.nombre_item) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cp.periodo, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cp.clasificacion, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cp.modelo, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(p.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(prov.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(tc.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(cp.nombre_item, p_busqueda)
+              OR gen_texto_coincide(COALESCE(cp.periodo, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(cp.clasificacion, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(cp.modelo, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(p.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(prov.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(tc.nombre, ''), p_busqueda)
           )
         ORDER BY cp.periodo DESC NULLS LAST, cp.nombre_item ASC
         LIMIT p_limite

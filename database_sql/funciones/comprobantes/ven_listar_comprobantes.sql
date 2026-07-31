@@ -47,9 +47,9 @@ BEGIN
           OR LOWER(COALESCE(co.serie, '')) LIKE '%' || v_busqueda_norm || '%'
           OR LOWER(COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
           OR LOWER(COALESCE(co.serie, '') || '-' || COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
-          OR LOWER(COALESCE(cl.razon_social, '')) LIKE LOWER('%' || v_busqueda || '%')
-          OR LOWER(COALESCE(cl.numero_documento, '')) LIKE LOWER('%' || v_busqueda || '%')
-          OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || v_busqueda || '%')
+          OR gen_texto_coincide(COALESCE(cl.razon_social, ''), v_busqueda)
+          OR gen_texto_coincide(COALESCE(cl.numero_documento, ''), v_busqueda)
+          OR gen_texto_coincide(COALESCE(c.glosa, ''), v_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -129,9 +129,9 @@ BEGIN
               OR LOWER(COALESCE(co.serie, '')) LIKE '%' || v_busqueda_norm || '%'
               OR LOWER(COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
               OR LOWER(COALESCE(co.serie, '') || '-' || COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
-              OR LOWER(COALESCE(cl.razon_social, '')) LIKE LOWER('%' || v_busqueda || '%')
-              OR LOWER(COALESCE(cl.numero_documento, '')) LIKE LOWER('%' || v_busqueda || '%')
-              OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || v_busqueda || '%')
+              OR gen_texto_coincide(COALESCE(cl.razon_social, ''), v_busqueda)
+              OR gen_texto_coincide(COALESCE(cl.numero_documento, ''), v_busqueda)
+              OR gen_texto_coincide(COALESCE(c.glosa, ''), v_busqueda)
           )
         ORDER BY c.fecha DESC, c.id DESC
         LIMIT p_limite

@@ -28,10 +28,10 @@ BEGIN
       )
       AND (
           p_buscar = ''
-          OR LOWER(v.placa) LIKE LOWER('%' || p_buscar || '%')
-          OR LOWER(COALESCE(v.placa2, '')) LIKE LOWER('%' || p_buscar || '%')
-          OR LOWER(COALESCE(v.marca, '')) LIKE LOWER('%' || p_buscar || '%')
-          OR LOWER(COALESCE(v.modelo, '')) LIKE LOWER('%' || p_buscar || '%')
+          OR gen_texto_coincide(v.placa, p_buscar)
+          OR gen_texto_coincide(COALESCE(v.placa2, ''), p_buscar)
+          OR gen_texto_coincide(COALESCE(v.marca, ''), p_buscar)
+          OR gen_texto_coincide(COALESCE(v.modelo, ''), p_buscar)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -76,10 +76,10 @@ BEGIN
           )
           AND (
               p_buscar = ''
-              OR LOWER(v.placa) LIKE LOWER('%' || p_buscar || '%')
-              OR LOWER(COALESCE(v.placa2, '')) LIKE LOWER('%' || p_buscar || '%')
-              OR LOWER(COALESCE(v.marca, '')) LIKE LOWER('%' || p_buscar || '%')
-              OR LOWER(COALESCE(v.modelo, '')) LIKE LOWER('%' || p_buscar || '%')
+              OR gen_texto_coincide(v.placa, p_buscar)
+              OR gen_texto_coincide(COALESCE(v.placa2, ''), p_buscar)
+              OR gen_texto_coincide(COALESCE(v.marca, ''), p_buscar)
+              OR gen_texto_coincide(COALESCE(v.modelo, ''), p_buscar)
           )
         ORDER BY v.placa ASC
         LIMIT p_limite

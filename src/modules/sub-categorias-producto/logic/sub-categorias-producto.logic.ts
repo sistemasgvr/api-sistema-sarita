@@ -50,4 +50,9 @@ export class SubCategoriasProductoLogic {
     const result = await this.subCategoriasProductoModel.eliminar(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Subcategoría ${id} no encontrada`);
   }
+
+  async restaurar(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.subCategoriasProductoModel.restaurar(id, idUsuarioAuditoria);
+    return mapDeleteResult(result, `Subcategoría ${id} no encontrada o ya está activa`);
+  }
 }

@@ -22,10 +22,10 @@ BEGIN
       AND (p_id_cliente IS NULL OR cb.id_cliente = p_id_cliente OR (p_id_cliente = -1 AND cb.id_cliente IS NULL))
       AND (
           p_buscar = ''
-          OR LOWER(COALESCE(cb.titular, '')) LIKE LOWER('%' || p_buscar || '%')
-          OR LOWER(COALESCE(cb.numero_cuenta, '')) LIKE LOWER('%' || p_buscar || '%')
-          OR LOWER(COALESCE(cb.numero_cuenta_interbancaria, '')) LIKE LOWER('%' || p_buscar || '%')
-          OR LOWER(COALESCE(cb.telefono_billetera, '')) LIKE LOWER('%' || p_buscar || '%')
+          OR gen_texto_coincide(COALESCE(cb.titular, ''), p_buscar)
+          OR gen_texto_coincide(COALESCE(cb.numero_cuenta, ''), p_buscar)
+          OR gen_texto_coincide(COALESCE(cb.numero_cuenta_interbancaria, ''), p_buscar)
+          OR gen_texto_coincide(COALESCE(cb.telefono_billetera, ''), p_buscar)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -64,10 +64,10 @@ BEGIN
           AND (p_id_cliente IS NULL OR cb.id_cliente = p_id_cliente OR (p_id_cliente = -1 AND cb.id_cliente IS NULL))
           AND (
               p_buscar = ''
-              OR LOWER(COALESCE(cb.titular, '')) LIKE LOWER('%' || p_buscar || '%')
-              OR LOWER(COALESCE(cb.numero_cuenta, '')) LIKE LOWER('%' || p_buscar || '%')
-              OR LOWER(COALESCE(cb.numero_cuenta_interbancaria, '')) LIKE LOWER('%' || p_buscar || '%')
-              OR LOWER(COALESCE(cb.telefono_billetera, '')) LIKE LOWER('%' || p_buscar || '%')
+              OR gen_texto_coincide(COALESCE(cb.titular, ''), p_buscar)
+              OR gen_texto_coincide(COALESCE(cb.numero_cuenta, ''), p_buscar)
+              OR gen_texto_coincide(COALESCE(cb.numero_cuenta_interbancaria, ''), p_buscar)
+              OR gen_texto_coincide(COALESCE(cb.telefono_billetera, ''), p_buscar)
           )
         ORDER BY cb.es_principal DESC, cb.id ASC
         LIMIT p_limite

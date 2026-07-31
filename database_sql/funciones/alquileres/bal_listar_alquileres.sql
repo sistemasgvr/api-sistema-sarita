@@ -24,10 +24,10 @@ BEGIN
       AND (p_id_estado IS NULL OR al.id_estado = p_id_estado)
       AND (
           p_busqueda = ''
-          OR LOWER(al.numero_alquiler) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(al.observacion, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(pr.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(pr.codigo, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(al.numero_alquiler, p_busqueda)
+          OR gen_texto_coincide(COALESCE(al.observacion, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(pr.nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(pr.codigo, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -80,10 +80,10 @@ BEGIN
           AND (p_id_estado IS NULL OR al.id_estado = p_id_estado)
           AND (
               p_busqueda = ''
-              OR LOWER(al.numero_alquiler) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(al.observacion, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(pr.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(pr.codigo, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(al.numero_alquiler, p_busqueda)
+              OR gen_texto_coincide(COALESCE(al.observacion, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(pr.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(pr.codigo, ''), p_busqueda)
           )
         ORDER BY al.fecha_inicio DESC, al.id DESC
         LIMIT p_limite

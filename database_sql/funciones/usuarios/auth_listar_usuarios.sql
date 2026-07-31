@@ -18,8 +18,8 @@ BEGIN
     WHERE (p_estado IS NULL OR u.estado = p_estado)
       AND (
           p_busqueda = ''
-          OR LOWER(u.nombre) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(u.correo) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(u.nombre, p_busqueda)
+          OR gen_texto_coincide(u.correo, p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -44,8 +44,8 @@ BEGIN
         WHERE (p_estado IS NULL OR u.estado = p_estado)
           AND (
               p_busqueda = ''
-              OR LOWER(u.nombre) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(u.correo) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(u.nombre, p_busqueda)
+              OR gen_texto_coincide(u.correo, p_busqueda)
           )
         ORDER BY u.nombre ASC
         LIMIT p_limite

@@ -86,12 +86,12 @@ BEGIN
           AND a.fecha_inicio IS NOT NULL
           AND (
               p_busqueda = ''
-              OR LOWER(COALESCE(a.numero_alquiler, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(b.codigo_balon, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(b.numero_serie, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(c.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(c.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(pg.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(COALESCE(a.numero_alquiler, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(b.codigo_balon, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(b.numero_serie, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(c.nombres, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(pg.nombre, ''), p_busqueda)
           )
     ),
     filtrado AS (

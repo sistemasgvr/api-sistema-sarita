@@ -26,7 +26,7 @@ BEGIN
       AND (p_id_tipo_solicitud IS NULL OR bc.id_tipo_solicitud = p_id_tipo_solicitud)
       AND (
           p_buscar = ''
-          OR LOWER(COALESCE(bc.motivo_detalle, '')) LIKE LOWER('%' || p_buscar || '%')
+          OR gen_texto_coincide(COALESCE(bc.motivo_detalle, ''), p_buscar)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -74,7 +74,7 @@ BEGIN
           AND (p_id_tipo_solicitud IS NULL OR bc.id_tipo_solicitud = p_id_tipo_solicitud)
           AND (
               p_buscar = ''
-              OR LOWER(COALESCE(bc.motivo_detalle, '')) LIKE LOWER('%' || p_buscar || '%')
+              OR gen_texto_coincide(COALESCE(bc.motivo_detalle, ''), p_buscar)
           )
         ORDER BY bc.fecha_creacion DESC
         LIMIT p_limite

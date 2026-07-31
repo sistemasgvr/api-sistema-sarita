@@ -51,13 +51,13 @@ BEGIN
           AND (p_id_cliente IS NULL OR co.id_cliente = p_id_cliente)
           AND (
                 v_buscar IS NULL 
-                OR co.nombre ILIKE '%' || v_buscar || '%'
-                OR co.apellido_paterno ILIKE '%' || v_buscar || '%'
-                OR co.apellido_materno ILIKE '%' || v_buscar || '%'
-                OR co.email ILIKE '%' || v_buscar || '%'
-                OR co.telefono1 ILIKE '%' || v_buscar || '%'
-                OR c.razon_social ILIKE '%' || v_buscar || '%'
-                OR c.numero_documento ILIKE '%' || v_buscar || '%'
+                OR gen_texto_coincide(co.nombre, v_buscar)
+                OR gen_texto_coincide(co.apellido_paterno, v_buscar)
+                OR gen_texto_coincide(co.apellido_materno, v_buscar)
+                OR gen_texto_coincide(co.email, v_buscar)
+                OR gen_texto_coincide(co.telefono1, v_buscar)
+                OR gen_texto_coincide(c.razon_social, v_buscar)
+                OR gen_texto_coincide(c.numero_documento, v_buscar)
               )
     ),
     total_count AS (

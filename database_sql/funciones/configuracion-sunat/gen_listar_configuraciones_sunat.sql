@@ -21,10 +21,10 @@ BEGIN
       AND (p_id_empresa IS NULL OR cs.id_empresa = p_id_empresa)
       AND (
           p_busqueda = ''
-          OR LOWER(cs.usuario_sol) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(e.nombre_comercial, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(lo.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cs.proveedor_pse, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(cs.usuario_sol, p_busqueda)
+          OR gen_texto_coincide(COALESCE(e.nombre_comercial, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(lo.nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(cs.proveedor_pse, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -71,10 +71,10 @@ BEGIN
           AND (p_id_empresa IS NULL OR cs.id_empresa = p_id_empresa)
           AND (
               p_busqueda = ''
-              OR LOWER(cs.usuario_sol) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(e.nombre_comercial, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(lo.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cs.proveedor_pse, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(cs.usuario_sol, p_busqueda)
+              OR gen_texto_coincide(COALESCE(e.nombre_comercial, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(lo.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(cs.proveedor_pse, ''), p_busqueda)
           )
         ORDER BY e.nombre_comercial ASC, cs.usuario_sol ASC
         LIMIT p_limite
