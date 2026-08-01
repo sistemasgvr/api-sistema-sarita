@@ -38,6 +38,7 @@ export class BalonesModel {
       filtros.idClienteRelacionado ?? null,
       filtros.soloBajas ?? null,
       filtros.familiaGas ?? null,
+      filtros.idPropietario ?? null,
     ]);
   }
 

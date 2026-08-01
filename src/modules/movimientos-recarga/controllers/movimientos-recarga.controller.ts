@@ -19,6 +19,7 @@ import {
   CreateRecargaClienteDto,
   FiltroMovimientosRecargaDto,
   UpdateMovimientosRecargaDto,
+  VincularRecargaClienteComprobanteDto,
 } from '../dto/movimientos-recarga.dto';
 import { MovimientosRecargaLogic } from '../logic/movimientos-recarga.logic';
 
@@ -39,6 +40,15 @@ export class MovimientosRecargaController {
   @ApiOperation({ summary: 'Recarga en mostrador (cliente trae balón + comprobante)' })
   crearRecargaCliente(@Body() dto: CreateRecargaClienteDto) {
     return this.logic.crearRecargaCliente(dto);
+  }
+
+  @Post('vincular-cliente-comprobante')
+  @Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_CREAR)
+  @ApiOperation({
+    summary: 'Vincula recarga CLIENTE a un comprobante ya creado (POS unificado)',
+  })
+  vincularRecargaClienteComprobante(@Body() dto: VincularRecargaClienteComprobanteDto) {
+    return this.logic.vincularRecargaClienteComprobante(dto);
   }
 
   @Get(':id')

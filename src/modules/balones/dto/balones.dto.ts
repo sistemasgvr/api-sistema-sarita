@@ -88,6 +88,14 @@ export class FiltroBalonesDto extends FiltroPaginacionDto {
   @IsString()
   @MaxLength(50)
   familiaGas?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtra por tipo de propietario (lista PROPIETARIO_BALON: EMPRESA, CLIENTE, etc.)',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idPropietario?: number;
 }
 
 export class CreateBalonesDto extends AuditoriaDto {

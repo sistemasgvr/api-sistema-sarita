@@ -1,4 +1,5 @@
 DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN);
+DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR);
 
 CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_busqueda VARCHAR DEFAULT '',
@@ -13,7 +14,8 @@ CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_ph_por_vencer_dias INTEGER DEFAULT NULL,
     p_id_cliente_relacionado INTEGER DEFAULT NULL,
     p_solo_bajas BOOLEAN DEFAULT NULL,
-    p_familia_gas VARCHAR DEFAULT NULL
+    p_familia_gas VARCHAR DEFAULT NULL,
+    p_id_propietario INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -43,6 +45,7 @@ BEGIN
       AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
       AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
       AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
+      AND (p_id_propietario IS NULL OR b.id_propietario = p_id_propietario)
       AND (
           p_id_cliente_relacionado IS NULL
           OR b.id_cliente_ubicacion = p_id_cliente_relacionado
@@ -211,6 +214,7 @@ BEGIN
           AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
           AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
           AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
+          AND (p_id_propietario IS NULL OR b.id_propietario = p_id_propietario)
           AND (
               p_id_cliente_relacionado IS NULL
               OR b.id_cliente_ubicacion = p_id_cliente_relacionado

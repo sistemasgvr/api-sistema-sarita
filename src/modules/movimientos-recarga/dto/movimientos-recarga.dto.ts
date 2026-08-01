@@ -152,6 +152,46 @@ export class CreateMovimientosRecargaDto extends AuditoriaDto {
   idAlmacen?: number;
 }
 
+export class VincularRecargaClienteComprobanteDto extends AuditoriaDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  idComprobante!: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  idCliente!: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  idBalon!: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  idProducto!: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  capacidad?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idAlmacen?: number;
+
+  @ApiPropertyOptional()
+  @MaxLength(500)
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+}
+
 export class CreateRecargaClienteDto extends AuditoriaDto {
   @ApiProperty()
   @Type(() => Number)
