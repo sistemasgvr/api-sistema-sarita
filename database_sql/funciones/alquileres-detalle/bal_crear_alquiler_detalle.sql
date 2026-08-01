@@ -30,10 +30,57 @@ BEGIN
     END IF;
 
     IF EXISTS (
+        SELECT 1
+        FROM bal_balon b
+        LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+        WHERE b.id = p_id_balon
+          AND COALESCE(eb.nombre, '') IN ('DADO_DE_BAJA', 'ROBO')
+    ) THEN
+        RETURN json_build_object(
+            'error',
+            'No se puede alquilar un cilindro dado de baja o reportado como robo',
+            'registro',
+            NULL
+        );
+    END IF;
+
+    IF EXISTS (
         SELECT 1 FROM bal_alquiler_detalle
         WHERE id_alquiler = p_id_alquiler AND id_balon = p_id_balon AND estado = 1
     ) THEN
         RETURN json_build_object('error', 'El balón ya está registrado en este alquiler', 'registro', NULL);
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM bal_alquiler_detalle ad
+        INNER JOIN bal_alquiler al ON al.id = ad.id_alquiler AND al.estado = 1
+        WHERE ad.id_balon = p_id_balon
+          AND ad.estado = 1
+          AND ad.fecha_devolucion IS NULL
+    ) THEN
+        RETURN json_build_object(
+            'error',
+            'El cilindro ya tiene un alquiler activo sin devolver',
+            'registro',
+            NULL
+        );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM bal_prestamo_detalle pd
+        INNER JOIN bal_prestamo p ON p.id = pd.id_prestamo AND p.estado = 1
+        WHERE pd.id_balon = p_id_balon
+          AND pd.estado = 1
+          AND pd.fecha_devolucion IS NULL
+    ) THEN
+        RETURN json_build_object(
+            'error',
+            'El cilindro está prestado actualmente; no se puede alquilar',
+            'registro',
+            NULL
+        );
     END IF;
 
     SELECT id_cliente, id_almacen
@@ -59,6 +106,15 @@ BEGIN
     WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'ALQUILADO' AND lo.estado = 1
     LIMIT 1;
 
+    IF v_id_estado_alquilado IS NULL THEN
+        RETURN json_build_object(
+            'error',
+            'No se encontró el estado ALQUILADO del cilindro. Revise el catálogo EstadoBalon.',
+            'registro',
+            NULL
+        );
+    END IF;
+
     INSERT INTO bal_alquiler_detalle (
         id_alquiler, id_balon,
         id_usuario_creacion, id_usuario_modificacion
@@ -77,9 +133,9 @@ BEGIN
             v_id_tipo_documento_ref,
             v_id_cliente,
             v_id_almacen,
-            NULL,
-            NOW(),
-            'Salida por alquiler',
+            NULL::INTEGER,
+            NOW()::TIMESTAMP,
+            'Salida por alquiler'::VARCHAR,
             p_id_usuario_auditoria
         );
 
@@ -92,7 +148,7 @@ BEGIN
     SET
         id_cliente_ubicacion = v_id_cliente,
         id_almacen = NULL,
-        id_estado_balon = COALESCE(v_id_estado_alquilado, id_estado_balon),
+        id_estado_balon = v_id_estado_alquilado,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id_balon AND estado = 1;

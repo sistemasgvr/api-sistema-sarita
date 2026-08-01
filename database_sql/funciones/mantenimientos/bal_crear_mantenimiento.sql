@@ -92,6 +92,15 @@ BEGIN
     WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_MANTENIMIENTO' AND lo.estado = 1
     LIMIT 1;
 
+    IF v_id_estado_balon_mantenimiento IS NULL THEN
+        RETURN json_build_object(
+            'error',
+            'No se encontró el estado EN_MANTENIMIENTO del cilindro. Revise el catálogo EstadoBalon.',
+            'registro',
+            NULL
+        );
+    END IF;
+
     SELECT lo.id INTO v_id_estado_finalizado
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id
@@ -156,10 +165,10 @@ BEGIN
                 v_id,
                 v_id_tipo_documento_ref,
                 v_id_cliente_mov,
-                NULL,
+                NULL::INTEGER,
                 v_id_almacen,
                 p_fecha_ingreso::TIMESTAMP,
-                v_obs_movimiento,
+                v_obs_movimiento::VARCHAR,
                 p_id_usuario_auditoria
             );
         ELSE
@@ -170,9 +179,9 @@ BEGIN
                 v_id_tipo_documento_ref,
                 v_id_cliente_mov,
                 v_id_almacen,
-                NULL,
+                NULL::INTEGER,
                 p_fecha_ingreso::TIMESTAMP,
-                v_obs_movimiento,
+                v_obs_movimiento::VARCHAR,
                 p_id_usuario_auditoria
             );
         END IF;
@@ -186,7 +195,7 @@ BEGIN
     -- (sirve para devolver al cliente al finalizar el servicio).
     UPDATE bal_balon
     SET
-        id_estado_balon = COALESCE(v_id_estado_balon_mantenimiento, id_estado_balon),
+        id_estado_balon = v_id_estado_balon_mantenimiento,
         id_cliente_ubicacion = CASE
             WHEN v_es_servicio_cliente THEN COALESCE(id_cliente_ubicacion, v_id_cliente_mov)
             ELSE id_cliente_ubicacion
