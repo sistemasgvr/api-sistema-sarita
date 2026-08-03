@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -15,7 +16,8 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FinanzasLogic } from '../logic/finanzas.logic';
 import { FiltroCuentaDto } from '../dto/filtro-cuenta.dto';
 import { RegistrarPagoDto } from '../dto/registrar-pago.dto';
-import { CrearCuentaDto } from '../dto/crear-cuenta.dto';
+import { CrearCuentaCuotasDto, CrearCuentaDto } from '../dto/crear-cuenta.dto';
+import { ActualizarCuentaDto } from '../dto/actualizar-cuenta.dto';
 
 @ApiTags('Finanzas')
 @Controller('finanzas')
@@ -58,6 +60,16 @@ export class FinanzasController {
     return this.finanzasLogic.crearCuenta('COBRAR', dto);
   }
 
+  @Post('cuentas-por-cobrar/plan-cuotas')
+  @Permisos(PermisoBanderas.FINANZAS_CXC_CREAR)
+  @ApiOperation({
+    summary:
+      'Crear una cuenta por cobrar con plan de cuotas (venta a plazos, financiamiento, etc.)',
+  })
+  crearCobrarCuotas(@Body() dto: CrearCuentaCuotasDto) {
+    return this.finanzasLogic.crearCuentaCuotas('COBRAR', dto);
+  }
+
   @Post('cuentas-por-cobrar/pagos')
   @Permisos(PermisoBanderas.FINANZAS_CXC_REGISTRAR_PAGO)
   @ApiOperation({ summary: 'Registrar una cobranza sobre una cuenta por cobrar' })
@@ -73,6 +85,26 @@ export class FinanzasController {
     @Body() dto: AuditoriaDto,
   ) {
     return this.finanzasLogic.anularPago(id, 'COBRAR', dto.idUsuarioAuditoria);
+  }
+
+  @Patch('cuentas-por-cobrar/:id')
+  @Permisos(PermisoBanderas.FINANZAS_CXC_EDITAR)
+  @ApiOperation({ summary: 'Editar una cuenta por cobrar' })
+  actualizarCobrar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarCuentaDto,
+  ) {
+    return this.finanzasLogic.actualizarCuenta(id, 'COBRAR', dto);
+  }
+
+  @Delete('cuentas-por-cobrar/:id')
+  @Permisos(PermisoBanderas.FINANZAS_CXC_ELIMINAR)
+  @ApiOperation({ summary: 'Eliminar (baja lógica) una cuenta por cobrar' })
+  eliminarCobrar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.finanzasLogic.eliminarCuenta(id, 'COBRAR', dto.idUsuarioAuditoria);
   }
 
   // ---------------- Cuentas por Pagar ----------------
@@ -105,6 +137,16 @@ export class FinanzasController {
     return this.finanzasLogic.crearCuenta('PAGAR', dto);
   }
 
+  @Post('cuentas-por-pagar/plan-cuotas')
+  @Permisos(PermisoBanderas.FINANZAS_CXP_CREAR)
+  @ApiOperation({
+    summary:
+      'Crear una cuenta por pagar con plan de cuotas (préstamo bancario, compra a plazos, etc.)',
+  })
+  crearPagarCuotas(@Body() dto: CrearCuentaCuotasDto) {
+    return this.finanzasLogic.crearCuentaCuotas('PAGAR', dto);
+  }
+
   @Post('cuentas-por-pagar/pagos')
   @Permisos(PermisoBanderas.FINANZAS_CXP_REGISTRAR_PAGO)
   @ApiOperation({ summary: 'Registrar un pago sobre una cuenta por pagar' })
@@ -117,5 +159,25 @@ export class FinanzasController {
   @ApiOperation({ summary: 'Anular un pago registrado' })
   anularPago(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
     return this.finanzasLogic.anularPago(id, 'PAGAR', dto.idUsuarioAuditoria);
+  }
+
+  @Patch('cuentas-por-pagar/:id')
+  @Permisos(PermisoBanderas.FINANZAS_CXP_EDITAR)
+  @ApiOperation({ summary: 'Editar una cuenta por pagar' })
+  actualizarPagar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarCuentaDto,
+  ) {
+    return this.finanzasLogic.actualizarCuenta(id, 'PAGAR', dto);
+  }
+
+  @Delete('cuentas-por-pagar/:id')
+  @Permisos(PermisoBanderas.FINANZAS_CXP_ELIMINAR)
+  @ApiOperation({ summary: 'Eliminar (baja lógica) una cuenta por pagar' })
+  eliminarPagar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.finanzasLogic.eliminarCuenta(id, 'PAGAR', dto.idUsuarioAuditoria);
   }
 }

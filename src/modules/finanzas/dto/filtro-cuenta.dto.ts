@@ -27,4 +27,14 @@ export class FiltroCuentaDto extends FiltroPaginacionDto {
   @Type(() => Number)
   @IsIn([0, 1])
   soloPendientes?: number;
+
+  @ApiPropertyOptional({
+    example: 42,
+    description:
+      'ID de una cabecera de plan de cuotas: si viene, se listan sus cuotas hijas. Si no viene, solo cuentas de primer nivel.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idPadre?: number;
 }

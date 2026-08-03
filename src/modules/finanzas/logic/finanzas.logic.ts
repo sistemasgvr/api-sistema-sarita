@@ -7,7 +7,8 @@ import {
 import { FinanzasModel, TipoCuenta } from '../models/finanzas.model';
 import { FiltroCuentaDto } from '../dto/filtro-cuenta.dto';
 import { RegistrarPagoDto } from '../dto/registrar-pago.dto';
-import { CrearCuentaDto } from '../dto/crear-cuenta.dto';
+import { CrearCuentaCuotasDto, CrearCuentaDto } from '../dto/crear-cuenta.dto';
+import { ActualizarCuentaDto } from '../dto/actualizar-cuenta.dto';
 
 @Injectable()
 export class FinanzasLogic {
@@ -21,6 +22,21 @@ export class FinanzasLogic {
   async crearCuenta(tipo: TipoCuenta, dto: CrearCuentaDto) {
     const result = await this.finanzasModel.crearCuenta(tipo, dto);
     return mapSingleResult(result, 'No se pudo crear la cuenta');
+  }
+
+  async crearCuentaCuotas(tipo: TipoCuenta, dto: CrearCuentaCuotasDto) {
+    const result = await this.finanzasModel.crearCuentaCuotas(tipo, dto);
+    return mapSingleResult(result, 'No se pudo crear el plan de cuotas');
+  }
+
+  async actualizarCuenta(id: number, tipo: TipoCuenta, dto: ActualizarCuentaDto) {
+    const result = await this.finanzasModel.actualizarCuenta(id, tipo, dto);
+    return mapSingleResult(result, `Cuenta ${id} no encontrada`);
+  }
+
+  async eliminarCuenta(id: number, tipo: TipoCuenta, idUsuarioAuditoria?: number) {
+    const result = await this.finanzasModel.eliminarCuenta(id, tipo, idUsuarioAuditoria);
+    return mapDeleteResult(result, `Cuenta ${id} no encontrada o ya está inactiva`);
   }
 
   async obtenerCuenta(id: number, tipo: TipoCuenta) {

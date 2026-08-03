@@ -6,9 +6,13 @@ FROM (
     VALUES
         ('finanzas.cxc.ver', 'Ver cuentas por cobrar'),
         ('finanzas.cxc.crear', 'Crear cuentas por cobrar manuales (externas)'),
+        ('finanzas.cxc.editar', 'Editar cuentas por cobrar'),
+        ('finanzas.cxc.eliminar', 'Eliminar cuentas por cobrar'),
         ('finanzas.cxc.registrar_pago', 'Registrar cobranzas (cuentas por cobrar)'),
         ('finanzas.cxp.ver', 'Ver cuentas por pagar'),
         ('finanzas.cxp.crear', 'Crear cuentas por pagar manuales (externas)'),
+        ('finanzas.cxp.editar', 'Editar cuentas por pagar'),
+        ('finanzas.cxp.eliminar', 'Eliminar cuentas por pagar'),
         ('finanzas.cxp.registrar_pago', 'Registrar pagos (cuentas por pagar)')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (

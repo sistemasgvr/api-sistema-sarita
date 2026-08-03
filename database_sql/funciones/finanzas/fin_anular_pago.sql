@@ -50,6 +50,20 @@ BEGIN
            fecha_modificacion = NOW()
      WHERE id = v_pago.id_cuenta;
 
+    -- Si la cuenta era una cuota hija, refrescar la cabecera del plan
+    IF v_cuenta.id_cuenta_padre IS NOT NULL THEN
+        UPDATE fin_cuenta padre
+           SET monto_abonado = sub.total_abonado,
+               monto_saldo   = padre.monto_pendiente - sub.total_abonado,
+               fecha_modificacion = NOW()
+          FROM (
+              SELECT COALESCE(SUM(COALESCE(monto_abonado, 0)), 0) AS total_abonado
+              FROM fin_cuenta
+              WHERE id_cuenta_padre = v_cuenta.id_cuenta_padre AND estado = 1
+          ) sub
+         WHERE padre.id = v_cuenta.id_cuenta_padre;
+    END IF;
+
     RETURN json_build_object('eliminado', true, 'id', p_id_pago);
 END;
 $$;

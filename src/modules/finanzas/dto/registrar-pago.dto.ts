@@ -7,6 +7,7 @@ import {
   IsPositive,
   IsString,
   Matches,
+  MaxLength,
 } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 
@@ -34,9 +35,25 @@ export class RegistrarPagoDto extends AuditoriaDto {
   @IsInt()
   idMedioPago?: number;
 
-  @ApiPropertyOptional({ example: 'OP-000123', description: 'Referencia / N° de operación' })
+  @ApiPropertyOptional({
+    example: 7,
+    description: 'ID de la cuenta bancaria de la empresa afectada (gen_cuenta_bancaria.id)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCuentaBancaria?: number;
+
+  @ApiPropertyOptional({ example: 'OP-000123', description: 'N° de operación / N° cheque' })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
+  numeroOperacion?: string;
+
+  @ApiPropertyOptional({ example: 'Depósito ventanilla', description: 'Referencia adicional' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
   referencia?: string;
 
   @ApiPropertyOptional({ example: 'Pago parcial acordado' })

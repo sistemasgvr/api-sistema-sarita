@@ -258,9 +258,13 @@ export const PermisoBanderas = {
 
   FINANZAS_CXC_VER: 'finanzas.cxc.ver',
   FINANZAS_CXC_CREAR: 'finanzas.cxc.crear',
+  FINANZAS_CXC_EDITAR: 'finanzas.cxc.editar',
+  FINANZAS_CXC_ELIMINAR: 'finanzas.cxc.eliminar',
   FINANZAS_CXC_REGISTRAR_PAGO: 'finanzas.cxc.registrar_pago',
   FINANZAS_CXP_VER: 'finanzas.cxp.ver',
   FINANZAS_CXP_CREAR: 'finanzas.cxp.crear',
+  FINANZAS_CXP_EDITAR: 'finanzas.cxp.editar',
+  FINANZAS_CXP_ELIMINAR: 'finanzas.cxp.eliminar',
   FINANZAS_CXP_REGISTRAR_PAGO: 'finanzas.cxp.registrar_pago',
 } as const;
 

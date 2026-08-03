@@ -1,7 +1,12 @@
 -- Lista cuentas financieras (por COBRAR o por PAGAR) con paginación y filtros.
 -- Comparte la tabla fin_cuenta; el tipo se resuelve por nombre (COBRAR/PAGAR).
+--
+-- Por defecto se listan solo cuentas "de primer nivel" (sin id_cuenta_padre):
+-- cuentas simples + cabeceras de planes de cuotas. Las cuotas hijas se listan
+-- pasando p_id_padre = <id_cabecera>.
 
 DROP FUNCTION IF EXISTS fin_listar_cuentas(VARCHAR, INT, VARCHAR, INT, VARCHAR, INT, INT);
+DROP FUNCTION IF EXISTS fin_listar_cuentas(VARCHAR, INT, VARCHAR, INT, VARCHAR, INT, INT, INT);
 
 CREATE OR REPLACE FUNCTION fin_listar_cuentas(
     p_tipo            VARCHAR DEFAULT NULL,   -- 'COBRAR' | 'PAGAR'
@@ -9,6 +14,7 @@ CREATE OR REPLACE FUNCTION fin_listar_cuentas(
     p_estado          VARCHAR DEFAULT NULL,   -- PENDIENTE | PARCIAL | VENCIDO | PAGADO
     p_solo_pendientes INT     DEFAULT NULL,   -- 1 = solo cuentas con saldo > 0
     p_buscar          VARCHAR DEFAULT NULL,
+    p_id_padre        INT     DEFAULT NULL,   -- NULL = solo primer nivel; <id> = cuotas de esa cabecera
     p_limite          INT     DEFAULT 10,
     p_offset          INT     DEFAULT 0
 )
@@ -37,31 +43,48 @@ BEGIN
             fc.id_tipo_cuenta,
             UPPER(p_tipo) AS tipo,
             fc.id_tercero,
+            fc.tercero_nombre,
             COALESCE(
                 NULLIF(TRIM(ter.razon_social), ''),
                 NULLIF(TRIM(CONCAT_WS(' ', ter.nombres, ter.apellido_paterno, ter.apellido_materno)), ''),
-                'Tercero #' || fc.id_tercero
+                fc.tercero_nombre,
+                'Tercero #' || fc.id
             ) AS tercero,
             ter.numero_documento AS documento_tercero,
             fc.id_comprobante_venta,
             fc.id_comprobante_compra,
+            fc.id_cuenta_padre,
+            fc.numero_cuota,
+            fc.numero_cuotas_total,
+            fc.descripcion,
+            fc.id_banco,
+            fc.tasa_interes,
+            fc.numero_comprobante,
             COALESCE(
                 NULLIF(CONCAT_WS('-', vc.serie, vc.numero), '-'),
-                NULLIF(CONCAT_WS('-', cc.serie, cc.numero), '-')
+                NULLIF(CONCAT_WS('-', cc.serie, cc.numero), '-'),
+                fc.numero_comprobante
             ) AS comprobante,
             fc.fecha_emision,
             fc.fecha_vencimiento,
             fc.monto_pendiente,
             COALESCE(fc.monto_abonado, 0) AS monto_abonado,
             COALESCE(fc.monto_saldo, fc.monto_pendiente - COALESCE(fc.monto_abonado, 0)) AS saldo,
-            fc.observacion
+            fc.observacion,
+            -- Indica si es cabecera de un plan de cuotas
+            (fc.numero_cuotas_total IS NOT NULL) AS es_plan
         FROM fin_cuenta fc
-        JOIN cli_clientes ter ON ter.id = fc.id_tercero
+        LEFT JOIN cli_clientes ter ON ter.id = fc.id_tercero
         LEFT JOIN ven_comprobante vc ON vc.id = fc.id_comprobante_venta
         LEFT JOIN com_comprobante_compra cc ON cc.id = fc.id_comprobante_compra
         WHERE fc.estado = 1
           AND (v_id_tipo IS NULL OR fc.id_tipo_cuenta = v_id_tipo)
           AND (p_id_tercero IS NULL OR fc.id_tercero = p_id_tercero)
+          -- Alcance: si p_id_padre viene, listar hijas; si no, solo primer nivel
+          AND (
+                (p_id_padre IS NULL AND fc.id_cuenta_padre IS NULL)
+             OR (p_id_padre IS NOT NULL AND fc.id_cuenta_padre = p_id_padre)
+          )
     ),
     calculado AS (
         SELECT b.*,
@@ -89,6 +112,7 @@ BEGIN
                 OR c.tercero ILIKE '%' || v_buscar || '%'
                 OR c.documento_tercero ILIKE '%' || v_buscar || '%'
                 OR c.comprobante ILIKE '%' || v_buscar || '%'
+                OR c.descripcion ILIKE '%' || v_buscar || '%'
               )
     ),
     total_count AS (
@@ -96,7 +120,11 @@ BEGIN
     ),
     paginados AS (
         SELECT * FROM filtrados
-        ORDER BY (fecha_vencimiento IS NULL), fecha_vencimiento ASC, id DESC
+        ORDER BY
+            COALESCE(numero_cuota, 0),
+            (fecha_vencimiento IS NULL),
+            fecha_vencimiento ASC,
+            id DESC
         LIMIT p_limite
         OFFSET p_offset
     )
