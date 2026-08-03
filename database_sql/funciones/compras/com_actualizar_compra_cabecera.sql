@@ -1,6 +1,5 @@
--- No se puede tocar proveedor, fecha, almacén ni montos: eso
--- exige anular + crear una compra de corrección. Aquí solo se
--- permiten campos administrativos que NO afectan inventario.
+-- Campos administrativos que NO afectan inventario.
+-- Se permiten aunque la compra ya haya generado ingresos de stock.
 
 CREATE OR REPLACE FUNCTION com_actualizar_compra_cabecera(
     p_id_comprobante         INTEGER,
@@ -18,13 +17,6 @@ BEGIN
 
     IF NOT EXISTS (SELECT 1 FROM com_comprobante_compra WHERE id = p_id_comprobante AND estado = 1) THEN
         RETURN json_build_object('error', 'La compra no existe o está anulada', 'registro', NULL);
-    END IF;
-
-    IF com_tiene_movimientos_inventario(p_id_comprobante) THEN
-        RETURN json_build_object(
-            'error', 'Esta compra ya generó movimientos de inventario y no admite modificación parcial. Anule la compra completa y registre una nueva referenciándola.',
-            'registro', NULL
-        );
     END IF;
 
     UPDATE com_comprobante_compra

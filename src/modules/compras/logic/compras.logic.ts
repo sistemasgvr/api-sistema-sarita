@@ -6,6 +6,7 @@ import {
 } from '../../../common/helpers/auth-response.helper';
 import {
   ActualizarCompraCabeceraDto,
+  ActualizarCompraDetalleDto,
   CreateCompraDetalleLineaDto,
   CreateCompraDto,
   FiltroComprasDto,
@@ -44,6 +45,14 @@ export class ComprasLogic {
     return mapSingleResult(
       result,
       `No se pudo agregar línea a la compra ${idComprobante}`,
+    );
+  }
+
+  async actualizarDetalle(idDetalle: number, dto: ActualizarCompraDetalleDto) {
+    const result = await this.comprasModel.actualizarDetalle(idDetalle, dto);
+    return mapSingleResult(
+      result,
+      `No se pudo actualizar el detalle de compra ${idDetalle}`,
     );
   }
 

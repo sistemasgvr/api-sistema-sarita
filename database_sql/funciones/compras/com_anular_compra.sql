@@ -97,7 +97,8 @@ BEGIN
             p_id_documento_ref      => v_detalle.id,
             p_id_tipo_documento_ref => v_id_tipo_doc_ref,
             p_glosa                 => 'Reversa por anulación de compra ' || v_serie || '-' || v_numero,
-            p_id_usuario_auditoria  => p_id_usuario_auditoria
+            p_id_usuario_auditoria  => p_id_usuario_auditoria,
+            p_forzar_ajuste_stock   => TRUE
         );
 
         IF (v_result_movimiento->>'error') IS NOT NULL THEN

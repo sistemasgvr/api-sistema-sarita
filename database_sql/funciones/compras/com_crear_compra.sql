@@ -208,7 +208,14 @@ BEGIN
     UPDATE com_comprobante_compra
     SET sub_total = v_base_imponible,
         igv = v_igv_calculado,
-        total_importe = v_total_bruto
+        total_importe = v_total_bruto,
+        afecta_inventario = EXISTS (
+            SELECT 1
+            FROM com_comprobante_compra_detalle
+            WHERE id_comprobante = v_id_compra
+              AND afecta_stock = TRUE
+              AND estado = 1
+        )
     WHERE id = v_id_compra;
 
     RETURN com_obtener_compra(v_id_compra);

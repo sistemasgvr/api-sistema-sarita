@@ -41,7 +41,8 @@ BEGIN
         'estado',                    c.estado,
         'id_comprobante_referencia', c.id_comprobante_referencia,
         'tiene_movimientos_inventario', com_tiene_movimientos_inventario(c.id),
-        'puede_modificarse_parcial', NOT com_tiene_movimientos_inventario(c.id),
+        -- Activa: se puede editar cabecera y líneas (ingresos/salidas según afecta_stock)
+        'puede_modificarse_parcial', (c.estado = 1),
         'fecha_creacion',            c.fecha_creacion,
         'fecha_modificacion',        c.fecha_modificacion
     )

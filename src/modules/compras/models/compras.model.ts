@@ -7,6 +7,7 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import {
   ActualizarCompraCabeceraDto,
+  ActualizarCompraDetalleDto,
   CreateCompraDetalleLineaDto,
   CreateCompraDto,
   FiltroComprasDto,
@@ -82,6 +83,18 @@ export class ComprasModel {
         dto.descripcion ?? null,
         dto.idUnidadMedida ?? null,
         dto.idAlmacen ?? null,
+        dto.idUsuarioAuditoria ?? null,
+      ],
+    );
+  }
+
+  actualizarDetalle(idDetalle: number, dto: ActualizarCompraDetalleDto) {
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'com_actualizar_compra_detalle',
+      [
+        idDetalle,
+        dto.cantidad ?? null,
+        dto.precioUnitario ?? null,
         dto.idUsuarioAuditoria ?? null,
       ],
     );

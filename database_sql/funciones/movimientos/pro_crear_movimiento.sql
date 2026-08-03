@@ -7,7 +7,8 @@ CREATE OR REPLACE FUNCTION pro_crear_movimiento(
     p_id_documento_ref INTEGER DEFAULT NULL,
     p_id_tipo_documento_ref INTEGER DEFAULT NULL,
     p_glosa VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_forzar_ajuste_stock BOOLEAN DEFAULT FALSE
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -60,6 +61,12 @@ BEGIN
     FROM pro_producto p
     LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
     WHERE p.id = p_id_producto;
+
+    -- Reversas históricas (p.ej. anular compra) deben ajustar stock aunque el
+    -- maestro del producto haya cambiado afecta_stock después del ingreso.
+    IF COALESCE(p_forzar_ajuste_stock, FALSE) THEN
+        v_afecta_stock := TRUE;
+    END IF;
 
     -- Gases (m³) pueden ser decimales aunque la U.M. esté mal catalogada como UNID.
     IF NOT COALESCE(v_es_gas, FALSE)

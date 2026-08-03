@@ -1,5 +1,5 @@
--- Agrega una línea a una compra existente (solo si aún no tiene
--- movimientos de inventario en ninguna de sus líneas)
+-- Agrega una línea a una compra activa.
+-- Si el producto tiene afecta_stock, genera INGRESO de inventario.
 
 CREATE OR REPLACE FUNCTION com_crear_compra_detalle(
     p_id_comprobante         INTEGER,
@@ -39,19 +39,11 @@ BEGIN
     SELECT id_almacen, fecha, serie, numero
     INTO v_id_almacen_cabecera, v_fecha, v_serie, v_numero
     FROM com_comprobante_compra
-    WHERE id = p_id_comprobante AND estado = 1;
+    WHERE id = p_id_comprobante AND estado = 1
+    FOR UPDATE;
 
     IF v_id_almacen_cabecera IS NULL THEN
         RETURN json_build_object('error', 'La compra indicada no existe o está anulada', 'registro', NULL);
-    END IF;
-
-    -- Regla 1: si la compra YA tiene líneas que afectaron stock, no se
-    -- puede agregar una línea más (sería una modificación parcial).
-    IF com_tiene_movimientos_inventario(p_id_comprobante) THEN
-        RETURN json_build_object(
-            'error', 'Esta compra ya generó movimientos de inventario y no admite modificación parcial. Anule la compra completa y registre una nueva referenciándola.',
-            'registro', NULL
-        );
     END IF;
 
     SELECT afecta_stock INTO v_afecta_stock
@@ -101,6 +93,10 @@ BEGIN
         JOIN gen_lista gl ON gl.id = glo.id_lista
         WHERE gl.nombre = 'TipoDocumentoRef' AND glo.nombre = 'COMPRA' AND glo.estado = 1;
 
+        IF v_id_tipo_ingreso IS NULL OR v_id_tipo_doc_ref IS NULL THEN
+            RAISE EXCEPTION 'Faltan configurar las opciones INGRESO (TipoMovInv) o COMPRA (TipoDocumentoRef)';
+        END IF;
+
         v_result_movimiento := pro_crear_movimiento(
             p_fecha                 => v_fecha,
             p_id_producto           => p_id_producto,
@@ -117,6 +113,18 @@ BEGIN
             RAISE EXCEPTION '%', v_result_movimiento->>'error';
         END IF;
     END IF;
+
+    UPDATE com_comprobante_compra
+    SET afecta_inventario = EXISTS (
+            SELECT 1
+            FROM com_comprobante_compra_detalle
+            WHERE id_comprobante = p_id_comprobante
+              AND afecta_stock = TRUE
+              AND estado = 1
+        ),
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id_comprobante;
 
     PERFORM com_recalcular_totales_compra(p_id_comprobante, p_id_usuario_auditoria);
 

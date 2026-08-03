@@ -20,6 +20,7 @@ import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   ActualizarCompraCabeceraDto,
+  ActualizarCompraDetalleDto,
   CreateCompraDetalleLineaDto,
   CreateCompraDto,
   FiltroComprasDto,
@@ -89,6 +90,22 @@ export class ComprasController {
     @Body() dto: CreateCompraDetalleLineaDto,
   ) {
     return this.comprasLogic.crearDetalle(id, dto);
+  }
+
+  @Patch('detalle/:idDetalle')
+  @Public()
+  //@Permisos(PermisoBanderas.COMPRAS_EDITAR)
+  @ApiOperation({
+    summary:
+      'Actualizar cantidad/precio de una línea (ajusta stock diferencial si afecta_stock)',
+  })
+  @ApiOkResponse({ description: 'Línea actualizada correctamente' })
+  @ApiNotFoundResponse({ description: 'El detalle indicado no existe' })
+  actualizarDetalle(
+    @Param('idDetalle', ParseIntPipe) idDetalle: number,
+    @Body() dto: ActualizarCompraDetalleDto,
+  ) {
+    return this.comprasLogic.actualizarDetalle(idDetalle, dto);
   }
 
   @Delete('detalle/:idDetalle')

@@ -225,6 +225,23 @@ export class ActualizarCompraCabeceraDto extends AuditoriaDto {
   declararSunat?: boolean;
 }
 
+export class ActualizarCompraDetalleDto extends AuditoriaDto {
+  @ApiPropertyOptional({
+    example: 12,
+    description: 'Nueva cantidad (si baja y afecta stock, genera SALIDA diferencial)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  cantidad?: number;
+
+  @ApiPropertyOptional({ example: 45.5 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  precioUnitario?: number;
+}
+
 export class CreateCompraDetalleLineaDto extends AuditoriaDto {
   @ApiProperty({ example: 1, description: 'ID del producto' })
   @Type(() => Number)
