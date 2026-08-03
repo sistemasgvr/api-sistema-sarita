@@ -62,7 +62,10 @@ export class CreateMovimientoInventarioDto extends AuditoriaDto {
   @IsInt()
   idTipoMovimiento!: number;
 
-  @ApiProperty({ example: 5 })
+  @ApiProperty({
+    example: 5,
+    description: 'Entera si la U.M. es UNID/piezas; decimal permitido en MT3/KG y gases.',
+  })
   @Type(() => Number)
   @IsNumber()
   @Min(0.0001)

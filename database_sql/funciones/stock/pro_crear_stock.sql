@@ -11,6 +11,8 @@ AS $function$
 DECLARE
     v_id INTEGER;
     v_id_inactivo INTEGER;
+    v_nombre_unidad VARCHAR;
+    v_es_gas BOOLEAN;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -42,6 +44,36 @@ BEGIN
 
     IF COALESCE(p_stock, 0) < 0 OR COALESCE(p_stock_minimo, 0) < 0 THEN
         RETURN json_build_object('error', 'El stock y el stock mínimo no pueden ser negativos', 'registro', NULL);
+    END IF;
+
+    SELECT
+        REGEXP_REPLACE(UPPER(TRIM(COALESCE(um.nombre, ''))), '\.+$', ''),
+        COALESCE(p.es_gas, FALSE)
+    INTO v_nombre_unidad, v_es_gas
+    FROM pro_producto p
+    LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
+    WHERE p.id = p_id_producto;
+
+    -- Gases (m³) pueden ser decimales aunque la U.M. esté mal catalogada como UNID.
+    IF NOT COALESCE(v_es_gas, FALSE)
+       AND v_nombre_unidad IN ('UNID', 'NIU', 'UND', 'UNI', 'UNIDAD', 'UNIDADES', 'PZ', 'PZA', 'PIEZA', 'PIEZAS')
+    THEN
+        IF COALESCE(p_stock, 0) <> TRUNC(COALESCE(p_stock, 0)) THEN
+            RETURN json_build_object(
+                'error',
+                'El stock debe ser entero (unidad de medida UNID)',
+                'registro',
+                NULL
+            );
+        END IF;
+        IF COALESCE(p_stock_minimo, 0) <> TRUNC(COALESCE(p_stock_minimo, 0)) THEN
+            RETURN json_build_object(
+                'error',
+                'El stock mínimo debe ser entero (unidad de medida UNID)',
+                'registro',
+                NULL
+            );
+        END IF;
     END IF;
 
     -- Si hubo baja lógica previa, UNIQUE(id_almacen, id_producto) bloquea el INSERT:

@@ -46,6 +46,8 @@ BEGIN
             p.codigo AS codigo_producto,
             p.nombre AS nombre_producto,
             p.afecta_stock,
+            COALESCE(p.es_gas, FALSE) AS es_gas,
+            umed.nombre AS nombre_unidad_medida,
             m.id_almacen,
             a.nombre AS nombre_almacen,
             m.id_tipo_movimiento,
@@ -89,6 +91,7 @@ BEGIN
         FROM pro_movimientos m
         INNER JOIN pro_producto p ON m.id_producto = p.id
         INNER JOIN gen_almacen a ON m.id_almacen = a.id
+        LEFT JOIN gen_lista_opciones umed ON umed.id = p.id_unidad_medida
         LEFT JOIN gen_lista_opciones tm ON m.id_tipo_movimiento = tm.id
         LEFT JOIN gen_lista_opciones tdr ON m.id_tipo_documento_ref = tdr.id
         LEFT JOIN auth_usuarios uc ON m.id_usuario_creacion = uc.id

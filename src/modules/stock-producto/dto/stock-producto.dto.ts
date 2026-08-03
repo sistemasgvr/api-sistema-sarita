@@ -56,14 +56,22 @@ export class CreateStockDto extends AuditoriaDto {
   @IsInt()
   idProducto!: number;
 
-  @ApiPropertyOptional({ example: 0, default: 0 })
+  @ApiPropertyOptional({
+    example: 0,
+    default: 0,
+    description: 'Entero si la U.M. es UNID/piezas; decimal permitido en MT3/KG y gases.',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
   stock?: number;
 
-  @ApiPropertyOptional({ example: 0, default: 0 })
+  @ApiPropertyOptional({
+    example: 0,
+    default: 0,
+    description: 'Entero si la U.M. es UNID/piezas; decimal permitido en MT3/KG y gases.',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -72,14 +80,20 @@ export class CreateStockDto extends AuditoriaDto {
 }
 
 export class UpdateStockDto extends AuditoriaDto {
-  @ApiPropertyOptional({ example: 10 })
+  @ApiPropertyOptional({
+    example: 10,
+    description: 'Entero si la U.M. es UNID/piezas; decimal permitido en MT3/KG y gases.',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
   stock?: number;
 
-  @ApiPropertyOptional({ example: 2 })
+  @ApiPropertyOptional({
+    example: 2,
+    description: 'Entero si la U.M. es UNID/piezas; decimal permitido en MT3/KG y gases.',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()

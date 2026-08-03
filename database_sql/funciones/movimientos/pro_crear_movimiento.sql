@@ -21,6 +21,8 @@ DECLARE
     v_afecta_stock BOOLEAN;
     v_nombre_tipo_movimiento VARCHAR;
     v_es_salida BOOLEAN;
+    v_nombre_unidad VARCHAR;
+    v_es_gas BOOLEAN;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -50,9 +52,27 @@ BEGIN
         RETURN json_build_object('error', 'El tipo de movimiento indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
-    SELECT afecta_stock INTO v_afecta_stock
-    FROM pro_producto
-    WHERE id = p_id_producto;
+    SELECT
+        COALESCE(p.afecta_stock, FALSE),
+        REGEXP_REPLACE(UPPER(TRIM(COALESCE(um.nombre, ''))), '\.+$', ''),
+        COALESCE(p.es_gas, FALSE)
+    INTO v_afecta_stock, v_nombre_unidad, v_es_gas
+    FROM pro_producto p
+    LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
+    WHERE p.id = p_id_producto;
+
+    -- Gases (m³) pueden ser decimales aunque la U.M. esté mal catalogada como UNID.
+    IF NOT COALESCE(v_es_gas, FALSE)
+       AND v_nombre_unidad IN ('UNID', 'NIU', 'UND', 'UNI', 'UNIDAD', 'UNIDADES', 'PZ', 'PZA', 'PIEZA', 'PIEZAS')
+       AND p_cantidad <> TRUNC(p_cantidad)
+    THEN
+        RETURN json_build_object(
+            'error',
+            'La cantidad debe ser entera (unidad de medida UNID)',
+            'registro',
+            NULL
+        );
+    END IF;
 
     SELECT nombre INTO v_nombre_tipo_movimiento
     FROM gen_lista_opciones
