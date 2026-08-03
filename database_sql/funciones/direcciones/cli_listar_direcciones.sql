@@ -73,9 +73,14 @@ BEGIN
             AND (p_id_cliente IS NULL OR d.id_cliente = p_id_cliente)
             AND (
                 v_buscar IS NULL
-                OR gen_texto_coincide(d.direccion, v_buscar)
-                OR gen_texto_coincide(COALESCE(d.descripcion, ''), v_buscar)
-                OR gen_texto_coincide(COALESCE(d.referencia, ''), v_buscar)
+                OR d.direccion ILIKE '%' || v_buscar || '%'
+                OR COALESCE(d.descripcion, '') ILIKE '%' || v_buscar || '%'
+                OR COALESCE(d.referencia, '') ILIKE '%' || v_buscar || '%'
+                OR c.razon_social ILIKE '%' || v_buscar || '%'
+                OR c.nombres ILIKE '%' || v_buscar || '%'
+                OR c.apellido_paterno ILIKE '%' || v_buscar || '%'
+                OR c.apellido_materno ILIKE '%' || v_buscar || '%'
+                OR c.numero_documento ILIKE '%' || v_buscar || '%'
             )
     ),
     total_count AS (
