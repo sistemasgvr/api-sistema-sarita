@@ -76,6 +76,11 @@ BEGIN
                 OR d.direccion ILIKE '%' || v_buscar || '%'
                 OR COALESCE(d.descripcion, '') ILIKE '%' || v_buscar || '%'
                 OR COALESCE(d.referencia, '') ILIKE '%' || v_buscar || '%'
+                OR c.razon_social ILIKE '%' || v_buscar || '%'
+                OR c.nombres ILIKE '%' || v_buscar || '%'
+                OR c.apellido_paterno ILIKE '%' || v_buscar || '%'
+                OR c.apellido_materno ILIKE '%' || v_buscar || '%'
+                OR c.numero_documento ILIKE '%' || v_buscar || '%'
             )
     ),
     total_count AS (
