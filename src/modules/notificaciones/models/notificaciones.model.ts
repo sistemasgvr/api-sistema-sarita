@@ -82,6 +82,13 @@ export class NotificacionesModel {
     );
   }
 
+  listarIdsAdminConPermiso(permiso: string) {
+    return this.db.callFunctionJson<{ ids: number[] }>(
+      'auth_listar_ids_usuarios_admin_con_permiso',
+      [permiso],
+    );
+  }
+
   listarIdsPorRoles(idsRoles: number[]) {
     return this.db.callFunctionJson<{ ids: number[] }>(
       'auth_listar_ids_usuarios_por_roles',
@@ -93,6 +100,95 @@ export class NotificacionesModel {
     return this.db.callFunctionJson<{ registros: unknown[] }>(
       'bal_listar_alquileres_vencidos_notificar',
       [fecha ?? null],
+    );
+  }
+
+  listarAlquileresPorVencer(
+    diasMin = 3,
+    diasMax = 7,
+    fecha?: string | null,
+  ) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'bal_listar_alquileres_por_vencer_notificar',
+      [diasMin, diasMax, fecha ?? null],
+    );
+  }
+
+  listarPrestamosVencidos(fecha?: string | null) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'bal_listar_prestamos_vencidos_notificar',
+      [fecha ?? null],
+    );
+  }
+
+  listarPrestamosPorVencer(
+    diasMin = 3,
+    diasMax = 7,
+    fecha?: string | null,
+  ) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'bal_listar_prestamos_por_vencer_notificar',
+      [diasMin, diasMax, fecha ?? null],
+    );
+  }
+
+  listarStockBajo() {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'pro_listar_stock_bajo_notificar',
+      [],
+    );
+  }
+
+  listarDocumentosPorVencer(
+    diasMin = 3,
+    diasMax = 7,
+    fecha?: string | null,
+  ) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'gen_listar_documentos_por_vencer_notificar',
+      [diasMin, diasMax, fecha ?? null],
+    );
+  }
+
+  listarDocumentosVencidos(fecha?: string | null) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'gen_listar_documentos_vencidos_notificar',
+      [fecha ?? null],
+    );
+  }
+
+  listarLicenciasPorVencer(
+    diasMin = 3,
+    diasMax = 7,
+    fecha?: string | null,
+  ) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'gen_listar_licencias_por_vencer_notificar',
+      [diasMin, diasMax, fecha ?? null],
+    );
+  }
+
+  listarLicenciasVencidas(fecha?: string | null) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'gen_listar_licencias_vencidas_notificar',
+      [fecha ?? null],
+    );
+  }
+
+  listarComprobantesPendientesSunat(
+    diasMin = 1,
+    fecha?: string | null,
+  ) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'ven_listar_comprobantes_pendientes_notificar',
+      [diasMin, fecha ?? null],
+    );
+  }
+
+  listarGuiasPendientesSunat(diasMin = 1, fecha?: string | null) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'gre_listar_guias_pendientes_notificar',
+      [diasMin, fecha ?? null],
     );
   }
 }

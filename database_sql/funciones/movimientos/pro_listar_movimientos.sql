@@ -30,11 +30,11 @@ BEGIN
       AND (p_fecha_hasta IS NULL OR m.fecha <= p_fecha_hasta)
       AND (
           p_busqueda = ''
-          OR LOWER(COALESCE(m.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(p.codigo) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(p.nombre) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(a.nombre) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(tm.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(COALESCE(m.glosa, ''), p_busqueda)
+          OR gen_texto_coincide(p.codigo, p_busqueda)
+          OR gen_texto_coincide(p.nombre, p_busqueda)
+          OR gen_texto_coincide(a.nombre, p_busqueda)
+          OR gen_texto_coincide(COALESCE(tm.nombre, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -105,11 +105,11 @@ BEGIN
           AND (p_fecha_hasta IS NULL OR m.fecha <= p_fecha_hasta)
           AND (
               p_busqueda = ''
-              OR LOWER(COALESCE(m.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(p.codigo) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(p.nombre) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(a.nombre) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(tm.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(COALESCE(m.glosa, ''), p_busqueda)
+              OR gen_texto_coincide(p.codigo, p_busqueda)
+              OR gen_texto_coincide(p.nombre, p_busqueda)
+              OR gen_texto_coincide(a.nombre, p_busqueda)
+              OR gen_texto_coincide(COALESCE(tm.nombre, ''), p_busqueda)
           )
         ORDER BY m.fecha DESC, m.id DESC
         LIMIT p_limite

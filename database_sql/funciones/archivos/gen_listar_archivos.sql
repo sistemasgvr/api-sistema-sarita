@@ -19,9 +19,9 @@ BEGIN
       AND (p_id_empresa IS NULL OR a.id_empresa = p_id_empresa)
       AND (
           p_busqueda = ''
-          OR LOWER(a.nombre_original) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(a.ruta) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(a.mime_type, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(a.nombre_original, p_busqueda)
+          OR gen_texto_coincide(a.ruta, p_busqueda)
+          OR gen_texto_coincide(COALESCE(a.mime_type, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -52,9 +52,9 @@ BEGIN
           AND (p_id_empresa IS NULL OR a.id_empresa = p_id_empresa)
           AND (
               p_busqueda = ''
-              OR LOWER(a.nombre_original) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(a.ruta) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(a.mime_type, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(a.nombre_original, p_busqueda)
+              OR gen_texto_coincide(a.ruta, p_busqueda)
+              OR gen_texto_coincide(COALESCE(a.mime_type, ''), p_busqueda)
           )
         ORDER BY a.fecha_creacion DESC
         LIMIT p_limite

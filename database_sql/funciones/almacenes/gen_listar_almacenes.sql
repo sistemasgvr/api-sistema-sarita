@@ -20,10 +20,10 @@ BEGIN
       AND (p_id_sucursal IS NULL OR a.id_sucursal = p_id_sucursal)
       AND (
           p_busqueda = ''
-          OR LOWER(a.nombre) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(a.ubicacion, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(a.descripcion, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(s.nombre) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(a.nombre, p_busqueda)
+          OR gen_texto_coincide(COALESCE(a.ubicacion, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(a.descripcion, ''), p_busqueda)
+          OR gen_texto_coincide(s.nombre, p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -53,10 +53,10 @@ BEGIN
           AND (p_id_sucursal IS NULL OR a.id_sucursal = p_id_sucursal)
           AND (
               p_busqueda = ''
-              OR LOWER(a.nombre) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(a.ubicacion, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(a.descripcion, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(s.nombre) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(a.nombre, p_busqueda)
+              OR gen_texto_coincide(COALESCE(a.ubicacion, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(a.descripcion, ''), p_busqueda)
+              OR gen_texto_coincide(s.nombre, p_busqueda)
           )
         ORDER BY a.nombre ASC
         LIMIT p_limite

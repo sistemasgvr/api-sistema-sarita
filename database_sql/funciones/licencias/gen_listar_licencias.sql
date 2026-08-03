@@ -27,7 +27,7 @@ BEGIN
       AND (p_id_chofer IS NULL OR gl.id_chofer = p_id_chofer)
       AND (
           p_buscar = ''
-          OR LOWER(gl.codigo) LIKE LOWER('%' || p_buscar || '%')
+          OR gen_texto_coincide(gl.codigo, p_buscar)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -63,7 +63,7 @@ BEGIN
           AND (p_id_chofer IS NULL OR gl.id_chofer = p_id_chofer)
           AND (
               p_buscar = ''
-              OR LOWER(gl.codigo) LIKE LOWER('%' || p_buscar || '%')
+              OR gen_texto_coincide(gl.codigo, p_buscar)
           )
         ORDER BY gl.fecha_vencimiento DESC
         LIMIT p_limite

@@ -29,9 +29,9 @@ BEGIN
       AND (p_fecha_hasta IS NULL OR m.fecha_movimiento::DATE <= p_fecha_hasta)
       AND (
           p_busqueda = ''
-          OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(tm.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(m.observacion, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+          OR gen_texto_coincide(COALESCE(tm.nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(m.observacion, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -77,9 +77,9 @@ BEGIN
           AND (p_fecha_hasta IS NULL OR m.fecha_movimiento::DATE <= p_fecha_hasta)
           AND (
               p_busqueda = ''
-              OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(tm.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(m.observacion, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+              OR gen_texto_coincide(COALESCE(tm.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(m.observacion, ''), p_busqueda)
           )
         ORDER BY m.fecha_movimiento DESC, m.id DESC
         LIMIT p_limite

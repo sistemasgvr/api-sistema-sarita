@@ -20,16 +20,15 @@ BEGIN
         RETURN json_build_object('error', 'Debe indicar el administrador que rechaza', 'registro', NULL);
     END IF;
 
-    IF NOT EXISTS (
-        SELECT 1
-        FROM auth_usuarios_roles ur
-        INNER JOIN auth_roles r ON ur.id_rol = r.id
-        WHERE ur.id_usuario = p_id_usuario_autoriza
-          AND ur.estado = TRUE
-          AND r.estado = TRUE
-          AND r.nombre = 'Administrador'
-    ) THEN
-        RETURN json_build_object('error', 'Solo un administrador puede rechazar la solicitud', 'registro', NULL);
+    IF NOT auth_usuario_es_admin_con_permiso(p_id_usuario_autoriza, 'bajas_balon.rechazar')
+       AND NOT auth_usuario_es_admin_con_permiso(p_id_usuario_autoriza, 'bajas_balon.aprobar')
+    THEN
+        RETURN json_build_object(
+            'error',
+            'Solo un administrador con permiso de rechazar/aprobar bajas de cilindro puede rechazar la solicitud',
+            'registro',
+            NULL
+        );
     END IF;
 
     SELECT bb.id_balon, bb.id_motivo_baja, b.id_estado_balon

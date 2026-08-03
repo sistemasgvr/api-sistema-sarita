@@ -9,7 +9,13 @@ FROM (
         ('clientes.crear', 'Crear clientes'),
         ('clientes.editar', 'Editar clientes'),
         ('clientes.eliminar', 'Eliminar clientes'),
-        ('clientes.restaurar', 'Restaurar clientes inactivos')
+        ('clientes.restaurar', 'Restaurar clientes inactivos'),
+        ('bajas_cliente.listar', 'Listar solicitudes de baja/reactivación de cliente'),
+        ('bajas_cliente.ver', 'Ver detalle de solicitud de baja de cliente'),
+        ('bajas_cliente.solicitar', 'Solicitar baja o reactivación de cliente'),
+        ('bajas_cliente.aprobar', 'Aprobar solicitudes de baja/reactivación de cliente'),
+        ('bajas_cliente.rechazar', 'Rechazar solicitudes de baja/reactivación de cliente'),
+        ('bajas_cliente.eliminar', 'Eliminar solicitudes de baja de cliente')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (
     SELECT 1 FROM auth_permisos p WHERE p.nombre = v.nombre
@@ -22,7 +28,7 @@ FROM auth_roles r
 CROSS JOIN auth_permisos p
 WHERE r.nombre = 'Administrador'
   AND p.estado = TRUE
-  AND p.nombre LIKE 'clientes.%'
+  AND (p.nombre LIKE 'clientes.%' OR p.nombre LIKE 'bajas_cliente.%')
   AND NOT EXISTS (
       SELECT 1
       FROM auth_roles_permisos rp

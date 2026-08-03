@@ -24,8 +24,8 @@ BEGIN
       AND (p_id_estado IS NULL OR pr.id_estado = p_id_estado)
       AND (
           p_busqueda = ''
-          OR LOWER(COALESCE(pr.numero_prestamo, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(pr.titulo, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(COALESCE(pr.numero_prestamo, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(pr.titulo, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -89,8 +89,8 @@ BEGIN
           AND (p_id_estado IS NULL OR pr.id_estado = p_id_estado)
           AND (
               p_busqueda = ''
-              OR LOWER(COALESCE(pr.numero_prestamo, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(pr.titulo, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(COALESCE(pr.numero_prestamo, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(pr.titulo, ''), p_busqueda)
           )
         ORDER BY pr.fecha_salida DESC NULLS LAST, pr.id DESC
         LIMIT p_limite

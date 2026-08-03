@@ -1086,6 +1086,8 @@ CREATE TABLE ven_comprobante (
     -- Contabilidad
     periodo_contable     varchar(10),
     operacion           varchar(100),
+    -- Pestaña POS de emisión: accesorios|recarga|medicinal|industrial|mantenimiento
+    origen_pos          varchar(30),
     -- Estado: PENDIENTE, PAGADO, ANULADO
     id_estado            INT REFERENCES gen_lista_opciones(id),
     estado              INT NOT NULL DEFAULT 1,

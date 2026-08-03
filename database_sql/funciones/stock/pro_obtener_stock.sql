@@ -37,7 +37,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones um ON p.id_unidad_medida = um.id
         LEFT JOIN auth_usuarios uc ON s.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um2 ON s.id_usuario_modificacion = um2.id
-        WHERE s.id = p_id AND s.estado = 1
+        WHERE s.id = p_id
     ) t;
 
     RETURN json_build_object('registro', v_registro);

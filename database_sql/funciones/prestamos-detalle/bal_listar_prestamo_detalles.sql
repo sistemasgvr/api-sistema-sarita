@@ -26,10 +26,10 @@ BEGIN
       AND (p_id_estado IS NULL OR pd.id_estado = p_id_estado)
       AND (
           p_busqueda = ''
-          OR LOWER(COALESCE(b.codigo_balon, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(pd.motivo_especifico, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(pr.numero_prestamo, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(c.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(COALESCE(b.codigo_balon, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(pd.motivo_especifico, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(pr.numero_prestamo, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -67,10 +67,10 @@ BEGIN
           AND (p_id_estado IS NULL OR pd.id_estado = p_id_estado)
           AND (
               p_busqueda = ''
-              OR LOWER(COALESCE(b.codigo_balon, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(pd.motivo_especifico, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(pr.numero_prestamo, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(c.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(COALESCE(b.codigo_balon, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(pd.motivo_especifico, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(pr.numero_prestamo, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
           )
         ORDER BY pd.fecha_prestamo DESC NULLS LAST, pd.id DESC
         LIMIT p_limite

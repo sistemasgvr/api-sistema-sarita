@@ -48,6 +48,17 @@ export class StockProductoController {
     return this.stockProductoLogic.crear(dto);
   }
 
+  @Patch(':id/restaurar')
+  @Permisos(PermisoBanderas.STOCK_RESTAURAR)
+  @ApiOperation({ summary: 'Restaurar registro de stock eliminado (baja lógica)' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  restaurar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.stockProductoLogic.restaurar(id, dto.idUsuarioAuditoria);
+  }
+
   @Patch(':id')
   @Permisos(PermisoBanderas.STOCK_EDITAR)
   @ApiOperation({ summary: 'Ajustar stock o stock mínimo' })

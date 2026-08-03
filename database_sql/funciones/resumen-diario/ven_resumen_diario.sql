@@ -178,9 +178,9 @@ BEGIN
       AND (p_fecha_hasta IS NULL OR r.fecha <= p_fecha_hasta)
       AND (
           p_busqueda = ''
-          OR LOWER(COALESCE(r.identificador, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(r.ticket_sunat, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(r.correlativo, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(COALESCE(r.identificador, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(r.ticket_sunat, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(r.correlativo, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -209,9 +209,9 @@ BEGIN
           AND (p_fecha_hasta IS NULL OR r.fecha <= p_fecha_hasta)
           AND (
               p_busqueda = ''
-              OR LOWER(COALESCE(r.identificador, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(r.ticket_sunat, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(r.correlativo, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(COALESCE(r.identificador, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(r.ticket_sunat, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(r.correlativo, ''), p_busqueda)
           )
         ORDER BY r.fecha DESC, r.correlativo DESC, r.id DESC
         LIMIT p_limite OFFSET p_offset

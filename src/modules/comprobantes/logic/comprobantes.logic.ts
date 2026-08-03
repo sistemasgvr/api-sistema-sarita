@@ -1,9 +1,11 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { FacturacionApisperuClient } from '../../../integrations/facturacion-apisperu/facturacion-apisperu.client';
 import type { FacturacionApisperuDocumentResponse } from '../../../integrations/facturacion-apisperu/interfaces/facturacion-apisperu.interface';
 import {
@@ -12,6 +14,11 @@ import {
   mapSingleResult,
 } from '../../../common/helpers/auth-response.helper';
 import { ClientesModel } from '../../clientes/models/clientes.model';
+import {
+  TipoNotificacion,
+  TipoReferenciaNotificacion,
+} from '../../notificaciones/constants/tipo-notificacion';
+import { NotificacionesLogic } from '../../notificaciones/logic/notificaciones.logic';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   AnularComprobanteDto,
@@ -65,6 +72,8 @@ interface SunatResponsePayload {
 
 @Injectable()
 export class ComprobantesLogic {
+  private readonly logger = new Logger(ComprobantesLogic.name);
+
   constructor(
     private readonly model: ComprobantesModel,
     private readonly clientesModel: ClientesModel,
@@ -72,6 +81,7 @@ export class ComprobantesLogic {
     private readonly invoiceMapper: ComprobanteInvoiceMapper,
     private readonly ticketPdfGenerator: ComprobanteTicketPdfGenerator,
     private readonly notaVentaPdfGenerator: ComprobanteNotaVentaPdfGenerator,
+    private readonly notificacionesLogic: NotificacionesLogic,
   ) {}
 
   async listar(filtros: FiltroComprobantesDto) {
@@ -431,6 +441,24 @@ export class ComprobantesLogic {
       throw new BadRequestException(comprobanteActualizado.error);
     }
 
+    if (estadoSunatNombre === 'RECHAZADO') {
+      void this.notificarEmisionComprobante({
+        idComprobante: id,
+        serie: comprobante.registro.serie,
+        numero: comprobante.registro.numero,
+        codigoTipo: tipo,
+        estado: 'RECHAZADO',
+        detalle: 'SUNAT rechazó el comprobante (consulta CDR)',
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      }).catch((notifyError: unknown) => {
+        this.logger.warn(
+          `No se pudo notificar rechazo CDR: ${
+            notifyError instanceof Error ? notifyError.message : String(notifyError)
+          }`,
+        );
+      });
+    }
+
     return {
       comprobante: comprobanteActualizado.registro,
       sunat: {
@@ -614,10 +642,29 @@ export class ComprobantesLogic {
     const tipoDoc = comprobante.registro.codigo_tipo_comprobante;
     let respuesta: FacturacionApisperuDocumentResponse;
 
-    if (tipoDoc === '07' || tipoDoc === '08') {
-      respuesta = await this.facturacionClient.enviarNota(payload);
-    } else {
-      respuesta = await this.facturacionClient.enviarFacturaBoleta(payload);
+    try {
+      if (tipoDoc === '07' || tipoDoc === '08') {
+        respuesta = await this.facturacionClient.enviarNota(payload);
+      } else {
+        respuesta = await this.facturacionClient.enviarFacturaBoleta(payload);
+      }
+    } catch (error) {
+      void this.notificarEmisionComprobante({
+        idComprobante: id,
+        serie: comprobante.registro.serie,
+        numero: comprobante.registro.numero,
+        codigoTipo: tipoDoc,
+        estado: 'ERROR',
+        detalle: error instanceof Error ? error.message : String(error),
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      }).catch((notifyError: unknown) => {
+        this.logger.warn(
+          `No se pudo notificar error de emisión: ${
+            notifyError instanceof Error ? notifyError.message : String(notifyError)
+          }`,
+        );
+      });
+      throw error;
     }
 
     const sunatResponse = (respuesta.sunatResponse ??
@@ -642,6 +689,24 @@ export class ComprobantesLogic {
       throw new BadRequestException(comprobanteActualizado.error);
     }
 
+    if (estadoSunatNombre === 'RECHAZADO') {
+      void this.notificarEmisionComprobante({
+        idComprobante: id,
+        serie: comprobante.registro.serie,
+        numero: comprobante.registro.numero,
+        codigoTipo: tipoDoc,
+        estado: 'RECHAZADO',
+        detalle: 'SUNAT rechazó el comprobante',
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      }).catch((notifyError: unknown) => {
+        this.logger.warn(
+          `No se pudo notificar rechazo SUNAT: ${
+            notifyError instanceof Error ? notifyError.message : String(notifyError)
+          }`,
+        );
+      });
+    }
+
     return {
       comprobante: comprobanteActualizado.registro,
       sunat: {
@@ -651,6 +716,69 @@ export class ComprobantesLogic {
         respuesta: respuesta.sunatResponse ?? null,
       },
     };
+  }
+
+  private async notificarEmisionComprobante(params: {
+    idComprobante: number;
+    serie?: string | null;
+    numero?: string | null;
+    codigoTipo?: string | null;
+    estado: 'RECHAZADO' | 'ERROR';
+    detalle: string;
+    idUsuarioAuditoria?: number;
+  }) {
+    const doc =
+      [params.serie, params.numero].filter(Boolean).join('-') ||
+      `Comprobante #${params.idComprobante}`;
+    const hoy = new Date().toISOString().slice(0, 10);
+    const esError = params.estado === 'ERROR';
+    const codigoTipo = esError
+      ? TipoNotificacion.COMPROBANTE_ERROR_EMISION
+      : TipoNotificacion.COMPROBANTE_SUNAT_RECHAZADO;
+    const titulo = esError
+      ? 'Error al emitir comprobante'
+      : 'Comprobante rechazado por SUNAT';
+    const mensaje = `${doc}: ${params.detalle}`;
+
+    const byEmitir = await this.notificacionesLogic.notificarPorPermiso({
+      permiso: PermisoBanderas.COMPROBANTES_EMITIR,
+      codigoTipo,
+      titulo,
+      mensaje,
+      payload: {
+        idComprobante: params.idComprobante,
+        serie: params.serie,
+        numero: params.numero,
+        codigoTipoComprobante: params.codigoTipo,
+        estado: params.estado,
+        detalle: params.detalle,
+      },
+      idReferencia: params.idComprobante,
+      tipoReferencia: TipoReferenciaNotificacion.COMPROBANTE,
+      claveDedupePrefix: `${codigoTipo}:${params.idComprobante}:${hoy}`,
+      idUsuarioAuditoria: params.idUsuarioAuditoria,
+    });
+
+    // Fallback: avisar al emisor si nadie con permiso emitir recibió la notif
+    if (params.idUsuarioAuditoria && byEmitir.destinatarios === 0) {
+      await this.notificacionesLogic.crearYEmitir({
+        idUsuario: params.idUsuarioAuditoria,
+        codigoTipo,
+        titulo,
+        mensaje,
+        payload: {
+          idComprobante: params.idComprobante,
+          serie: params.serie,
+          numero: params.numero,
+          estado: params.estado,
+          detalle: params.detalle,
+        },
+        idReferencia: params.idComprobante,
+        tipoReferencia: TipoReferenciaNotificacion.COMPROBANTE,
+        claveDedupe: `${codigoTipo}:${params.idComprobante}:${hoy}:${params.idUsuarioAuditoria}`,
+        idUsuarioAuditoria: params.idUsuarioAuditoria,
+      });
+    }
   }
 
   async generarPdf(id: number, formato: 'a4' | 'ticket' = 'a4') {

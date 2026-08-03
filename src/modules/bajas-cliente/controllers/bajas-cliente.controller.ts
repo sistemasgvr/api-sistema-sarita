@@ -20,7 +20,6 @@ import {
   SolicitarReactivacionClienteDto,
 } from '../dto/bajas-cliente.dto';
 import { BajasClienteLogic } from '../logic/bajas-cliente.logic';
-import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('Bajas de Cliente')
 @Controller('bajas-cliente')
@@ -28,14 +27,14 @@ export class BajasClienteController {
   constructor(private readonly bajasClienteLogic: BajasClienteLogic) {}
 
   @Get()
-  @Public()
+  @Permisos(PermisoBanderas.BAJAS_CLIENTE_LISTAR)
   @ApiOperation({ summary: 'Listar solicitudes de baja de cliente' })
   listar(@Query() filtros: FiltroBajaClienteDto) {
     return this.bajasClienteLogic.listar(filtros);
   }
 
   @Get(':id')
-  @Public()
+  @Permisos(PermisoBanderas.BAJAS_CLIENTE_VER)
   @ApiOperation({ summary: 'Obtener solicitud de baja por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
@@ -43,37 +42,40 @@ export class BajasClienteController {
   }
 
   @Post()
-  @Public()
+  @Permisos(PermisoBanderas.BAJAS_CLIENTE_SOLICITAR)
   @ApiOperation({ summary: 'Solicitar baja de cliente (estado PENDIENTE)' })
   solicitar(@Body() dto: SolicitarBajaClienteDto) {
     return this.bajasClienteLogic.solicitar(dto);
   }
 
   @Post('solicitar-reactivacion')
-  @Public()
+  @Permisos(PermisoBanderas.BAJAS_CLIENTE_SOLICITAR)
   @ApiOperation({ summary: 'Solicitar reactivación de cliente (estado PENDIENTE)' })
   solicitarReactivacion(@Body() dto: SolicitarReactivacionClienteDto) {
     return this.bajasClienteLogic.solicitarReactivacion(dto);
   }
 
   @Patch(':id/aprobar')
-  @Public()
-  @ApiOperation({ summary: 'Aprobar solicitud de baja (cambia cliente a estado 0)' })
+  @Permisos(PermisoBanderas.BAJAS_CLIENTE_APROBAR)
+  @ApiOperation({
+    summary:
+      'Aprobar solicitud (admin + permiso). Baja desactiva cliente; reactivación lo activa.',
+  })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   aprobar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
     return this.bajasClienteLogic.aprobar(id, dto.idUsuarioAuditoria);
   }
 
   @Patch(':id/rechazar')
-  @Public()
-  @ApiOperation({ summary: 'Rechazar solicitud de baja (cliente mantiene estado 1)' })
+  @Permisos(PermisoBanderas.BAJAS_CLIENTE_RECHAZAR)
+  @ApiOperation({ summary: 'Rechazar solicitud de baja/reactivación (admin + permiso)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   rechazar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
     return this.bajasClienteLogic.rechazar(id, dto.idUsuarioAuditoria);
   }
 
   @Delete(':id')
-  @Public()
+  @Permisos(PermisoBanderas.BAJAS_CLIENTE_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar solicitud de baja (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {

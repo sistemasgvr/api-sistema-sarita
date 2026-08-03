@@ -20,8 +20,8 @@ BEGIN
       AND (p_id_gas IS NULL OR tb.id_gas = p_id_gas)
       AND (
           p_busqueda = ''
-          OR LOWER(tb.nombre) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(g.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(tb.nombre, p_busqueda)
+          OR gen_texto_coincide(COALESCE(g.nombre, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -51,8 +51,8 @@ BEGIN
           AND (p_id_gas IS NULL OR tb.id_gas = p_id_gas)
           AND (
               p_busqueda = ''
-              OR LOWER(tb.nombre) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(g.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(tb.nombre, p_busqueda)
+              OR gen_texto_coincide(COALESCE(g.nombre, ''), p_busqueda)
           )
         ORDER BY tb.nombre ASC
         LIMIT p_limite

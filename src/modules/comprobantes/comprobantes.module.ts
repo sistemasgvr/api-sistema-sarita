@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ClientesModule } from '../clientes/clientes.module';
+import { NotificacionesModule } from '../notificaciones/notificaciones.module';
 import { ComprobantesController } from './controllers/comprobantes.controller';
 import { ComprobantesLogic } from './logic/comprobantes.logic';
 import { ComprobanteInvoiceMapper } from './mappers/comprobante-invoice.mapper';
@@ -8,7 +9,7 @@ import { ComprobanteNotaVentaPdfGenerator } from './services/comprobante-nota-ve
 import { ComprobanteTicketPdfGenerator } from './services/comprobante-ticket-pdf.generator';
 
 @Module({
-  imports: [ClientesModule],
+  imports: [ClientesModule, NotificacionesModule],
   controllers: [ComprobantesController],
   providers: [
     ComprobantesLogic,

@@ -135,12 +135,14 @@ export const PermisoBanderas = {
   CATEGORIAS_CREAR: 'categorias.crear',
   CATEGORIAS_EDITAR: 'categorias.editar',
   CATEGORIAS_ELIMINAR: 'categorias.eliminar',
+  CATEGORIAS_RESTAURAR: 'categorias.restaurar',
 
   SUB_CATEGORIAS_LISTAR: 'sub_categorias.listar',
   SUB_CATEGORIAS_VER: 'sub_categorias.ver',
   SUB_CATEGORIAS_CREAR: 'sub_categorias.crear',
   SUB_CATEGORIAS_EDITAR: 'sub_categorias.editar',
   SUB_CATEGORIAS_ELIMINAR: 'sub_categorias.eliminar',
+  SUB_CATEGORIAS_RESTAURAR: 'sub_categorias.restaurar',
 
   PRODUCTOS_LISTAR: 'productos.listar',
   PRODUCTOS_VER: 'productos.ver',
@@ -160,6 +162,7 @@ export const PermisoBanderas = {
   STOCK_CREAR: 'stock.crear',
   STOCK_EDITAR: 'stock.editar',
   STOCK_ELIMINAR: 'stock.eliminar',
+  STOCK_RESTAURAR: 'stock.restaurar',
 
   MOVIMIENTOS_LISTAR: 'movimientos.listar',
   MOVIMIENTOS_VER: 'movimientos.ver',
@@ -251,6 +254,12 @@ export const PermisoBanderas = {
   DOCUMENTOS_VENCIMIENTO_CREAR: 'documentos_vencimiento.crear',
   DOCUMENTOS_VENCIMIENTO_EDITAR: 'documentos_vencimiento.editar',
   DOCUMENTOS_VENCIMIENTO_ELIMINAR: 'documentos_vencimiento.eliminar',
+
+  BAJAS_BALON_LISTAR: 'bajas_balon.listar',
+  BAJAS_BALON_VER: 'bajas_balon.ver',
+  BAJAS_BALON_SOLICITAR: 'bajas_balon.solicitar',
+  BAJAS_BALON_APROBAR: 'bajas_balon.aprobar',
+  BAJAS_BALON_RECHAZAR: 'bajas_balon.rechazar',
 
   BAJAS_CLIENTE_LISTAR: 'bajas_cliente.listar',
   BAJAS_CLIENTE_VER: 'bajas_cliente.ver',

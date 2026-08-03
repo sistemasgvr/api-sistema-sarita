@@ -42,7 +42,12 @@ FROM (
         ('sesiones.listar', 'Listar sesiones'),
         ('sesiones.ver', 'Ver detalle de sesión'),
         ('sesiones.crear', 'Crear sesiones'),
-        ('sesiones.cerrar', 'Cerrar sesiones')
+        ('sesiones.cerrar', 'Cerrar sesiones'),
+        ('notificaciones.listar', 'Listar notificaciones propias'),
+        ('notificaciones.ver', 'Ver detalle de notificación'),
+        ('notificaciones.marcar_leida', 'Marcar notificaciones como leídas'),
+        ('notificaciones.crear', 'Crear/enviar notificaciones (sistema/admin)'),
+        ('notificaciones.ejecutar_jobs', 'Ejecutar jobs de detección de notificaciones')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (
     SELECT 1 FROM auth_permisos p WHERE p.nombre = v.nombre

@@ -92,17 +92,105 @@ export class BajasClienteLogic {
 
   async aprobar(idBaja: number, idUsuarioAuditoria?: number) {
     const result = await this.bajasClienteModel.aprobar(idBaja, idUsuarioAuditoria);
-    return mapSingleResult(result, `Solicitud de baja ${idBaja} no encontrada`);
+    const registro = mapSingleResult(
+      result,
+      `Solicitud de baja ${idBaja} no encontrada`,
+    ) as Record<string, unknown>;
+
+    void this.notificarResultadoCliente(registro, 'aprobada', idUsuarioAuditoria).catch(
+      (error: unknown) => {
+        this.logger.warn(
+          `No se pudo notificar aprobación de baja cliente: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      },
+    );
+
+    return registro;
   }
 
   async rechazar(idBaja: number, idUsuarioAuditoria?: number) {
     const result = await this.bajasClienteModel.rechazar(idBaja, idUsuarioAuditoria);
-    return mapSingleResult(result, `Solicitud de baja ${idBaja} no encontrada`);
+    const registro = mapSingleResult(
+      result,
+      `Solicitud de baja ${idBaja} no encontrada`,
+    ) as Record<string, unknown>;
+
+    void this.notificarResultadoCliente(registro, 'rechazada', idUsuarioAuditoria).catch(
+      (error: unknown) => {
+        this.logger.warn(
+          `No se pudo notificar rechazo de baja cliente: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      },
+    );
+
+    return registro;
   }
 
   async eliminar(id: number, idUsuarioAuditoria?: number) {
     const result = await this.bajasClienteModel.eliminar(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Solicitud de baja ${id} no encontrada`);
+  }
+
+  private async notificarResultadoCliente(
+    registro: Record<string, unknown>,
+    resultado: 'aprobada' | 'rechazada',
+    idUsuarioAuditoria?: number,
+  ) {
+    const idSolicitante = Number(registro.id_usuario_solicita);
+    if (!Number.isInteger(idSolicitante) || idSolicitante <= 0) return;
+
+    const idBaja = Number(registro.id);
+    const cliente = this.nombreCliente(registro);
+    const esReactivacion =
+      String(registro.nombre_tipo_solicitud ?? '').toUpperCase() === 'REACTIVACION';
+    const aprobada = resultado === 'aprobada';
+    const hoy = new Date().toISOString().slice(0, 10);
+
+    let codigoTipo: string;
+    let titulo: string;
+    let mensaje: string;
+
+    if (esReactivacion) {
+      codigoTipo = aprobada
+        ? TipoNotificacion.REACTIVACION_CLIENTE_APROBADA
+        : TipoNotificacion.REACTIVACION_CLIENTE_RECHAZADA;
+      titulo = aprobada
+        ? 'Reactivación de cliente aprobada'
+        : 'Reactivación de cliente rechazada';
+      mensaje = aprobada
+        ? `Tu solicitud de reactivación de ${cliente} fue aprobada.`
+        : `Tu solicitud de reactivación de ${cliente} fue rechazada.`;
+    } else {
+      codigoTipo = aprobada
+        ? TipoNotificacion.BAJA_CLIENTE_APROBADA
+        : TipoNotificacion.BAJA_CLIENTE_RECHAZADA;
+      titulo = aprobada ? 'Baja de cliente aprobada' : 'Baja de cliente rechazada';
+      mensaje = aprobada
+        ? `Tu solicitud de baja de ${cliente} fue aprobada.`
+        : `Tu solicitud de baja de ${cliente} fue rechazada.`;
+    }
+
+    await this.notificacionesLogic.crearYEmitir({
+      idUsuario: idSolicitante,
+      codigoTipo,
+      titulo,
+      mensaje,
+      payload: {
+        idBaja,
+        idCliente: registro.id_cliente,
+        nombreCliente: cliente,
+        tipoSolicitud: registro.nombre_tipo_solicitud,
+        estadoAprobacion: registro.nombre_estado_aprobacion,
+      },
+      idReferencia: idBaja,
+      tipoReferencia: TipoReferenciaNotificacion.CLIENTE,
+      claveDedupe: `${codigoTipo}:${idBaja}:${hoy}`,
+      idUsuarioAuditoria,
+    });
   }
 
   private nombreCliente(registro: Record<string, unknown>) {
@@ -150,6 +238,7 @@ export class BajasClienteLogic {
       claveDedupePrefix: `${esBaja ? 'BAJA_CLIENTE' : 'REACTIVACION_CLIENTE'}_SOLICITADA:${idBaja}:${hoy}`,
       excluirUsuarioId: dto.idUsuarioAuditoria,
       idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      soloAdmins: true,
     });
   }
 }

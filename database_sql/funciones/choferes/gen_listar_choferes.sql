@@ -28,10 +28,10 @@ BEGIN
       AND (p_id_cliente IS NULL OR ch.id_cliente = p_id_cliente)
       AND (
           p_buscar = ''
-          OR LOWER(ch.nombres) LIKE LOWER('%' || p_buscar || '%')
-          OR LOWER(COALESCE(ch.apellido_paterno, '')) LIKE LOWER('%' || p_buscar || '%')
-          OR LOWER(COALESCE(ch.apellido_materno, '')) LIKE LOWER('%' || p_buscar || '%')
-          OR LOWER(COALESCE(ch.numero_documento, '')) LIKE LOWER('%' || p_buscar || '%')
+          OR gen_texto_coincide(ch.nombres, p_buscar)
+          OR gen_texto_coincide(COALESCE(ch.apellido_paterno, ''), p_buscar)
+          OR gen_texto_coincide(COALESCE(ch.apellido_materno, ''), p_buscar)
+          OR gen_texto_coincide(COALESCE(ch.numero_documento, ''), p_buscar)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -67,10 +67,10 @@ BEGIN
           AND (p_id_cliente IS NULL OR ch.id_cliente = p_id_cliente)
           AND (
               p_buscar = ''
-              OR LOWER(ch.nombres) LIKE LOWER('%' || p_buscar || '%')
-              OR LOWER(COALESCE(ch.apellido_paterno, '')) LIKE LOWER('%' || p_buscar || '%')
-              OR LOWER(COALESCE(ch.apellido_materno, '')) LIKE LOWER('%' || p_buscar || '%')
-              OR LOWER(COALESCE(ch.numero_documento, '')) LIKE LOWER('%' || p_buscar || '%')
+              OR gen_texto_coincide(ch.nombres, p_buscar)
+              OR gen_texto_coincide(COALESCE(ch.apellido_paterno, ''), p_buscar)
+              OR gen_texto_coincide(COALESCE(ch.apellido_materno, ''), p_buscar)
+              OR gen_texto_coincide(COALESCE(ch.numero_documento, ''), p_buscar)
           )
         ORDER BY ch.nombres ASC
         LIMIT p_limite

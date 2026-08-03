@@ -14,6 +14,21 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
+    IF p_id_usuario_auditoria IS NULL THEN
+        RETURN json_build_object('registro', NULL, 'error', 'Debe indicar el administrador que rechaza');
+    END IF;
+
+    IF NOT auth_usuario_es_admin_con_permiso(p_id_usuario_auditoria, 'bajas_cliente.rechazar')
+       AND NOT auth_usuario_es_admin_con_permiso(p_id_usuario_auditoria, 'bajas_cliente.aprobar')
+    THEN
+        RETURN json_build_object(
+            'registro',
+            NULL,
+            'error',
+            'Solo un administrador con permiso de rechazar/aprobar bajas de cliente puede rechazar la solicitud'
+        );
+    END IF;
+
     SELECT lo.id INTO v_id_rechazada
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id

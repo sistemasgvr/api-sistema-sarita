@@ -42,15 +42,18 @@ export class BalonesController {
   }
 
   @Get('bajas/pendientes')
-  @Permisos(PermisoBanderas.BALONES_EDITAR)
+  @Permisos(PermisoBanderas.BAJAS_BALON_LISTAR)
   @ApiOperation({ summary: 'Listar solicitudes de baja pendientes de aprobación' })
   listarBajasPendientes(@Query() filtros: FiltroPaginacionDto) {
     return this.logic.listarSolicitudesBaja(filtros);
   }
 
   @Post('bajas/:idBaja/aprobar')
-  @Permisos(PermisoBanderas.BALONES_EDITAR)
-  @ApiOperation({ summary: 'Aprobar solicitud de baja (solo administrador)' })
+  @Permisos(PermisoBanderas.BAJAS_BALON_APROBAR)
+  @ApiOperation({
+    summary:
+      'Aprobar solicitud de baja (administrador + bajas_balon.aprobar; permite auto-aprobación)',
+  })
   aprobarBaja(
     @Param('idBaja', ParseIntPipe) idBaja: number,
     @Body() dto: AprobarBajaBalonDto,
@@ -59,8 +62,10 @@ export class BalonesController {
   }
 
   @Post('bajas/:idBaja/rechazar')
-  @Permisos(PermisoBanderas.BALONES_EDITAR)
-  @ApiOperation({ summary: 'Rechazar solicitud de baja (solo administrador)' })
+  @Permisos(PermisoBanderas.BAJAS_BALON_RECHAZAR)
+  @ApiOperation({
+    summary: 'Rechazar solicitud de baja (administrador + bajas_balon.rechazar)',
+  })
   rechazarBaja(
     @Param('idBaja', ParseIntPipe) idBaja: number,
     @Body() dto: RechazarBajaBalonDto,
@@ -99,14 +104,14 @@ export class BalonesController {
   }
 
   @Get(':id/baja')
-  @Permisos(PermisoBanderas.BALONES_VER)
+  @Permisos(PermisoBanderas.BAJAS_BALON_VER)
   @ApiOperation({ summary: 'Obtener baja activa del cilindro' })
   obtenerBaja(@Param('id', ParseIntPipe) id: number) {
     return this.logic.obtenerBajaPorBalon(id);
   }
 
   @Post(':id/baja')
-  @Permisos(PermisoBanderas.BALONES_EDITAR)
+  @Permisos(PermisoBanderas.BAJAS_BALON_SOLICITAR)
   @ApiOperation({ summary: 'Solicitar baja de cilindro (requiere aprobación de administrador)' })
   darBaja(@Param('id', ParseIntPipe) id: number, @Body() dto: DarBajaBalonDto) {
     return this.logic.darBaja(id, dto);

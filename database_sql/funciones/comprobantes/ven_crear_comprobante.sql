@@ -24,7 +24,8 @@ CREATE OR REPLACE FUNCTION ven_crear_comprobante(
     p_operacion VARCHAR DEFAULT NULL,
     p_id_estado INTEGER DEFAULT NULL,
     p_cuotas JSON DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_origen_pos VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -74,6 +75,9 @@ DECLARE
     v_qty_origen NUMERIC(12,4);
     v_qty_nueva NUMERIC(12,4);
     v_delta_stock NUMERIC(12,4);
+    v_nombre_unidad VARCHAR;
+    v_es_gas BOOLEAN;
+    v_es_servicio BOOLEAN;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -233,7 +237,7 @@ BEGIN
 
     IF EXISTS (
         SELECT 1 FROM ven_comprobante
-        WHERE serie = v_serie AND numero = v_numero AND estado = 1
+        WHERE UPPER(TRIM(serie)) = v_serie AND numero = v_numero
     ) THEN
         RETURN json_build_object(
             'error', 'Ya existe un comprobante con la serie ' || v_serie || ' y número ' || v_numero,
@@ -287,13 +291,43 @@ BEGIN
         IF NOT EXISTS (
             SELECT 1 FROM pro_producto WHERE id = v_id_producto AND estado = 1
         ) THEN
-            RETURN json_build_object('error', 'El producto ' || v_id_producto || ' no existe o está inactivo', 'registro', NULL);
+            RETURN json_build_object(
+                'error',
+                'El producto ' || COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto)
+                    || ' no existe o está inactivo',
+                'registro',
+                NULL
+            );
         END IF;
 
-        SELECT COALESCE(afecta_stock, FALSE)
-        INTO v_afecta_stock
-        FROM pro_producto
-        WHERE id = v_id_producto;
+        SELECT
+            REGEXP_REPLACE(UPPER(TRIM(COALESCE(um.nombre, ''))), '\.+$', ''),
+            COALESCE(p.es_gas, FALSE),
+            COALESCE(p.es_servicio, FALSE),
+            COALESCE(p.afecta_stock, FALSE)
+        INTO v_nombre_unidad, v_es_gas, v_es_servicio, v_afecta_stock
+        FROM pro_producto p
+        LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
+        WHERE p.id = v_id_producto;
+
+        -- Gases (m³) pueden ser decimales aunque la U.M. esté mal catalogada como UNID.
+        IF NOT COALESCE(v_es_gas, FALSE)
+           AND v_nombre_unidad IN ('UNID', 'NIU', 'UND', 'UNI', 'UNIDAD', 'UNIDADES', 'PZ', 'PZA', 'PIEZA', 'PIEZAS')
+           AND v_cantidad <> TRUNC(v_cantidad)
+        THEN
+            RETURN json_build_object(
+                'error',
+                'La cantidad de ' || COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto)
+                    || ' debe ser entera (unidad de medida UNID)',
+                'registro',
+                NULL
+            );
+        END IF;
+
+        -- Servicios no descuentan stock aunque afecta_stock quede mal marcado.
+        IF COALESCE(v_es_servicio, FALSE) THEN
+            v_afecta_stock := FALSE;
+        END IF;
 
         -- ND (08) no mueve stock. Conversión VSD→CPE reutiliza el descuento previo.
         IF v_afecta_stock AND NOT v_es_conversion_vsd AND v_codigo_tipo <> '08' THEN
@@ -426,7 +460,7 @@ BEGIN
                         'error',
                         format(
                             'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
-                            v_id_producto,
+                            COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
                             v_stock_disponible,
                             v_cantidad
                         ),
@@ -448,7 +482,7 @@ BEGIN
         id_condicion_pago, id_moneda, id_medio_pago,
         sub_total, descuento, valor_venta, igv, total_importe,
         exonerado, glosa, observaciones,
-        periodo_contable, operacion, id_estado,
+        periodo_contable, operacion, origen_pos, id_estado,
         id_usuario_creacion, id_usuario_modificacion
     )
     VALUES (
@@ -461,7 +495,7 @@ BEGIN
         p_id_condicion_pago, p_id_moneda, p_id_medio_pago,
         v_sub_total, v_descuento_total, v_valor_venta_total, v_igv_total, v_total_importe,
         v_exonerado_total, p_glosa, p_observaciones,
-        p_periodo_contable, p_operacion, v_id_estado_doc,
+        p_periodo_contable, p_operacion, NULLIF(TRIM(p_origen_pos), ''), v_id_estado_doc,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;
@@ -606,7 +640,7 @@ BEGIN
                 IF COALESCE(v_stock_disponible, 0) < v_delta_stock THEN
                     RAISE EXCEPTION
                         'Stock insuficiente del producto % en el almacén (disponible: %, solicitado: %)',
-                        v_id_producto,
+                        COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
                         COALESCE(v_stock_disponible, 0),
                         v_delta_stock;
                 END IF;

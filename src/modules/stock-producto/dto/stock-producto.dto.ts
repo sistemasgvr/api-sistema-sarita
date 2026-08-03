@@ -34,6 +34,15 @@ export class FiltroStockDto extends FiltroPaginacionDto {
   @Transform(({ value }) => toOptionalBoolean(value))
   @IsBoolean()
   soloBajoMinimo?: boolean;
+
+  @ApiPropertyOptional({
+    description: '1=activos, 0=inactivos, omitir/null=todos',
+    example: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  soloActivos?: number | null;
 }
 
 export class CreateStockDto extends AuditoriaDto {

@@ -104,12 +104,42 @@ export class BalonesLogic {
 
   async aprobarBaja(idBaja: number, dto: AprobarBajaBalonDto) {
     const result = await this.model.aprobarBaja(idBaja, dto);
-    return mapSingleResult(result, 'No se pudo aprobar la solicitud de baja');
+    const registro = mapSingleResult(
+      result,
+      'No se pudo aprobar la solicitud de baja',
+    ) as Record<string, unknown>;
+
+    void this.notificarResultadoBajaCilindro(registro, 'aprobada', dto.idUsuarioAuditoria).catch(
+      (error: unknown) => {
+        this.logger.warn(
+          `No se pudo notificar aprobación de baja: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      },
+    );
+
+    return registro;
   }
 
   async rechazarBaja(idBaja: number, dto: RechazarBajaBalonDto) {
     const result = await this.model.rechazarBaja(idBaja, dto);
-    return mapSingleResult(result, 'No se pudo rechazar la solicitud de baja');
+    const registro = mapSingleResult(
+      result,
+      'No se pudo rechazar la solicitud de baja',
+    ) as Record<string, unknown>;
+
+    void this.notificarResultadoBajaCilindro(registro, 'rechazada', dto.idUsuarioAuditoria).catch(
+      (error: unknown) => {
+        this.logger.warn(
+          `No se pudo notificar rechazo de baja: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      },
+    );
+
+    return registro;
   }
 
   async listarEstadoHistorial(idBalon: number, filtros: FiltroEstadoHistorialDto) {
@@ -120,6 +150,45 @@ export class BalonesLogic {
   async restaurar(idBalon: number, dto: RestaurarBalonDto) {
     const result = await this.model.restaurar(idBalon, dto);
     return mapSingleResult(result, 'No se pudo reactivar el cilindro');
+  }
+
+  private async notificarResultadoBajaCilindro(
+    registro: Record<string, unknown>,
+    resultado: 'aprobada' | 'rechazada',
+    idUsuarioAuditoria?: number,
+  ) {
+    const idSolicitante = Number(registro.id_usuario_solicita);
+    if (!Number.isInteger(idSolicitante) || idSolicitante <= 0) return;
+
+    const idBaja = Number(registro.id);
+    const codigo = String(registro.codigo_balon ?? registro.id_balon ?? 'N/D');
+    const aprobada = resultado === 'aprobada';
+    const hoy = new Date().toISOString().slice(0, 10);
+
+    await this.notificacionesLogic.crearYEmitir({
+      idUsuario: idSolicitante,
+      codigoTipo: aprobada
+        ? TipoNotificacion.BAJA_CILINDRO_APROBADA
+        : TipoNotificacion.BAJA_CILINDRO_RECHAZADA,
+      titulo: aprobada
+        ? 'Baja de cilindro aprobada'
+        : 'Baja de cilindro rechazada',
+      mensaje: aprobada
+        ? `Tu solicitud de baja del cilindro ${codigo} fue aprobada.`
+        : `Tu solicitud de baja del cilindro ${codigo} fue rechazada.${
+            registro.observacion ? ` Motivo: ${registro.observacion}` : ''
+          }`,
+      payload: {
+        idBaja,
+        idBalon: registro.id_balon,
+        codigoBalon: registro.codigo_balon,
+        estadoAprobacion: registro.estado_aprobacion,
+      },
+      idReferencia: idBaja,
+      tipoReferencia: TipoReferenciaNotificacion.BALON,
+      claveDedupe: `BAJA_CILINDRO_${aprobada ? 'APROBADA' : 'RECHAZADA'}:${idBaja}:${hoy}`,
+      idUsuarioAuditoria,
+    });
   }
 
   private async notificarSolicitudBajaCilindro(
@@ -133,7 +202,7 @@ export class BalonesLogic {
     const hoy = new Date().toISOString().slice(0, 10);
 
     await this.notificacionesLogic.notificarPorPermiso({
-      permiso: PermisoBanderas.BALONES_EDITAR,
+      permiso: PermisoBanderas.BAJAS_BALON_APROBAR,
       codigoTipo: TipoNotificacion.BAJA_CILINDRO_SOLICITADA,
       titulo: 'Solicitud de baja de cilindro',
       mensaje: `${solicitante} solicitó baja del cilindro ${codigo} (motivo: ${motivo}).`,
@@ -150,6 +219,7 @@ export class BalonesLogic {
       claveDedupePrefix: `BAJA_CILINDRO_SOLICITADA:${idBaja}:${hoy}`,
       excluirUsuarioId: dto.idUsuarioSolicita ?? dto.idUsuarioAuditoria,
       idUsuarioAuditoria: dto.idUsuarioAuditoria ?? dto.idUsuarioSolicita,
+      soloAdmins: true,
     });
   }
 }

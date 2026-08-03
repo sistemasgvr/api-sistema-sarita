@@ -16,6 +16,7 @@ export class CategoriasProductoModel {
       filtros.buscar ?? '',
       filtros.limite ?? 10,
       filtros.offset,
+      filtros.soloActivos === undefined ? 1 : filtros.soloActivos,
     ]);
   }
 
@@ -47,6 +48,13 @@ export class CategoriasProductoModel {
 
   eliminar(id: number, idUsuarioAuditoria?: number) {
     return this.db.callFunctionJson<AuthDeleteResult>('pro_eliminar_categoria', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  restaurar(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthDeleteResult>('pro_restaurar_categoria', [
       id,
       idUsuarioAuditoria ?? null,
     ]);

@@ -50,4 +50,9 @@ export class StockProductoLogic {
     const result = await this.stockProductoModel.eliminar(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Stock ${id} no encontrado`);
   }
+
+  async restaurar(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.stockProductoModel.restaurar(id, idUsuarioAuditoria);
+    return mapDeleteResult(result, `Stock ${id} no encontrado o ya está activo`);
+  }
 }

@@ -1,3 +1,6 @@
+DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN);
+DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR);
+
 CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_busqueda VARCHAR DEFAULT '',
     p_limite INTEGER DEFAULT 10,
@@ -10,7 +13,9 @@ CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_ph_vencida BOOLEAN DEFAULT NULL,
     p_ph_por_vencer_dias INTEGER DEFAULT NULL,
     p_id_cliente_relacionado INTEGER DEFAULT NULL,
-    p_solo_bajas BOOLEAN DEFAULT NULL
+    p_solo_bajas BOOLEAN DEFAULT NULL,
+    p_familia_gas VARCHAR DEFAULT NULL,
+    p_id_propietario INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -19,12 +24,16 @@ DECLARE
     v_registros JSON;
     v_total BIGINT;
     v_alertas JSON;
+    v_familia_gas VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
+
+    v_familia_gas := NULLIF(TRIM(COALESCE(p_familia_gas, '')), '');
 
     SELECT COUNT(*) INTO v_total
     FROM bal_balon b
     LEFT JOIN bal_tipo_balon tb ON b.id_tipo_balon = tb.id
+    LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
     LEFT JOIN gen_almacen a ON b.id_almacen = a.id
     LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
     LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
@@ -36,6 +45,7 @@ BEGIN
       AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
       AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
       AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
+      AND (p_id_propietario IS NULL OR b.id_propietario = p_id_propietario)
       AND (
           p_id_cliente_relacionado IS NULL
           OR b.id_cliente_ubicacion = p_id_cliente_relacionado
@@ -81,19 +91,25 @@ BEGIN
           )
       )
       AND (
+          v_familia_gas IS NULL
+          OR gen_texto_coincide(COALESCE(tb.nombre, ''), v_familia_gas)
+          OR gen_texto_coincide(COALESCE(pg.nombre, ''), v_familia_gas)
+          OR gen_texto_coincide(COALESCE(pg.codigo, ''), v_familia_gas)
+      )
+      AND (
           p_busqueda = ''
-          OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(b.numero_serie, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(b.libro_cilindro, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(tb.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(a.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(mc.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cu.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cu.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cu.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cp.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cp.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(cp.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+          OR gen_texto_coincide(COALESCE(b.numero_serie, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(b.libro_cilindro, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(tb.nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(a.nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(mc.nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(cu.razon_social, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(cu.nombres, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(cu.numero_documento, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(cp.razon_social, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(cp.nombres, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(cp.numero_documento, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -198,6 +214,7 @@ BEGIN
           AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
           AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
           AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
+          AND (p_id_propietario IS NULL OR b.id_propietario = p_id_propietario)
           AND (
               p_id_cliente_relacionado IS NULL
               OR b.id_cliente_ubicacion = p_id_cliente_relacionado
@@ -243,19 +260,25 @@ BEGIN
               )
           )
           AND (
+              v_familia_gas IS NULL
+              OR gen_texto_coincide(COALESCE(tb.nombre, ''), v_familia_gas)
+              OR gen_texto_coincide(COALESCE(pg.nombre, ''), v_familia_gas)
+              OR gen_texto_coincide(COALESCE(pg.codigo, ''), v_familia_gas)
+          )
+          AND (
               p_busqueda = ''
-              OR LOWER(b.codigo_balon) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(b.numero_serie, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(b.libro_cilindro, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(tb.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(a.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(mc.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cu.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cu.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cu.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cp.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cp.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(cp.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+              OR gen_texto_coincide(COALESCE(b.numero_serie, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(b.libro_cilindro, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(tb.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(a.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(mc.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(cu.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(cu.nombres, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(cu.numero_documento, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(cp.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(cp.nombres, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(cp.numero_documento, ''), p_busqueda)
           )
         ORDER BY b.codigo_balon ASC
         LIMIT p_limite

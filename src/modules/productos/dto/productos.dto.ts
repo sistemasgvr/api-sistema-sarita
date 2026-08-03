@@ -77,6 +77,16 @@ export class FiltroProductosDto extends FiltroPaginacionDto {
   @Type(() => Number)
   @IsInt()
   idAlmacen?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Si es true, firma URLs de imagen principal. Default: false (selects/POS/filtros sin esperar storage).',
+    example: true,
+  })
+  @IsOptional()
+  @Transform(({ value }) => toOptionalBoolean(value))
+  @IsBoolean()
+  incluirImagenes?: boolean;
 }
 
 export class ImprimirUbicacionesProductoDto {

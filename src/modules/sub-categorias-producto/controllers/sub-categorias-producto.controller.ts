@@ -48,6 +48,17 @@ export class SubCategoriasProductoController {
     return this.subCategoriasProductoLogic.crear(dto);
   }
 
+  @Patch(':id/restaurar')
+  @Permisos(PermisoBanderas.SUB_CATEGORIAS_RESTAURAR)
+  @ApiOperation({ summary: 'Restaurar subcategoría eliminada (baja lógica)' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  restaurar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.subCategoriasProductoLogic.restaurar(id, dto.idUsuarioAuditoria);
+  }
+
   @Patch(':id')
   @Permisos(PermisoBanderas.SUB_CATEGORIAS_EDITAR)
   @ApiOperation({ summary: 'Actualizar subcategoría de producto' })

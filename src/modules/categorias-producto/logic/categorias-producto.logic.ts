@@ -48,4 +48,9 @@ export class CategoriasProductoLogic {
     const result = await this.categoriasProductoModel.eliminar(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Categoría ${id} no encontrada`);
   }
+
+  async restaurar(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.categoriasProductoModel.restaurar(id, idUsuarioAuditoria);
+    return mapDeleteResult(result, `Categoría ${id} no encontrada o ya está activa`);
+  }
 }

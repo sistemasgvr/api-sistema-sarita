@@ -1,10 +1,13 @@
+DROP FUNCTION IF EXISTS pro_listar_stock(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN);
+
 CREATE OR REPLACE FUNCTION pro_listar_stock(
     p_busqueda VARCHAR DEFAULT '',
     p_limite INTEGER DEFAULT 10,
     p_offset INTEGER DEFAULT 0,
     p_id_almacen INTEGER DEFAULT NULL,
     p_id_producto INTEGER DEFAULT NULL,
-    p_solo_bajo_minimo BOOLEAN DEFAULT NULL
+    p_solo_bajo_minimo BOOLEAN DEFAULT NULL,
+    p_solo_activos INTEGER DEFAULT 1
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -19,9 +22,8 @@ BEGIN
     FROM pro_stock s
     INNER JOIN gen_almacen a ON s.id_almacen = a.id
     INNER JOIN pro_producto p ON s.id_producto = p.id
-    WHERE s.estado = 1
-      AND a.estado = 1
-      AND p.estado = 1
+    WHERE (p_solo_activos IS NULL OR s.estado = p_solo_activos)
+      AND (p_solo_activos IS DISTINCT FROM 1 OR (a.estado = 1 AND p.estado = 1))
       AND (p_id_almacen IS NULL OR s.id_almacen = p_id_almacen)
       AND (p_id_producto IS NULL OR s.id_producto = p_id_producto)
       AND (
@@ -31,9 +33,9 @@ BEGIN
       )
       AND (
           p_busqueda = ''
-          OR LOWER(a.nombre) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(p.codigo) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(p.nombre) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(a.nombre, p_busqueda)
+          OR gen_texto_coincide(p.codigo, p_busqueda)
+          OR gen_texto_coincide(p.nombre, p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -66,9 +68,8 @@ BEGIN
         LEFT JOIN gen_lista_opciones um ON p.id_unidad_medida = um.id
         LEFT JOIN auth_usuarios uc ON s.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um2 ON s.id_usuario_modificacion = um2.id
-        WHERE s.estado = 1
-          AND a.estado = 1
-          AND p.estado = 1
+        WHERE (p_solo_activos IS NULL OR s.estado = p_solo_activos)
+          AND (p_solo_activos IS DISTINCT FROM 1 OR (a.estado = 1 AND p.estado = 1))
           AND (p_id_almacen IS NULL OR s.id_almacen = p_id_almacen)
           AND (p_id_producto IS NULL OR s.id_producto = p_id_producto)
           AND (
@@ -78,9 +79,9 @@ BEGIN
           )
           AND (
               p_busqueda = ''
-              OR LOWER(a.nombre) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(p.codigo) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(p.nombre) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(a.nombre, p_busqueda)
+              OR gen_texto_coincide(p.codigo, p_busqueda)
+              OR gen_texto_coincide(p.nombre, p_busqueda)
           )
         ORDER BY a.nombre ASC, p.nombre ASC
         LIMIT p_limite

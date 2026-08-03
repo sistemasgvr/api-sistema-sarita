@@ -78,6 +78,24 @@ export class FiltroBalonesDto extends FiltroPaginacionDto {
   @IsOptional()
   @IsBoolean()
   soloBajas?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Filtra por familia de gas (ej. medicinal / industrial) en tipo de balón, nombre o código del producto gas',
+    example: 'medicinal',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  familiaGas?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtra por tipo de propietario (lista PROPIETARIO_BALON: EMPRESA, CLIENTE, etc.)',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idPropietario?: number;
 }
 
 export class CreateBalonesDto extends AuditoriaDto {
@@ -134,17 +152,17 @@ export class CreateBalonesDto extends AuditoriaDto {
   @IsNumber()
   idReferencia?: number;
 
-  @ApiPropertyOptional()
+  @ApiProperty({ example: 1 })
   @Type(() => Number)
-  @IsOptional()
   @IsNumber()
-  idTipoBalon?: number;
+  @IsNotEmpty()
+  idTipoBalon!: number;
 
-  @ApiPropertyOptional()
+  @ApiProperty({ example: 1, description: 'Producto marcado como gas' })
   @Type(() => Number)
-  @IsOptional()
   @IsNumber()
-  idProductoGas?: number;
+  @IsNotEmpty()
+  idProductoGas!: number;
 
   @ApiPropertyOptional()
   @Type(() => Number)

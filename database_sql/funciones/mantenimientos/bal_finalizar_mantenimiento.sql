@@ -143,6 +143,13 @@ BEGIN
             LIMIT 1;
         END IF;
 
+        IF v_id_estado_destino IS NULL THEN
+            RETURN json_build_object(
+                'error', 'No se encontró el estado destino del cilindro (EN_PODER_CLIENTE / PRESTADO_CLIENTE). Revise el catálogo EstadoBalon.',
+                'registro', NULL
+            );
+        END IF;
+
         v_obs_movimiento := COALESCE(
             NULLIF(TRIM(p_observacion), ''),
             'Entrega al cliente tras servicio de mantenimiento'
@@ -156,9 +163,9 @@ BEGIN
                 v_id_tipo_documento_ref,
                 v_id_cliente_destino,
                 v_id_almacen,
-                NULL,
+                NULL::INTEGER,
                 COALESCE(p_fecha_salida, CURRENT_DATE)::TIMESTAMP,
-                v_obs_movimiento,
+                v_obs_movimiento::VARCHAR,
                 p_id_usuario_auditoria
             );
 
@@ -167,11 +174,12 @@ BEGIN
             END IF;
         END IF;
 
+        -- Estado del cilindro siempre se actualiza al finalizar (no depende del movimiento).
         UPDATE bal_balon
         SET
             id_almacen = NULL,
             id_cliente_ubicacion = v_id_cliente_destino,
-            id_estado_balon = COALESCE(v_id_estado_destino, id_estado_balon),
+            id_estado_balon = v_id_estado_destino,
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_balon
@@ -216,6 +224,13 @@ BEGIN
         WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
         LIMIT 1;
 
+        IF v_id_estado_destino IS NULL THEN
+            RETURN json_build_object(
+                'error', 'No se encontró el estado EN_ALMACEN del cilindro. Revise el catálogo EstadoBalon.',
+                'registro', NULL
+            );
+        END IF;
+
         v_obs_movimiento := COALESCE(
             NULLIF(TRIM(p_observacion), ''),
             'Entrada por finalización de mantenimiento'
@@ -227,11 +242,11 @@ BEGIN
                 v_id_tipo_movimiento,
                 p_id,
                 v_id_tipo_documento_ref,
-                NULL,
-                NULL,
+                NULL::INTEGER,
+                NULL::INTEGER,
                 v_id_almacen_destino,
                 COALESCE(p_fecha_salida, CURRENT_DATE)::TIMESTAMP,
-                v_obs_movimiento,
+                v_obs_movimiento::VARCHAR,
                 p_id_usuario_auditoria
             );
 
@@ -240,11 +255,12 @@ BEGIN
             END IF;
         END IF;
 
+        -- Estado del cilindro siempre se actualiza al finalizar (no depende del movimiento).
         UPDATE bal_balon
         SET
             id_cliente_ubicacion = NULL,
             id_almacen = v_id_almacen_destino,
-            id_estado_balon = COALESCE(v_id_estado_destino, id_estado_balon),
+            id_estado_balon = v_id_estado_destino,
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_balon

@@ -26,9 +26,9 @@ BEGIN
       AND (p_id_estado IS NULL OR act.id_estado_actividad = p_id_estado)
       AND (
           p_busqueda = ''
-          OR LOWER(act.titulo) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(act.observaciones, '')) LIKE LOWER('%' || p_busqueda || '%') 
-          OR LOWER(COALESCE(c.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(act.titulo, p_busqueda)
+          OR gen_texto_coincide(COALESCE(act.observaciones, ''), p_busqueda) 
+          OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -69,9 +69,9 @@ BEGIN
           AND (p_id_estado IS NULL OR act.id_estado_actividad = p_id_estado)
           AND (
               p_busqueda = ''
-              OR LOWER(act.titulo) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(act.observaciones, '')) LIKE LOWER('%' || p_busqueda || '%') 
-              OR LOWER(COALESCE(c.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(act.titulo, p_busqueda)
+              OR gen_texto_coincide(COALESCE(act.observaciones, ''), p_busqueda) 
+              OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
           )
         ORDER BY act.fecha_programada ASC, act.hora_inicio_estimada ASC
         LIMIT p_limite

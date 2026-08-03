@@ -186,7 +186,8 @@ BEGIN
         NULL,
         NULL,
         NULL,
-        p_id_usuario_auditoria
+        p_id_usuario_auditoria,
+        'recarga'
     );
 
     IF v_comprobante_result->>'error' IS NOT NULL THEN

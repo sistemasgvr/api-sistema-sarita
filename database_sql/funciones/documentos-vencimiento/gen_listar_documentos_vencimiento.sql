@@ -24,9 +24,9 @@ BEGIN
       AND (p_id_vehiculo IS NULL OR dv.id_vehiculo = p_id_vehiculo)
       AND (
           p_buscar = ''
-          OR LOWER(COALESCE(dv.descripcion, '')) LIKE LOWER('%' || p_buscar || '%')
-          OR LOWER(COALESCE(dv.numero_documento, '')) LIKE LOWER('%' || p_buscar || '%')
-          OR LOWER(COALESCE(dv.observacion, '')) LIKE LOWER('%' || p_buscar || '%')
+          OR gen_texto_coincide(COALESCE(dv.descripcion, ''), p_buscar)
+          OR gen_texto_coincide(COALESCE(dv.numero_documento, ''), p_buscar)
+          OR gen_texto_coincide(COALESCE(dv.observacion, ''), p_buscar)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -64,9 +64,9 @@ BEGIN
           AND (p_id_vehiculo IS NULL OR dv.id_vehiculo = p_id_vehiculo)
           AND (
               p_buscar = ''
-              OR LOWER(COALESCE(dv.descripcion, '')) LIKE LOWER('%' || p_buscar || '%')
-              OR LOWER(COALESCE(dv.numero_documento, '')) LIKE LOWER('%' || p_buscar || '%')
-              OR LOWER(COALESCE(dv.observacion, '')) LIKE LOWER('%' || p_buscar || '%')
+              OR gen_texto_coincide(COALESCE(dv.descripcion, ''), p_buscar)
+              OR gen_texto_coincide(COALESCE(dv.numero_documento, ''), p_buscar)
+              OR gen_texto_coincide(COALESCE(dv.observacion, ''), p_buscar)
           )
         ORDER BY dv.fecha_vencimiento ASC, dv.id ASC
         LIMIT p_limite

@@ -9,6 +9,7 @@ import {
   CreateRecargaClienteDto,
   FiltroMovimientosRecargaDto,
   UpdateMovimientosRecargaDto,
+  VincularRecargaClienteComprobanteDto,
 } from '../dto/movimientos-recarga.dto';
 import { MovimientosRecargaModel } from '../models/movimientos-recarga.model';
 
@@ -34,6 +35,11 @@ export class MovimientosRecargaLogic {
   async crearRecargaCliente(dto: CreateRecargaClienteDto) {
     const result = await this.model.crearRecargaCliente(dto);
     return mapSingleResult(result, 'No se pudo registrar la recarga del cliente');
+  }
+
+  async vincularRecargaClienteComprobante(dto: VincularRecargaClienteComprobanteDto) {
+    const result = await this.model.vincularRecargaClienteComprobante(dto);
+    return mapSingleResult(result, 'No se pudo vincular la recarga al comprobante');
   }
 
   async actualizar(id: number, dto: UpdateMovimientosRecargaDto) {

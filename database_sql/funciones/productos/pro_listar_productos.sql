@@ -35,14 +35,14 @@ BEGIN
       AND (p_afecta_stock IS NULL OR p.afecta_stock = p_afecta_stock)
       AND (
           p_busqueda = ''
-          OR LOWER(p.codigo) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(p.codigo_barra, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(p.codigo_ubicacion, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(p.nombre) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(p.marca, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(p.presentacion, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(sc.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(c.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(p.codigo, p_busqueda)
+          OR gen_texto_coincide(COALESCE(p.codigo_barra, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(p.codigo_ubicacion, ''), p_busqueda)
+          OR gen_texto_coincide(p.nombre, p_busqueda)
+          OR gen_texto_coincide(COALESCE(p.marca, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(p.presentacion, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(sc.nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(c.nombre, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -124,14 +124,14 @@ BEGIN
           AND (p_afecta_stock IS NULL OR p.afecta_stock = p_afecta_stock)
           AND (
               p_busqueda = ''
-              OR LOWER(p.codigo) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(p.codigo_barra, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(p.codigo_ubicacion, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(p.nombre) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(p.marca, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(p.presentacion, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(sc.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(c.nombre, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(p.codigo, p_busqueda)
+              OR gen_texto_coincide(COALESCE(p.codigo_barra, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(p.codigo_ubicacion, ''), p_busqueda)
+              OR gen_texto_coincide(p.nombre, p_busqueda)
+              OR gen_texto_coincide(COALESCE(p.marca, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(p.presentacion, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(sc.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(c.nombre, ''), p_busqueda)
           )
         ORDER BY p.nombre ASC
         LIMIT p_limite

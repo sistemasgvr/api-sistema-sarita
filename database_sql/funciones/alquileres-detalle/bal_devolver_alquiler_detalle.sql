@@ -72,6 +72,19 @@ BEGIN
         );
     END IF;
 
+    SELECT lo.id INTO v_id_estado_en_almacen
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
+    LIMIT 1;
+
+    IF v_id_estado_en_almacen IS NULL THEN
+        RETURN json_build_object(
+            'error', 'No se encontró el estado EN_ALMACEN del cilindro. Revise el catálogo EstadoBalon.',
+            'registro', NULL
+        );
+    END IF;
+
     SELECT lo.id INTO v_id_tipo_movimiento
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id
@@ -82,12 +95,6 @@ BEGIN
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id
     WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'ALQUILER' AND lo.estado = 1
-    LIMIT 1;
-
-    SELECT lo.id INTO v_id_estado_en_almacen
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
     LIMIT 1;
 
     SELECT lo.id INTO v_id_estado_finalizado
@@ -111,10 +118,10 @@ BEGIN
             v_id_alquiler,
             v_id_tipo_documento_ref,
             v_id_cliente,
-            NULL,
+            NULL::INTEGER,
             v_id_almacen_destino,
-            NOW(),
-            'Entrada por devolución de alquiler',
+            NOW()::TIMESTAMP,
+            'Entrada por devolución de alquiler'::VARCHAR,
             p_id_usuario_auditoria
         );
 
@@ -123,11 +130,12 @@ BEGIN
         END IF;
     END IF;
 
+    -- Estado físico del cilindro: siempre al devolver (no depende del movimiento).
     UPDATE bal_balon
     SET
         id_cliente_ubicacion = NULL,
         id_almacen = v_id_almacen_destino,
-        id_estado_balon = COALESCE(v_id_estado_en_almacen, id_estado_balon),
+        id_estado_balon = v_id_estado_en_almacen,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = v_id_balon

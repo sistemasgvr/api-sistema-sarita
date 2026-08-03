@@ -10,6 +10,7 @@ import {
   CreateRecargaClienteDto,
   FiltroMovimientosRecargaDto,
   UpdateMovimientosRecargaDto,
+  VincularRecargaClienteComprobanteDto,
 } from '../dto/movimientos-recarga.dto';
 
 @Injectable()
@@ -72,6 +73,22 @@ export class MovimientosRecargaModel {
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
+  }
+
+  vincularRecargaClienteComprobante(dto: VincularRecargaClienteComprobanteDto) {
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'bal_vincular_recarga_cliente_comprobante',
+      [
+        dto.idComprobante,
+        dto.idCliente,
+        dto.idBalon,
+        dto.idProducto,
+        dto.capacidad ?? null,
+        dto.idAlmacen ?? null,
+        dto.observacion ?? null,
+        dto.idUsuarioAuditoria ?? null,
+      ],
+    );
   }
 
   actualizar(id: number, dto: UpdateMovimientosRecargaDto) {

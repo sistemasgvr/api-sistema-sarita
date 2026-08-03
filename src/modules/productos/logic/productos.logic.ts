@@ -46,7 +46,16 @@ export class ProductosLogic {
     const result = await this.productosModel.listar(filtros);
     const mapped = mapListResult(result, filtros);
     const registros = (mapped.data ?? []) as ProductoListadoRegistro[];
-    mapped.data = await this.conUrlsImagenPrincipal(registros);
+    // Opt-in: firmar imágenes solo cuando se pide (listados con miniatura).
+    // Selects/POS/filtros no deben esperar firmas de storage.
+    if (filtros.incluirImagenes === true) {
+      mapped.data = await this.conUrlsImagenPrincipal(registros);
+      return mapped;
+    }
+    mapped.data = registros.map((registro) => {
+      const { imagen_principal_ruta: _ruta, ...rest } = registro;
+      return { ...rest, url_imagen_principal: null };
+    });
     return mapped;
   }
 

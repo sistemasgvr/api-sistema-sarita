@@ -10,6 +10,7 @@ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
+    v_id_inactivo INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -31,11 +32,39 @@ BEGIN
           AND id_producto = p_id_producto
           AND estado = 1
     ) THEN
-        RETURN json_build_object('error', 'Ya existe un registro de stock activo para este producto en el almacén', 'registro', NULL);
+        RETURN json_build_object(
+            'error',
+            'Ya existe un registro de stock activo para este producto en el almacén',
+            'registro',
+            NULL
+        );
     END IF;
 
     IF COALESCE(p_stock, 0) < 0 OR COALESCE(p_stock_minimo, 0) < 0 THEN
         RETURN json_build_object('error', 'El stock y el stock mínimo no pueden ser negativos', 'registro', NULL);
+    END IF;
+
+    -- Si hubo baja lógica previa, UNIQUE(id_almacen, id_producto) bloquea el INSERT:
+    -- reactivar y actualizar cantidades.
+    SELECT id
+    INTO v_id_inactivo
+    FROM pro_stock
+    WHERE id_almacen = p_id_almacen
+      AND id_producto = p_id_producto
+      AND estado = 0
+    LIMIT 1;
+
+    IF v_id_inactivo IS NOT NULL THEN
+        UPDATE pro_stock
+        SET
+            stock = COALESCE(p_stock, 0),
+            stock_minimo = COALESCE(p_stock_minimo, 0),
+            estado = 1,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id = v_id_inactivo;
+
+        RETURN pro_obtener_stock(v_id_inactivo);
     END IF;
 
     INSERT INTO pro_stock (
