@@ -62,6 +62,12 @@ import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-banc
 import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/documentos-vencimiento.module';
 import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 
+//Módulo Dashboard
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+
+//Módulo Finanzas
+import { FinanzasModule } from './modules/finanzas/finanzas.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -126,6 +132,8 @@ import { NotificacionesModule } from './modules/notificaciones/notificaciones.mo
     CuentasBancariasModule,
     DocumentosVencimientoModule,
     NotificacionesModule,
+    DashboardModule,
+    FinanzasModule,
   ],
   providers: [
     {

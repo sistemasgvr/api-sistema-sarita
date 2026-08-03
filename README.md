@@ -183,3 +183,85 @@ Los errores:
 ### Swagger
 
 Documentación interactiva disponible en `http://localhost:3000/api/docs` al iniciar el servidor.
+
+---
+
+## 🧭 Guía visual para el desarrollador
+
+Diagramas rápidos para entender el flujo. (Se renderizan en GitHub.)
+
+### 1. Ciclo de vida de un request
+
+Regla de oro: **el `model` es la única capa que habla con PostgreSQL**, y siempre a través de **funciones** (`fn_*`), nunca con SQL suelto en el código.
+
+```mermaid
+flowchart TD
+  R([HTTP Request]) --> G1[JwtAuthGuard<br/>valida el token]
+  G1 --> G2[PermisosGuard<br/>valida las banderas]
+  G2 --> CT[Controller<br/>valida DTO de entrada]
+  CT --> LG[Logic<br/>reglas de negocio · errores]
+  LG --> MD[Model<br/>db.callFunctionJson]
+  MD --> DS[DatabaseService<br/>pool de conexiones pg]
+  DS --> FN[(Funciones PostgreSQL<br/>fn_*)]
+  FN --> DS --> MD --> LG --> CT
+  CT --> IN[Interceptor<br/>envuelve en { success, message, data }]
+  IN --> RESP([HTTP Response])
+```
+
+### 2. Anatomía de un módulo
+
+```mermaid
+flowchart LR
+  subgraph mod [Modulo en src/modules]
+    direction LR
+    DTO[dto/<br/>entrada · filtros] --> CT[controllers/<br/>endpoints HTTP]
+    CT --> LG[logic/<br/>negocio]
+    LG --> MD[models/<br/>solo llama funciones]
+    MOD[*.module.ts<br/>registra las 3 capas]
+  end
+  MD --> FN[(funciones SQL)]
+```
+
+### 3. Contrato de las funciones SQL
+
+Las funciones devuelven **JSON** con una forma estándar según la operación, y el `logic` la traduce con los helpers de `common/helpers`:
+
+```mermaid
+flowchart LR
+  L[Listado] --> LR["registros + total"] --> MLR["mapListResult (data + meta)"]
+  D[Detalle / crear / editar] --> DR["registro (o error)"] --> MSR[mapSingleResult]
+  E[Eliminar / anular] --> ER["eliminado + id"] --> MDR[mapDeleteResult]
+```
+
+**Buenas prácticas de cada función** (`database_sql/funciones/`):
+
+- `DROP FUNCTION IF EXISTS ...` antes de crear (idempotente al re-ejecutar).
+- `SET TIME ZONE 'America/Lima';` cuando se usan fechas / `CURRENT_DATE` / `NOW()`.
+- Retornar `JSON` con la forma estándar de arriba.
+- Filtros opcionales con el patrón `(p_param IS NULL OR columna = p_param)`.
+
+### 4. Flujo de permisos
+
+```mermaid
+flowchart LR
+  DEC["@Permisos(BANDERA)"] --> GUARD[PermisosGuard]
+  JWT[JWT del usuario<br/>trae sus banderas] --> GUARD
+  GUARD -->|tiene la bandera<br/>o auth.todo| OK([✅ pasa al controller])
+  GUARD -->|no la tiene| NO([❌ 403 Forbidden])
+```
+
+Las banderas viven en `common/constants/permiso-banderas.ts` y deben existir en la tabla `auth_permisos` (se siembran con los scripts de `database_sql/seeds/*_permisos_banderas.sql`).
+
+### 5. Receta: agregar un endpoint / módulo nuevo
+
+```mermaid
+flowchart LR
+  A[1 · Escribir la<br/>función SQL] --> B[2 · Ejecutarla en<br/>Supabase SQL Editor]
+  B --> C[3 · model:<br/>callFunctionJson]
+  C --> D[4 · logic:<br/>reglas + helpers]
+  D --> E[5 · dto + controller<br/>@Permisos]
+  E --> F[6 · Registrar módulo<br/>en app.module.ts]
+  F --> G[7 · Sembrar permisos<br/>si aplica]
+```
+
+> Las funciones SQL están versionadas en `database_sql/funciones/<módulo>/` y los datos base en `database_sql/seeds/`. Se aplican pegándolas en el **SQL Editor de Supabase**.

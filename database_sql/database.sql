@@ -1336,35 +1336,67 @@ CREATE TABLE gre_rango_numeracion (
 -- GRUPO 8: FINANZAS — CUENTAS POR COBRAR / PAGAR Y COBRANZA
 -- ============================================================
 
--- Cuentas por cobrar y por pagar unificadas
+-- Cuentas por cobrar y por pagar unificadas.
 -- id_tipo_cuenta: COBRAR (cliente) | PAGAR (proveedor)
+--
+-- Esta tabla también agrupa PLANES DE CUOTAS (préstamos bancarios, ventas/compras
+-- a plazos, etc.) mediante auto-referencia con id_cuenta_padre:
+--   - Cabecera (padre): fila con numero_cuotas_total, id_banco/tasa_interes opcionales,
+--     sin numero_cuota. Su monto_pendiente es el total del plan.
+--   - Cuotas hijas: filas con id_cuenta_padre, numero_cuota = 1..N y su propio
+--     fecha_vencimiento / monto_pendiente. Los pagos se aplican a las hijas.
+-- Para cuentas simples (sin cuotas), la fila vive sola sin padre ni hijas.
+
+-- apertura
 CREATE TABLE fin_cuenta (
-    id                  SERIAL PRIMARY KEY,
+    id                    SERIAL PRIMARY KEY,
     id_tipo_cuenta        INT NOT NULL REFERENCES gen_lista_opciones(id),
-    id_tercero           INT NOT NULL REFERENCES cli_clientes(id),
+    -- Tercero: cliente/proveedor de cli_clientes O nombre libre (uno de los dos)
+    id_tercero            INT REFERENCES cli_clientes(id),
+    tercero_nombre        VARCHAR(255),
+    -- Origen (si nace de una venta/compra formal)
     id_comprobante_venta  INT REFERENCES ven_comprobante(id),
     id_comprobante_compra INT REFERENCES com_comprobante_compra(id),
-    id_cuota             INT REFERENCES ven_cuotas(id),
-    fecha_emision        DATE NOT NULL,
-    fecha_vencimiento    DATE,
-    monto_pendiente      NUMERIC(12,4) NOT NULL,
-    monto_abonado        NUMERIC(12,4) DEFAULT 0,
-    monto_saldo          NUMERIC(12,4),
-    id_estado            INT REFERENCES gen_lista_opciones(id),
-    observacion         varchar(500),
-    estado              INT NOT NULL DEFAULT 1,
-    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
-    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
-    fecha_creacion       TIMESTAMP DEFAULT NOW(),
-    fecha_modificacion   TIMESTAMP DEFAULT NOW()
+    id_cuota              INT REFERENCES ven_cuotas(id),
+    -- Cuotas dentro de un plan (auto-referencia)
+    id_cuenta_padre       INT REFERENCES fin_cuenta(id),
+    numero_cuota          INT,        -- 1..N si es cuota hija
+    numero_cuotas_total   INT,        -- N si es cabecera de un plan
+    -- Contexto de préstamo (solo cabecera cuando aplica)
+    id_banco              INT REFERENCES gen_lista_opciones(id),
+    tasa_interes          NUMERIC(8,4),
+    descripcion           VARCHAR(255),
+    -- N° de comprobante libre (para cuentas manuales sin FK a ventas/compras)
+    numero_comprobante    VARCHAR(50),
+    -- Fechas y montos
+    fecha_emision         DATE NOT NULL,
+    fecha_vencimiento     DATE,
+    monto_pendiente       NUMERIC(12,4) NOT NULL,
+    monto_abonado         NUMERIC(12,4) DEFAULT 0,
+    monto_saldo           NUMERIC(12,4),
+    id_estado             INT REFERENCES gen_lista_opciones(id),
+    observacion           VARCHAR(500),
+    estado                INT NOT NULL DEFAULT 1,
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion            TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion        TIMESTAMP DEFAULT NOW(),
+    CONSTRAINT fin_cuenta_tercero_check
+      CHECK (id_tercero IS NOT NULL OR tercero_nombre IS NOT NULL)
 );
 
+CREATE INDEX IF NOT EXISTS idx_fin_cuenta_padre ON fin_cuenta(id_cuenta_padre);
+CREATE INDEX IF NOT EXISTS idx_fin_cuenta_tipo_estado ON fin_cuenta(id_tipo_cuenta, estado);
+
+--cierra la cuenta al momento de pagarse completa
 CREATE TABLE fin_pago (
     id                  SERIAL PRIMARY KEY,
     id_cuenta            INT NOT NULL REFERENCES fin_cuenta(id),
     fecha_pago           DATE NOT NULL,
     monto               NUMERIC(12,4) NOT NULL,
     id_medio_pago         INT REFERENCES gen_lista_opciones(id),
+    id_cuenta_bancaria    INT REFERENCES gen_cuenta_bancaria(id),  -- cuenta empresa afectada
+    numero_operacion     VARCHAR(50),                              -- N° operación / N° cheque
     referencia          varchar(100),
     observacion         varchar(255),
     estado              INT NOT NULL DEFAULT 1,
@@ -1376,51 +1408,61 @@ CREATE TABLE fin_pago (
 
 
 -- ============================================================
--- GRUPO 9: FINANZAS (PRÉSTAMOS BANCARIOS)
+-- GRUPO 9: FINANZAS (PRÉSTAMOS BANCARIOS) — UNIFICADO EN fin_cuenta
 -- ============================================================
-
-CREATE TABLE fin_prestamo_banco (
-    id                  SERIAL PRIMARY KEY,
-    id_banco             INT REFERENCES gen_lista_opciones(id),
-    descripcion         varchar(255),
-    monto_total          NUMERIC(14,4),
-    numero_cuotas        INT,
-    fecha_inicio         DATE,
-    tasa_interes         NUMERIC(8,4),
-    -- Estado: ACTIVO, CANCELADO
-    id_estado            INT REFERENCES gen_lista_opciones(id),
-    observacion         varchar(500),
-    estado              INT NOT NULL DEFAULT 1,
-    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
-    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
-    fecha_creacion       TIMESTAMP DEFAULT NOW(),
-    fecha_modificacion   TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE fin_prestamo_banco_cuota (
-    id                  SERIAL PRIMARY KEY,
-    id_prestamo_banco     INT NOT NULL REFERENCES fin_prestamo_banco(id),
-    numero_cuota         INT NOT NULL,
-    importe             NUMERIC(12,4) NOT NULL,
-    fecha_vencimiento    DATE,
-    fecha_pago           DATE,
-    id_medio_pago         INT REFERENCES gen_lista_opciones(id),  -- TRANSFERENCIA, CHEQUE, DÉBITO AUTOMÁTICO
-    numero_operacion     varchar(50),                            -- N° operación / N° cheque
-    id_cuenta_bancaria    INT REFERENCES gen_cuenta_bancaria(id), -- cuenta empresa debitada
-    -- Estado: PENDIENTE, PAGADO, VENCIDO
-    id_estado            INT REFERENCES gen_lista_opciones(id),
-    observacion         varchar(255),
-    estado              INT NOT NULL DEFAULT 1,
-    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
-    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
-    fecha_creacion       TIMESTAMP DEFAULT NOW(),
-    fecha_modificacion   TIMESTAMP DEFAULT NOW(),
-    UNIQUE(id_prestamo_banco, numero_cuota)
-);
+-- Las tablas fin_prestamo_banco y fin_prestamo_banco_cuota se ELIMINARON.
+-- Un préstamo bancario ahora se modela así:
+--   - 1 fila padre en fin_cuenta (tipo PAGAR) con: id_banco, tasa_interes,
+--     numero_cuotas_total = N, monto_pendiente = monto total del préstamo.
+--   - N filas hijas en fin_cuenta con: id_cuenta_padre = madre.id,
+--     numero_cuota = 1..N, y su propio fecha_vencimiento / monto_pendiente.
+-- Los pagos se registran en fin_pago apuntando a la cuota hija correspondiente,
+-- e incluyen id_cuenta_bancaria y numero_operacion.
+--
+-- Definiciones anteriores conservadas comentadas por referencia histórica:
+--
+-- CREATE TABLE fin_prestamo_banco (
+--     id                  SERIAL PRIMARY KEY,
+--     id_banco             INT REFERENCES gen_lista_opciones(id),
+--     descripcion         varchar(255),
+--     monto_total          NUMERIC(14,4),
+--     numero_cuotas        INT,
+--     fecha_inicio         DATE,
+--     tasa_interes         NUMERIC(8,4),
+--     -- Estado: ACTIVO, CANCELADO
+--     id_estado            INT REFERENCES gen_lista_opciones(id),
+--     observacion         varchar(500),
+--     estado              INT NOT NULL DEFAULT 1,
+--     id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+--     id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+--     fecha_creacion       TIMESTAMP DEFAULT NOW(),
+--     fecha_modificacion   TIMESTAMP DEFAULT NOW()
+-- );
+--
+-- CREATE TABLE fin_prestamo_banco_cuota (
+--     id                  SERIAL PRIMARY KEY,
+--     id_prestamo_banco     INT NOT NULL REFERENCES fin_prestamo_banco(id),
+--     numero_cuota         INT NOT NULL,
+--     importe             NUMERIC(12,4) NOT NULL,
+--     fecha_vencimiento    DATE,
+--     fecha_pago           DATE,
+--     id_medio_pago         INT REFERENCES gen_lista_opciones(id),  -- TRANSFERENCIA, CHEQUE, DÉBITO AUTOMÁTICO
+--     numero_operacion     varchar(50),                            -- N° operación / N° cheque
+--     id_cuenta_bancaria    INT REFERENCES gen_cuenta_bancaria(id), -- cuenta empresa debitada
+--     -- Estado: PENDIENTE, PAGADO, VENCIDO
+--     id_estado            INT REFERENCES gen_lista_opciones(id),
+--     observacion         varchar(255),
+--     estado              INT NOT NULL DEFAULT 1,
+--     id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+--     id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+--     fecha_creacion       TIMESTAMP DEFAULT NOW(),
+--     fecha_modificacion   TIMESTAMP DEFAULT NOW(),
+--     UNIQUE(id_prestamo_banco, numero_cuota)
+-- );
 
 
 -- ============================================================
--- GRUPO 10: COMPRAS, GASTOS Y CUENTAS POR PAGAR
+-- GRUPO 10: COMPRAS, GASTOS
 -- ============================================================
 
 -- Clasificación contable / operativa en 3 niveles (Grupo > Subgrupo > Sub subgrupo)
