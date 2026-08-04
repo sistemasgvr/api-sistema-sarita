@@ -191,11 +191,12 @@ BEGIN
         END IF;
     END IF;
 
-    -- Custodia en taller: EN_MANTENIMIENTO. No se borra id_cliente_ubicacion
-    -- (sirve para devolver al cliente al finalizar el servicio).
+    -- Custodia en taller: EN_MANTENIMIENTO. Contenido: vacío (purga / PH / reparación).
+    -- No se borra id_cliente_ubicacion (sirve para devolver al cliente al finalizar).
     UPDATE bal_balon
     SET
         id_estado_balon = v_id_estado_balon_mantenimiento,
+        id_estado_contenido = COALESCE(bal_id_estado_contenido('VACIO'), id_estado_contenido),
         id_cliente_ubicacion = CASE
             WHEN v_es_servicio_cliente THEN COALESCE(id_cliente_ubicacion, v_id_cliente_mov)
             ELSE id_cliente_ubicacion

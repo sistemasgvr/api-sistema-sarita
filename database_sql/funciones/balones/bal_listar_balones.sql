@@ -1,5 +1,6 @@
 DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN);
 DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR);
+DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER);
 
 CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_busqueda VARCHAR DEFAULT '',
@@ -15,7 +16,8 @@ CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_id_cliente_relacionado INTEGER DEFAULT NULL,
     p_solo_bajas BOOLEAN DEFAULT NULL,
     p_familia_gas VARCHAR DEFAULT NULL,
-    p_id_propietario INTEGER DEFAULT NULL
+    p_id_propietario INTEGER DEFAULT NULL,
+    p_id_estado_contenido INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -43,6 +45,7 @@ BEGIN
       AND (p_id_tipo_balon IS NULL OR b.id_tipo_balon = p_id_tipo_balon)
       AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
       AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
+      AND (p_id_estado_contenido IS NULL OR b.id_estado_contenido = p_id_estado_contenido)
       AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
       AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
       AND (p_id_propietario IS NULL OR b.id_propietario = p_id_propietario)
@@ -145,6 +148,8 @@ BEGIN
             pg.nombre AS nombre_producto_gas,
             b.id_estado_balon,
             eb.nombre AS nombre_estado_balon,
+            b.id_estado_contenido,
+            ec.nombre AS nombre_estado_contenido,
             b.id_marca_cilindro,
             mc.nombre AS nombre_marca_cilindro,
             b.id_organo_inspector,
@@ -202,6 +207,7 @@ BEGIN
         LEFT JOIN gen_almacen a ON b.id_almacen = a.id
         LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
         LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
+        LEFT JOIN gen_lista_opciones ec ON b.id_estado_contenido = ec.id
         LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
         LEFT JOIN gen_lista_opciones oi ON b.id_organo_inspector = oi.id
         LEFT JOIN gen_lista_opciones prop ON b.id_propietario = prop.id
@@ -212,6 +218,7 @@ BEGIN
           AND (p_id_tipo_balon IS NULL OR b.id_tipo_balon = p_id_tipo_balon)
           AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
           AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
+          AND (p_id_estado_contenido IS NULL OR b.id_estado_contenido = p_id_estado_contenido)
           AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
           AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
           AND (p_id_propietario IS NULL OR b.id_propietario = p_id_propietario)

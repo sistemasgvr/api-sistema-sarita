@@ -130,12 +130,13 @@ BEGIN
         END IF;
     END IF;
 
-    -- Estado físico del cilindro: siempre al devolver (no depende del movimiento).
+    -- Custodia: vuelve a almacén. Contenido: se asume vacío (envase usado que regresa).
     UPDATE bal_balon
     SET
         id_cliente_ubicacion = NULL,
         id_almacen = v_id_almacen_destino,
         id_estado_balon = v_id_estado_en_almacen,
+        id_estado_contenido = COALESCE(bal_id_estado_contenido('VACIO'), id_estado_contenido),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = v_id_balon

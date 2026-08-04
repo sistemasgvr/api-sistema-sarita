@@ -39,6 +39,7 @@ export class BalonesModel {
       filtros.soloBajas ?? null,
       filtros.familiaGas ?? null,
       filtros.idPropietario ?? null,
+      filtros.idEstadoContenido ?? null,
     ]);
   }
 
@@ -74,6 +75,7 @@ export class BalonesModel {
       dto.anioFabricacion ?? null,
       dto.mesFabricacion ?? null,
       dto.idPlanta ?? null,
+      dto.idEstadoContenido ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }
@@ -107,6 +109,7 @@ export class BalonesModel {
       dto.anioFabricacion ?? null,
       dto.mesFabricacion ?? null,
       dto.idPlanta ?? null,
+      dto.idEstadoContenido ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }

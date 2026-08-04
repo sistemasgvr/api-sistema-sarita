@@ -63,6 +63,17 @@ BEGIN
     )
     RETURNING id INTO v_id;
 
+    -- Si ya llegó de planta externa, el cilindro queda recargado (lleno).
+    IF p_fecha_llegada_almacen IS NOT NULL THEN
+        UPDATE bal_balon
+        SET
+            id_producto_gas = COALESCE(p_id_producto, id_producto_gas),
+            id_estado_contenido = COALESCE(bal_id_estado_contenido('LLENO'), id_estado_contenido),
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id = p_id_balon AND estado = 1;
+    END IF;
+
     RETURN bal_obtener_movimiento_recarga(v_id);
 END;
 $function$;

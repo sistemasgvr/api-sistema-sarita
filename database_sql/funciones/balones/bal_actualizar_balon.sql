@@ -1,3 +1,9 @@
+DROP FUNCTION IF EXISTS bal_actualizar_balon(
+    INTEGER, VARCHAR, VARCHAR, INTEGER, DATE, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER,
+    INTEGER, INTEGER, INTEGER, DATE, INTEGER, DATE, DATE, VARCHAR, NUMERIC, VARCHAR,
+    VARCHAR, INTEGER, INTEGER, BOOLEAN, SMALLINT, SMALLINT, INTEGER, INTEGER
+);
+
 CREATE OR REPLACE FUNCTION bal_actualizar_balon(
     p_id INTEGER,
     p_codigo_balon VARCHAR DEFAULT NULL,
@@ -26,6 +32,7 @@ CREATE OR REPLACE FUNCTION bal_actualizar_balon(
     p_anio_fabricacion SMALLINT DEFAULT NULL,
     p_mes_fabricacion SMALLINT DEFAULT NULL,
     p_id_planta INTEGER DEFAULT NULL,
+    p_id_estado_contenido INTEGER DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -194,6 +201,7 @@ BEGIN
         id_tipo_balon = COALESCE(p_id_tipo_balon, id_tipo_balon),
         id_producto_gas = COALESCE(p_id_producto_gas, id_producto_gas),
         id_estado_balon = COALESCE(p_id_estado_balon, id_estado_balon),
+        id_estado_contenido = COALESCE(p_id_estado_contenido, id_estado_contenido),
         id_planta = COALESCE(p_id_planta, id_planta),
         fecha_ultima_prueba_hidrostatica = COALESCE(v_fecha_ultima_ph, fecha_ultima_prueba_hidrostatica),
         vigencia_prueba_hidrostatica_anios = COALESCE(v_vigencia_ph, vigencia_prueba_hidrostatica_anios),

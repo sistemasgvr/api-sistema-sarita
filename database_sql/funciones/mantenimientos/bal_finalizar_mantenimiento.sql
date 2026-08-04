@@ -174,12 +174,13 @@ BEGIN
             END IF;
         END IF;
 
-        -- Estado del cilindro siempre se actualiza al finalizar (no depende del movimiento).
+        -- Custodia al cliente. Contenido: vacío tras mantenimiento (sin recarga automática).
         UPDATE bal_balon
         SET
             id_almacen = NULL,
             id_cliente_ubicacion = v_id_cliente_destino,
             id_estado_balon = v_id_estado_destino,
+            id_estado_contenido = COALESCE(bal_id_estado_contenido('VACIO'), id_estado_contenido),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_balon
@@ -255,12 +256,13 @@ BEGIN
             END IF;
         END IF;
 
-        -- Estado del cilindro siempre se actualiza al finalizar (no depende del movimiento).
+        -- Reingreso a almacén vacío (tras PH/reparación no se asume recarga).
         UPDATE bal_balon
         SET
             id_cliente_ubicacion = NULL,
             id_almacen = v_id_almacen_destino,
             id_estado_balon = v_id_estado_destino,
+            id_estado_contenido = COALESCE(bal_id_estado_contenido('VACIO'), id_estado_contenido),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_balon

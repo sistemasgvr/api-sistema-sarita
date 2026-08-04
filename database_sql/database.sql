@@ -762,8 +762,10 @@ CREATE TABLE bal_balon (
     -- Gas / producto actual en el cilindro
     id_tipo_balon         INT REFERENCES bal_tipo_balon(id),
     id_producto_gas       INT REFERENCES pro_producto(id),
-    -- Estado actual del balón
+    -- Estado actual del balón (ubicación / custodia)
     id_estado_balon       INT REFERENCES gen_lista_opciones(id),
+    -- Contenido físico (lleno / vacío); lista EstadoContenidoBalon — ortogonal a id_estado_balon
+    id_estado_contenido   INT REFERENCES gen_lista_opciones(id),
     -- Prueba hidrostática (snapshot vigente)
     fecha_ultima_prueba_hidrostatica   DATE,
     vigencia_prueba_hidrostatica_anios INT DEFAULT 5,
@@ -1584,6 +1586,7 @@ CREATE INDEX idx_bal_balon_libro ON bal_balon(libro_cilindro, pagina_libro);
 CREATE INDEX idx_bal_balon_cliente_ubic ON bal_balon(id_cliente_ubicacion);
 CREATE INDEX idx_bal_balon_ph_vence ON bal_balon(fecha_proxima_prueba_hidrostatica);
 CREATE INDEX idx_bal_balon_estado ON bal_balon(id_estado_balon);
+CREATE INDEX idx_bal_balon_estado_contenido ON bal_balon(id_estado_contenido);
 CREATE INDEX idx_bal_balon_cliente ON bal_balon(id_cliente_propietario);
 CREATE INDEX idx_bal_balon_marca ON bal_balon(id_marca_cilindro);
 CREATE INDEX idx_bal_balon_anio_fabricacion ON bal_balon(anio_fabricacion);

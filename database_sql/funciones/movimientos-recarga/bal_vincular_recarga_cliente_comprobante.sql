@@ -186,6 +186,7 @@ BEGIN
         id_producto_gas = p_id_producto,
         id_cliente_ubicacion = p_id_cliente,
         presion_actual = NULL,
+        id_estado_contenido = COALESCE(bal_id_estado_contenido('LLENO'), id_estado_contenido),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id_balon AND estado = 1;

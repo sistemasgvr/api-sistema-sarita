@@ -23,6 +23,10 @@ CREATE OR REPLACE FUNCTION bal_actualizar_movimiento_recarga(
 RETURNS JSON
 LANGUAGE plpgsql
 AS $function$
+DECLARE
+    v_id_balon INTEGER;
+    v_fecha_llegada DATE;
+    v_id_producto INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -48,10 +52,23 @@ BEGIN
         id_almacen = COALESCE(p_id_almacen, id_almacen),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
-    WHERE id = p_id AND estado = 1;
+    WHERE id = p_id AND estado = 1
+    RETURNING id_balon, fecha_llegada_almacen, id_producto
+    INTO v_id_balon, v_fecha_llegada, v_id_producto;
 
     IF NOT FOUND THEN
         RETURN json_build_object('registro', NULL);
+    END IF;
+
+    -- Al registrar llegada desde planta externa, marcar cilindro como lleno.
+    IF v_fecha_llegada IS NOT NULL AND v_id_balon IS NOT NULL THEN
+        UPDATE bal_balon
+        SET
+            id_producto_gas = COALESCE(v_id_producto, id_producto_gas),
+            id_estado_contenido = COALESCE(bal_id_estado_contenido('LLENO'), id_estado_contenido),
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id = v_id_balon AND estado = 1;
     END IF;
 
     RETURN bal_obtener_movimiento_recarga(p_id);
