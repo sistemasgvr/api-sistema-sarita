@@ -18,6 +18,20 @@ function toOptionalBoolean(value: unknown) {
   return undefined;
 }
 
+export class FiltroStockGasDto extends FiltroPaginacionDto {
+  @ApiPropertyOptional({ description: 'Filtra por almacén del cilindro empresa' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idAlmacen?: number;
+
+  @ApiPropertyOptional({ description: 'Filtra por producto gas' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idProductoGas?: number;
+}
+
 export class FiltroBalonesDto extends FiltroPaginacionDto {
   @ApiPropertyOptional()
   @Type(() => Number)

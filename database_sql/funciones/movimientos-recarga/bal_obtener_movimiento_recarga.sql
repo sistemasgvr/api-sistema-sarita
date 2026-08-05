@@ -14,6 +14,9 @@ BEGIN
             mr.fecha_salida_almacen,
             mr.id_balon,
             b.codigo_balon,
+            mr.id_balon_origen,
+            bo.codigo_balon AS codigo_balon_origen,
+            mr.id_comprobante_compra,
             mr.id_cliente,
             cli.razon_social AS nombre_cliente,
             cli.numero_documento AS documento_cliente,
@@ -50,6 +53,7 @@ BEGIN
             um2.nombre AS nombre_usuario_modificacion
         FROM bal_movimiento_recarga mr
         INNER JOIN bal_balon b ON mr.id_balon = b.id
+        LEFT JOIN bal_balon bo ON mr.id_balon_origen = bo.id
         LEFT JOIN cli_clientes cli ON mr.id_cliente = cli.id
         LEFT JOIN gen_lista_opciones tr ON mr.id_tipo_recarga = tr.id
         LEFT JOIN pro_producto p ON mr.id_producto = p.id

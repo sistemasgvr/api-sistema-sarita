@@ -150,6 +150,39 @@ export class CreateMovimientosRecargaDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   idAlmacen?: number;
+
+  @ApiPropertyOptional({
+    description: 'Vínculo opcional a comprobante de compra (retorno planta)',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idComprobanteCompra?: number;
+}
+
+export class FiltroOrigenRecargaDto {
+  @ApiProperty({ description: 'Producto gas a surtir' })
+  @Type(() => Number)
+  @IsNumber()
+  idProductoGas!: number;
+
+  @ApiPropertyOptional({ description: 'Capacidad mínima requerida del origen' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  capacidad?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idAlmacen?: number;
+
+  @ApiPropertyOptional({ example: 50, default: 50 })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  limite?: number;
 }
 
 export class VincularRecargaClienteComprobanteDto extends AuditoriaDto {
@@ -190,6 +223,11 @@ export class VincularRecargaClienteComprobanteDto extends AuditoriaDto {
   @IsOptional()
   @IsString()
   observacion?: string;
+
+  @ApiProperty({ description: 'Balón EMPRESA LLENO que surte la recarga' })
+  @Type(() => Number)
+  @IsNumber()
+  idBalonOrigen!: number;
 }
 
 export class CreateRecargaClienteDto extends AuditoriaDto {
@@ -254,6 +292,11 @@ export class CreateRecargaClienteDto extends AuditoriaDto {
   @IsOptional()
   @IsString()
   observacion?: string;
+
+  @ApiProperty({ description: 'Balón EMPRESA LLENO que surte la recarga' })
+  @Type(() => Number)
+  @IsNumber()
+  idBalonOrigen!: number;
 }
 
 export class UpdateMovimientosRecargaDto extends AuditoriaDto {
@@ -360,4 +403,12 @@ export class UpdateMovimientosRecargaDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   idAlmacen?: number;
+
+  @ApiPropertyOptional({
+    description: 'Vínculo opcional a comprobante de compra (retorno planta)',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idComprobanteCompra?: number;
 }

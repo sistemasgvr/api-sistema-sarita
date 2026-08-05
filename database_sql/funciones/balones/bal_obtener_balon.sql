@@ -59,6 +59,7 @@ BEGIN
             b.mes_fabricacion,
             b.numero_recepcion,
             b.presion_actual,
+            b.capacidad_restante,
             b.observacion,
             b.estado,
             b.fecha_creacion,

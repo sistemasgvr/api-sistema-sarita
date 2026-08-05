@@ -18,12 +18,14 @@ import {
   FiltroBalonesDto,
   FiltroEstadoHistorialDto,
   FiltroPhHistorialDto,
+  FiltroStockGasDto,
   RechazarBajaBalonDto,
   RegistrarPhHistorialDto,
   RestaurarBalonDto,
   UpdateBalonesDto,
 } from '../dto/balones.dto';
 import { BalonesModel } from '../models/balones.model';
+import { ResponseHelper } from '../../../common/helpers/response.helper';
 
 @Injectable()
 export class BalonesLogic {
@@ -37,6 +39,19 @@ export class BalonesLogic {
   async listar(filtros: FiltroBalonesDto) {
     const result = await this.model.listar(filtros);
     return mapListResult(result, filtros);
+  }
+
+  async listarStockGas(filtros: FiltroStockGasDto) {
+    const result = await this.model.listarStockGas(filtros);
+    const pagina = filtros.pagina ?? 1;
+    const limite = filtros.limite ?? 10;
+
+    return ResponseHelper.paginated(result.registros ?? [], {
+      pagina,
+      limite,
+      total: Number(result.total ?? 0),
+      resumen: (result.resumen ?? null) as Record<string, unknown> | null,
+    });
   }
 
   async obtenerPorId(id: number) {

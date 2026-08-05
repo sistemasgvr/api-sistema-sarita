@@ -22,6 +22,7 @@ import {
   FiltroBalonesDto,
   FiltroEstadoHistorialDto,
   FiltroPhHistorialDto,
+  FiltroStockGasDto,
   RechazarBajaBalonDto,
   RegistrarPhHistorialDto,
   RestaurarBalonDto,
@@ -39,6 +40,16 @@ export class BalonesController {
   @ApiOperation({ summary: 'Listar' })
   listar(@Query() filtros: FiltroBalonesDto) {
     return this.logic.listar(filtros);
+  }
+
+  @Get('stock-gas')
+  @Permisos(PermisoBanderas.BALONES_LISTAR)
+  @ApiOperation({
+    summary:
+      'Stock de gas físico: suma de capacidades de cilindros EMPRESA LLENOS en almacén',
+  })
+  listarStockGas(@Query() filtros: FiltroStockGasDto) {
+    return this.logic.listarStockGas(filtros);
   }
 
   @Get('bajas/pendientes')

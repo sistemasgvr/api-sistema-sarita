@@ -13,6 +13,7 @@ import {
   FiltroBalonesDto,
   FiltroEstadoHistorialDto,
   FiltroPhHistorialDto,
+  FiltroStockGasDto,
   RechazarBajaBalonDto,
   RegistrarPhHistorialDto,
   RestaurarBalonDto,
@@ -22,6 +23,18 @@ import {
 @Injectable()
 export class BalonesModel {
   constructor(private readonly db: DatabaseService) {}
+
+  listarStockGas(filtros: FiltroStockGasDto) {
+    return this.db.callFunctionJson<
+      AuthListResult & { resumen?: Record<string, unknown> | null }
+    >('bal_listar_stock_gas', [
+      filtros.buscar ?? '',
+      filtros.limite ?? 10,
+      filtros.offset,
+      filtros.idAlmacen ?? null,
+      filtros.idProductoGas ?? null,
+    ]);
+  }
 
   listar(filtros: FiltroBalonesDto) {
     return this.db.callFunctionJson<AuthListResult>('bal_listar_balones', [

@@ -18,6 +18,7 @@ import {
   CreateMovimientosRecargaDto,
   CreateRecargaClienteDto,
   FiltroMovimientosRecargaDto,
+  FiltroOrigenRecargaDto,
   UpdateMovimientosRecargaDto,
   VincularRecargaClienteComprobanteDto,
 } from '../dto/movimientos-recarga.dto';
@@ -33,6 +34,24 @@ export class MovimientosRecargaController {
   @ApiOperation({ summary: 'Listar' })
   listar(@Query() filtros: FiltroMovimientosRecargaDto) {
     return this.logic.listar(filtros);
+  }
+
+  @Get('origenes-recarga')
+  @Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_LISTAR)
+  @ApiOperation({
+    summary:
+      'Lista balones EMPRESA LLENOS candidatos a origen de recarga (mismo gas, residual suficiente)',
+  })
+  listarOrigenes(@Query() filtros: FiltroOrigenRecargaDto) {
+    return this.logic.listarOrigenes(filtros);
+  }
+
+  @Get('sugerir-origen')
+  @Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_LISTAR)
+  @ApiOperation({ summary: 'Sugiere balón empresa origen (FIFO)' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  sugerirOrigen(@Query() filtros: FiltroOrigenRecargaDto) {
+    return this.logic.sugerirOrigen(filtros);
   }
 
   @Post('recarga-cliente')

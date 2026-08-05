@@ -9,6 +9,7 @@ import {
   CreateMovimientosRecargaDto,
   CreateRecargaClienteDto,
   FiltroMovimientosRecargaDto,
+  FiltroOrigenRecargaDto,
   UpdateMovimientosRecargaDto,
   VincularRecargaClienteComprobanteDto,
 } from '../dto/movimientos-recarga.dto';
@@ -26,6 +27,24 @@ export class MovimientosRecargaModel {
       filtros.idAlmacen ?? null,
       filtros.fechaDesde ?? null,
       filtros.fechaHasta ?? null,
+    ]);
+  }
+
+  listarOrigenes(filtros: FiltroOrigenRecargaDto) {
+    return this.db.callFunctionJson<AuthListResult>('bal_listar_balones_origen_recarga', [
+      filtros.idProductoGas,
+      filtros.capacidad ?? null,
+      filtros.idAlmacen ?? null,
+      filtros.limite ?? 50,
+      0,
+    ]);
+  }
+
+  sugerirOrigen(filtros: FiltroOrigenRecargaDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_sugerir_balon_origen_recarga', [
+      filtros.idProductoGas,
+      filtros.capacidad ?? null,
+      filtros.idAlmacen ?? null,
     ]);
   }
 
@@ -54,6 +73,7 @@ export class MovimientosRecargaModel {
       dto.idProveedor ?? null,
       dto.observacion ?? null,
       dto.idAlmacen ?? null,
+      dto.idComprobanteCompra ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }
@@ -71,6 +91,7 @@ export class MovimientosRecargaModel {
       dto.idMedioPago ?? null,
       dto.idAlmacen ?? null,
       dto.observacion ?? null,
+      dto.idBalonOrigen,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }
@@ -86,6 +107,7 @@ export class MovimientosRecargaModel {
         dto.capacidad ?? null,
         dto.idAlmacen ?? null,
         dto.observacion ?? null,
+        dto.idBalonOrigen,
         dto.idUsuarioAuditoria ?? null,
       ],
     );
@@ -112,6 +134,7 @@ export class MovimientosRecargaModel {
       dto.idProveedor ?? null,
       dto.observacion ?? null,
       dto.idAlmacen ?? null,
+      dto.idComprobanteCompra ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }

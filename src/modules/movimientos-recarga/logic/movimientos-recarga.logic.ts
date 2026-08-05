@@ -1,13 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   mapDeleteResult,
   mapListResult,
   mapSingleResult,
 } from '../../../common/helpers/auth-response.helper';
+import { ResponseHelper } from '../../../common/helpers/response.helper';
 import {
   CreateMovimientosRecargaDto,
   CreateRecargaClienteDto,
   FiltroMovimientosRecargaDto,
+  FiltroOrigenRecargaDto,
   UpdateMovimientosRecargaDto,
   VincularRecargaClienteComprobanteDto,
 } from '../dto/movimientos-recarga.dto';
@@ -20,6 +22,31 @@ export class MovimientosRecargaLogic {
   async listar(filtros: FiltroMovimientosRecargaDto) {
     const result = await this.model.listar(filtros);
     return mapListResult(result, filtros);
+  }
+
+  async listarOrigenes(filtros: FiltroOrigenRecargaDto) {
+    const result = (await this.model.listarOrigenes(filtros)) as {
+      registros?: unknown[];
+      total?: number;
+      error?: string;
+    };
+    if (result.error) {
+      throw new BadRequestException(result.error);
+    }
+    return ResponseHelper.paginated(result.registros ?? [], {
+      pagina: 1,
+      limite: filtros.limite ?? 50,
+      total: Number(result.total ?? 0),
+    });
+  }
+
+  async sugerirOrigen(filtros: FiltroOrigenRecargaDto) {
+    const result = await this.model.sugerirOrigen(filtros);
+    return mapSingleResult(
+      result,
+      result.error ??
+        'No hay balón empresa LLENO del mismo gas con capacidad suficiente en almacén',
+    );
   }
 
   async obtenerPorId(id: number) {

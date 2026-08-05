@@ -6,6 +6,7 @@ CREATE OR REPLACE FUNCTION bal_vincular_recarga_cliente_comprobante(
     p_capacidad NUMERIC DEFAULT NULL,
     p_id_almacen INTEGER DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
+    p_id_balon_origen INTEGER DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -20,7 +21,10 @@ DECLARE
     v_serie_comprobante VARCHAR;
     v_numero_comprobante VARCHAR;
     v_capacidad NUMERIC;
+    v_capacidad_destino NUMERIC;
     v_recarga JSON;
+    v_consumo JSON;
+    v_origen_ok BOOLEAN;
 BEGIN
     SET TIME ZONE 'America/Lima';
     v_fecha := CURRENT_DATE;
@@ -39,6 +43,24 @@ BEGIN
 
     IF p_id_producto IS NULL THEN
         RETURN json_build_object('error', 'El producto (gas) es obligatorio', 'registro', NULL);
+    END IF;
+
+    IF p_id_balon_origen IS NULL THEN
+        RETURN json_build_object(
+            'error',
+            'Debe indicar el balón empresa origen de la recarga',
+            'registro',
+            NULL
+        );
+    END IF;
+
+    IF p_id_balon_origen = p_id_balon THEN
+        RETURN json_build_object(
+            'error',
+            'El balón origen no puede ser el mismo que el destino',
+            'registro',
+            NULL
+        );
     END IF;
 
     IF NOT EXISTS (
@@ -80,6 +102,49 @@ BEGIN
         );
     END IF;
 
+    SELECT
+        COALESCE(tb.capacidad, p_capacidad, 0)
+    INTO v_capacidad_destino
+    FROM bal_balon b
+    LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+    WHERE b.id = p_id_balon;
+
+    v_capacidad := COALESCE(NULLIF(p_capacidad, 0), v_capacidad_destino, 0);
+
+    IF v_capacidad <= 0 THEN
+        RETURN json_build_object(
+            'error',
+            'No se pudo determinar la capacidad a recargar',
+            'registro',
+            NULL
+        );
+    END IF;
+
+    SELECT EXISTS (
+        SELECT 1
+        FROM bal_balon b
+        LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
+        LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+        LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
+        WHERE b.id = p_id_balon_origen
+          AND b.estado = 1
+          AND COALESCE(prop.nombre, '') = 'EMPRESA'
+          AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
+          AND COALESCE(ec.nombre, '') = 'LLENO'
+          AND b.id_producto_gas = p_id_producto
+          AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen OR b.id_almacen IS NULL)
+          AND bal_capacidad_disponible_balon(b.id) >= v_capacidad
+    ) INTO v_origen_ok;
+
+    IF NOT COALESCE(v_origen_ok, FALSE) THEN
+        RETURN json_build_object(
+            'error',
+            'No hay balón empresa LLENO válido del mismo gas con capacidad suficiente (origen inválido o sin stock físico)',
+            'registro',
+            NULL
+        );
+    END IF;
+
     SELECT lo.id INTO v_id_tipo_recarga
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id
@@ -110,19 +175,20 @@ BEGIN
     FROM ven_comprobante
     WHERE id = p_id_comprobante;
 
-    v_capacidad := COALESCE(
-        p_capacidad,
-        (
-            SELECT t.capacidad
-            FROM bal_balon b
-            LEFT JOIN bal_tipo_balon t ON t.id = b.id_tipo_balon
-            WHERE b.id = p_id_balon
-        )
+    v_consumo := bal_consumir_capacidad_balon_origen(
+        p_id_balon_origen,
+        v_capacidad,
+        p_id_usuario_auditoria
     );
+
+    IF v_consumo->>'error' IS NOT NULL THEN
+        RETURN json_build_object('error', v_consumo->>'error', 'registro', NULL);
+    END IF;
 
     INSERT INTO bal_movimiento_recarga (
         fecha_salida_almacen,
         id_balon,
+        id_balon_origen,
         id_cliente,
         id_tipo_recarga,
         id_producto,
@@ -139,6 +205,7 @@ BEGIN
     VALUES (
         v_fecha,
         p_id_balon,
+        p_id_balon_origen,
         p_id_cliente,
         v_id_tipo_recarga,
         p_id_producto,
@@ -187,6 +254,7 @@ BEGIN
         id_cliente_ubicacion = p_id_cliente,
         presion_actual = NULL,
         id_estado_contenido = COALESCE(bal_id_estado_contenido('LLENO'), id_estado_contenido),
+        capacidad_restante = COALESCE(v_capacidad_destino, v_capacidad),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id_balon AND estado = 1;

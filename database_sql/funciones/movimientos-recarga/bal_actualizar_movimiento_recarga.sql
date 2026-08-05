@@ -18,6 +18,7 @@ CREATE OR REPLACE FUNCTION bal_actualizar_movimiento_recarga(
     p_id_proveedor INTEGER DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
     p_id_almacen INTEGER DEFAULT NULL,
+    p_id_comprobante_compra INTEGER DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -27,8 +28,20 @@ DECLARE
     v_id_balon INTEGER;
     v_fecha_llegada DATE;
     v_id_producto INTEGER;
+    v_capacidad_tipo NUMERIC;
 BEGIN
     SET TIME ZONE 'America/Lima';
+
+    IF p_id_comprobante_compra IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM com_comprobante_compra WHERE id = p_id_comprobante_compra AND estado = 1
+    ) THEN
+        RETURN json_build_object(
+            'error',
+            'El comprobante de compra indicado no existe o está inactivo',
+            'registro',
+            NULL
+        );
+    END IF;
 
     UPDATE bal_movimiento_recarga
     SET
@@ -43,6 +56,7 @@ BEGIN
         serie_factura = COALESCE(p_serie_factura, serie_factura),
         numero_factura = COALESCE(p_numero_factura, numero_factura),
         id_comprobante = COALESCE(p_id_comprobante, id_comprobante),
+        id_comprobante_compra = COALESCE(p_id_comprobante_compra, id_comprobante_compra),
         fecha_llegada_almacen = COALESCE(p_fecha_llegada_almacen, fecha_llegada_almacen),
         lote = COALESCE(p_lote, lote),
         fecha_vencimiento_lote = COALESCE(p_fecha_vencimiento_lote, fecha_vencimiento_lote),
@@ -60,12 +74,18 @@ BEGIN
         RETURN json_build_object('registro', NULL);
     END IF;
 
-    -- Al registrar llegada desde planta externa, marcar cilindro como lleno.
     IF v_fecha_llegada IS NOT NULL AND v_id_balon IS NOT NULL THEN
+        SELECT COALESCE(tb.capacidad, p_capacidad, 0)
+        INTO v_capacidad_tipo
+        FROM bal_balon b
+        LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+        WHERE b.id = v_id_balon;
+
         UPDATE bal_balon
         SET
             id_producto_gas = COALESCE(v_id_producto, id_producto_gas),
             id_estado_contenido = COALESCE(bal_id_estado_contenido('LLENO'), id_estado_contenido),
+            capacidad_restante = COALESCE(NULLIF(v_capacidad_tipo, 0), p_capacidad, capacidad_restante),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_balon AND estado = 1;
