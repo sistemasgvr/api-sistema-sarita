@@ -1,6 +1,9 @@
 DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN);
 DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR);
 DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER);
+DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER, INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER, INTEGER, INTEGER, BOOLEAN);
 
 CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_busqueda VARCHAR DEFAULT '',
@@ -17,7 +20,9 @@ CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_solo_bajas BOOLEAN DEFAULT NULL,
     p_familia_gas VARCHAR DEFAULT NULL,
     p_id_propietario INTEGER DEFAULT NULL,
-    p_id_estado_contenido INTEGER DEFAULT NULL
+    p_id_estado_contenido INTEGER DEFAULT NULL,
+    p_id_producto_gas INTEGER DEFAULT NULL,
+    p_solo_llenos_fuera BOOLEAN DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -56,6 +61,7 @@ BEGIN
       AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
       AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
       AND (p_id_estado_contenido IS NULL OR b.id_estado_contenido = p_id_estado_contenido)
+      AND (p_id_producto_gas IS NULL OR b.id_producto_gas = p_id_producto_gas)
       AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
       AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
       AND (p_id_propietario IS NULL OR b.id_propietario = p_id_propietario)
@@ -78,6 +84,14 @@ BEGIN
           OR (
               p_solo_bajas = FALSE
               AND (eb.nombre IS NULL OR eb.nombre NOT IN ('DADO_DE_BAJA', 'ROBO'))
+          )
+      )
+      AND (
+          p_solo_llenos_fuera IS NOT TRUE
+          OR (
+              COALESCE(ec.nombre, '') = 'LLENO'
+              AND COALESCE(eb.nombre, '') IS DISTINCT FROM 'EN_ALMACEN'
+              AND COALESCE(eb.nombre, '') NOT IN ('DADO_DE_BAJA', 'ROBO')
           )
       )
       AND (
@@ -115,6 +129,8 @@ BEGIN
           OR gen_texto_coincide(COALESCE(b.numero_serie, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(b.libro_cilindro, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(tb.nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(pg.nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(pg.codigo, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(a.nombre, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(mc.nombre, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(cu.razon_social, ''), p_busqueda)
@@ -230,6 +246,7 @@ BEGIN
           AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
           AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
           AND (p_id_estado_contenido IS NULL OR b.id_estado_contenido = p_id_estado_contenido)
+          AND (p_id_producto_gas IS NULL OR b.id_producto_gas = p_id_producto_gas)
           AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
           AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
           AND (p_id_propietario IS NULL OR b.id_propietario = p_id_propietario)
@@ -252,6 +269,14 @@ BEGIN
               OR (
                   p_solo_bajas = FALSE
                   AND (eb.nombre IS NULL OR eb.nombre NOT IN ('DADO_DE_BAJA', 'ROBO'))
+              )
+          )
+          AND (
+              p_solo_llenos_fuera IS NOT TRUE
+              OR (
+                  COALESCE(ec.nombre, '') = 'LLENO'
+                  AND COALESCE(eb.nombre, '') IS DISTINCT FROM 'EN_ALMACEN'
+                  AND COALESCE(eb.nombre, '') NOT IN ('DADO_DE_BAJA', 'ROBO')
               )
           )
           AND (
@@ -289,6 +314,8 @@ BEGIN
               OR gen_texto_coincide(COALESCE(b.numero_serie, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(b.libro_cilindro, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(tb.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(pg.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(pg.codigo, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(a.nombre, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(mc.nombre, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(cu.razon_social, ''), p_busqueda)

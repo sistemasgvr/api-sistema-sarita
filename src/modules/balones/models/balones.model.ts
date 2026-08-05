@@ -55,6 +55,8 @@ export class BalonesModel {
       filtros.familiaGas ?? null,
       filtros.idPropietario ?? null,
       filtros.idEstadoContenido ?? null,
+      filtros.idProductoGas ?? null,
+      filtros.soloLlenosFuera ?? null,
     ]);
   }
 
