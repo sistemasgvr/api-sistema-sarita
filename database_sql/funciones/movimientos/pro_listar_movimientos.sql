@@ -14,10 +14,19 @@ AS $function$
 DECLARE
     v_registros JSON;
     v_total BIGINT;
+    v_resumen JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT COUNT(*) INTO v_total
+    SELECT
+        COUNT(*),
+        json_build_object(
+            'total', COUNT(*),
+            'ingresos', COUNT(*) FILTER (WHERE tm.nombre ILIKE '%INGRESO%'),
+            'salidas', COUNT(*) FILTER (WHERE tm.nombre ILIKE '%SALIDA%'),
+            'ajustes', COUNT(*) FILTER (WHERE tm.nombre ILIKE '%AJUSTE%')
+        )
+    INTO v_total, v_resumen
     FROM pro_movimientos m
     INNER JOIN pro_producto p ON m.id_producto = p.id
     INNER JOIN gen_almacen a ON m.id_almacen = a.id
@@ -119,6 +128,10 @@ BEGIN
         OFFSET p_offset
     ) t;
 
-    RETURN json_build_object('registros', v_registros, 'total', v_total);
+    RETURN json_build_object(
+        'registros', v_registros,
+        'total', v_total,
+        'resumen', v_resumen
+    );
 END;
 $function$;

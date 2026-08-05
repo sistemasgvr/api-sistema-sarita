@@ -26,18 +26,28 @@ DECLARE
     v_registros JSON;
     v_total BIGINT;
     v_alertas JSON;
+    v_resumen JSON;
     v_familia_gas VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
     v_familia_gas := NULLIF(TRIM(COALESCE(p_familia_gas, '')), '');
 
-    SELECT COUNT(*) INTO v_total
+    SELECT
+        COUNT(*),
+        json_build_object(
+            'total', COUNT(*),
+            'en_almacen', COUNT(*) FILTER (WHERE eb.nombre = 'EN_ALMACEN'),
+            'llenos', COUNT(*) FILTER (WHERE ec.nombre = 'LLENO'),
+            'vacios', COUNT(*) FILTER (WHERE ec.nombre = 'VACIO')
+        )
+    INTO v_total, v_resumen
     FROM bal_balon b
     LEFT JOIN bal_tipo_balon tb ON b.id_tipo_balon = tb.id
     LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
     LEFT JOIN gen_almacen a ON b.id_almacen = a.id
     LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
+    LEFT JOIN gen_lista_opciones ec ON b.id_estado_contenido = ec.id
     LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
     LEFT JOIN cli_clientes cu ON b.id_cliente_ubicacion = cu.id
     LEFT JOIN cli_clientes cp ON b.id_cliente_propietario = cp.id
@@ -317,7 +327,8 @@ BEGIN
     RETURN json_build_object(
         'registros', v_registros,
         'total', v_total,
-        'alertas', v_alertas
+        'alertas', v_alertas,
+        'resumen', v_resumen
     );
 END;
 $function$;

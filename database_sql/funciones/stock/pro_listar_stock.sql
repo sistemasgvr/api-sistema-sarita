@@ -15,12 +15,21 @@ AS $function$
 DECLARE
     v_registros JSON;
     v_total BIGINT;
+    v_resumen JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
     -- Stock de productos = accesorios / artículos físicos.
     -- Los gases se gestionan en Balones → Stock de gas (balones empresa LLENO).
-    SELECT COUNT(*) INTO v_total
+    SELECT
+        COUNT(*),
+        json_build_object(
+            'total_items', COUNT(*),
+            'bajo_minimo', COUNT(*) FILTER (WHERE s.stock <= s.stock_minimo),
+            'ok', COUNT(*) FILTER (WHERE s.stock > s.stock_minimo),
+            'stock_total', COALESCE(SUM(s.stock), 0)
+        )
+    INTO v_total, v_resumen
     FROM pro_stock s
     INNER JOIN gen_almacen a ON s.id_almacen = a.id
     INNER JOIN pro_producto p ON s.id_producto = p.id
@@ -99,6 +108,10 @@ BEGIN
         OFFSET p_offset
     ) t;
 
-    RETURN json_build_object('registros', v_registros, 'total', v_total);
+    RETURN json_build_object(
+        'registros', v_registros,
+        'total', v_total,
+        'resumen', v_resumen
+    );
 END;
 $function$;

@@ -37,7 +37,9 @@ export class BalonesModel {
   }
 
   listar(filtros: FiltroBalonesDto) {
-    return this.db.callFunctionJson<AuthListResult>('bal_listar_balones', [
+    return this.db.callFunctionJson<
+      AuthListResult & { alertas?: Record<string, unknown> | null }
+    >('bal_listar_balones', [
       filtros.buscar ?? '',
       filtros.limite ?? 10,
       filtros.offset,

@@ -19,10 +19,22 @@ AS $function$
 DECLARE
     v_registros JSON;
     v_total BIGINT;
+    v_resumen JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT COUNT(*) INTO v_total
+    SELECT
+        COUNT(*),
+        json_build_object(
+            'total', COUNT(*),
+            'accesorios', COUNT(*) FILTER (
+                WHERE COALESCE(p.es_gas, FALSE) = FALSE
+                  AND COALESCE(p.es_servicio, FALSE) = FALSE
+            ),
+            'gases', COUNT(*) FILTER (WHERE COALESCE(p.es_gas, FALSE) = TRUE),
+            'servicios', COUNT(*) FILTER (WHERE COALESCE(p.es_servicio, FALSE) = TRUE)
+        )
+    INTO v_total, v_resumen
     FROM pro_producto p
     LEFT JOIN pro_sub_categoria sc ON p.id_sub_categoria = sc.id
     LEFT JOIN pro_categoria c ON sc.id_categoria = c.id
@@ -138,6 +150,10 @@ BEGIN
         OFFSET p_offset
     ) t;
 
-    RETURN json_build_object('registros', v_registros, 'total', v_total);
+    RETURN json_build_object(
+        'registros', v_registros,
+        'total', v_total,
+        'resumen', v_resumen
+    );
 END;
 $function$;

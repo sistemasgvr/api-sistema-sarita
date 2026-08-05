@@ -1,6 +1,7 @@
 export interface AuthListResult<T = unknown> {
   registros: T[];
   total: number;
+  resumen?: Record<string, unknown> | null;
 }
 
 export interface AuthSingleResult<T = unknown> {
