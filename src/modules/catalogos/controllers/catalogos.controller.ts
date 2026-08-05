@@ -1,11 +1,14 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
   ParseIntPipe,
+  Post,
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { CreateListaOpcionDto } from '../dto/catalogos.dto';
 import { CatalogosLogic } from '../logic/catalogos.logic';
 
 @ApiTags('Catálogos')
@@ -17,6 +20,15 @@ export class CatalogosController {
   @ApiOperation({ summary: 'Listar opciones de una lista maestra por id_lista' })
   listarListaOpciones(@Param('idLista', ParseIntPipe) idLista: number) {
     return this.catalogosLogic.listarListaOpciones(idLista);
+  }
+
+  @Post('listas/:idLista/opciones')
+  @ApiOperation({ summary: 'Crear opción en una lista maestra (ej. unidad de medida)' })
+  crearListaOpcion(
+    @Param('idLista', ParseIntPipe) idLista: number,
+    @Body() dto: CreateListaOpcionDto,
+  ) {
+    return this.catalogosLogic.crearListaOpcion(idLista, dto);
   }
 
   @Get('ubigeo/paises')
