@@ -20,6 +20,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { memoryStorage } from 'multer';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
@@ -29,6 +30,11 @@ import {
   UpdateProductoImagenDto,
 } from '../dto/producto-imagenes.dto';
 import { ProductoImagenesLogic } from '../logic/producto-imagenes.logic';
+
+const IMAGE_UPLOAD = {
+  storage: memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+}
 
 @ApiTags('Producto - Imágenes')
 @Controller()
@@ -63,7 +69,7 @@ export class ProductoImagenesController {
       },
     },
   })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', IMAGE_UPLOAD))
   crear(
     @Param('idProducto', ParseIntPipe) idProducto: number,
     @UploadedFile() file: Express.Multer.File,
@@ -118,7 +124,7 @@ export class ProductoImagenesController {
       },
     },
   })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', IMAGE_UPLOAD))
   reemplazarArchivo(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
