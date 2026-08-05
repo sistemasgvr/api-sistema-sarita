@@ -17,7 +17,7 @@ FROM (
         ('EstadoCilindroVenta', 'Estado en venta con cilindro'),
         ('PropietarioBalon', 'Propiedad del envase: empresa, cliente o propia'),
         ('EstadoPrestamo', 'Estado del préstamo de cilindros'),
-        ('EstadoAlquiler', 'Estado del alquiler de cilindros'),
+        ('EstadoAlquiler', 'Estado del alquiler de regulador/accesorio (el cilindro se presta)'),
         ('EstadoMantenimiento', 'Estado del mantenimiento de cilindro'),
         ('MarcaCilindro', 'Marca del fabricante del cilindro'),
         ('OrganoInspectorCilindro', 'Órgano inspector de la prueba hidrostática'),
@@ -40,7 +40,7 @@ FROM (
     VALUES
         ('SALIDA_VENTA', 'Salida por venta de gas'),
         ('SALIDA_PRESTAMO', 'Salida por préstamo a cliente'),
-        ('SALIDA_ALQUILER', 'Salida por alquiler'),
+        ('SALIDA_ALQUILER', 'Salida vinculada a contrato de alquiler (legado; custodia preferible vía préstamo)'),
         ('SALIDA_MANTENIMIENTO', 'Salida a mantenimiento o taller'),
         ('ENTRADA_DEVOLUCION', 'Entrada por devolución de cliente'),
         ('ENTRADA_MANTENIMIENTO', 'Entrada por recepción/finalización de mantenimiento'),
@@ -68,7 +68,7 @@ FROM (
         ('EN_RUTA_LIMA', 'En tránsito o en Lima'),
         ('EN_MANTENIMIENTO', 'En mantenimiento o prueba hidrostática'),
         ('EN_PODER_CLIENTE', 'Cilindro propio del cliente fuera de planta'),
-        ('ALQUILADO', 'En alquiler activo'),
+        ('ALQUILADO', 'Legado: cilindro bajo contrato de alquiler (preferir PRESTADO_CLIENTE)'),
         ('DEVUELTO', 'Devuelto por cliente'),
         ('ROBO', 'Reportado como robado o extraviado'),
         ('DADO_DE_BAJA', 'Dado de baja definitiva')

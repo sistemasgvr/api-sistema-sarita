@@ -54,6 +54,15 @@ BEGIN
     LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
     WHERE p.id = p_id_producto;
 
+    IF COALESCE(v_es_gas, FALSE) THEN
+        RETURN json_build_object(
+            'error',
+            'El stock de gas no se registra aquí. Usa Balones → Stock de gas (cilindros empresa Lleno en almacén).',
+            'registro',
+            NULL
+        );
+    END IF;
+
     -- Gases (m³) pueden ser decimales aunque la U.M. esté mal catalogada como UNID.
     IF NOT COALESCE(v_es_gas, FALSE)
        AND v_nombre_unidad IN ('UNID', 'NIU', 'UND', 'UNI', 'UNIDAD', 'UNIDADES', 'PZ', 'PZA', 'PIEZA', 'PIEZAS')

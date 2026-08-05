@@ -97,7 +97,11 @@ BEGIN
         COALESCE(p_es_gas, FALSE),
         COALESCE(p_es_servicio, FALSE),
         v_es_alquilable,
-        COALESCE(p_afecta_stock, TRUE),
+        -- Gas: inventario físico en balones; no afecta pro_stock.
+        CASE
+            WHEN COALESCE(p_es_gas, FALSE) THEN FALSE
+            ELSE COALESCE(p_afecta_stock, TRUE)
+        END,
         COALESCE(p_precio, 0),
         COALESCE(p_precio_compra, 0),
         CASE WHEN v_es_alquilable THEN COALESCE(p_precio_garantia, 0) ELSE 0 END,

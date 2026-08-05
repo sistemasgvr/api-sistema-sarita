@@ -93,7 +93,10 @@ BEGIN
         es_gas = COALESCE(p_es_gas, es_gas),
         es_servicio = COALESCE(p_es_servicio, es_servicio),
         es_alquilable = v_es_alquilable,
-        afecta_stock = COALESCE(p_afecta_stock, afecta_stock),
+        afecta_stock = CASE
+            WHEN COALESCE(p_es_gas, es_gas) THEN FALSE
+            ELSE COALESCE(p_afecta_stock, afecta_stock)
+        END,
         precio = COALESCE(p_precio, precio),
         precio_compra = COALESCE(p_precio_compra, precio_compra),
         precio_garantia = CASE
