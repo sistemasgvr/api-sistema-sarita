@@ -24,7 +24,12 @@ BEGIN
                 SELECT COUNT(*)::INTEGER
                 FROM pro_sub_categoria sc
                 WHERE sc.id_categoria = c.id AND sc.estado = 1
-            ) AS total_sub_categorias
+            ) AS total_sub_categorias,
+            (
+                SELECT COALESCE(json_agg(sc.nombre ORDER BY sc.nombre ASC), '[]'::JSON)
+                FROM pro_sub_categoria sc
+                WHERE sc.id_categoria = c.id AND sc.estado = 1
+            ) AS nombres_sub_categorias
         FROM pro_categoria c
         LEFT JOIN auth_usuarios uc ON c.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON c.id_usuario_modificacion = um.id

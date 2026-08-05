@@ -14,8 +14,14 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    IF p_stock IS NOT NULL AND p_stock < 0 THEN
-        RETURN json_build_object('error', 'El stock no puede ser negativo', 'registro', NULL);
+    -- La cantidad solo cambia por movimientos de inventario.
+    IF p_stock IS NOT NULL THEN
+        RETURN json_build_object(
+            'error',
+            'La cantidad de stock solo se modifica con movimientos (ingreso, salida o ajuste). Aquí solo puedes cambiar el stock mínimo.',
+            'registro',
+            NULL
+        );
     END IF;
 
     IF p_stock_minimo IS NOT NULL AND p_stock_minimo < 0 THEN
@@ -42,7 +48,7 @@ BEGIN
     IF COALESCE(v_es_gas, FALSE) THEN
         RETURN json_build_object(
             'error',
-            'El stock de gas no se ajusta aquí. Usa Balones → Stock de gas / Libro de cilindros.',
+            'El stock de gas no se ajusta aquí. Usa Balones / Stock de gas o Libro de cilindros.',
             'registro',
             NULL
         );
@@ -51,14 +57,6 @@ BEGIN
     IF NOT COALESCE(v_es_gas, FALSE)
        AND v_nombre_unidad IN ('UNID', 'NIU', 'UND', 'UNI', 'UNIDAD', 'UNIDADES', 'PZ', 'PZA', 'PIEZA', 'PIEZAS')
     THEN
-        IF p_stock IS NOT NULL AND p_stock <> TRUNC(p_stock) THEN
-            RETURN json_build_object(
-                'error',
-                'El stock debe ser entero (unidad de medida UNID)',
-                'registro',
-                NULL
-            );
-        END IF;
         IF p_stock_minimo IS NOT NULL AND p_stock_minimo <> TRUNC(p_stock_minimo) THEN
             RETURN json_build_object(
                 'error',
@@ -71,7 +69,6 @@ BEGIN
 
     UPDATE pro_stock
     SET
-        stock = COALESCE(p_stock, stock),
         stock_minimo = COALESCE(p_stock_minimo, stock_minimo),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()

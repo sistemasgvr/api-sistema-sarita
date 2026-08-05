@@ -94,7 +94,7 @@ BEGIN
         es_servicio = COALESCE(p_es_servicio, es_servicio),
         es_alquilable = v_es_alquilable,
         afecta_stock = CASE
-            WHEN COALESCE(p_es_gas, es_gas) THEN FALSE
+            WHEN COALESCE(p_es_gas, es_gas) OR COALESCE(p_es_servicio, es_servicio) THEN FALSE
             ELSE COALESCE(p_afecta_stock, afecta_stock)
         END,
         precio = COALESCE(p_precio, precio),
@@ -107,6 +107,8 @@ BEGIN
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;
+
+    PERFORM pro_asegurar_stock_producto(p_id, p_id_usuario_auditoria);
 
     RETURN pro_obtener_producto(p_id);
 END;

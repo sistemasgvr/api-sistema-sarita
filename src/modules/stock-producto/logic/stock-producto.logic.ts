@@ -39,7 +39,7 @@ export class StockProductoLogic {
   async actualizar(id: number, dto: UpdateStockDto) {
     const result = await this.stockProductoModel.actualizar(
       id,
-      dto.stock ?? null,
+      null, // cantidad solo vía movimientos
       dto.stockMinimo ?? null,
       dto.idUsuarioAuditoria,
     );

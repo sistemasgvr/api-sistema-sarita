@@ -61,7 +61,7 @@ export class StockProductoController {
 
   @Patch(':id')
   @Permisos(PermisoBanderas.STOCK_EDITAR)
-  @ApiOperation({ summary: 'Ajustar stock o stock mínimo' })
+  @ApiOperation({ summary: 'Actualizar stock mínimo (la cantidad solo cambia por movimientos)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   actualizar(
     @Param('id', ParseIntPipe) id: number,

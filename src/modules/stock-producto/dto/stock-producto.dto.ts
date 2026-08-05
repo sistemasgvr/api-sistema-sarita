@@ -81,18 +81,9 @@ export class CreateStockDto extends AuditoriaDto {
 
 export class UpdateStockDto extends AuditoriaDto {
   @ApiPropertyOptional({
-    example: 10,
-    description: 'Entero si la U.M. es UNID/piezas; decimal permitido en MT3/KG y gases.',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  stock?: number;
-
-  @ApiPropertyOptional({
     example: 2,
-    description: 'Entero si la U.M. es UNID/piezas; decimal permitido en MT3/KG y gases.',
+    description:
+      'Solo stock mínimo de alerta. La cantidad se modifica con movimientos de inventario.',
   })
   @IsOptional()
   @Type(() => Number)

@@ -97,9 +97,9 @@ BEGIN
         COALESCE(p_es_gas, FALSE),
         COALESCE(p_es_servicio, FALSE),
         v_es_alquilable,
-        -- Gas: inventario físico en balones; no afecta pro_stock.
+        -- Gas/servicio: no usan pro_stock. Accesorio con afecta_stock arranca en 0 por almacén.
         CASE
-            WHEN COALESCE(p_es_gas, FALSE) THEN FALSE
+            WHEN COALESCE(p_es_gas, FALSE) OR COALESCE(p_es_servicio, FALSE) THEN FALSE
             ELSE COALESCE(p_afecta_stock, TRUE)
         END,
         COALESCE(p_precio, 0),
@@ -109,6 +109,8 @@ BEGIN
         p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;
+
+    PERFORM pro_asegurar_stock_producto(v_id, p_id_usuario_auditoria);
 
     RETURN pro_obtener_producto(v_id);
 END;

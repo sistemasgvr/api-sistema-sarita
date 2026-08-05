@@ -18,8 +18,13 @@ BEGIN
             s.id_producto,
             p.codigo AS codigo_producto,
             p.nombre AS nombre_producto,
+            COALESCE(p.es_gas, FALSE) AS es_gas,
             p.id_unidad_medida,
             um.nombre AS nombre_unidad_medida,
+            sc.id AS id_sub_categoria,
+            sc.nombre AS nombre_sub_categoria,
+            cat.id AS id_categoria,
+            cat.nombre AS nombre_categoria,
             s.stock,
             s.stock_minimo,
             (s.stock <= s.stock_minimo) AS bajo_minimo,
@@ -34,6 +39,8 @@ BEGIN
         INNER JOIN gen_almacen a ON s.id_almacen = a.id
         INNER JOIN gen_sucursal suc ON a.id_sucursal = suc.id
         INNER JOIN pro_producto p ON s.id_producto = p.id
+        LEFT JOIN pro_sub_categoria sc ON p.id_sub_categoria = sc.id
+        LEFT JOIN pro_categoria cat ON sc.id_categoria = cat.id
         LEFT JOIN gen_lista_opciones um ON p.id_unidad_medida = um.id
         LEFT JOIN auth_usuarios uc ON s.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um2 ON s.id_usuario_modificacion = um2.id

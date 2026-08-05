@@ -26,7 +26,12 @@ BEGIN
                 SELECT COUNT(*)::INTEGER
                 FROM pro_producto p
                 WHERE p.id_sub_categoria = sc.id AND p.estado = 1
-            ) AS total_productos
+            ) AS total_productos,
+            (
+                SELECT COALESCE(json_agg(p.nombre ORDER BY p.nombre ASC), '[]'::JSON)
+                FROM pro_producto p
+                WHERE p.id_sub_categoria = sc.id AND p.estado = 1
+            ) AS nombres_productos
         FROM pro_sub_categoria sc
         INNER JOIN pro_categoria c ON sc.id_categoria = c.id
         LEFT JOIN auth_usuarios uc ON sc.id_usuario_creacion = uc.id
