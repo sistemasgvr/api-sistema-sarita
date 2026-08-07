@@ -293,6 +293,15 @@ export const PermisoBanderas = {
   FINANZAS_CXP_EDITAR: 'finanzas.cxp.editar',
   FINANZAS_CXP_ELIMINAR: 'finanzas.cxp.eliminar',
   FINANZAS_CXP_REGISTRAR_PAGO: 'finanzas.cxp.registrar_pago',
+
+  FINANZAS_GARANTIAS_VER: 'finanzas.garantias.ver',
+  FINANZAS_GARANTIAS_CREAR: 'finanzas.garantias.crear',
+  FINANZAS_GARANTIAS_EDITAR: 'finanzas.garantias.editar',
+  FINANZAS_GARANTIAS_ELIMINAR: 'finanzas.garantias.eliminar',
+  FINANZAS_GARANTIAS_REEMBOLSAR: 'finanzas.garantias.reembolsar',
+
+  FINANZAS_EXPORTAR: 'finanzas.exportar',
+  FINANZAS_FORZAR_DUPLICADO: 'finanzas.forzar_duplicado',
 } as const;
 
 export type PermisoBandera =

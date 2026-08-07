@@ -13,7 +13,14 @@ FROM (
         ('finanzas.cxp.crear', 'Crear cuentas por pagar manuales (externas)'),
         ('finanzas.cxp.editar', 'Editar cuentas por pagar'),
         ('finanzas.cxp.eliminar', 'Eliminar cuentas por pagar'),
-        ('finanzas.cxp.registrar_pago', 'Registrar pagos (cuentas por pagar)')
+        ('finanzas.cxp.registrar_pago', 'Registrar pagos (cuentas por pagar)'),
+        ('finanzas.garantias.ver', 'Ver garantías de clientes'),
+        ('finanzas.garantias.crear', 'Registrar garantías de clientes'),
+        ('finanzas.garantias.editar', 'Editar garantías de clientes'),
+        ('finanzas.garantias.eliminar', 'Eliminar garantías de clientes'),
+        ('finanzas.garantias.reembolsar', 'Registrar reembolso de garantías'),
+        ('finanzas.exportar', 'Exportar reportes financieros a Excel'),
+        ('finanzas.forzar_duplicado', 'Registrar pagos aunque el sistema detecte posibles duplicados')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (
     SELECT 1 FROM auth_permisos p WHERE p.nombre = v.nombre
