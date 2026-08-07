@@ -2,7 +2,9 @@ CREATE OR REPLACE FUNCTION bal_devolver_prestamo_detalle(
     p_id INTEGER,
     p_fecha_devolucion DATE DEFAULT CURRENT_DATE,
     p_id_almacen_destino INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_nombre_estado_contenido VARCHAR DEFAULT 'VACIO',
+    p_observacion VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -19,6 +21,9 @@ DECLARE
     v_id_estado_en_almacen INTEGER;
     v_id_estado_detalle_devuelto INTEGER;
     v_id_estado_cerrado INTEGER;
+    v_id_estado_contenido INTEGER;
+    v_obs_actual VARCHAR(500);
+    v_obs_nueva VARCHAR(500);
     v_mov_result JSON;
     v_pendientes INTEGER;
 BEGIN
@@ -28,12 +33,14 @@ BEGIN
         pd.id_prestamo,
         pd.id_balon,
         pd.fecha_devolucion,
+        pd.observacion,
         p.id_cliente,
         p.id_almacen
     INTO
         v_id_prestamo,
         v_id_balon,
         v_fecha_devolucion,
+        v_obs_actual,
         v_id_cliente,
         v_id_almacen
     FROM bal_prestamo_detalle pd
@@ -86,6 +93,10 @@ BEGIN
         );
     END IF;
 
+    v_id_estado_contenido := bal_id_estado_contenido(
+        COALESCE(NULLIF(TRIM(p_nombre_estado_contenido), ''), 'VACIO')
+    );
+
     SELECT lo.id INTO v_id_tipo_movimiento
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id
@@ -110,10 +121,20 @@ BEGIN
     WHERE l.nombre = 'EstadoPrestamo' AND lo.nombre = 'CERRADO' AND lo.estado = 1
     LIMIT 1;
 
+    v_obs_nueva := NULLIF(TRIM(p_observacion), '');
+    IF v_obs_nueva IS NOT NULL THEN
+        IF NULLIF(TRIM(v_obs_actual), '') IS NULL THEN
+            v_obs_actual := LEFT(v_obs_nueva, 500);
+        ELSE
+            v_obs_actual := LEFT(TRIM(v_obs_actual) || ' | ' || v_obs_nueva, 500);
+        END IF;
+    END IF;
+
     UPDATE bal_prestamo_detalle
     SET
         fecha_devolucion = COALESCE(p_fecha_devolucion, CURRENT_DATE),
         id_estado = COALESCE(v_id_estado_detalle_devuelto, id_estado),
+        observacion = COALESCE(v_obs_actual, observacion),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id
@@ -141,13 +162,12 @@ BEGIN
     END IF;
 
     IF v_id_balon IS NOT NULL THEN
-        -- Custodia: vuelve a almacén. Contenido: se asume vacío al devolver.
         UPDATE bal_balon
         SET
             id_cliente_ubicacion = NULL,
             id_almacen = v_id_almacen_destino,
             id_estado_balon = v_id_estado_en_almacen,
-            id_estado_contenido = COALESCE(bal_id_estado_contenido('VACIO'), id_estado_contenido),
+            id_estado_contenido = COALESCE(v_id_estado_contenido, id_estado_contenido),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_balon

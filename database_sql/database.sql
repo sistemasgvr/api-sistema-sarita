@@ -893,6 +893,42 @@ CREATE TABLE bal_prestamo_detalle (
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
+-- Visita programada de recojo de cilindros en préstamo (distinto a devolución walk-in)
+CREATE TABLE bal_recojo (
+    id                       SERIAL PRIMARY KEY,
+    id_cliente               INT NOT NULL REFERENCES cli_clientes(id),
+    id_prestamo              INT NULL REFERENCES bal_prestamo(id), -- NULL si visita multi-préstamo
+    fecha_programada         DATE NOT NULL,
+    hora_estimada            TIME NULL,
+    fecha_visita             DATE NULL,
+    id_usuario_responsable   INT NULL REFERENCES auth_usuarios(id),
+    id_estado                INT REFERENCES gen_lista_opciones(id), -- EstadoRecojo
+    id_motivo_fallo          INT REFERENCES gen_lista_opciones(id), -- MotivoFalloRecojo
+    observacion              VARCHAR(500),
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE bal_recojo_detalle (
+    id                       SERIAL PRIMARY KEY,
+    id_recojo                INT NOT NULL REFERENCES bal_recojo(id),
+    id_prestamo_detalle      INT NOT NULL REFERENCES bal_prestamo_detalle(id),
+    id_resultado             INT REFERENCES gen_lista_opciones(id), -- ResultadoRecojoDetalle
+    id_estado_contenido      INT REFERENCES gen_lista_opciones(id), -- EstadoContenidoBalon encontrado
+    nueva_fecha_retorno      DATE NULL,
+    id_almacen_destino       INT NULL REFERENCES gen_almacen(id),
+    observacion              VARCHAR(500),
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW(),
+    UNIQUE (id_recojo, id_prestamo_detalle)
+);
+
 -- Alquiler de balones de la empresa al cliente
 -- Medicinal: id_producto_regulador = lo que se alquila/cobra en renovaciones;
 --            los cilindros van en bal_alquiler_detalle (entrega física).
@@ -1669,6 +1705,12 @@ CREATE INDEX idx_bal_prestamo_tipo ON bal_prestamo(id_tipo_prestamo);
 CREATE INDEX idx_bal_prestamo_detalle_balon ON bal_prestamo_detalle(id_balon);
 CREATE INDEX idx_bal_prestamo_detalle_venc ON bal_prestamo_detalle(fecha_vencimiento);
 CREATE INDEX idx_bal_prestamo_detalle_est ON bal_prestamo_detalle(id_estado);
+CREATE INDEX idx_bal_recojo_cliente ON bal_recojo(id_cliente);
+CREATE INDEX idx_bal_recojo_prestamo ON bal_recojo(id_prestamo);
+CREATE INDEX idx_bal_recojo_fecha ON bal_recojo(fecha_programada);
+CREATE INDEX idx_bal_recojo_estado ON bal_recojo(id_estado);
+CREATE INDEX idx_bal_recojo_det_cab ON bal_recojo_detalle(id_recojo);
+CREATE INDEX idx_bal_recojo_det_pd ON bal_recojo_detalle(id_prestamo_detalle);
 CREATE INDEX idx_bal_alquiler_cliente ON bal_alquiler(id_cliente);
 
 -- Ventas

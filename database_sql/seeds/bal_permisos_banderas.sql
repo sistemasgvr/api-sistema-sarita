@@ -54,7 +54,12 @@ FROM (
         ('bajas_balon.ver', 'Ver detalle de solicitud de baja de cilindro'),
         ('bajas_balon.solicitar', 'Solicitar baja de cilindro'),
         ('bajas_balon.aprobar', 'Aprobar solicitudes de baja de cilindro'),
-        ('bajas_balon.rechazar', 'Rechazar solicitudes de baja de cilindro')
+        ('bajas_balon.rechazar', 'Rechazar solicitudes de baja de cilindro'),
+        ('recojos_balon.listar', 'Listar visitas de recojo de cilindros'),
+        ('recojos_balon.ver', 'Ver detalle de visita de recojo'),
+        ('recojos_balon.crear', 'Programar visitas de recojo'),
+        ('recojos_balon.editar', 'Editar / registrar resultado de recojo'),
+        ('recojos_balon.eliminar', 'Eliminar visitas de recojo')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (
     SELECT 1 FROM auth_permisos p WHERE p.nombre = v.nombre
@@ -78,6 +83,7 @@ WHERE r.nombre = 'Administrador'
       OR p.nombre LIKE 'alquileres_detalle.%'
       OR p.nombre LIKE 'mantenimientos_balon.%'
       OR p.nombre LIKE 'bajas_balon.%'
+      OR p.nombre LIKE 'recojos_balon.%'
   )
   AND NOT EXISTS (
       SELECT 1

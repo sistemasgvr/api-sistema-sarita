@@ -220,4 +220,21 @@ export class DevolverPrestamosDetalleDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   idAlmacenDestino?: number;
+
+  @ApiPropertyOptional({
+    description: 'EstadoContenidoBalon al devolver (default: VACIO)',
+    default: 'VACIO',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  nombreEstadoContenido?: string;
+
+  @ApiPropertyOptional({
+    description: 'Observación a anexar al detalle de préstamo',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observacion?: string;
 }

@@ -79,6 +79,8 @@ export class PrestamosDetalleModel {
       dto.fechaDevolucion ?? null,
       dto.idAlmacenDestino ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.nombreEstadoContenido ?? 'VACIO',
+      dto.observacion ?? null,
     ]);
   }
 
