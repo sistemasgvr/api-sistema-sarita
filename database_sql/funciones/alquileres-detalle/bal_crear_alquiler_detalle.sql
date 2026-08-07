@@ -144,13 +144,14 @@ BEGIN
         END IF;
     END IF;
 
-    -- Entrega en alquiler: normalmente sale con gas (lleno).
+    -- En cliente no sabemos si consume el gas → contenido DESCONOCIDO.
     UPDATE bal_balon
     SET
         id_cliente_ubicacion = v_id_cliente,
         id_almacen = NULL,
         id_estado_balon = v_id_estado_alquilado,
-        id_estado_contenido = COALESCE(bal_id_estado_contenido('LLENO'), id_estado_contenido),
+        id_estado_contenido = COALESCE(bal_id_estado_contenido('DESCONOCIDO'), id_estado_contenido),
+        capacidad_restante = NULL,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id_balon AND estado = 1;

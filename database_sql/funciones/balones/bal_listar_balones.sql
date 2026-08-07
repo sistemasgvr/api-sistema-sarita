@@ -43,8 +43,9 @@ BEGIN
         json_build_object(
             'total', COUNT(*),
             'en_almacen', COUNT(*) FILTER (WHERE eb.nombre = 'EN_ALMACEN'),
-            'llenos', COUNT(*) FILTER (WHERE ec.nombre = 'LLENO'),
-            'vacios', COUNT(*) FILTER (WHERE ec.nombre = 'VACIO')
+            -- Llenos/vacíos solo del stock en almacén (en cliente el contenido es incierto).
+            'llenos', COUNT(*) FILTER (WHERE eb.nombre = 'EN_ALMACEN' AND ec.nombre = 'LLENO'),
+            'vacios', COUNT(*) FILTER (WHERE eb.nombre = 'EN_ALMACEN' AND ec.nombre = 'VACIO')
         )
     INTO v_total, v_resumen
     FROM bal_balon b

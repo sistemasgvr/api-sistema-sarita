@@ -308,7 +308,7 @@ FROM (
     VALUES
         ('LLENO', 'Cilindro con gas / recargado'),
         ('VACIO', 'Cilindro sin contenido útil'),
-        ('DESCONOCIDO', 'Contenido no determinado (histórico / por revisar)')
+        ('DESCONOCIDO', 'Contenido no determinado (en cliente / histórico / por revisar)')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'EstadoContenidoBalon'

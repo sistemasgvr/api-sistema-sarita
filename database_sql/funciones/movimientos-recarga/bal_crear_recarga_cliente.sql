@@ -338,13 +338,15 @@ BEGIN
         );
     END IF;
 
+    -- Sale lleno del mostrador, pero fuera de planta el residual deja de ser confiable.
     UPDATE bal_balon
     SET
         id_producto_gas = p_id_producto,
         id_cliente_ubicacion = p_id_cliente,
+        id_almacen = NULL,
         presion_actual = NULL,
-        id_estado_contenido = COALESCE(bal_id_estado_contenido('LLENO'), id_estado_contenido),
-        capacidad_restante = COALESCE(v_capacidad_destino, v_capacidad),
+        id_estado_contenido = COALESCE(bal_id_estado_contenido('DESCONOCIDO'), id_estado_contenido),
+        capacidad_restante = NULL,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id_balon AND estado = 1;

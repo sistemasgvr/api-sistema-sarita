@@ -174,13 +174,14 @@ BEGIN
             END IF;
         END IF;
 
-        -- Custodia al cliente. Contenido: vacío tras mantenimiento (sin recarga automática).
+        -- Custodia al cliente. Tras mant. sale vacío; residual no aplica fuera de planta.
         UPDATE bal_balon
         SET
             id_almacen = NULL,
             id_cliente_ubicacion = v_id_cliente_destino,
             id_estado_balon = v_id_estado_destino,
             id_estado_contenido = COALESCE(bal_id_estado_contenido('VACIO'), id_estado_contenido),
+            capacidad_restante = NULL,
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_balon
