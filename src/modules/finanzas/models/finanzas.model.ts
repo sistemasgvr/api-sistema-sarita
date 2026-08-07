@@ -9,6 +9,13 @@ import { FiltroCuentaDto } from '../dto/filtro-cuenta.dto';
 import { RegistrarPagoDto } from '../dto/registrar-pago.dto';
 import { CrearCuentaCuotasDto, CrearCuentaDto } from '../dto/crear-cuenta.dto';
 import { ActualizarCuentaDto } from '../dto/actualizar-cuenta.dto';
+import {
+  ActualizarGarantiaDto,
+  CrearGarantiaDto,
+  FiltroGarantiaDto,
+  ReembolsarGarantiaDto,
+} from '../dto/garantia.dto';
+import { VerificarDuplicadoPagoDto } from '../dto/verificar-duplicado.dto';
 
 export type TipoCuenta = 'COBRAR' | 'PAGAR';
 
@@ -131,5 +138,81 @@ export class FinanzasModel {
 
   listarMediosPago() {
     return this.db.callFunctionJson('fin_listar_medios_pago');
+  }
+
+  /* ==================== Garantías ==================== */
+
+  crearGarantia(dto: CrearGarantiaDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('fin_crear_garantia', [
+      dto.fecha,
+      dto.idCliente,
+      dto.idMedioPago ?? null,
+      dto.importe,
+      dto.observacion ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  listarGarantias(filtros: FiltroGarantiaDto) {
+    return this.db.callFunctionJson<AuthListResult>('fin_listar_garantias', [
+      filtros.buscar ?? null,
+      filtros.idCliente ?? null,
+      filtros.desde ?? null,
+      filtros.hasta ?? null,
+      filtros.estado ?? null,
+      filtros.limite ?? 10,
+      filtros.offset,
+    ]);
+  }
+
+  actualizarGarantia(id: number, dto: ActualizarGarantiaDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('fin_actualizar_garantia', [
+      id,
+      dto.fecha ?? null,
+      dto.idCliente ?? null,
+      dto.idMedioPago ?? null,
+      dto.importe ?? null,
+      dto.observacion ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  eliminarGarantia(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthDeleteResult>('fin_eliminar_garantia', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  reembolsarGarantia(id: number, dto: ReembolsarGarantiaDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('fin_reembolsar_garantia', [
+      id,
+      dto.fechaReembolso,
+      dto.idMedioReembolso,
+      dto.observacionReembolso ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  anularReembolsoGarantia(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('fin_anular_reembolso_garantia', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  verificarDuplicadoPago(dto: VerificarDuplicadoPagoDto) {
+    return this.db.callFunctionJson<{
+      duplicado: boolean;
+      severidad?: 'alta' | 'media';
+      mensaje?: string;
+      pagoExistente?: unknown;
+    }>('fin_verificar_duplicado_pago', [
+      dto.idCuenta,
+      dto.fechaPago,
+      dto.monto,
+      dto.diasVentana ?? 7,
+      dto.numeroComprobante ?? null,
+    ]);
   }
 }

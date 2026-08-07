@@ -18,6 +18,13 @@ import { FiltroCuentaDto } from '../dto/filtro-cuenta.dto';
 import { RegistrarPagoDto } from '../dto/registrar-pago.dto';
 import { CrearCuentaCuotasDto, CrearCuentaDto } from '../dto/crear-cuenta.dto';
 import { ActualizarCuentaDto } from '../dto/actualizar-cuenta.dto';
+import {
+  ActualizarGarantiaDto,
+  CrearGarantiaDto,
+  FiltroGarantiaDto,
+  ReembolsarGarantiaDto,
+} from '../dto/garantia.dto';
+import { VerificarDuplicadoPagoDto } from '../dto/verificar-duplicado.dto';
 
 @ApiTags('Finanzas')
 @Controller('finanzas')
@@ -28,6 +35,70 @@ export class FinanzasController {
   @ApiOperation({ summary: 'Listar medios de pago disponibles' })
   mediosPago() {
     return this.finanzasLogic.listarMediosPago();
+  }
+
+  @Post('verificar-duplicado-pago')
+  @ApiOperation({
+    summary: 'Verifica si un pago propuesto podría ser duplicado antes de registrar',
+  })
+  verificarDuplicadoPago(@Body() dto: VerificarDuplicadoPagoDto) {
+    return this.finanzasLogic.verificarDuplicadoPago(dto);
+  }
+
+  // ---------------- Garantías ----------------
+
+  @Get('garantias')
+  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_VER)
+  @ApiOperation({ summary: 'Listar garantías de clientes' })
+  listarGarantias(@Query() filtros: FiltroGarantiaDto) {
+    return this.finanzasLogic.listarGarantias(filtros);
+  }
+
+  @Post('garantias')
+  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_CREAR)
+  @ApiOperation({ summary: 'Registrar una nueva garantía de cliente' })
+  crearGarantia(@Body() dto: CrearGarantiaDto) {
+    return this.finanzasLogic.crearGarantia(dto);
+  }
+
+  @Patch('garantias/:id')
+  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_EDITAR)
+  @ApiOperation({ summary: 'Editar una garantía existente' })
+  actualizarGarantia(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarGarantiaDto,
+  ) {
+    return this.finanzasLogic.actualizarGarantia(id, dto);
+  }
+
+  @Delete('garantias/:id')
+  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_ELIMINAR)
+  @ApiOperation({ summary: 'Eliminar (baja lógica) una garantía' })
+  eliminarGarantia(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.finanzasLogic.eliminarGarantia(id, dto.idUsuarioAuditoria);
+  }
+
+  @Post('garantias/:id/reembolsar')
+  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_REEMBOLSAR)
+  @ApiOperation({ summary: 'Registrar el reembolso de una garantía (la marca como DEVUELTA)' })
+  reembolsarGarantia(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReembolsarGarantiaDto,
+  ) {
+    return this.finanzasLogic.reembolsarGarantia(id, dto);
+  }
+
+  @Patch('garantias/:id/anular-reembolso')
+  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_REEMBOLSAR)
+  @ApiOperation({ summary: 'Anular un reembolso registrado (vuelve la garantía a ACTIVA)' })
+  anularReembolsoGarantia(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.finanzasLogic.anularReembolsoGarantia(id, dto.idUsuarioAuditoria);
   }
 
   // ---------------- Cuentas por Cobrar ----------------
