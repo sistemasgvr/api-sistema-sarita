@@ -20,6 +20,8 @@ BEGIN
 
     SELECT COUNT(*) INTO v_total
     FROM cli_baja_cliente bc
+    INNER JOIN cli_clientes c ON bc.id_cliente = c.id
+    LEFT JOIN auth_usuarios us ON bc.id_usuario_solicita = us.id
     WHERE (p_solo_activos IS NULL OR bc.estado = p_solo_activos)
       AND (p_id_cliente IS NULL OR bc.id_cliente = p_id_cliente)
       AND (p_id_estado_aprobacion IS NULL OR bc.id_estado_aprobacion = p_id_estado_aprobacion)
@@ -27,6 +29,13 @@ BEGIN
       AND (
           p_buscar = ''
           OR gen_texto_coincide(COALESCE(bc.motivo_detalle, ''), p_buscar)
+          OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_buscar)
+          OR gen_texto_coincide(
+              TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)),
+              p_buscar
+          )
+          OR gen_texto_coincide(COALESCE(c.numero_documento, ''), p_buscar)
+          OR gen_texto_coincide(COALESCE(us.nombre, ''), p_buscar)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -75,8 +84,19 @@ BEGIN
           AND (
               p_buscar = ''
               OR gen_texto_coincide(COALESCE(bc.motivo_detalle, ''), p_buscar)
+              OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_buscar)
+              OR gen_texto_coincide(
+                  TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)),
+                  p_buscar
+              )
+              OR gen_texto_coincide(COALESCE(c.numero_documento, ''), p_buscar)
+              OR gen_texto_coincide(COALESCE(us.nombre, ''), p_buscar)
           )
-        ORDER BY bc.fecha_creacion DESC
+        -- Pendientes primero (trabajo pendiente), luego más recientes
+        ORDER BY
+            CASE WHEN ea.nombre = 'PENDIENTE' THEN 0 ELSE 1 END ASC,
+            bc.fecha_creacion DESC,
+            bc.id DESC
         LIMIT p_limite
         OFFSET p_offset
     ) t;

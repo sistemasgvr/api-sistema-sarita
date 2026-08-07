@@ -145,7 +145,7 @@ BEGIN
               OR gen_texto_coincide(COALESCE(sc.nombre, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(c.nombre, ''), p_busqueda)
           )
-        ORDER BY p.nombre ASC
+        ORDER BY p.fecha_creacion DESC NULLS LAST, p.id DESC
         LIMIT p_limite
         OFFSET p_offset
     ) t;

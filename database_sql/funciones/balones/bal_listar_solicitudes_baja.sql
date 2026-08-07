@@ -2,7 +2,8 @@ CREATE OR REPLACE FUNCTION bal_listar_solicitudes_baja(
     p_busqueda VARCHAR DEFAULT '',
     p_limite INTEGER DEFAULT 10,
     p_offset INTEGER DEFAULT 0,
-    p_estado_aprobacion VARCHAR DEFAULT 'PENDIENTE'
+    -- NULL / '' / 'TODOS' = todos los estados; si no, filtra exacto (PENDIENTE, APROBADA, RECHAZADA)
+    p_estado_aprobacion VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -10,8 +11,13 @@ AS $function$
 DECLARE
     v_registros JSON;
     v_total BIGINT;
+    v_estado VARCHAR := NULLIF(UPPER(TRIM(COALESCE(p_estado_aprobacion, ''))), '');
 BEGIN
     SET TIME ZONE 'America/Lima';
+
+    IF v_estado = 'TODOS' THEN
+        v_estado := NULL;
+    END IF;
 
     SELECT COUNT(*) INTO v_total
     FROM bal_baja_balon bb
@@ -19,7 +25,7 @@ BEGIN
     LEFT JOIN gen_lista_opciones mb ON bb.id_motivo_baja = mb.id
     LEFT JOIN auth_usuarios us ON bb.id_usuario_solicita = us.id
     WHERE bb.estado = 1
-      AND bb.estado_aprobacion = COALESCE(NULLIF(TRIM(p_estado_aprobacion), ''), 'PENDIENTE')
+      AND (v_estado IS NULL OR bb.estado_aprobacion = v_estado)
       AND (
           p_busqueda = ''
           OR gen_texto_coincide(b.codigo_balon, p_busqueda)
@@ -55,7 +61,7 @@ BEGIN
         LEFT JOIN cli_clientes cc ON bb.id_cliente_comprador = cc.id
         LEFT JOIN auth_usuarios us ON bb.id_usuario_solicita = us.id
         WHERE bb.estado = 1
-          AND bb.estado_aprobacion = COALESCE(NULLIF(TRIM(p_estado_aprobacion), ''), 'PENDIENTE')
+          AND (v_estado IS NULL OR bb.estado_aprobacion = v_estado)
           AND (
               p_busqueda = ''
               OR gen_texto_coincide(b.codigo_balon, p_busqueda)
@@ -63,7 +69,11 @@ BEGIN
               OR gen_texto_coincide(COALESCE(mb.nombre, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(us.nombre, ''), p_busqueda)
           )
-        ORDER BY bb.fecha_creacion ASC, bb.id ASC
+        -- Pendientes primero, luego más recientes
+        ORDER BY
+            CASE WHEN bb.estado_aprobacion = 'PENDIENTE' THEN 0 ELSE 1 END ASC,
+            bb.fecha_creacion DESC,
+            bb.id DESC
         LIMIT p_limite
         OFFSET p_offset
     ) t;

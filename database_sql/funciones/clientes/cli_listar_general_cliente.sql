@@ -123,7 +123,7 @@ BEGIN
     ),
     paginados AS (
         SELECT * FROM filtrados
-        ORDER BY razon_social NULLS LAST, nombres NULLS LAST, id DESC
+        ORDER BY fecha_creacion DESC NULLS LAST, id DESC
         LIMIT p_limite
         OFFSET p_offset
     )

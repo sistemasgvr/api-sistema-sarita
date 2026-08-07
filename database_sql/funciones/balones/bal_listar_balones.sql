@@ -326,7 +326,7 @@ BEGIN
               OR gen_texto_coincide(COALESCE(cp.nombres, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(cp.numero_documento, ''), p_busqueda)
           )
-        ORDER BY b.codigo_balon ASC
+        ORDER BY b.fecha_creacion DESC NULLS LAST, b.id DESC
         LIMIT p_limite
         OFFSET p_offset
     ) t;

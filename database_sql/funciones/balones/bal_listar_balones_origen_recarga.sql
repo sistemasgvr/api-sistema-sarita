@@ -76,7 +76,7 @@ BEGIN
                     capacidad_restante,
                     fecha_creacion
                 FROM candidatos
-                ORDER BY fecha_creacion ASC NULLS LAST, id ASC
+                ORDER BY fecha_creacion DESC NULLS LAST, id DESC
                 LIMIT GREATEST(COALESCE(p_limite, 50), 1)
                 OFFSET GREATEST(COALESCE(p_offset, 0), 0)
             ) t
