@@ -64,10 +64,11 @@
 --       bal_mantenimiento + ven_comprobante (servicio cobrado al cliente)
 --       o com_comprobante_compra (servicio contratado a tercero)
 --
---  F. RECARGA EN PLANTA EXTERNA (balones propios enviados a tercero — uso excepcional)
---       bal_movimiento_recarga (tipo PLANTA_EXTERNA, lote + P.H.) +
---       gre_guia_remision salida + gre_guia_remision retorno +
---       com_comprobante_compra (factura de la planta)
+--  F. RECARGA EN PLANTA EXTERNA (balones propios enviados a tercero)
+--       gre_guia_remision (salida de vacíos) →
+--       bal_recarga_planta + bal_recarga_planta_detalle (orden / checklist, jala GRE) →
+--       bal_movimiento_recarga (tipo PLANTA_EXTERNA por cilindro, lote + P.H.) +
+--       gre_guia_remision retorno + com_comprobante_compra (vínculo documental)
 --
 --  G. CORRECCIÓN / ANULACIÓN DE COMPROBANTE (NC / ND)
 --       ven_comprobante tipo 07/08 con id_comprobante_origen apuntando al original
@@ -777,6 +778,7 @@ CREATE TABLE bal_balon (
     id_planta            INT REFERENCES cli_clientes(id), -- planta proveedora asociada
     numero_recepcion     varchar(30),
     presion_actual       NUMERIC(8,2),
+    capacidad_restante   NUMERIC(10,4),               -- residual de gas (recarga CLIENTE / origen)
     observacion         varchar(500),
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion       INT REFERENCES auth_usuarios(id),
@@ -806,25 +808,28 @@ CREATE TABLE bal_movimiento (
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
--- Recarga de cilindro: CLIENTE (mostrador) o PLANTA_EXTERNA (envío a tercero)
+-- Recarga de cilindro: CLIENTE (mostrador) o PLANTA_EXTERNA (hijo de orden planta)
 CREATE TABLE bal_movimiento_recarga (
     id                      SERIAL PRIMARY KEY,
     fecha_salida_almacen      DATE NOT NULL,
     id_balon                 INT NOT NULL REFERENCES bal_balon(id),
+    id_balon_origen          INT REFERENCES bal_balon(id),              -- origen EMPRESA LLENO (tipo CLIENTE)
     id_cliente               INT REFERENCES cli_clientes(id),           -- cliente que trae el balón (tipo CLIENTE)
     id_tipo_recarga          INT REFERENCES gen_lista_opciones(id),      -- (gen_lista: TipoRecarga) CLIENTE | PLANTA_EXTERNA
     id_producto              INT REFERENCES pro_producto(id),
     capacidad               NUMERIC(10,4),
     id_unidad_medida          INT REFERENCES gen_lista_opciones(id),
-    -- Guías de remisión
+    -- Guías de remisión (texto; FK opcional vía orden planta)
     serie_guia_salida                 varchar(10),
     numero_guia_salida                varchar(15),
     serie_guia_ingreso                varchar(10),
     numero_guia_ingreso               varchar(15),
-    -- Factura asociada
+    -- Factura / documentos asociados
     serie_factura                    varchar(10),
     numero_factura                   varchar(15),
     id_comprobante                   INT REFERENCES ven_comprobante(id),
+    id_comprobante_compra            INT REFERENCES com_comprobante_compra(id), -- planta externa
+    id_recarga_planta                INT, -- FK → bal_recarga_planta (tras GRE/compras)
     fecha_llegada_almacen             DATE,
     lote                            varchar(50),
     fecha_vencimiento_lote            DATE,
@@ -1539,6 +1544,63 @@ CREATE TABLE com_comprobante_compra_detalle (
     fecha_creacion       TIMESTAMP DEFAULT NOW(),
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
+
+-- Orden de recarga en planta externa (cabecera + checklist; jala GRE salida)
+CREATE TABLE bal_recarga_planta (
+    id                        SERIAL PRIMARY KEY,
+    numero                    VARCHAR(30) UNIQUE,
+    fecha_salida              DATE NOT NULL,
+    id_proveedor              INT REFERENCES cli_clientes(id),
+    id_almacen                INT REFERENCES gen_almacen(id),
+    id_guia_salida            INT REFERENCES gre_guia_remision(id),
+    serie_guia_salida         VARCHAR(10),
+    numero_guia_salida        VARCHAR(15),
+    id_guia_retorno           INT REFERENCES gre_guia_remision(id),
+    serie_guia_ingreso        VARCHAR(10),
+    numero_guia_ingreso       VARCHAR(15),
+    id_comprobante_compra     INT REFERENCES com_comprobante_compra(id),
+    serie_factura             VARCHAR(10),
+    numero_factura            VARCHAR(15),
+    fecha_llegada_almacen     DATE,
+    lote                      VARCHAR(50),
+    fecha_vencimiento_lote    DATE,
+    fecha_prueba_hidrostatica DATE,
+    id_estado                 INT REFERENCES gen_lista_opciones(id), -- EstadoRecargaPlanta
+    observacion               VARCHAR(500),
+    estado                    INT NOT NULL DEFAULT 1,
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion            TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion        TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE bal_recarga_planta_detalle (
+    id                        SERIAL PRIMARY KEY,
+    id_recarga_planta         INT NOT NULL REFERENCES bal_recarga_planta(id),
+    id_balon                  INT NOT NULL REFERENCES bal_balon(id),
+    id_producto               INT REFERENCES pro_producto(id),
+    capacidad                 NUMERIC(10,4),
+    id_unidad_medida          INT REFERENCES gen_lista_opciones(id),
+    lote                      VARCHAR(50),
+    fecha_vencimiento_lote    DATE,
+    fecha_prueba_hidrostatica DATE,
+    id_movimiento_recarga     INT REFERENCES bal_movimiento_recarga(id),
+    observacion               VARCHAR(500),
+    estado                    INT NOT NULL DEFAULT 1,
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion            TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion        TIMESTAMP DEFAULT NOW(),
+    UNIQUE (id_recarga_planta, id_balon)
+);
+
+ALTER TABLE bal_movimiento_recarga
+    ADD CONSTRAINT fk_bal_movimiento_recarga_planta
+    FOREIGN KEY (id_recarga_planta) REFERENCES bal_recarga_planta(id);
+
+CREATE INDEX idx_bal_recarga_planta_fecha ON bal_recarga_planta(fecha_salida);
+CREATE INDEX idx_bal_recarga_planta_guia_salida ON bal_recarga_planta(id_guia_salida);
+CREATE INDEX idx_bal_recarga_planta_det_cab ON bal_recarga_planta_detalle(id_recarga_planta);
 
 -- Agenda de Actividades
 CREATE TABLE age_actividad (

@@ -47,6 +47,7 @@ import { TiposBalonModule } from './modules/tipos-balon/tipos-balon.module';
 import { BalonesModule } from './modules/balones/balones.module';
 import { MovimientosBalonModule } from './modules/movimientos-balon/movimientos-balon.module';
 import { MovimientosRecargaModule } from './modules/movimientos-recarga/movimientos-recarga.module';
+import { RecargasPlantaModule } from './modules/recargas-planta/recargas-planta.module';
 import { PrestamosBalonModule } from './modules/prestamos-balon/prestamos-balon.module';
 import { PrestamosDetalleModule } from './modules/prestamos-detalle/prestamos-detalle.module';
 import { AlquileresBalonModule } from './modules/alquileres-balon/alquileres-balon.module';
@@ -117,6 +118,7 @@ import { FinanzasModule } from './modules/finanzas/finanzas.module';
     TiposBalonModule,
     MovimientosBalonModule,
     MovimientosRecargaModule,
+    RecargasPlantaModule,
     PrestamosBalonModule,
     PrestamosDetalleModule,
     AlquileresBalonModule,
