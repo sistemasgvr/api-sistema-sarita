@@ -634,7 +634,7 @@ CREATE TABLE pro_producto (
     afecta_stock     BOOLEAN DEFAULT TRUE,    -- false para servicios puros
     precio          NUMERIC(12,4) DEFAULT 0,  -- precio de venta base (POS)
     precio_compra   NUMERIC(12,4) DEFAULT 0,  -- costo/precio de compra
-    precio_garantia NUMERIC(12,4) DEFAULT 0,  -- depósito si es_alquilable
+    precio_garantia NUMERIC(12,4) DEFAULT 0,  -- depósito reembolsable (préstamo industrial / alquiler)
     estado          INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),

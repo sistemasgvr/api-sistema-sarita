@@ -127,7 +127,7 @@ export class ProductosLogic {
       dto.codigoUbicacion?.trim() || null,
       dto.idUsuarioAuditoria,
       dto.precioCompra ?? 0,
-      esAlquilable ? (dto.precioGarantia ?? 0) : 0,
+      dto.precioGarantia ?? 0,
     );
     return mapSingleResult(result, 'No se pudo crear el producto');
   }
@@ -152,9 +152,7 @@ export class ProductosLogic {
         : dto.codigoUbicacion.trim() || '',
       dto.idUsuarioAuditoria,
       dto.precioCompra ?? null,
-      dto.esAlquilable === false
-        ? 0
-        : (dto.precioGarantia ?? null),
+      dto.precioGarantia ?? null,
     );
     return mapSingleResult(result, `Producto ${id} no encontrado`);
   }

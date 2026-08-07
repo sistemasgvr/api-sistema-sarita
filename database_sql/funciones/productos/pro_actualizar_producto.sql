@@ -99,11 +99,7 @@ BEGIN
         END,
         precio = COALESCE(p_precio, precio),
         precio_compra = COALESCE(p_precio_compra, precio_compra),
-        precio_garantia = CASE
-            WHEN NOT v_es_alquilable THEN 0
-            WHEN p_precio_garantia IS NULL THEN precio_garantia
-            ELSE p_precio_garantia
-        END,
+        precio_garantia = COALESCE(p_precio_garantia, precio_garantia),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;

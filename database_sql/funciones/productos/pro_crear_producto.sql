@@ -104,7 +104,7 @@ BEGIN
         END,
         COALESCE(p_precio, 0),
         COALESCE(p_precio_compra, 0),
-        CASE WHEN v_es_alquilable THEN COALESCE(p_precio_garantia, 0) ELSE 0 END,
+        COALESCE(p_precio_garantia, 0),
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     )
