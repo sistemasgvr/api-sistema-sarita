@@ -17,6 +17,8 @@ BEGIN
             g.id_prestamo,
             pr.numero_prestamo,
             pr.titulo AS titulo_prestamo,
+            g.id_alquiler,
+            al.numero_alquiler,
             g.ubicacion,
             g.id_producto,
             p.codigo AS codigo_producto,
@@ -67,6 +69,7 @@ BEGIN
         FROM ven_garantia g
         LEFT JOIN cli_clientes c ON g.id_cliente = c.id
         LEFT JOIN bal_prestamo pr ON g.id_prestamo = pr.id
+        LEFT JOIN bal_alquiler al ON g.id_alquiler = al.id
         LEFT JOIN pro_producto p ON g.id_producto = p.id
         LEFT JOIN gen_lista_opciones um ON g.id_unidad_medida = um.id
         LEFT JOIN gen_lista_opciones eg ON g.id_estado = eg.id

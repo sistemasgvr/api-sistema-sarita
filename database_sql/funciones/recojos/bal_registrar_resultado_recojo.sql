@@ -42,6 +42,8 @@ DECLARE
     v_id_estado_prestado INTEGER;
     v_id_balon INTEGER;
     v_repro_detalles JSONB := '[]'::JSONB;
+    v_cantidad_restante NUMERIC(10,4);
+    v_capacidad_tipo NUMERIC(10,4);
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -111,6 +113,10 @@ BEGIN
             NULLIF(v_item->>'id_almacen_destino', '')::INTEGER
         );
         v_obs := NULLIF(TRIM(COALESCE(v_item->>'observacion', '')), '');
+        v_cantidad_restante := COALESCE(
+            NULLIF(v_item->>'cantidadRestante', '')::NUMERIC,
+            NULLIF(v_item->>'cantidad_restante', '')::NUMERIC
+        );
 
         IF (v_id_pd IS NOT NULL)::INTEGER + (v_id_ad IS NOT NULL)::INTEGER <> 1 THEN
             RETURN json_build_object(
@@ -168,10 +174,62 @@ BEGIN
             v_nueva_fecha := COALESCE(v_nueva_fecha, v_fecha_visita + 1);
         END IF;
 
+        IF v_resultado = 'RECOGIDO' THEN
+            SELECT COALESCE(pd.id_balon, ad.id_balon), tb.capacidad
+            INTO v_id_balon, v_capacidad_tipo
+            FROM (SELECT 1) dummy
+            LEFT JOIN bal_prestamo_detalle pd
+                ON pd.id = v_id_pd AND pd.estado = 1
+            LEFT JOIN bal_alquiler_detalle ad
+                ON ad.id = v_id_ad AND ad.estado = 1
+            LEFT JOIN bal_balon b
+                ON b.id = COALESCE(pd.id_balon, ad.id_balon) AND b.estado = 1
+            LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon;
+
+            IF v_cantidad_restante IS NULL THEN
+                IF UPPER(COALESCE(v_nombre_contenido, 'VACIO')) = 'VACIO' THEN
+                    v_cantidad_restante := 0;
+                ELSIF UPPER(COALESCE(v_nombre_contenido, '')) = 'LLENO' THEN
+                    v_cantidad_restante := v_capacidad_tipo;
+                END IF;
+            ELSIF v_cantidad_restante < 0 THEN
+                RETURN json_build_object(
+                    'error', 'La cantidad restante no puede ser negativa',
+                    'registro', NULL
+                );
+            ELSIF v_capacidad_tipo IS NOT NULL AND v_cantidad_restante > v_capacidad_tipo THEN
+                RETURN json_build_object(
+                    'error',
+                    'La cantidad restante (' || v_cantidad_restante
+                        || ') supera la capacidad del cilindro (' || v_capacidad_tipo || ')',
+                    'registro', NULL
+                );
+            END IF;
+
+            -- Inferir contenido si solo enviaron medida
+            IF v_nombre_contenido IS NULL AND v_cantidad_restante IS NOT NULL THEN
+                IF v_cantidad_restante <= 0 THEN
+                    v_nombre_contenido := 'VACIO';
+                ELSIF v_capacidad_tipo IS NOT NULL AND v_cantidad_restante >= v_capacidad_tipo THEN
+                    v_nombre_contenido := 'LLENO';
+                ELSE
+                    v_nombre_contenido := 'DESCONOCIDO';
+                END IF;
+                v_id_contenido := bal_id_estado_contenido(v_nombre_contenido);
+            END IF;
+        ELSE
+            v_cantidad_restante := NULL;
+            v_id_balon := NULL;
+        END IF;
+
         UPDATE bal_recojo_detalle
         SET
             id_resultado = v_id_resultado,
             id_estado_contenido = COALESCE(v_id_contenido, id_estado_contenido),
+            cantidad_restante = CASE
+                WHEN v_resultado = 'RECOGIDO' THEN v_cantidad_restante
+                ELSE cantidad_restante
+            END,
             nueva_fecha_retorno = CASE
                 WHEN v_resultado = 'EXTENDIDO' THEN v_nueva_fecha
                 ELSE nueva_fecha_retorno
@@ -208,6 +266,20 @@ BEGIN
             END IF;
             IF v_dev->>'error' IS NOT NULL THEN
                 RETURN json_build_object('error', v_dev->>'error', 'registro', NULL);
+            END IF;
+
+            IF v_id_balon IS NOT NULL AND v_cantidad_restante IS NOT NULL THEN
+                UPDATE bal_balon
+                SET
+                    capacidad_restante = v_cantidad_restante,
+                    id_estado_contenido = COALESCE(
+                        bal_id_estado_contenido(COALESCE(v_nombre_contenido, 'VACIO')),
+                        id_estado_contenido
+                    ),
+                    id_usuario_modificacion = p_id_usuario_auditoria,
+                    fecha_modificacion = NOW()
+                WHERE id = v_id_balon
+                  AND estado = 1;
             END IF;
         ELSIF v_resultado = 'EXTENDIDO' THEN
             v_cnt_extendido := v_cnt_extendido + 1;

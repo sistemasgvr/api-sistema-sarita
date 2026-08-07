@@ -243,6 +243,15 @@ export class RecojoDetalleResultadoDto {
   nombreEstadoContenido?: string;
 
   @ApiPropertyOptional({
+    description:
+      'Cantidad de gas restante en la unidad del producto/tipo (m³, kg, etc.). Si se omite: VACIO→0, LLENO→capacidad.',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  cantidadRestante?: number;
+
+  @ApiPropertyOptional({
     description: 'Requerido/útil para EXTENDIDO (default: visita + 1 día)',
   })
   @IsOptional()

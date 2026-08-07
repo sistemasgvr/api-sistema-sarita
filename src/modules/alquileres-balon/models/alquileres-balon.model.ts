@@ -58,6 +58,15 @@ export class AlquileresBalonModel {
     return this.db.callFunctionJson<AuthSingleResult>('bal_obtener_alquiler', [id]);
   }
 
+  obtenerSiguienteNumero(anio?: number) {
+    return this.db.callFunctionJson<{
+      error?: string | null;
+      anio?: number;
+      ultimo?: string | null;
+      numero?: string | null;
+    }>('bal_obtener_siguiente_numero_alquiler', [anio ?? null]);
+  }
+
   crear(dto: CreateAlquileresBalonDto) {
     return this.db.callFunctionJson<AuthSingleResult>('bal_crear_alquiler', [
       dto.numeroAlquiler ?? null,
@@ -72,6 +81,7 @@ export class AlquileresBalonModel {
       dto.observacion ?? null,
       dto.idComprobanteVenta ?? null,
       dto.idProductoRegulador ?? null,
+      dto.idProductoStock ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }
@@ -91,6 +101,7 @@ export class AlquileresBalonModel {
       dto.observacion ?? null,
       dto.idComprobanteVenta ?? null,
       dto.idProductoRegulador ?? null,
+      dto.idProductoStock ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }

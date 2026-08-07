@@ -20,6 +20,9 @@ BEGIN
                 c.numero_documento
             ) AS nombre_cliente,
             c.numero_documento AS documento_cliente,
+            dir.latitud,
+            dir.longitud,
+            dir.direccion,
             r.id_prestamo,
             pr.numero_prestamo,
             r.id_alquiler,
@@ -57,6 +60,15 @@ BEGIN
         LEFT JOIN gen_lista_opciones mf ON mf.id = r.id_motivo_fallo
         LEFT JOIN auth_usuarios uc ON uc.id = r.id_usuario_creacion
         LEFT JOIN auth_usuarios um ON um.id = r.id_usuario_modificacion
+        LEFT JOIN LATERAL (
+            SELECT cd.latitud, cd.longitud, cd.direccion
+            FROM cli_direcciones cd
+            WHERE cd.id_cliente = r.id_cliente
+              AND cd.es_principal = TRUE
+              AND cd.estado = 1
+            ORDER BY cd.id DESC
+            LIMIT 1
+        ) dir ON TRUE
         WHERE r.id = p_id AND r.estado = 1
     ) t;
 
@@ -80,6 +92,11 @@ BEGIN
             COALESCE(pr.numero_prestamo, al.numero_alquiler) AS numero_origen,
             COALESCE(pd.id_balon, ad.id_balon) AS id_balon,
             b.codigo_balon,
+            b.id_producto_gas,
+            pg.nombre AS nombre_producto_gas,
+            tb.capacidad AS capacidad,
+            COALESCE(um_prod.nombre, um_tipo.nombre) AS nombre_unidad_medida,
+            COALESCE(um_prod.descripcion, um_tipo.descripcion) AS descripcion_unidad_medida,
             COALESCE(pd.fecha_vencimiento, al.fecha_fin_pactada) AS fecha_vencimiento,
             COALESCE(pd.fecha_devolucion, ad.fecha_devolucion) AS fecha_devolucion,
             rd.id_resultado,
@@ -87,6 +104,7 @@ BEGIN
             res.descripcion AS descripcion_resultado,
             rd.id_estado_contenido,
             ec.nombre AS nombre_estado_contenido,
+            rd.cantidad_restante,
             rd.nueva_fecha_retorno,
             rd.id_almacen_destino,
             a.nombre AS nombre_almacen_destino,
@@ -100,6 +118,10 @@ BEGIN
             ON ad.id = rd.id_alquiler_detalle AND ad.estado = 1
         LEFT JOIN bal_alquiler al ON al.id = ad.id_alquiler
         LEFT JOIN bal_balon b ON b.id = COALESCE(pd.id_balon, ad.id_balon)
+        LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+        LEFT JOIN pro_producto pg ON pg.id = b.id_producto_gas
+        LEFT JOIN gen_lista_opciones um_prod ON um_prod.id = pg.id_unidad_medida
+        LEFT JOIN gen_lista_opciones um_tipo ON um_tipo.id = tb.id_unidad_medida
         LEFT JOIN gen_lista_opciones res ON res.id = rd.id_resultado
         LEFT JOIN gen_lista_opciones ec ON ec.id = rd.id_estado_contenido
         LEFT JOIN gen_almacen a ON a.id = rd.id_almacen_destino

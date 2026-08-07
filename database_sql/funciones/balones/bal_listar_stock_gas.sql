@@ -1,4 +1,5 @@
--- Stock de gas físico = residuales de balones EMPRESA LLENOS en EN_ALMACEN.
+-- Stock de gas físico = residuales de balones EMPRESA en EN_ALMACEN con gas útil
+-- (LLENO o DESCONOCIDO/parcial con capacidad_restante > 0).
 -- Lista todos los productos gas del catálogo (aunque el stock sea 0).
 
 CREATE OR REPLACE FUNCTION bal_listar_stock_gas(
@@ -34,9 +35,15 @@ BEGIN
         SELECT
             b.id_producto_gas,
             b.id_almacen,
-            COALESCE(b.capacidad_restante, tb.capacidad, 0)::NUMERIC AS capacidad,
             COALESCE(ec.nombre, 'DESCONOCIDO') AS nombre_contenido,
-            COALESCE(eb.nombre, '') AS nombre_estado_balon
+            COALESCE(eb.nombre, '') AS nombre_estado_balon,
+            CASE
+                WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'VACIO' THEN 0::NUMERIC
+                WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'LLENO'
+                    THEN COALESCE(b.capacidad_restante, tb.capacidad, 0)::NUMERIC
+                -- Parcial / desconocido: solo cuenta lo medido al recojo/devolución
+                ELSE COALESCE(b.capacidad_restante, 0)::NUMERIC
+            END AS capacidad
         FROM bal_balon b
         LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
         LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
@@ -54,19 +61,19 @@ BEGIN
             b.id_producto_gas,
             b.id_almacen,
             COUNT(*) FILTER (
-                WHERE b.nombre_contenido = 'LLENO'
-                  AND b.nombre_estado_balon = 'EN_ALMACEN'
+                WHERE b.nombre_estado_balon = 'EN_ALMACEN'
+                  AND b.capacidad > 0
             ) AS balones_llenos,
             COALESCE(SUM(b.capacidad) FILTER (
-                WHERE b.nombre_contenido = 'LLENO'
-                  AND b.nombre_estado_balon = 'EN_ALMACEN'
+                WHERE b.nombre_estado_balon = 'EN_ALMACEN'
+                  AND b.capacidad > 0
             ), 0) AS capacidad_disponible,
             COUNT(*) FILTER (
                 WHERE b.nombre_contenido = 'VACIO'
                   AND b.nombre_estado_balon = 'EN_ALMACEN'
             ) AS balones_vacios,
             COUNT(*) FILTER (
-                WHERE b.nombre_contenido = 'LLENO'
+                WHERE b.capacidad > 0
                   AND b.nombre_estado_balon <> 'EN_ALMACEN'
             ) AS balones_llenos_fuera
         FROM base b

@@ -9,7 +9,8 @@ CREATE OR REPLACE FUNCTION ven_crear_garantia(
     p_id_unidad_medida INTEGER DEFAULT NULL,
     p_fecha_registro DATE DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_id_alquiler INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -40,6 +41,12 @@ BEGIN
         SELECT 1 FROM bal_prestamo WHERE id = p_id_prestamo AND estado = 1
     ) THEN
         RETURN json_build_object('error', 'El préstamo indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    IF p_id_alquiler IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM bal_alquiler WHERE id = p_id_alquiler AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El alquiler indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
     IF p_id_producto IS NOT NULL AND NOT EXISTS (
@@ -79,6 +86,7 @@ BEGIN
     INSERT INTO ven_garantia (
         id_cliente,
         id_prestamo,
+        id_alquiler,
         ubicacion,
         id_producto,
         cantidad_venta,
@@ -95,6 +103,7 @@ BEGIN
     VALUES (
         p_id_cliente,
         p_id_prestamo,
+        p_id_alquiler,
         NULLIF(TRIM(COALESCE(p_ubicacion, '')), ''),
         p_id_producto,
         p_cantidad_venta,

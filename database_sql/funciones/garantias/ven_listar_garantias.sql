@@ -4,7 +4,8 @@ CREATE OR REPLACE FUNCTION ven_listar_garantias(
     p_offset INTEGER DEFAULT 0,
     p_id_cliente INTEGER DEFAULT NULL,
     p_id_prestamo INTEGER DEFAULT NULL,
-    p_id_estado INTEGER DEFAULT NULL
+    p_id_estado INTEGER DEFAULT NULL,
+    p_id_alquiler INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -19,16 +20,19 @@ BEGIN
     FROM ven_garantia g
     LEFT JOIN cli_clientes c ON g.id_cliente = c.id
     LEFT JOIN bal_prestamo pr ON g.id_prestamo = pr.id
+    LEFT JOIN bal_alquiler al ON g.id_alquiler = al.id
     LEFT JOIN pro_producto p ON g.id_producto = p.id
     WHERE g.estado = 1
       AND (p_id_cliente IS NULL OR g.id_cliente = p_id_cliente)
       AND (p_id_prestamo IS NULL OR g.id_prestamo = p_id_prestamo)
+      AND (p_id_alquiler IS NULL OR g.id_alquiler = p_id_alquiler)
       AND (p_id_estado IS NULL OR g.id_estado = p_id_estado)
       AND (
           COALESCE(p_busqueda, '') = ''
           OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(c.numero_documento, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(pr.numero_prestamo, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(al.numero_alquiler, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(p.nombre, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(g.ubicacion, ''), p_busqueda)
       );
@@ -42,6 +46,8 @@ BEGIN
             c.numero_documento AS documento_cliente,
             g.id_prestamo,
             pr.numero_prestamo,
+            g.id_alquiler,
+            al.numero_alquiler,
             g.ubicacion,
             g.id_producto,
             p.codigo AS codigo_producto,
@@ -59,17 +65,20 @@ BEGIN
         FROM ven_garantia g
         LEFT JOIN cli_clientes c ON g.id_cliente = c.id
         LEFT JOIN bal_prestamo pr ON g.id_prestamo = pr.id
+        LEFT JOIN bal_alquiler al ON g.id_alquiler = al.id
         LEFT JOIN pro_producto p ON g.id_producto = p.id
         LEFT JOIN gen_lista_opciones eg ON g.id_estado = eg.id
         WHERE g.estado = 1
           AND (p_id_cliente IS NULL OR g.id_cliente = p_id_cliente)
           AND (p_id_prestamo IS NULL OR g.id_prestamo = p_id_prestamo)
+          AND (p_id_alquiler IS NULL OR g.id_alquiler = p_id_alquiler)
           AND (p_id_estado IS NULL OR g.id_estado = p_id_estado)
           AND (
               COALESCE(p_busqueda, '') = ''
               OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(c.numero_documento, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(pr.numero_prestamo, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(al.numero_alquiler, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(p.nombre, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(g.ubicacion, ''), p_busqueda)
           )

@@ -33,6 +33,9 @@ BEGIN
             al.id_producto_regulador,
             pr.codigo AS codigo_producto_regulador,
             pr.nombre AS nombre_producto_regulador,
+            al.id_producto_stock,
+            ps.codigo AS codigo_producto_stock,
+            ps.nombre AS nombre_producto_stock,
             al.dias_periodo,
             al.estado,
             al.fecha_creacion,
@@ -53,6 +56,7 @@ BEGIN
         LEFT JOIN ven_comprobante cv ON al.id_comprobante_venta = cv.id
         LEFT JOIN cli_clientes cv_cli ON cv.id_cliente = cv_cli.id
         LEFT JOIN pro_producto pr ON al.id_producto_regulador = pr.id
+        LEFT JOIN pro_producto ps ON al.id_producto_stock = ps.id
         LEFT JOIN auth_usuarios uc ON al.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON al.id_usuario_modificacion = um.id
         WHERE al.id = p_id AND al.estado = 1

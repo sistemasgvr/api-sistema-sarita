@@ -21,10 +21,7 @@ SELECT
         INNER JOIN gen_lista l ON l.id = lo.id_lista
         WHERE l.nombre = 'TipoCliente'
           AND lo.estado = 1
-          AND (
-            upper(lo.nombre) = 'CLIENTE'
-            OR upper(lo.nombre) LIKE '%CLIENTE%'
-          )
+          AND lo.nombre = 'Cliente'
         ORDER BY lo.id
         LIMIT 1
     ),

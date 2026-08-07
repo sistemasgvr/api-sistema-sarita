@@ -4,6 +4,7 @@ CREATE OR REPLACE FUNCTION bal_listar_recojos(
     p_offset INTEGER DEFAULT 0,
     p_id_cliente INTEGER DEFAULT NULL,
     p_id_prestamo INTEGER DEFAULT NULL,
+    p_id_alquiler INTEGER DEFAULT NULL,
     p_estado_nombre VARCHAR DEFAULT NULL,
     p_fecha_desde DATE DEFAULT NULL,
     p_fecha_hasta DATE DEFAULT NULL
@@ -25,16 +26,19 @@ BEGIN
     FROM bal_recojo r
     LEFT JOIN cli_clientes c ON c.id = r.id_cliente
     LEFT JOIN bal_prestamo pr ON pr.id = r.id_prestamo
+    LEFT JOIN bal_alquiler al ON al.id = r.id_alquiler
     LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
     WHERE r.estado = 1
       AND (p_id_cliente IS NULL OR r.id_cliente = p_id_cliente)
       AND (p_id_prestamo IS NULL OR r.id_prestamo = p_id_prestamo)
+      AND (p_id_alquiler IS NULL OR r.id_alquiler = p_id_alquiler)
       AND (v_estado_nombre IS NULL OR er.nombre = v_estado_nombre)
       AND (p_fecha_desde IS NULL OR r.fecha_programada >= p_fecha_desde)
       AND (p_fecha_hasta IS NULL OR r.fecha_programada <= p_fecha_hasta)
       AND (
           COALESCE(p_busqueda, '') = ''
           OR gen_texto_coincide(COALESCE(pr.numero_prestamo, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(al.numero_alquiler, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(c.nombres, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(c.numero_documento, ''), p_busqueda)
@@ -54,8 +58,18 @@ BEGIN
                 c.numero_documento
             ) AS nombre_cliente,
             c.numero_documento AS documento_cliente,
+            dir.latitud,
+            dir.longitud,
+            dir.direccion,
             r.id_prestamo,
             pr.numero_prestamo,
+            r.id_alquiler,
+            al.numero_alquiler,
+            CASE
+                WHEN r.id_prestamo IS NOT NULL AND r.id_alquiler IS NOT NULL THEN 'MIXTO'
+                WHEN r.id_alquiler IS NOT NULL THEN 'ALQUILER'
+                ELSE 'PRESTAMO'
+            END AS tipo_origen,
             r.fecha_programada,
             r.hora_estimada,
             r.fecha_visita,
@@ -77,18 +91,30 @@ BEGIN
         FROM bal_recojo r
         LEFT JOIN cli_clientes c ON c.id = r.id_cliente
         LEFT JOIN bal_prestamo pr ON pr.id = r.id_prestamo
+        LEFT JOIN bal_alquiler al ON al.id = r.id_alquiler
         LEFT JOIN auth_usuarios ur ON ur.id = r.id_usuario_responsable
         LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
         LEFT JOIN gen_lista_opciones mf ON mf.id = r.id_motivo_fallo
+        LEFT JOIN LATERAL (
+            SELECT cd.latitud, cd.longitud, cd.direccion
+            FROM cli_direcciones cd
+            WHERE cd.id_cliente = r.id_cliente
+              AND cd.es_principal = TRUE
+              AND cd.estado = 1
+            ORDER BY cd.id DESC
+            LIMIT 1
+        ) dir ON TRUE
         WHERE r.estado = 1
           AND (p_id_cliente IS NULL OR r.id_cliente = p_id_cliente)
           AND (p_id_prestamo IS NULL OR r.id_prestamo = p_id_prestamo)
+          AND (p_id_alquiler IS NULL OR r.id_alquiler = p_id_alquiler)
           AND (v_estado_nombre IS NULL OR er.nombre = v_estado_nombre)
           AND (p_fecha_desde IS NULL OR r.fecha_programada >= p_fecha_desde)
           AND (p_fecha_hasta IS NULL OR r.fecha_programada <= p_fecha_hasta)
           AND (
               COALESCE(p_busqueda, '') = ''
               OR gen_texto_coincide(COALESCE(pr.numero_prestamo, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(al.numero_alquiler, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(c.nombres, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(c.numero_documento, ''), p_busqueda)

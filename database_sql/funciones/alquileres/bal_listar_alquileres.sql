@@ -18,6 +18,7 @@ BEGIN
     SELECT COUNT(*) INTO v_total
     FROM bal_alquiler al
     LEFT JOIN pro_producto pr ON al.id_producto_regulador = pr.id
+    LEFT JOIN pro_producto ps ON al.id_producto_stock = ps.id
     WHERE al.estado = 1
       AND (p_id_cliente IS NULL OR al.id_cliente = p_id_cliente)
       AND (p_id_almacen IS NULL OR al.id_almacen = p_id_almacen)
@@ -28,6 +29,8 @@ BEGIN
           OR gen_texto_coincide(COALESCE(al.observacion, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(pr.nombre, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(pr.codigo, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(ps.nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(ps.codigo, ''), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -54,6 +57,9 @@ BEGIN
             al.id_producto_regulador,
             pr.codigo AS codigo_producto_regulador,
             pr.nombre AS nombre_producto_regulador,
+            al.id_producto_stock,
+            ps.codigo AS codigo_producto_stock,
+            ps.nombre AS nombre_producto_stock,
             al.estado,
             al.fecha_creacion,
             (
@@ -74,6 +80,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones ea ON al.id_estado = ea.id
         LEFT JOIN ven_comprobante cv ON al.id_comprobante_venta = cv.id
         LEFT JOIN pro_producto pr ON al.id_producto_regulador = pr.id
+        LEFT JOIN pro_producto ps ON al.id_producto_stock = ps.id
         WHERE al.estado = 1
           AND (p_id_cliente IS NULL OR al.id_cliente = p_id_cliente)
           AND (p_id_almacen IS NULL OR al.id_almacen = p_id_almacen)
@@ -84,6 +91,8 @@ BEGIN
               OR gen_texto_coincide(COALESCE(al.observacion, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(pr.nombre, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(pr.codigo, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(ps.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(ps.codigo, ''), p_busqueda)
           )
         ORDER BY al.fecha_inicio DESC, al.id DESC
         LIMIT p_limite

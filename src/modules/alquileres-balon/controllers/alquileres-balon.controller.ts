@@ -43,6 +43,16 @@ export class AlquileresBalonController {
     return this.logic.reporteAntiguedad(filtros);
   }
 
+  @Get('siguiente-numero')
+  @Permisos(PermisoBanderas.ALQUILERES_BALON_CREAR)
+  @ApiOperation({ summary: 'Obtener próximo número correlativo ALQ-YYYY-###' })
+  obtenerSiguienteNumero(@Query('anio') anio?: string) {
+    const parsed = anio != null && anio !== '' ? Number(anio) : undefined;
+    return this.logic.obtenerSiguienteNumero(
+      Number.isFinite(parsed) ? parsed : undefined,
+    );
+  }
+
   @Get(':id/periodos')
   @Permisos(PermisoBanderas.ALQUILERES_BALON_VER)
   @ApiOperation({ summary: 'Listar periodos / renovaciones del alquiler' })

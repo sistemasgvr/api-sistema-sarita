@@ -3,7 +3,6 @@ import { Type, Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
-  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -68,11 +67,13 @@ export class FiltroAlquileresAntiguedadDto extends FiltroPaginacionDto {
 }
 
 export class CreateAlquileresBalonDto extends AuditoriaDto {
-  @ApiProperty()
+  @ApiPropertyOptional({
+    description: 'Opcional. Si se omite, el backend genera ALQ-YYYY-###',
+  })
   @MaxLength(30)
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  numeroAlquiler!: string;
+  numeroAlquiler?: string;
 
   @ApiProperty()
   @Type(() => Number)
@@ -129,12 +130,20 @@ export class CreateAlquileresBalonDto extends AuditoriaDto {
   idComprobanteVenta?: number;
 
   @ApiPropertyOptional({
-    description: 'Producto/servicio del regulador en alquiler (flujo medicinal)',
+    description: 'Servicio de cobro/renovación (es_servicio)',
   })
   @Type(() => Number)
   @IsOptional()
   @IsNumber()
   idProductoRegulador?: number;
+
+  @ApiPropertyOptional({
+    description: 'Regulador físico del stock (descuenta 1 unidad al crear)',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idProductoStock?: number;
 
   @ApiPropertyOptional({ description: 'Días del periodo de renovación (default 14)' })
   @Type(() => Number)
@@ -208,12 +217,20 @@ export class UpdateAlquileresBalonDto extends AuditoriaDto {
   idComprobanteVenta?: number;
 
   @ApiPropertyOptional({
-    description: 'Producto/servicio del regulador en alquiler (flujo medicinal)',
+    description: 'Servicio de cobro/renovación (es_servicio)',
   })
   @Type(() => Number)
   @IsOptional()
   @IsNumber()
   idProductoRegulador?: number;
+
+  @ApiPropertyOptional({
+    description: 'Regulador físico del stock',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idProductoStock?: number;
 
   @ApiPropertyOptional({ description: 'Días del periodo de renovación (default 14)' })
   @Type(() => Number)

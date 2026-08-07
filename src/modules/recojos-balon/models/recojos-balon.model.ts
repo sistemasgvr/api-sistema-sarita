@@ -121,6 +121,7 @@ export class RecojosBalonModel {
             id_alquiler_detalle: d.idAlquilerDetalle,
             resultado: d.resultado,
             nombre_estado_contenido: d.nombreEstadoContenido ?? null,
+            cantidad_restante: d.cantidadRestante ?? null,
             nueva_fecha_retorno: d.nuevaFechaRetorno ?? null,
             id_almacen_destino: d.idAlmacenDestino ?? null,
             observacion: d.observacion ?? null,

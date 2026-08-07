@@ -28,6 +28,12 @@ export class FiltroGarantiasDto extends FiltroPaginacionDto {
   @Type(() => Number)
   @IsOptional()
   @IsNumber()
+  idAlquiler?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
   idEstado?: number;
 }
 
@@ -54,6 +60,12 @@ export class CreateGarantiaDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   idPrestamo?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idAlquiler?: number;
 
   @ApiPropertyOptional()
   @Type(() => Number)
