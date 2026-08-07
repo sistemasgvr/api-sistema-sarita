@@ -29,6 +29,8 @@ DECLARE
     v_id_tipo_ingreso INTEGER;
     v_id_tipo_doc INTEGER;
     v_mov JSON;
+    v_stock_reg_ok BOOLEAN;
+    v_id_mant_reg INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -95,14 +97,30 @@ BEGIN
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;
 
-    SELECT fecha_fin_real, id_producto_stock, id_almacen, numero_alquiler
-    INTO v_fin_real, v_producto_stock, v_almacen, v_numero_prev
+    SELECT
+        fecha_fin_real,
+        id_producto_stock,
+        id_almacen,
+        numero_alquiler,
+        COALESCE(stock_regulador_reingresado, FALSE),
+        id_mantenimiento_regulador
+    INTO
+        v_fin_real,
+        v_producto_stock,
+        v_almacen,
+        v_numero_prev,
+        v_stock_reg_ok,
+        v_id_mant_reg
     FROM bal_alquiler
     WHERE id = p_id AND estado = 1;
 
+    -- Reingreso de stock solo si aún no se hizo al devolver el regulador
+    -- (BUENO → ya reingresó; PARA_REPARAR → espera fin de mantenimiento)
     IF v_fin_real_prev IS NULL
        AND v_fin_real IS NOT NULL
        AND v_producto_stock IS NOT NULL
+       AND NOT COALESCE(v_stock_reg_ok, FALSE)
+       AND v_id_mant_reg IS NULL
        AND EXISTS (
            SELECT 1 FROM pro_producto
            WHERE id = v_producto_stock

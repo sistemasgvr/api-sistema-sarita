@@ -25,6 +25,7 @@ DECLARE
     v_id_tipo_salida INTEGER;
     v_id_tipo_doc INTEGER;
     v_mov JSON;
+    v_id_estado INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -42,6 +43,33 @@ BEGIN
 
     IF p_fecha_inicio IS NULL THEN
         RETURN json_build_object('error', 'La fecha de inicio es obligatoria', 'registro', NULL);
+    END IF;
+
+    IF p_fecha_fin_pactada IS NULL THEN
+        RETURN json_build_object('error', 'La fecha de fin del alquiler es obligatoria', 'registro', NULL);
+    END IF;
+
+    IF p_fecha_fin_pactada < p_fecha_inicio THEN
+        RETURN json_build_object(
+            'error', 'La fecha de fin no puede ser anterior a la fecha de inicio',
+            'registro', NULL
+        );
+    END IF;
+
+    v_id_estado := p_id_estado;
+    IF v_id_estado IS NULL THEN
+        SELECT lo.id INTO v_id_estado
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON l.id = lo.id_lista
+        WHERE l.nombre = 'EstadoAlquiler' AND lo.nombre = 'ACTIVO' AND lo.estado = 1
+        LIMIT 1;
+
+        IF v_id_estado IS NULL THEN
+            RETURN json_build_object(
+                'error', 'No se encontró el estado ACTIVO del alquiler. Revise el catálogo EstadoAlquiler.',
+                'registro', NULL
+            );
+        END IF;
     END IF;
 
     IF EXISTS (
@@ -110,7 +138,7 @@ BEGIN
     VALUES (
         v_numero, p_id_cliente, p_id_almacen, p_fecha_inicio,
         p_fecha_fin_pactada, p_fecha_fin_real, COALESCE(p_tarifa_diaria, 0), COALESCE(p_total_cobrado, 0),
-        p_id_estado, p_observacion, p_id_comprobante_venta, p_id_producto_regulador,
+        v_id_estado, p_observacion, p_id_comprobante_venta, p_id_producto_regulador,
         p_id_producto_stock,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )

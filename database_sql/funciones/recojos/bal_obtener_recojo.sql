@@ -27,6 +27,33 @@ BEGIN
             pr.numero_prestamo,
             r.id_alquiler,
             al.numero_alquiler,
+            COALESCE(al.id_producto_regulador, al.id_producto_stock) AS id_producto_alquiler,
+            COALESCE(pr_alq.codigo, ps_alq.codigo) AS codigo_producto_alquiler,
+            COALESCE(pr_alq.nombre, ps_alq.nombre) AS nombre_producto_alquiler,
+            CASE
+                WHEN r.id_alquiler IS NOT NULL
+                     AND COALESCE(al.id_producto_regulador, al.id_producto_stock) IS NOT NULL
+                THEN TRUE
+                ELSE FALSE
+            END AS tiene_regulador,
+            CASE
+                WHEN r.id_alquiler IS NOT NULL
+                     AND COALESCE(al.id_producto_regulador, al.id_producto_stock) IS NOT NULL
+                     AND NOT EXISTS (
+                         SELECT 1
+                         FROM bal_recojo_detalle rd0
+                         WHERE rd0.id_recojo = r.id AND rd0.estado = 1
+                     )
+                THEN TRUE
+                ELSE FALSE
+            END AS es_solo_regulador,
+            r.id_resultado_regulador,
+            rr.nombre AS nombre_resultado_regulador,
+            r.id_condicion_regulador,
+            cr.nombre AS nombre_condicion_regulador,
+            cr.descripcion AS descripcion_condicion_regulador,
+            r.nueva_fecha_retorno_regulador,
+            r.observacion_regulador,
             CASE
                 WHEN r.id_prestamo IS NOT NULL AND r.id_alquiler IS NOT NULL THEN 'MIXTO'
                 WHEN r.id_alquiler IS NOT NULL THEN 'ALQUILER'
@@ -55,9 +82,13 @@ BEGIN
         LEFT JOIN cli_clientes c ON c.id = r.id_cliente
         LEFT JOIN bal_prestamo pr ON pr.id = r.id_prestamo
         LEFT JOIN bal_alquiler al ON al.id = r.id_alquiler
+        LEFT JOIN pro_producto pr_alq ON pr_alq.id = al.id_producto_regulador
+        LEFT JOIN pro_producto ps_alq ON ps_alq.id = al.id_producto_stock
         LEFT JOIN auth_usuarios ur ON ur.id = r.id_usuario_responsable
         LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
         LEFT JOIN gen_lista_opciones mf ON mf.id = r.id_motivo_fallo
+        LEFT JOIN gen_lista_opciones rr ON rr.id = r.id_resultado_regulador
+        LEFT JOIN gen_lista_opciones cr ON cr.id = r.id_condicion_regulador
         LEFT JOIN auth_usuarios uc ON uc.id = r.id_usuario_creacion
         LEFT JOIN auth_usuarios um ON um.id = r.id_usuario_modificacion
         LEFT JOIN LATERAL (

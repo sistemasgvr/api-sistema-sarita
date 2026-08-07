@@ -18,7 +18,8 @@ BEGIN
 
     SELECT COUNT(*) INTO v_total
     FROM bal_mantenimiento m
-    INNER JOIN bal_balon b ON m.id_balon = b.id
+    LEFT JOIN bal_balon b ON m.id_balon = b.id
+    LEFT JOIN pro_producto p ON p.id = m.id_producto
     WHERE m.estado = 1
       AND (p_id_balon IS NULL OR m.id_balon = p_id_balon)
       AND (p_id_tipo_mantenimiento IS NULL OR m.id_tipo_mantenimiento = p_id_tipo_mantenimiento)
@@ -26,7 +27,9 @@ BEGIN
       AND (p_es_externo IS NULL OR m.es_externo = p_es_externo)
       AND (
           p_busqueda = ''
-          OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+          OR gen_texto_coincide(COALESCE(b.codigo_balon, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(p.codigo, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(p.nombre, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(m.descripcion, ''), p_busqueda)
       );
 
@@ -36,6 +39,13 @@ BEGIN
             m.id,
             m.id_balon,
             b.codigo_balon,
+            m.id_producto,
+            p.codigo AS codigo_producto,
+            p.nombre AS nombre_producto,
+            CASE
+                WHEN m.id_producto IS NOT NULL THEN 'PRODUCTO'
+                ELSE 'CILINDRO'
+            END AS tipo_origen,
             b.id_propietario,
             prop.nombre AS nombre_propietario,
             b.id_cliente_propietario,
@@ -67,6 +77,8 @@ BEGIN
                 WHEN cc.id IS NULL THEN NULL
                 ELSE CONCAT_WS('-', cc.serie, cc.numero)
             END AS comprobante_compra,
+            m.id_alquiler,
+            m.id_recojo,
             m.estado,
             m.fecha_creacion,
             (
@@ -78,7 +90,8 @@ BEGIN
                 )
             ) AS puede_eliminar
         FROM bal_mantenimiento m
-        INNER JOIN bal_balon b ON m.id_balon = b.id
+        LEFT JOIN bal_balon b ON m.id_balon = b.id
+        LEFT JOIN pro_producto p ON p.id = m.id_producto
         LEFT JOIN gen_lista_opciones prop ON b.id_propietario = prop.id
         LEFT JOIN cli_clientes cp ON b.id_cliente_propietario = cp.id
         LEFT JOIN gen_lista_opciones tm ON m.id_tipo_mantenimiento = tm.id
@@ -92,7 +105,9 @@ BEGIN
           AND (p_es_externo IS NULL OR m.es_externo = p_es_externo)
           AND (
               p_busqueda = ''
-              OR gen_texto_coincide(b.codigo_balon, p_busqueda)
+              OR gen_texto_coincide(COALESCE(b.codigo_balon, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(p.codigo, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(p.nombre, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(m.descripcion, ''), p_busqueda)
           )
         ORDER BY m.fecha_ingreso DESC, m.id DESC

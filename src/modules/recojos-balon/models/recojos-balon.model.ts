@@ -128,6 +128,14 @@ export class RecojosBalonModel {
           })),
         ),
         dto.idUsuarioAuditoria ?? null,
+        dto.regulador
+          ? JSON.stringify({
+              resultado: dto.regulador.resultado,
+              condicion: dto.regulador.condicion ?? null,
+              nueva_fecha_retorno: dto.regulador.nuevaFechaRetorno ?? null,
+              observacion: dto.regulador.observacion ?? null,
+            })
+          : null,
       ],
     );
   }

@@ -39,7 +39,11 @@ BEGIN
             al.id,
             al.numero_alquiler,
             al.id_cliente,
-            c.razon_social AS nombre_cliente,
+            COALESCE(
+                NULLIF(TRIM(c.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), ''),
+                c.numero_documento
+            ) AS nombre_cliente,
             al.id_almacen,
             a.nombre AS nombre_almacen,
             al.fecha_inicio,

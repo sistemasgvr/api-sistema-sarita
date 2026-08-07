@@ -38,6 +38,22 @@ class ExactlyOneRecojoDetalleConstraint implements ValidatorConstraintInterface 
   }
 }
 
+/** Resultado de recojo: un origen, o ninguno (alquiler solo regulador). */
+@ValidatorConstraint({ name: 'atMostOneRecojoDetalle', async: false })
+class AtMostOneRecojoDetalleConstraint implements ValidatorConstraintInterface {
+  validate(_: unknown, args: ValidationArguments) {
+    const value = args.object as {
+      idPrestamoDetalle?: number;
+      idAlquilerDetalle?: number;
+    };
+    return !(Boolean(value.idPrestamoDetalle) && Boolean(value.idAlquilerDetalle));
+  }
+
+  defaultMessage() {
+    return 'No puede indicar detalle de préstamo y alquiler a la vez';
+  }
+}
+
 export class FiltroRecojosBalonDto extends FiltroPaginacionDto {
   @ApiPropertyOptional()
   @Type(() => Number)
@@ -220,7 +236,7 @@ export class RecojoDetalleResultadoDto {
   @Type(() => Number)
   @IsOptional()
   @IsNumber()
-  @Validate(ExactlyOneRecojoDetalleConstraint)
+  @Validate(AtMostOneRecojoDetalleConstraint)
   idPrestamoDetalle?: number;
 
   @ApiPropertyOptional()
@@ -271,6 +287,33 @@ export class RecojoDetalleResultadoDto {
   observacion?: string;
 }
 
+export class RecojoReguladorResultadoDto {
+  @ApiProperty({ enum: RESULTADOS_RECOJO })
+  @IsString()
+  @IsIn([...RESULTADOS_RECOJO])
+  resultado!: (typeof RESULTADOS_RECOJO)[number];
+
+  @ApiPropertyOptional({
+    enum: ['BUENO', 'PARA_REPARAR'],
+    description: 'Obligatorio si resultado = RECOGIDO',
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['BUENO', 'PARA_REPARAR'])
+  condicion?: 'BUENO' | 'PARA_REPARAR';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  nuevaFechaRetorno?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observacion?: string;
+}
+
 export class RegistrarResultadoRecojoDto extends AuditoriaDto {
   @ApiPropertyOptional({ description: 'Fecha real de la visita (default: hoy)' })
   @IsOptional()
@@ -305,4 +348,13 @@ export class RegistrarResultadoRecojoDto extends AuditoriaDto {
   @ValidateNested({ each: true })
   @Type(() => RecojoDetalleResultadoDto)
   detalles!: RecojoDetalleResultadoDto[];
+
+  @ApiPropertyOptional({
+    type: RecojoReguladorResultadoDto,
+    description: 'Resultado del regulador/accesorio (independiente de cilindros)',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RecojoReguladorResultadoDto)
+  regulador?: RecojoReguladorResultadoDto;
 }

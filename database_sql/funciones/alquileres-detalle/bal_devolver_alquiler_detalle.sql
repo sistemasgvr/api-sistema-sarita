@@ -148,7 +148,17 @@ BEGIN
       AND estado = 1
       AND fecha_devolucion IS NULL;
 
-    IF v_pendientes = 0 THEN
+    -- No cerrar si aún falta devolver el regulador/accesorio
+    IF v_pendientes = 0
+       AND NOT EXISTS (
+           SELECT 1
+           FROM bal_alquiler a
+           WHERE a.id = v_id_alquiler
+             AND a.estado = 1
+             AND COALESCE(a.id_producto_regulador, a.id_producto_stock) IS NOT NULL
+             AND a.fecha_devolucion_regulador IS NULL
+       )
+    THEN
         UPDATE bal_alquiler
         SET
             fecha_fin_real = COALESCE(fecha_fin_real, COALESCE(p_fecha_devolucion, CURRENT_DATE)),
