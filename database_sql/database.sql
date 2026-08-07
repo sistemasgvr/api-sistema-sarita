@@ -1226,11 +1226,12 @@ CREATE TABLE ven_cuotas (
 );
 
 -- Garantía de envase/cilindro cobrada al cliente
--- Una garantía puede cubrir uno o varios cilindros del mismo préstamo
+-- Orígenes: préstamo, alquiler, POS (comprobante en movimientos) o manual (Finanzas)
 CREATE TABLE ven_garantia (
     id                  SERIAL PRIMARY KEY,
     id_cliente           INT NOT NULL REFERENCES cli_clientes(id),
     id_prestamo          INT REFERENCES bal_prestamo(id),       -- préstamo que originó la garantía
+    id_alquiler          INT REFERENCES bal_alquiler(id),       -- alquiler que originó la garantía
     ubicacion           varchar(150),
     id_producto          INT REFERENCES pro_producto(id),
     cantidad_venta       NUMERIC(12,4),
@@ -1241,6 +1242,12 @@ CREATE TABLE ven_garantia (
     monto_saldo          NUMERIC(12,4) NOT NULL DEFAULT 0,
     id_estado            INT REFERENCES gen_lista_opciones(id),  -- ACTIVA, DEVUELTA, PARCIAL
     observacion         varchar(500),
+    -- Campos de recepción/reembolso (manuales / espejo fin_garantia)
+    id_medio_pago         INT REFERENCES gen_lista_opciones(id),
+    fecha_reembolso       DATE,
+    id_medio_reembolso    INT REFERENCES gen_lista_opciones(id),
+    observacion_reembolso VARCHAR(500),
+    id_usuario_reembolso  INT REFERENCES auth_usuarios(id),
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion       INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
@@ -1726,6 +1733,8 @@ CREATE INDEX idx_ven_resumen_detalle_resumen ON ven_resumen_diario_detalle(id_re
 CREATE INDEX idx_ven_resumen_detalle_comprobante ON ven_resumen_diario_detalle(id_comprobante);
 CREATE INDEX idx_ven_garantia_cliente ON ven_garantia(id_cliente);
 CREATE INDEX idx_ven_garantia_fecha ON ven_garantia(fecha_registro);
+CREATE INDEX idx_ven_garantia_prestamo ON ven_garantia(id_prestamo);
+CREATE INDEX idx_ven_garantia_alquiler ON ven_garantia(id_alquiler);
 CREATE INDEX idx_ven_garantia_mov ON ven_garantia_movimiento(id_garantia);
 
 -- GRE

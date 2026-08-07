@@ -140,33 +140,28 @@ export class FinanzasModel {
     return this.db.callFunctionJson('fin_listar_medios_pago');
   }
 
-  /* ==================== Garantías ==================== */
+  /* ==================== Garantías (ven_garantia: POS / préstamos / alquileres) ==================== */
 
   crearGarantia(dto: CrearGarantiaDto) {
-    return this.db.callFunctionJson<AuthSingleResult>('fin_crear_garantia', [
-      dto.fecha,
+    return this.db.callFunctionJson<AuthSingleResult>('ven_crear_garantia', [
       dto.idCliente,
-      dto.idMedioPago ?? null,
       dto.importe,
+      dto.idComprobante ?? null,
+      dto.idPrestamo ?? null,
+      dto.idProducto ?? null,
+      null,
+      null,
+      null,
+      dto.fecha ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
-    ]);
-  }
-
-  listarGarantias(filtros: FiltroGarantiaDto) {
-    return this.db.callFunctionJson<AuthListResult>('fin_listar_garantias', [
-      filtros.buscar ?? null,
-      filtros.idCliente ?? null,
-      filtros.desde ?? null,
-      filtros.hasta ?? null,
-      filtros.estado ?? null,
-      filtros.limite ?? 10,
-      filtros.offset,
+      dto.idAlquiler ?? null,
+      dto.idMedioPago ?? null,
     ]);
   }
 
   actualizarGarantia(id: number, dto: ActualizarGarantiaDto) {
-    return this.db.callFunctionJson<AuthSingleResult>('fin_actualizar_garantia', [
+    return this.db.callFunctionJson<AuthSingleResult>('ven_actualizar_garantia_manual', [
       id,
       dto.fecha ?? null,
       dto.idCliente ?? null,
@@ -177,27 +172,41 @@ export class FinanzasModel {
     ]);
   }
 
+  listarGarantias(filtros: FiltroGarantiaDto) {
+    return this.db.callFunctionJson<AuthListResult>('ven_listar_garantias', [
+      filtros.buscar ?? '',
+      filtros.limite ?? 10,
+      filtros.offset,
+      filtros.idCliente ?? null,
+      null,
+      null,
+      null,
+      filtros.estado ?? null,
+      filtros.desde ?? null,
+      filtros.hasta ?? null,
+    ]);
+  }
+
+  obtenerGarantia(id: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('ven_obtener_garantia', [id]);
+  }
+
   eliminarGarantia(id: number, idUsuarioAuditoria?: number) {
-    return this.db.callFunctionJson<AuthDeleteResult>('fin_eliminar_garantia', [
+    return this.db.callFunctionJson<AuthDeleteResult>('ven_eliminar_garantia', [
       id,
       idUsuarioAuditoria ?? null,
     ]);
   }
 
   reembolsarGarantia(id: number, dto: ReembolsarGarantiaDto) {
-    return this.db.callFunctionJson<AuthSingleResult>('fin_reembolsar_garantia', [
+    return this.db.callFunctionJson<AuthSingleResult>('ven_devolver_garantia', [
       id,
-      dto.fechaReembolso,
-      dto.idMedioReembolso,
-      dto.observacionReembolso ?? null,
+      dto.monto,
+      dto.idComprobante ?? null,
+      dto.fecha ?? null,
+      dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
-    ]);
-  }
-
-  anularReembolsoGarantia(id: number, idUsuarioAuditoria?: number) {
-    return this.db.callFunctionJson<AuthSingleResult>('fin_anular_reembolso_garantia', [
-      id,
-      idUsuarioAuditoria ?? null,
+      dto.idMedioReembolso ?? null,
     ]);
   }
 

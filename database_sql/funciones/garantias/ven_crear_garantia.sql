@@ -1,3 +1,6 @@
+DROP FUNCTION IF EXISTS ven_crear_garantia(INTEGER, NUMERIC, INTEGER, INTEGER, INTEGER, VARCHAR, NUMERIC, INTEGER, DATE, VARCHAR, INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS ven_crear_garantia(INTEGER, NUMERIC, INTEGER, INTEGER, INTEGER, VARCHAR, NUMERIC, INTEGER, DATE, VARCHAR, INTEGER, INTEGER, INTEGER);
+
 CREATE OR REPLACE FUNCTION ven_crear_garantia(
     p_id_cliente INTEGER,
     p_monto NUMERIC,
@@ -10,7 +13,8 @@ CREATE OR REPLACE FUNCTION ven_crear_garantia(
     p_fecha_registro DATE DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_id_alquiler INTEGER DEFAULT NULL
+    p_id_alquiler INTEGER DEFAULT NULL,
+    p_id_medio_pago INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -61,6 +65,12 @@ BEGIN
         RETURN json_build_object('error', 'El comprobante indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
+    IF p_id_medio_pago IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM gen_lista_opciones WHERE id = p_id_medio_pago AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El método de pago indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
     SELECT lo.id INTO v_id_estado_activa
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON l.id = lo.id_lista
@@ -97,6 +107,7 @@ BEGIN
         monto_saldo,
         id_estado,
         observacion,
+        id_medio_pago,
         id_usuario_creacion,
         id_usuario_modificacion
     )
@@ -114,6 +125,7 @@ BEGIN
         v_monto,
         v_id_estado_activa,
         NULLIF(TRIM(COALESCE(p_observacion, '')), ''),
+        p_id_medio_pago,
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     )

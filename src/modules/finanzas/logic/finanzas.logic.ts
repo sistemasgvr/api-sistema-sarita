@@ -120,6 +120,11 @@ export class FinanzasLogic {
     return mapListResult(result, filtros);
   }
 
+  async obtenerGarantia(id: number) {
+    const result = await this.finanzasModel.obtenerGarantia(id);
+    return mapSingleResult(result, `Garantía ${id} no encontrada`);
+  }
+
   async crearGarantia(dto: CrearGarantiaDto) {
     const result = await this.finanzasModel.crearGarantia(dto);
     const garantia = mapSingleResult(result, 'No se pudo registrar la garantía');
@@ -144,11 +149,6 @@ export class FinanzasLogic {
     const garantia = mapSingleResult(result, `Garantía ${id} no encontrada`);
     await this.notificarGarantiaReembolsada(garantia, dto.idUsuarioAuditoria);
     return garantia;
-  }
-
-  async anularReembolsoGarantia(id: number, idUsuarioAuditoria?: number) {
-    const result = await this.finanzasModel.anularReembolsoGarantia(id, idUsuarioAuditoria);
-    return mapSingleResult(result, `Garantía ${id} no encontrada`);
   }
 
   /* ==================== Notificaciones (helpers privados) ==================== */
@@ -270,7 +270,7 @@ export class FinanzasLogic {
         permiso: PermisoBanderas.FINANZAS_GARANTIAS_VER,
         codigoTipo: TipoNotificacion.FIN_GARANTIA_CREADA,
         titulo: 'Nueva garantía registrada',
-        mensaje: `${garantia?.cliente ?? 'Cliente'} · ${this.formatCurrency(garantia?.importe)}`,
+        mensaje: `${garantia?.nombre_cliente ?? 'Cliente'} · ${this.formatCurrency(garantia?.monto_cobrado)}`,
         payload: { idGarantia: garantia?.id, idCliente: garantia?.id_cliente },
         idReferencia: garantia?.id,
         tipoReferencia: TipoReferenciaNotificacion.GARANTIA,
@@ -289,15 +289,16 @@ export class FinanzasLogic {
         permiso: PermisoBanderas.FINANZAS_GARANTIAS_VER,
         codigoTipo: TipoNotificacion.FIN_GARANTIA_REEMBOLSADA,
         titulo: 'Garantía reembolsada',
-        mensaje: `${garantia?.cliente ?? 'Cliente'} · ${this.formatCurrency(garantia?.importe)} devuelto`,
+        mensaje: `${garantia?.nombre_cliente ?? 'Cliente'} · saldo ${this.formatCurrency(garantia?.monto_saldo)}`,
         payload: {
           idGarantia: garantia?.id,
           idCliente: garantia?.id_cliente,
-          fechaReembolso: garantia?.fecha_reembolso,
+          montoSaldo: garantia?.monto_saldo,
+          nombreEstado: garantia?.nombre_estado,
         },
         idReferencia: garantia?.id,
         tipoReferencia: TipoReferenciaNotificacion.GARANTIA,
-        claveDedupePrefix: `FIN_GARANTIA_REEMBOLSADA:${garantia?.id}`,
+        claveDedupePrefix: `FIN_GARANTIA_REEMBOLSADA:${garantia?.id}:${garantia?.monto_devuelto ?? 0}`,
         idUsuarioAuditoria,
         excluirUsuarioId: idUsuarioAuditoria,
       });

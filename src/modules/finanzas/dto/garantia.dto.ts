@@ -9,6 +9,7 @@ import {
   IsString,
   Matches,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
@@ -26,7 +27,7 @@ export class CrearGarantiaDto extends AuditoriaDto {
 
   @ApiPropertyOptional({
     example: 1,
-    description: 'Método con el que el cliente PAGÓ la garantía (efectivo, yape, etc.)',
+    description: 'Método con el que el cliente PAGÓ la garantía',
   })
   @IsOptional()
   @Type(() => Number)
@@ -44,6 +45,30 @@ export class CrearGarantiaDto extends AuditoriaDto {
   @IsString()
   @MaxLength(500)
   observacion?: string;
+
+  @ApiPropertyOptional({ description: 'Comprobante de cobro (POS)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idComprobante?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idPrestamo?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idAlquiler?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idProducto?: number;
 }
 
 export class ActualizarGarantiaDto extends AuditoriaDto {
@@ -80,21 +105,35 @@ export class ActualizarGarantiaDto extends AuditoriaDto {
 }
 
 export class ReembolsarGarantiaDto extends AuditoriaDto {
-  @ApiProperty({ example: '2026-09-04', description: 'Fecha en que se devolvió el dinero' })
-  @IsString()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'fechaReembolso debe tener formato YYYY-MM-DD' })
-  fechaReembolso: string;
+  @ApiProperty({ example: 50, description: 'Monto a devolver (parcial o total del saldo)' })
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0.01)
+  monto: number;
 
-  @ApiProperty({ example: 2, description: 'Método usado para reembolsar (efectivo, transferencia, etc.)' })
+  @ApiPropertyOptional({ example: '2026-09-04', description: 'Fecha de la devolución' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'fecha debe tener formato YYYY-MM-DD' })
+  fecha?: string;
+
+  @ApiPropertyOptional({ description: 'Comprobante NC (opcional)' })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idMedioReembolso: number;
+  idComprobante?: number;
 
-  @ApiPropertyOptional({ example: 'Entregado en tienda con voucher #123' })
+  @ApiPropertyOptional({ example: 2, description: 'Método usado para reembolsar' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idMedioReembolso?: number;
+
+  @ApiPropertyOptional({ example: 'Entregado en tienda' })
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  observacionReembolso?: string;
+  observacion?: string;
 }
 
 export class FiltroGarantiaDto extends FiltroPaginacionDto {
@@ -116,9 +155,12 @@ export class FiltroGarantiaDto extends FiltroPaginacionDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'hasta debe tener formato YYYY-MM-DD' })
   hasta?: string;
 
-  @ApiPropertyOptional({ enum: ['ACTIVA', 'DEVUELTA'], example: 'ACTIVA' })
+  @ApiPropertyOptional({
+    enum: ['ACTIVA', 'PARCIAL', 'DEVUELTA'],
+    example: 'ACTIVA',
+  })
   @IsOptional()
   @IsString()
-  @IsIn(['ACTIVA', 'DEVUELTA'])
+  @IsIn(['ACTIVA', 'PARCIAL', 'DEVUELTA'])
   estado?: string;
 }

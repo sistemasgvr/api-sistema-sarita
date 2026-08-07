@@ -12,7 +12,10 @@ BEGIN
         SELECT
             g.id,
             g.id_cliente,
-            c.razon_social AS nombre_cliente,
+            COALESCE(
+                NULLIF(TRIM(c.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), '')
+            ) AS nombre_cliente,
             c.numero_documento AS documento_cliente,
             g.id_prestamo,
             pr.numero_prestamo,
@@ -34,9 +37,76 @@ BEGIN
             g.id_estado,
             eg.nombre AS nombre_estado,
             g.observacion,
+            g.id_medio_pago,
+            mp.nombre AS medio_pago,
+            g.fecha_reembolso,
+            g.id_medio_reembolso,
+            mr.nombre AS medio_reembolso,
+            g.observacion_reembolso,
+            g.id_usuario_reembolso,
             g.estado,
             g.fecha_creacion,
             g.fecha_modificacion,
+            CASE
+                WHEN g.id_prestamo IS NOT NULL THEN 'PRESTAMO'
+                WHEN g.id_alquiler IS NOT NULL THEN 'ALQUILER'
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM ven_garantia_movimiento gm
+                    WHERE gm.id_garantia = g.id
+                      AND gm.estado = 1
+                      AND gm.id_comprobante IS NOT NULL
+                ) THEN 'POS'
+                ELSE 'MANUAL'
+            END AS origen,
+            (
+                g.id_prestamo IS NULL
+                AND g.id_alquiler IS NULL
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM ven_garantia_movimiento gm
+                    WHERE gm.id_garantia = g.id
+                      AND gm.estado = 1
+                      AND gm.id_comprobante IS NOT NULL
+                )
+            ) AS es_manual,
+            (
+                g.id_prestamo IS NULL
+                AND g.id_alquiler IS NULL
+                AND COALESCE(g.monto_devuelto, 0) = 0
+                AND g.fecha_reembolso IS NULL
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM ven_garantia_movimiento gm
+                    WHERE gm.id_garantia = g.id
+                      AND gm.estado = 1
+                      AND gm.id_comprobante IS NOT NULL
+                )
+            ) AS puede_editar,
+            (
+                g.id_prestamo IS NULL
+                AND g.id_alquiler IS NULL
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM ven_garantia_movimiento gm
+                    WHERE gm.id_garantia = g.id
+                      AND gm.estado = 1
+                      AND gm.id_comprobante IS NOT NULL
+                )
+            ) AS puede_eliminar,
+            (
+                SELECT CASE
+                    WHEN vc.id IS NULL THEN NULL
+                    ELSE CONCAT_WS('-', vc.serie, vc.numero)
+                END
+                FROM ven_garantia_movimiento gm
+                LEFT JOIN ven_comprobante vc ON vc.id = gm.id_comprobante
+                WHERE gm.id_garantia = g.id
+                  AND gm.estado = 1
+                  AND gm.id_comprobante IS NOT NULL
+                ORDER BY gm.fecha ASC, gm.id ASC
+                LIMIT 1
+            ) AS comprobante_cobro,
             g.id_usuario_creacion,
             uc.nombre AS nombre_usuario_creacion,
             g.id_usuario_modificacion,
@@ -73,6 +143,8 @@ BEGIN
         LEFT JOIN pro_producto p ON g.id_producto = p.id
         LEFT JOIN gen_lista_opciones um ON g.id_unidad_medida = um.id
         LEFT JOIN gen_lista_opciones eg ON g.id_estado = eg.id
+        LEFT JOIN gen_lista_opciones mp ON g.id_medio_pago = mp.id
+        LEFT JOIN gen_lista_opciones mr ON g.id_medio_reembolso = mr.id
         LEFT JOIN auth_usuarios uc ON g.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios umod ON g.id_usuario_modificacion = umod.id
         WHERE g.id = p_id AND g.estado = 1

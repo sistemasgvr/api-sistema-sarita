@@ -45,25 +45,36 @@ export class FinanzasController {
     return this.finanzasLogic.verificarDuplicadoPago(dto);
   }
 
-  // ---------------- Garantías ----------------
+  // ---------------- Garantías (ven_garantia: POS / préstamos / alquileres / manual) ----------------
 
   @Get('garantias')
   @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_VER)
-  @ApiOperation({ summary: 'Listar garantías de clientes' })
+  @ApiOperation({
+    summary: 'Listar garantías operativas (préstamos, alquileres, POS y manuales)',
+  })
   listarGarantias(@Query() filtros: FiltroGarantiaDto) {
     return this.finanzasLogic.listarGarantias(filtros);
   }
 
+  @Get('garantias/:id')
+  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_VER)
+  @ApiOperation({ summary: 'Obtener garantía por ID (incluye movimientos)' })
+  obtenerGarantia(@Param('id', ParseIntPipe) id: number) {
+    return this.finanzasLogic.obtenerGarantia(id);
+  }
+
   @Post('garantias')
   @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_CREAR)
-  @ApiOperation({ summary: 'Registrar una nueva garantía de cliente' })
+  @ApiOperation({ summary: 'Registrar una garantía manual (sin préstamo/alquiler/POS)' })
   crearGarantia(@Body() dto: CrearGarantiaDto) {
     return this.finanzasLogic.crearGarantia(dto);
   }
 
   @Patch('garantias/:id')
   @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_EDITAR)
-  @ApiOperation({ summary: 'Editar una garantía existente' })
+  @ApiOperation({
+    summary: 'Editar una garantía manual (sin devoluciones ni vínculo operativo)',
+  })
   actualizarGarantia(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ActualizarGarantiaDto,
@@ -73,7 +84,7 @@ export class FinanzasController {
 
   @Delete('garantias/:id')
   @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_ELIMINAR)
-  @ApiOperation({ summary: 'Eliminar (baja lógica) una garantía' })
+  @ApiOperation({ summary: 'Eliminar (baja lógica) una garantía manual' })
   eliminarGarantia(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
@@ -83,22 +94,14 @@ export class FinanzasController {
 
   @Post('garantias/:id/reembolsar')
   @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_REEMBOLSAR)
-  @ApiOperation({ summary: 'Registrar el reembolso de una garantía (la marca como DEVUELTA)' })
+  @ApiOperation({
+    summary: 'Devolver garantía (parcial o total; actualiza saldo y estado)',
+  })
   reembolsarGarantia(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ReembolsarGarantiaDto,
   ) {
     return this.finanzasLogic.reembolsarGarantia(id, dto);
-  }
-
-  @Patch('garantias/:id/anular-reembolso')
-  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_REEMBOLSAR)
-  @ApiOperation({ summary: 'Anular un reembolso registrado (vuelve la garantía a ACTIVA)' })
-  anularReembolsoGarantia(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: AuditoriaDto,
-  ) {
-    return this.finanzasLogic.anularReembolsoGarantia(id, dto.idUsuarioAuditoria);
   }
 
   // ---------------- Cuentas por Cobrar ----------------
