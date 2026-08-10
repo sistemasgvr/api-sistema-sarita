@@ -8,10 +8,25 @@ import { DatabaseService } from '../../../database/database.service';
 import {
   ActualizarCompraCabeceraDto,
   ActualizarCompraDetalleDto,
+  CreateCompraDetalleDto,
   CreateCompraDetalleLineaDto,
   CreateCompraDto,
   FiltroComprasDto,
 } from '../dto/compras.dto';
+
+function mapDetallesToJson(detalles: CreateCompraDetalleDto[]) {
+  return JSON.stringify(
+    detalles.map((d) => ({
+      id_producto: d.idProducto,
+      cantidad: d.cantidad,
+      precio_unitario: d.precioUnitario ?? 0,
+      id_clasificacion_gasto: d.idClasificacionGasto ?? null,
+      descripcion: d.descripcion ?? null,
+      id_unidad_medida: d.idUnidadMedida ?? null,
+      id_almacen: d.idAlmacen ?? null,
+    })),
+  );
+}
 
 @Injectable()
 export class ComprasModel {
@@ -44,8 +59,9 @@ export class ComprasModel {
       dto.fecha,
       dto.idProveedor ?? null,
       dto.idAlmacen ?? null,
-      JSON.stringify(dto.detalles ?? []),
+      mapDetallesToJson(dto.detalles ?? []),
       dto.idComprobanteReferencia ?? null,
+      dto.idRecargaPlanta ?? null,
       dto.idTipoRegistro ?? null,
       dto.idCategoriaGasto ?? null,
       dto.idSucursal ?? null,
@@ -54,6 +70,7 @@ export class ComprasModel {
       dto.declararSunat ?? false,
       dto.glosa ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.guardarBalonesAlmacen ?? false,
     ]);
   }
 

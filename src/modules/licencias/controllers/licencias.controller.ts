@@ -20,7 +20,7 @@ import {
   UpdateLicenciaDto,
 } from '../dto/licencias.dto';
 import { LicenciasLogic } from '../logic/licencias.logic';
-import { Public } from 'src/common/decorators/public.decorator';
+import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('Licencias')
 @Controller('licencias')

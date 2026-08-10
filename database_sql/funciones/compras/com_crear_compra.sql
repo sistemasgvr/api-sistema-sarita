@@ -1,10 +1,3 @@
--- p_id_comprobante_referencia: opcional. Si se indica, esta compra
--- nueva "corrige" a la compra referenciada, la cual DEBE estar
--- anulada (estado=0) — no se permite referenciar una compra activa.
---
--- precio_unitario en los detalles se asume CON IGV incluido (es lo que
--- factura el proveedor). Al guardar se descompone en base imponible
--- (sub_total) + IGV (igv), igual que en ven_crear_comprobante.
 
 CREATE OR REPLACE FUNCTION com_crear_compra(
     p_id_tipo_comprobante        INTEGER,
@@ -15,6 +8,7 @@ CREATE OR REPLACE FUNCTION com_crear_compra(
     p_id_almacen                 INTEGER,
     p_detalles                   JSONB,
     p_id_comprobante_referencia  INTEGER DEFAULT NULL,
+    p_id_recarga_planta          INTEGER DEFAULT NULL,
     p_id_tipo_registro           INTEGER DEFAULT NULL,
     p_id_categoria_gasto         INTEGER DEFAULT NULL,
     p_id_sucursal                INTEGER DEFAULT NULL,
@@ -22,7 +16,8 @@ CREATE OR REPLACE FUNCTION com_crear_compra(
     p_id_condicion_pago          INTEGER DEFAULT NULL,
     p_declarar_sunat             BOOLEAN DEFAULT FALSE,
     p_glosa                      VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria       INTEGER DEFAULT NULL
+    p_id_usuario_auditoria       INTEGER DEFAULT NULL,
+    p_guardar_balones_almacen    BOOLEAN DEFAULT FALSE
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -50,6 +45,8 @@ DECLARE
     v_ref_serie           VARCHAR;
     v_ref_numero          VARCHAR;
     v_glosa_final         VARCHAR;
+    v_recarga_id_comprobante INTEGER;
+    v_recarga_estado_nombre  VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
  
@@ -69,13 +66,13 @@ BEGIN
         RETURN json_build_object('error', 'El almacén (por defecto) indicado no existe o está inactivo', 'registro', NULL);
     END IF;
  
-    IF p_detalles IS NULL OR jsonb_typeof(p_detalles) IS DISTINCT FROM 'array' OR jsonb_array_length(p_detalles) = 0 THEN
-        RETURN json_build_object('error', 'La compra debe tener al menos una línea de detalle (arreglo JSON)', 'registro', NULL);
+    -- El detalle de productos es opcional: se puede registrar la cabecera
+    -- (por ejemplo, ligada a una orden de recarga en planta externa) y
+    -- agregar las líneas después con com_crear_compra_detalle.
+    IF p_detalles IS NOT NULL AND jsonb_typeof(p_detalles) IS DISTINCT FROM 'array' THEN
+        RETURN json_build_object('error', 'El detalle de productos debe ser un arreglo JSON', 'registro', NULL);
     END IF;
- 
-    -- Si se indica una compra de referencia, debe existir y estar ANULADA.
-    -- Esto es lo que exige la regla de "corrección": no se puede referenciar
-    -- una compra todavía activa (eso sería duplicar el stock).
+
     v_glosa_final := p_glosa;
     IF p_id_comprobante_referencia IS NOT NULL THEN
         SELECT estado, serie, numero INTO v_ref_estado, v_ref_serie, v_ref_numero
@@ -97,39 +94,65 @@ BEGIN
             v_glosa_final := 'Corrige compra anulada ' || v_ref_serie || '-' || v_ref_numero;
         END IF;
     END IF;
- 
-    -- IDs de listas resueltos una sola vez (no dentro del loop)
-    SELECT glo.id INTO v_id_tipo_ingreso
-    FROM gen_lista_opciones glo
-    JOIN gen_lista gl ON gl.id = glo.id_lista
-    WHERE gl.nombre = 'TipoMovInv' AND glo.nombre = 'INGRESO' AND glo.estado = 1;
- 
-    SELECT glo.id INTO v_id_tipo_doc_ref
-    FROM gen_lista_opciones glo
-    JOIN gen_lista gl ON gl.id = glo.id_lista
-    WHERE gl.nombre = 'TipoDocumentoRef' AND glo.nombre = 'COMPRA' AND glo.estado = 1;
- 
-    IF v_id_tipo_ingreso IS NULL OR v_id_tipo_doc_ref IS NULL THEN
-        RAISE EXCEPTION 'Faltan configurar las opciones INGRESO (TipoMovInv) o COMPRA (TipoDocumentoRef) en gen_lista_opciones';
+
+    -- La orden debe existir, estar activa, y NO estar ya cerrada/facturada
+    -- (id_comprobante_compra ya seteado por bal_finalizar_recarga_planta en
+    -- una compra anterior) — si no, se estaría facturando la misma orden
+    -- dos veces.
+    IF p_id_recarga_planta IS NOT NULL THEN
+        SELECT rp.id_comprobante_compra, est.nombre
+        INTO v_recarga_id_comprobante, v_recarga_estado_nombre
+        FROM bal_recarga_planta rp
+        LEFT JOIN gen_lista_opciones est ON est.id = rp.id_estado
+        WHERE rp.id = p_id_recarga_planta AND rp.estado = 1;
+
+        IF NOT FOUND THEN
+            RETURN json_build_object('error', 'La orden de recarga en planta externa indicada no existe o está inactiva', 'registro', NULL);
+        END IF;
+
+        IF v_recarga_id_comprobante IS NOT NULL OR v_recarga_estado_nombre = 'CERRADO' THEN
+            RETURN json_build_object(
+                'error', 'La orden de recarga en planta externa indicada ya está cerrada/facturada y no se puede volver a vincular',
+                'registro', NULL
+            );
+        END IF;
     END IF;
- 
+
+    -- IDs de listas resueltos una sola vez (no dentro del loop). Solo hace
+    -- falta que estén configuradas si de verdad hay líneas que procesar.
+    IF p_detalles IS NOT NULL AND jsonb_array_length(p_detalles) > 0 THEN
+        SELECT glo.id INTO v_id_tipo_ingreso
+        FROM gen_lista_opciones glo
+        JOIN gen_lista gl ON gl.id = glo.id_lista
+        WHERE gl.nombre = 'TipoMovInv' AND glo.nombre = 'INGRESO' AND glo.estado = 1;
+
+        SELECT glo.id INTO v_id_tipo_doc_ref
+        FROM gen_lista_opciones glo
+        JOIN gen_lista gl ON gl.id = glo.id_lista
+        WHERE gl.nombre = 'TipoDocumentoRef' AND glo.nombre = 'COMPRA' AND glo.estado = 1;
+
+        IF v_id_tipo_ingreso IS NULL OR v_id_tipo_doc_ref IS NULL THEN
+            RAISE EXCEPTION 'Faltan configurar las opciones INGRESO (TipoMovInv) o COMPRA (TipoDocumentoRef) en gen_lista_opciones';
+        END IF;
+    END IF;
+
     -- Cabecera (totales en 0; se recalculan al final con lo realmente insertado)
     INSERT INTO com_comprobante_compra (
         id_tipo_comprobante, serie, numero, fecha, id_proveedor,
         id_tipo_registro, id_categoria_gasto, id_sucursal, id_almacen,
         id_moneda, id_condicion_pago, sub_total, igv, total_importe,
-        declarar_sunat, glosa, id_comprobante_referencia,
+        declarar_sunat, glosa, id_comprobante_referencia, id_recarga_planta,
         id_usuario_creacion, id_usuario_modificacion
     ) VALUES (
         p_id_tipo_comprobante, p_serie, p_numero, p_fecha, p_id_proveedor,
         p_id_tipo_registro, p_id_categoria_gasto, p_id_sucursal, p_id_almacen,
         p_id_moneda, p_id_condicion_pago, 0, 0, 0,
-        p_declarar_sunat, v_glosa_final, p_id_comprobante_referencia,
+        p_declarar_sunat, v_glosa_final, p_id_comprobante_referencia, p_id_recarga_planta,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id_compra;
  
-    FOR v_linea IN SELECT * FROM jsonb_array_elements(p_detalles)
+    FOR v_linea IN SELECT * FROM jsonb_array_elements(COALESCE(p_detalles, '[]'::JSONB))
     LOOP
         v_item := v_item + 1;
  
@@ -217,6 +240,31 @@ BEGIN
               AND estado = 1
         )
     WHERE id = v_id_compra;
+
+    -- Si esta compra corresponde a una orden de recarga en planta externa,
+    -- se cierra el vínculo: bal_finalizar_recarga_planta siempre marca los
+    -- balones de la orden como llenos (esto refleja la factura recibida).
+    -- Ubicarlos físicamente en el almacén de esta compra y generar su
+    -- movimiento de ingreso es aparte y opcional (p_guardar_balones_almacen):
+    -- registrar la factura no significa que los balones ya llegaron; si no
+    -- se marca, ese ingreso se registra después desde Recargas en planta.
+    -- Si falla, se revierte toda la compra: no debe quedar un comprobante
+    -- que dice estar vinculado a una recarga sin que esta se haya cerrado.
+    IF p_id_recarga_planta IS NOT NULL THEN
+        v_result_movimiento := bal_finalizar_recarga_planta(
+            p_id_recarga_planta       => p_id_recarga_planta,
+            p_id_comprobante_compra   => v_id_compra,
+            p_fecha_llegada_almacen   => p_fecha,
+            p_id_almacen              => p_id_almacen,
+            p_id_proveedor            => p_id_proveedor,
+            p_guardar_balones_almacen => COALESCE(p_guardar_balones_almacen, FALSE),
+            p_id_usuario_auditoria    => p_id_usuario_auditoria
+        );
+
+        IF (v_result_movimiento->>'error') IS NOT NULL THEN
+            RAISE EXCEPTION 'No se pudo vincular la orden de recarga en planta externa: %', v_result_movimiento->>'error';
+        END IF;
+    END IF;
 
     RETURN com_obtener_compra(v_id_compra);
 END;

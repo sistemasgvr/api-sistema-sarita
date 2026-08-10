@@ -16,7 +16,11 @@ BEGIN
         'numero',                    c.numero,
         'fecha',                     c.fecha,
         'id_proveedor',              c.id_proveedor,
-        'proveedor',                 pr.razon_social,
+        'proveedor',                 COALESCE(
+                                          NULLIF(TRIM(pr.razon_social), ''),
+                                          NULLIF(TRIM(CONCAT_WS(' ', pr.nombres, pr.apellido_paterno, pr.apellido_materno)), ''),
+                                          pr.numero_documento
+                                      ),
         'proveedor_documento',       pr.numero_documento,
         'id_tipo_registro',          c.id_tipo_registro,
         'tipo_registro',             tr.nombre,
@@ -40,6 +44,7 @@ BEGIN
         'estado_pago',               est.nombre,
         'estado',                    c.estado,
         'id_comprobante_referencia', c.id_comprobante_referencia,
+        'id_recarga_planta',         c.id_recarga_planta,
         'tiene_movimientos_inventario', com_tiene_movimientos_inventario(c.id),
         -- Activa: se puede editar cabecera y líneas (ingresos/salidas según afecta_stock)
         'puede_modificarse_parcial', (c.estado = 1),

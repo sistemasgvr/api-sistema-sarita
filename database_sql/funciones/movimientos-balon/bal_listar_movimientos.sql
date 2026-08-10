@@ -46,7 +46,11 @@ BEGIN
             m.id_tipo_documento_ref,
             tdr.nombre AS nombre_tipo_documento_ref,
             m.id_cliente,
-            c.razon_social AS nombre_cliente,
+            COALESCE(
+                NULLIF(TRIM(c.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), ''),
+                c.numero_documento
+            ) AS nombre_cliente,
             m.id_almacen_origen,
             ao.nombre AS nombre_almacen_origen,
             m.id_almacen_destino,

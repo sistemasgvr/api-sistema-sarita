@@ -26,7 +26,7 @@ import {
   FiltroComprasDto,
 } from '../dto/compras.dto';
 import { ComprasLogic } from '../logic/compras.logic';
-import { Public } from 'src/common/decorators/public.decorator';
+import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('Compras')
 @Controller('/compras')

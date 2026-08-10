@@ -16,7 +16,6 @@ DECLARE
     v_total BIGINT;
 BEGIN
     SET TIME ZONE 'America/Lima';
-
     SELECT COUNT(*)
     INTO v_total
     FROM bal_recarga_planta rp

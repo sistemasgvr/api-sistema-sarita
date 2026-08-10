@@ -20,6 +20,7 @@ import {
   UpdateRecargaPlantaDto,
 } from '../dto/recargas-planta.dto';
 import { RecargasPlantaLogic } from '../logic/recargas-planta.logic';
+import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('Balones - Recargas planta externa')
 @Controller('balones/recargas-planta')
@@ -27,14 +28,16 @@ export class RecargasPlantaController {
   constructor(private readonly logic: RecargasPlantaLogic) {}
 
   @Get()
-  @Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_LISTAR)
+  @Public()
+  //@Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_LISTAR)
   @ApiOperation({ summary: 'Listar órdenes de recarga en planta externa' })
   listar(@Query() filtros: FiltroRecargasPlantaDto) {
     return this.logic.listar(filtros);
   }
 
   @Get(':id')
-  @Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_VER)
+  @Public()
+  //@Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_VER)
   @ApiOperation({ summary: 'Obtener orden con detalle' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {

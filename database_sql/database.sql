@@ -1509,6 +1509,7 @@ CREATE TABLE com_comprobante_compra (
     afecta_inventario    BOOLEAN DEFAULT FALSE,     -- true si ingresa stock (gases, cilindros...)
     declarar_sunat       BOOLEAN DEFAULT FALSE,     -- true = factura a declarar ante SUNAT (secc. IV y V)
     glosa               varchar(500),
+    id_recarga_planta    INT,  -- orden de recarga en planta externa que origina esta compra (FK diferida más abajo: bal_recarga_planta se define después)
     -- Estado: PENDIENTE, PAGADO, ANULADO
     id_estado            INT REFERENCES gen_lista_opciones(id),
     estado              INT NOT NULL DEFAULT 1,
@@ -1596,6 +1597,10 @@ CREATE TABLE bal_recarga_planta_detalle (
 
 ALTER TABLE bal_movimiento_recarga
     ADD CONSTRAINT fk_bal_movimiento_recarga_planta
+    FOREIGN KEY (id_recarga_planta) REFERENCES bal_recarga_planta(id);
+
+ALTER TABLE com_comprobante_compra
+    ADD CONSTRAINT fk_com_comprobante_compra_recarga_planta
     FOREIGN KEY (id_recarga_planta) REFERENCES bal_recarga_planta(id);
 
 CREATE INDEX idx_bal_recarga_planta_fecha ON bal_recarga_planta(fecha_salida);

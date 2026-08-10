@@ -22,7 +22,7 @@ import {
   UpdateDireccionDto,
 } from '../dto/filtros-direcciones.dto';
 import { publicDecrypt } from 'crypto';
-import { Public } from 'src/common/decorators/public.decorator';
+import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('Direcciones')
 @Controller('direcciones')

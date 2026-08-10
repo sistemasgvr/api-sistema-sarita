@@ -31,13 +31,21 @@ BEGIN
           OR LOWER(COALESCE(c.numero, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(pr.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(pr.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(pr.apellido_paterno, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(pr.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json) INTO v_registros
     FROM (
         SELECT
             c.id, c.serie, c.numero, c.fecha,
-            c.id_proveedor, pr.razon_social AS proveedor,
+            c.id_proveedor,
+            COALESCE(
+                NULLIF(TRIM(pr.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', pr.nombres, pr.apellido_paterno, pr.apellido_materno)), ''),
+                pr.numero_documento
+            ) AS nombre_proveedor,
             c.id_almacen, alm.nombre AS almacen,
             c.sub_total, c.total_importe,
             c.estado,
@@ -57,6 +65,9 @@ BEGIN
               OR LOWER(COALESCE(c.numero, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(pr.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(pr.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(pr.apellido_paterno, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(pr.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
           )
         ORDER BY c.fecha DESC, c.id DESC
         LIMIT p_limite OFFSET p_offset
