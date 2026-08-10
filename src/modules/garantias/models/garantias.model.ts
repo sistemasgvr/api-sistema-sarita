@@ -47,7 +47,7 @@ export class GarantiasModel {
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
       dto.idAlquiler ?? null,
-      null,
+      dto.idMedioPago ?? null,
     ]);
   }
 

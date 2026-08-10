@@ -29,6 +29,13 @@ DECLARE
     v_id_tipo_recarga INTEGER;
     v_es_empresa BOOLEAN;
     v_capacidad_tipo NUMERIC;
+    v_id_estado_recarga_externa INTEGER;
+    v_id_estado_en_almacen INTEGER;
+    v_id_tipo_doc_recarga INTEGER;
+    v_id_tipo_salida INTEGER;
+    v_id_tipo_entrada INTEGER;
+    v_mov JSON;
+    v_obs VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -77,6 +84,63 @@ BEGIN
     WHERE l.nombre = 'TipoRecarga' AND lo.nombre = 'PLANTA_EXTERNA' AND lo.estado = 1
     LIMIT 1;
 
+    SELECT lo.id INTO v_id_estado_recarga_externa
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_RECARGA_EXTERNA' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_estado_en_almacen
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_tipo_doc_recarga
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'RECARGA' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_tipo_salida
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'SALIDA_PLANTA_EXTERNA' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_tipo_entrada
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_PLANTA_EXTERNA' AND lo.estado = 1
+    LIMIT 1;
+
+    IF v_id_estado_recarga_externa IS NULL THEN
+        RETURN json_build_object(
+            'error',
+            'No se encontró el estado EN_RECARGA_EXTERNA del cilindro. Revise el catálogo EstadoBalon.',
+            'registro',
+            NULL
+        );
+    END IF;
+
+    IF v_id_estado_en_almacen IS NULL THEN
+        RETURN json_build_object(
+            'error',
+            'No se encontró el estado EN_ALMACEN del cilindro. Revise el catálogo EstadoBalon.',
+            'registro',
+            NULL
+        );
+    END IF;
+
+    IF v_id_tipo_salida IS NULL OR v_id_tipo_entrada IS NULL THEN
+        RETURN json_build_object(
+            'error',
+            'No se encontraron los tipos SALIDA_PLANTA_EXTERNA / ENTRADA_PLANTA_EXTERNA. Revise el catálogo TipoMovBalon.',
+            'registro',
+            NULL
+        );
+    END IF;
+
     INSERT INTO bal_movimiento_recarga (
         fecha_salida_almacen, id_balon, id_tipo_recarga, id_producto, capacidad, id_unidad_medida,
         serie_guia_salida, numero_guia_salida, serie_guia_ingreso, numero_guia_ingreso,
@@ -95,19 +159,55 @@ BEGIN
     )
     RETURNING id INTO v_id;
 
+    v_obs := COALESCE(NULLIF(TRIM(p_observacion), ''), 'Recarga planta externa');
+
+    -- Libro de movimientos: salida a planta.
+    v_mov := bal_crear_movimiento(
+        p_id_balon,
+        v_id_tipo_salida,
+        v_id,
+        v_id_tipo_doc_recarga,
+        NULL::INTEGER,
+        p_id_almacen,
+        NULL::INTEGER,
+        p_fecha_salida_almacen::TIMESTAMP,
+        v_obs,
+        p_id_usuario_auditoria
+    );
+    IF v_mov->>'error' IS NOT NULL THEN
+        RETURN json_build_object('error', v_mov->>'error', 'registro', NULL);
+    END IF;
+
     IF p_fecha_llegada_almacen IS NOT NULL THEN
         UPDATE bal_balon
         SET
+            id_estado_balon = v_id_estado_en_almacen,
             id_producto_gas = COALESCE(p_id_producto, id_producto_gas),
             id_estado_contenido = COALESCE(bal_id_estado_contenido('LLENO'), id_estado_contenido),
             capacidad_restante = COALESCE(NULLIF(v_capacidad_tipo, 0), p_capacidad, capacidad_restante),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = p_id_balon AND estado = 1;
+
+        v_mov := bal_crear_movimiento(
+            p_id_balon,
+            v_id_tipo_entrada,
+            v_id,
+            v_id_tipo_doc_recarga,
+            NULL::INTEGER,
+            NULL::INTEGER,
+            p_id_almacen,
+            p_fecha_llegada_almacen::TIMESTAMP,
+            v_obs,
+            p_id_usuario_auditoria
+        );
+        IF v_mov->>'error' IS NOT NULL THEN
+            RETURN json_build_object('error', v_mov->>'error', 'registro', NULL);
+        END IF;
     ELSE
-        -- Salida a planta: queda vacío sin residual.
         UPDATE bal_balon
         SET
+            id_estado_balon = v_id_estado_recarga_externa,
             id_estado_contenido = COALESCE(bal_id_estado_contenido('VACIO'), id_estado_contenido),
             capacidad_restante = 0,
             id_usuario_modificacion = p_id_usuario_auditoria,

@@ -1831,6 +1831,7 @@ INSERT INTO gen_lista (nombre, descripcion) VALUES
 -- (9, 'PRESTADO_CLIENTE'),
 -- (9, 'EN_RUTA_LIMA'),
 -- (9, 'EN_MANTENIMIENTO'),
+-- (9, 'EN_RECARGA_EXTERNA'), -- enviado a planta externa / en recarga
 -- (9, 'ALQUILADO'),
 -- (9, 'DEVUELTO'),
 -- (9, 'ROBO'),
