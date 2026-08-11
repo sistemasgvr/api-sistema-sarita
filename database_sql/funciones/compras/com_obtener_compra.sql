@@ -40,6 +40,14 @@ BEGIN
         'estado_pago',               est.nombre,
         'estado',                    c.estado,
         'id_comprobante_referencia', c.id_comprobante_referencia,
+        'id_recarga_planta', (
+            SELECT rp.id
+            FROM bal_recarga_planta rp
+            WHERE rp.id_comprobante_compra = c.id
+              AND rp.estado = 1
+            ORDER BY rp.id DESC
+            LIMIT 1
+        ),
         'tiene_movimientos_inventario', com_tiene_movimientos_inventario(c.id),
         -- Activa: se puede editar cabecera y líneas (ingresos/salidas según afecta_stock)
         'puede_modificarse_parcial', (c.estado = 1),

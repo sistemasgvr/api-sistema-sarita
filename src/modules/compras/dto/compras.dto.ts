@@ -189,6 +189,25 @@ export class CreateCompraDto extends AuditoriaDto {
   @MaxLength(500)
   glosa?: string;
 
+  @ApiPropertyOptional({
+    example: 3,
+    description:
+      'Orden de recarga planta externa a vincular (factura de costo). No mueve pro_stock del gas.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idRecargaPlanta?: number;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'Si true y hay idRecargaPlanta: registra retorno físico (fecha llegada = fecha compra).',
+  })
+  @IsOptional()
+  @IsBoolean()
+  guardarBalonesAlmacen?: boolean;
+
   @ApiProperty({
     type: [CreateCompraDetalleDto],
     description: 'Líneas del detalle de compra',

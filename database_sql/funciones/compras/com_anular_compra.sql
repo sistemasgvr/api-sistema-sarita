@@ -17,6 +17,9 @@ DECLARE
     v_faltantes           TEXT := '';
     v_nombre_producto     VARCHAR;
     v_nombre_almacen      VARCHAR;
+    v_id_estado_retornado INTEGER;
+    v_id_estado_enviado   INTEGER;
+    v_orden               RECORD;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -117,6 +120,49 @@ BEGIN
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id_comprobante = p_id_comprobante;
+
+    -- Desvincular órdenes de recarga planta que apuntaban a esta compra.
+    SELECT lo.id INTO v_id_estado_retornado
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoRecargaPlanta' AND lo.nombre = 'RETORNADO' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_estado_enviado
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoRecargaPlanta' AND lo.nombre = 'ENVIADO' AND lo.estado = 1
+    LIMIT 1;
+
+    FOR v_orden IN
+        SELECT id, fecha_llegada_almacen
+        FROM bal_recarga_planta
+        WHERE id_comprobante_compra = p_id_comprobante
+          AND estado = 1
+    LOOP
+        UPDATE bal_recarga_planta
+        SET
+            id_comprobante_compra = NULL,
+            serie_factura = NULL,
+            numero_factura = NULL,
+            id_estado = CASE
+                WHEN v_orden.fecha_llegada_almacen IS NOT NULL THEN COALESCE(v_id_estado_retornado, id_estado)
+                ELSE COALESCE(v_id_estado_enviado, id_estado)
+            END,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id = v_orden.id;
+    END LOOP;
+
+    UPDATE bal_movimiento_recarga
+    SET
+        id_comprobante_compra = NULL,
+        serie_factura = NULL,
+        numero_factura = NULL,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_comprobante_compra = p_id_comprobante
+      AND estado = 1;
 
     RETURN json_build_object('eliminado', TRUE, 'id', p_id_comprobante);
 END;

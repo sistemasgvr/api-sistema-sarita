@@ -24,6 +24,8 @@ DECLARE
     v_id_estado INTEGER;
     v_det RECORD;
     v_upd JSON;
+    v_fecha_llegada DATE;
+    v_id_compra INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -121,14 +123,20 @@ BEGIN
         END LOOP;
     END IF;
 
-    -- Transición de estado
-    IF p_id_comprobante_compra IS NOT NULL THEN
+    -- CERRADO solo con compra + retorno físico. Solo llegada → RETORNADO.
+    -- Solo vincular compra (sin llegada) no cierra la orden.
+    SELECT fecha_llegada_almacen, id_comprobante_compra
+    INTO v_fecha_llegada, v_id_compra
+    FROM bal_recarga_planta
+    WHERE id = p_id;
+
+    IF v_id_compra IS NOT NULL AND v_fecha_llegada IS NOT NULL THEN
         SELECT lo.id INTO v_id_estado
         FROM gen_lista_opciones lo
         INNER JOIN gen_lista l ON l.id = lo.id_lista
         WHERE l.nombre = 'EstadoRecargaPlanta' AND lo.nombre = 'CERRADO' AND lo.estado = 1
         LIMIT 1;
-    ELSIF p_fecha_llegada_almacen IS NOT NULL THEN
+    ELSIF v_fecha_llegada IS NOT NULL THEN
         SELECT lo.id INTO v_id_estado
         FROM gen_lista_opciones lo
         INNER JOIN gen_lista l ON l.id = lo.id_lista
