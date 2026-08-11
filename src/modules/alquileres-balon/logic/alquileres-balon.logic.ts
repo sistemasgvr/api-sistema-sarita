@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   mapDeleteResult,
   mapListResult,
@@ -40,6 +40,18 @@ export class AlquileresBalonLogic {
   async obtenerPorId(id: number) {
     const result = await this.model.obtenerPorId(id);
     return mapSingleResult(result, `Alquiler ${id} no encontrado`);
+  }
+
+  async obtenerSiguienteNumero(anio?: number) {
+    const result = await this.model.obtenerSiguienteNumero(anio);
+    if (result.error) {
+      throw new BadRequestException(result.error);
+    }
+    return {
+      anio: result.anio ?? null,
+      ultimo: result.ultimo ?? null,
+      numero: result.numero ?? null,
+    };
   }
 
   async crear(dto: CreateAlquileresBalonDto) {

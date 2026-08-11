@@ -44,7 +44,6 @@ BEGIN
         'estado_pago',               est.nombre,
         'estado',                    c.estado,
         'id_comprobante_referencia', c.id_comprobante_referencia,
-        'id_recarga_planta',         c.id_recarga_planta,
         'tiene_movimientos_inventario', com_tiene_movimientos_inventario(c.id),
         -- Activa: se puede editar cabecera y líneas (ingresos/salidas según afecta_stock)
         'puede_modificarse_parcial', (c.estado = 1),

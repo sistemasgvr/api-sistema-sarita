@@ -1,0 +1,86 @@
+-- Edita los datos generales de una garantía (recepción). Los datos de reembolso
+-- se manejan por separado con fin_reembolsar_garantia / fin_anular_reembolso.
+-- Los parámetros NULL preservan el valor actual.
+
+DROP FUNCTION IF EXISTS fin_actualizar_garantia(INT, DATE, INT, INT, NUMERIC, VARCHAR, INT);
+
+CREATE OR REPLACE FUNCTION fin_actualizar_garantia(
+    p_id             INT,
+    p_fecha          DATE    DEFAULT NULL,
+    p_id_cliente     INT     DEFAULT NULL,
+    p_id_medio_pago  INT     DEFAULT NULL,
+    p_importe        NUMERIC DEFAULT NULL,
+    p_observacion    VARCHAR DEFAULT NULL,
+    p_id_usuario     INT     DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_garantia   fin_garantia%ROWTYPE;
+    v_id_cliente INT;
+    v_registro   JSON;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT * INTO v_garantia FROM fin_garantia WHERE id = p_id AND estado = 1;
+    IF NOT FOUND THEN
+        RETURN json_build_object('registro', NULL, 'error', 'La garantía no existe o está inactiva');
+    END IF;
+
+    -- No permitir editar datos si ya fue reembolsada
+    IF v_garantia.fecha_reembolso IS NOT NULL THEN
+        RETURN json_build_object('registro', NULL, 'error',
+            'Esta garantía ya fue reembolsada. Anula el reembolso primero para editarla.');
+    END IF;
+
+    IF p_id_cliente IS NOT NULL THEN
+        SELECT id INTO v_id_cliente FROM cli_clientes WHERE id = p_id_cliente AND estado = 1;
+        IF v_id_cliente IS NULL THEN
+            RETURN json_build_object('registro', NULL, 'error', 'El cliente no existe o está inactivo');
+        END IF;
+    END IF;
+
+    IF p_importe IS NOT NULL AND p_importe <= 0 THEN
+        RETURN json_build_object('registro', NULL, 'error', 'El importe debe ser mayor a cero');
+    END IF;
+
+    UPDATE fin_garantia SET
+        fecha         = COALESCE(p_fecha, fecha),
+        id_cliente    = COALESCE(p_id_cliente, id_cliente),
+        id_medio_pago = COALESCE(p_id_medio_pago, id_medio_pago),
+        importe       = COALESCE(p_importe, importe),
+        observacion   = CASE
+            WHEN p_observacion IS NULL THEN observacion
+            WHEN TRIM(p_observacion) = '' THEN NULL
+            ELSE TRIM(p_observacion)
+        END,
+        id_usuario_modificacion = p_id_usuario,
+        fecha_modificacion = NOW()
+    WHERE id = p_id;
+
+    SELECT row_to_json(t) INTO v_registro FROM (
+        SELECT
+            g.id, g.fecha,
+            g.id_cliente,
+            COALESCE(NULLIF(TRIM(c.razon_social), ''),
+                     NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), ''),
+                     'Cliente #' || g.id_cliente) AS cliente,
+            c.numero_documento AS documento_cliente,
+            g.id_medio_pago, mp.nombre AS medio_pago,
+            g.importe, g.observacion,
+            g.fecha_reembolso,
+            g.id_medio_reembolso, mr.nombre AS medio_reembolso,
+            g.observacion_reembolso,
+            g.id_estado, est.nombre AS estado_texto
+        FROM fin_garantia g
+        JOIN cli_clientes c ON c.id = g.id_cliente
+        LEFT JOIN gen_lista_opciones mp  ON mp.id = g.id_medio_pago
+        LEFT JOIN gen_lista_opciones mr  ON mr.id = g.id_medio_reembolso
+        LEFT JOIN gen_lista_opciones est ON est.id = g.id_estado
+        WHERE g.id = p_id
+    ) t;
+
+    RETURN json_build_object('registro', v_registro);
+END;
+$$;

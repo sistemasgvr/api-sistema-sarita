@@ -92,7 +92,8 @@ export class FiltroChoferDto extends FiltroPaginacionDto {
 
   @ApiPropertyOptional({
     example: 1,
-    description: 'Filtrar por ID del cliente',
+    description:
+      'Filtrar por cliente/proveedor. Use -1 para flota propia de la empresa (id_cliente IS NULL).',
   })
   @IsOptional()
   @Type(() => Number)

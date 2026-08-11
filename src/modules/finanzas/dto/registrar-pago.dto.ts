@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsInt,
   IsNumber,
   IsOptional,
@@ -60,4 +61,13 @@ export class RegistrarPagoDto extends AuditoriaDto {
   @IsOptional()
   @IsString()
   observacion?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'Si es true, se registra aunque el backend detecte un posible pago duplicado (mismo tercero/monto/fecha).',
+  })
+  @IsOptional()
+  @IsBoolean()
+  forzarDuplicado?: boolean;
 }

@@ -28,6 +28,13 @@ BEGIN
             cp.codigo,
             cp.nombre,
             cp.dias_credito,
+            cp.numero_cuotas,
+            cp.dia_mes_pago,
+            CASE
+                WHEN COALESCE(cp.numero_cuotas, 0) > 1 THEN 'CUOTAS'
+                WHEN COALESCE(cp.dias_credito, 0) > 0 THEN 'CREDITO'
+                ELSE 'CONTADO'
+            END AS modalidad,
             cp.estado,
             cp.fecha_creacion,
             cp.fecha_modificacion,

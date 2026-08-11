@@ -166,7 +166,9 @@ export class FiltroOrigenRecargaDto {
   @IsNumber()
   idProductoGas!: number;
 
-  @ApiPropertyOptional({ description: 'Capacidad mínima requerida del origen' })
+  @ApiPropertyOptional({
+    description: 'Capacidad a surtir (m³). La asignación puede repartir entre varios balones.',
+  })
   @Type(() => Number)
   @IsOptional()
   @IsNumber()
@@ -177,6 +179,12 @@ export class FiltroOrigenRecargaDto {
   @IsOptional()
   @IsNumber()
   idAlmacen?: number;
+
+  @ApiPropertyOptional({ description: 'Balón a priorizar en la asignación FIFO (opcional)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idBalonPreferido?: number;
 
   @ApiPropertyOptional({ example: 50, default: 50 })
   @Type(() => Number)
@@ -224,10 +232,14 @@ export class VincularRecargaClienteComprobanteDto extends AuditoriaDto {
   @IsString()
   observacion?: string;
 
-  @ApiProperty({ description: 'Balón EMPRESA LLENO que surte la recarga' })
+  @ApiPropertyOptional({
+    description:
+      'Balón EMPRESA preferido (opcional). Si no alcanza, el sistema completa con el siguiente FIFO.',
+  })
   @Type(() => Number)
+  @IsOptional()
   @IsNumber()
-  idBalonOrigen!: number;
+  idBalonOrigen?: number;
 }
 
 export class CreateRecargaClienteDto extends AuditoriaDto {
@@ -293,10 +305,25 @@ export class CreateRecargaClienteDto extends AuditoriaDto {
   @IsString()
   observacion?: string;
 
-  @ApiProperty({ description: 'Balón EMPRESA LLENO que surte la recarga' })
+  @ApiPropertyOptional({
+    description:
+      'Balón EMPRESA preferido (opcional). Si no alcanza, el sistema completa con el siguiente FIFO.',
+  })
   @Type(() => Number)
+  @IsOptional()
   @IsNumber()
-  idBalonOrigen!: number;
+  idBalonOrigen?: number;
+
+  @ApiPropertyOptional({ description: 'Condición de pago (contado / crédito)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idCondicionPago?: number;
+
+  @ApiPropertyOptional({ description: 'Fecha de vencimiento si es crédito' })
+  @IsOptional()
+  @IsDateString()
+  fechaVencimiento?: string;
 }
 
 export class UpdateMovimientosRecargaDto extends AuditoriaDto {

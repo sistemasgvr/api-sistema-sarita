@@ -44,34 +44,37 @@ BEGIN
                 tb.nombre AS nombre_tipo_balon,
                 CASE eb.nombre
                     WHEN 'PRESTADO_CLIENTE' THEN 'PRESTAMO'
+                    WHEN 'POR_RECOGER' THEN 'PRESTAMO'
                     WHEN 'ALQUILADO' THEN 'ALQUILER'
                     WHEN 'EN_PODER_CLIENTE' THEN 'PROPIO'
                     ELSE eb.nombre
                 END AS tipo_relacion,
-                CASE eb.nombre
-                    WHEN 'PRESTADO_CLIENTE' THEN COALESCE(prest.fecha_inicio, b.fecha_modificacion::date)
-                    WHEN 'ALQUILADO' THEN COALESCE(alq.fecha_inicio, b.fecha_modificacion::date)
+                CASE
+                    WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER')
+                        THEN COALESCE(prest.fecha_inicio, b.fecha_modificacion::date)
+                    WHEN eb.nombre = 'ALQUILADO'
+                        THEN COALESCE(alq.fecha_inicio, b.fecha_modificacion::date)
                     ELSE NULL
                 END AS fecha_inicio,
-                CASE eb.nombre
-                    WHEN 'PRESTADO_CLIENTE' THEN prest.fecha_limite
-                    WHEN 'ALQUILADO' THEN alq.fecha_limite
+                CASE
+                    WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER') THEN prest.fecha_limite
+                    WHEN eb.nombre = 'ALQUILADO' THEN alq.fecha_limite
                     ELSE NULL
                 END AS fecha_limite,
                 CASE
-                    WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'ALQUILADO')
+                    WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER', 'ALQUILADO')
                          AND COALESCE(
-                             CASE eb.nombre
-                                 WHEN 'PRESTADO_CLIENTE' THEN prest.fecha_inicio
-                                 WHEN 'ALQUILADO' THEN alq.fecha_inicio
+                             CASE
+                                 WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER') THEN prest.fecha_inicio
+                                 WHEN eb.nombre = 'ALQUILADO' THEN alq.fecha_inicio
                              END,
                              b.fecha_modificacion::date
                          ) IS NOT NULL
                     THEN (
                         CURRENT_DATE - COALESCE(
-                            CASE eb.nombre
-                                WHEN 'PRESTADO_CLIENTE' THEN prest.fecha_inicio
-                                WHEN 'ALQUILADO' THEN alq.fecha_inicio
+                            CASE
+                                WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER') THEN prest.fecha_inicio
+                                WHEN eb.nombre = 'ALQUILADO' THEN alq.fecha_inicio
                             END,
                             b.fecha_modificacion::date
                         )
@@ -83,37 +86,37 @@ BEGIN
                          AND alq.fecha_limite IS NOT NULL
                          AND CURRENT_DATE > alq.fecha_limite
                     THEN TRUE
-                    WHEN eb.nombre = 'PRESTADO_CLIENTE'
+                    WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER')
                          AND prest.fecha_limite IS NOT NULL
                          AND CURRENT_DATE > prest.fecha_limite
                     THEN TRUE
                     ELSE FALSE
                 END AS vencido,
                 CASE
-                    WHEN eb.nombre NOT IN ('PRESTADO_CLIENTE', 'ALQUILADO') THEN NULL
+                    WHEN eb.nombre NOT IN ('PRESTADO_CLIENTE', 'POR_RECOGER', 'ALQUILADO') THEN NULL
                     WHEN (
                         CURRENT_DATE - COALESCE(
-                            CASE eb.nombre
-                                WHEN 'PRESTADO_CLIENTE' THEN prest.fecha_inicio
-                                WHEN 'ALQUILADO' THEN alq.fecha_inicio
+                            CASE
+                                WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER') THEN prest.fecha_inicio
+                                WHEN eb.nombre = 'ALQUILADO' THEN alq.fecha_inicio
                             END,
                             b.fecha_modificacion::date
                         )
                     ) >= 180 THEN 'CRITICO'
                     WHEN (
                         CURRENT_DATE - COALESCE(
-                            CASE eb.nombre
-                                WHEN 'PRESTADO_CLIENTE' THEN prest.fecha_inicio
-                                WHEN 'ALQUILADO' THEN alq.fecha_inicio
+                            CASE
+                                WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER') THEN prest.fecha_inicio
+                                WHEN eb.nombre = 'ALQUILADO' THEN alq.fecha_inicio
                             END,
                             b.fecha_modificacion::date
                         )
                     ) >= 90 THEN 'SEGUIMIENTO'
                     WHEN (
                         CURRENT_DATE - COALESCE(
-                            CASE eb.nombre
-                                WHEN 'PRESTADO_CLIENTE' THEN prest.fecha_inicio
-                                WHEN 'ALQUILADO' THEN alq.fecha_inicio
+                            CASE
+                                WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER') THEN prest.fecha_inicio
+                                WHEN eb.nombre = 'ALQUILADO' THEN alq.fecha_inicio
                             END,
                             b.fecha_modificacion::date
                         )
@@ -150,7 +153,12 @@ BEGIN
                 LIMIT 1
             ) alq ON TRUE
             WHERE b.estado = 1
-              AND eb.nombre IN ('PRESTADO_CLIENTE', 'ALQUILADO', 'EN_PODER_CLIENTE')
+              AND eb.nombre IN (
+                  'PRESTADO_CLIENTE',
+                  'POR_RECOGER',
+                  'ALQUILADO',
+                  'EN_PODER_CLIENTE'
+              )
               AND COALESCE(b.id_cliente_ubicacion, b.id_cliente_propietario) IS NOT NULL
         ) x
     ),

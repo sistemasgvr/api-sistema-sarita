@@ -1,4 +1,5 @@
--- Stock de gas físico = residuales de balones EMPRESA LLENOS en EN_ALMACEN.
+-- Stock de gas físico = residuales de balones EMPRESA en EN_ALMACEN con gas útil
+-- (LLENO o DESCONOCIDO/parcial con capacidad_restante > 0).
 -- Lista todos los productos gas del catálogo (aunque el stock sea 0).
 
 CREATE OR REPLACE FUNCTION bal_listar_stock_gas(
@@ -34,9 +35,34 @@ BEGIN
         SELECT
             b.id_producto_gas,
             b.id_almacen,
-            COALESCE(b.capacidad_restante, tb.capacidad, 0)::NUMERIC AS capacidad,
             COALESCE(ec.nombre, 'DESCONOCIDO') AS nombre_contenido,
-            COALESCE(eb.nombre, '') AS nombre_estado_balon
+            COALESCE(eb.nombre, '') AS nombre_estado_balon,
+            CASE
+                WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'VACIO' THEN 0::NUMERIC
+                WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'LLENO'
+                    THEN COALESCE(b.capacidad_restante, tb.capacidad, 0)::NUMERIC
+                -- Parcial / desconocido: solo cuenta lo medido al recojo/devolución
+                ELSE COALESCE(b.capacidad_restante, 0)::NUMERIC
+            END AS capacidad,
+            CASE
+                WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'VACIO' THEN 0::NUMERIC
+                WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'LLENO'
+                    THEN COALESCE(
+                        b.capacidad_restante_lb,
+                        tb.capacidad_lb,
+                        CASE
+                            WHEN bal_factor_lb_m3(b.id_tipo_balon, b.id_producto_gas) > 0
+                                THEN ROUND(
+                                    COALESCE(b.capacidad_restante, tb.capacidad, 0)
+                                    / bal_factor_lb_m3(b.id_tipo_balon, b.id_producto_gas),
+                                    4
+                                )
+                            ELSE 0
+                        END,
+                        0
+                    )::NUMERIC
+                ELSE COALESCE(b.capacidad_restante_lb, 0)::NUMERIC
+            END AS capacidad_lb
         FROM bal_balon b
         LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
         LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
@@ -54,19 +80,23 @@ BEGIN
             b.id_producto_gas,
             b.id_almacen,
             COUNT(*) FILTER (
-                WHERE b.nombre_contenido = 'LLENO'
-                  AND b.nombre_estado_balon = 'EN_ALMACEN'
+                WHERE b.nombre_estado_balon = 'EN_ALMACEN'
+                  AND b.capacidad > 0
             ) AS balones_llenos,
             COALESCE(SUM(b.capacidad) FILTER (
-                WHERE b.nombre_contenido = 'LLENO'
-                  AND b.nombre_estado_balon = 'EN_ALMACEN'
+                WHERE b.nombre_estado_balon = 'EN_ALMACEN'
+                  AND b.capacidad > 0
             ), 0) AS capacidad_disponible,
+            COALESCE(SUM(b.capacidad_lb) FILTER (
+                WHERE b.nombre_estado_balon = 'EN_ALMACEN'
+                  AND b.capacidad > 0
+            ), 0) AS capacidad_disponible_lb,
             COUNT(*) FILTER (
                 WHERE b.nombre_contenido = 'VACIO'
                   AND b.nombre_estado_balon = 'EN_ALMACEN'
             ) AS balones_vacios,
             COUNT(*) FILTER (
-                WHERE b.nombre_contenido = 'LLENO'
+                WHERE b.capacidad > 0
                   AND b.nombre_estado_balon <> 'EN_ALMACEN'
             ) AS balones_llenos_fuera
         FROM base b
@@ -82,6 +112,7 @@ BEGIN
             a.id_almacen,
             a.balones_llenos,
             a.capacidad_disponible,
+            a.capacidad_disponible_lb,
             a.balones_vacios,
             a.balones_llenos_fuera,
             (a.balones_llenos > 0) AS tiene_stock_disponible
@@ -99,6 +130,7 @@ BEGIN
             NULL::INTEGER AS id_almacen,
             0::BIGINT AS balones_llenos,
             0::NUMERIC AS capacidad_disponible,
+            0::NUMERIC AS capacidad_disponible_lb,
             0::BIGINT AS balones_vacios,
             0::BIGINT AS balones_llenos_fuera,
             FALSE AS tiene_stock_disponible
@@ -118,6 +150,7 @@ BEGIN
             al.nombre AS nombre_almacen,
             e.balones_llenos,
             e.capacidad_disponible,
+            e.capacidad_disponible_lb,
             e.balones_vacios,
             e.balones_llenos_fuera,
             e.tiene_stock_disponible
@@ -149,6 +182,7 @@ BEGIN
             SELECT json_build_object(
                 'balones_llenos', COALESCE(SUM(balones_llenos), 0),
                 'capacidad_disponible', COALESCE(SUM(capacidad_disponible), 0),
+                'capacidad_disponible_lb', COALESCE(SUM(capacidad_disponible_lb), 0),
                 'balones_vacios', COALESCE(SUM(balones_vacios), 0),
                 'balones_llenos_fuera', COALESCE(SUM(balones_llenos_fuera), 0)
             )

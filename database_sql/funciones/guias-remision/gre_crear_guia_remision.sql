@@ -42,6 +42,7 @@ DECLARE
     v_detalle JSON;
     v_ref JSON;
     v_item INTEGER := 0;
+    v_salidas JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -209,6 +210,12 @@ BEGIN
                 p_id_usuario_auditoria
             );
         END LOOP;
+    END IF;
+
+    -- CY1: salida automática de cilindros con código en la GRE
+    v_salidas := bal_aplicar_salidas_guia_remision(v_id, p_id_usuario_auditoria);
+    IF v_salidas->>'error' IS NOT NULL THEN
+        RAISE EXCEPTION '%', v_salidas->>'error';
     END IF;
 
     RETURN gre_obtener_guia_remision(v_id);

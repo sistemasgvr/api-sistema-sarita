@@ -54,6 +54,16 @@ export class MovimientosRecargaController {
     return this.logic.sugerirOrigen(filtros);
   }
 
+  @Get('asignar-origenes')
+  @Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_LISTAR)
+  @ApiOperation({
+    summary:
+      'Asigna balones empresa FIFO para cubrir la capacidad (puede usar varios si uno no alcanza)',
+  })
+  asignarOrigenes(@Query() filtros: FiltroOrigenRecargaDto) {
+    return this.logic.asignarOrigenes(filtros);
+  }
+
   @Post('recarga-cliente')
   @Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_CREAR)
   @ApiOperation({ summary: 'Recarga en mostrador (cliente trae balón + comprobante)' })

@@ -23,7 +23,11 @@ FROM (
         ('OrganoInspectorCilindro', 'Órgano inspector de la prueba hidrostática'),
         ('MotivoBajaBalon', 'Motivo de baja definitiva del cilindro'),
         ('TipoRecarga', 'CLIENTE = mostrador; PLANTA_EXTERNA = envío a tercero'),
-        ('EstadoContenidoBalon', 'Contenido físico del cilindro: lleno, vacío o desconocido')
+        ('EstadoContenidoBalon', 'Contenido físico del cilindro: lleno, vacío o desconocido'),
+        ('EstadoRecargaPlanta', 'Estados de la orden de recarga en planta externa'),
+        ('EstadoRecojo', 'Estados de visita de recojo de cilindros en préstamo'),
+        ('ResultadoRecojoDetalle', 'Resultado por cilindro en una visita de recojo'),
+        ('MotivoFalloRecojo', 'Motivo de fallo / no recogido en visita de recojo')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (
     SELECT 1 FROM gen_lista l WHERE l.nombre = v.nombre
@@ -42,10 +46,12 @@ FROM (
         ('SALIDA_PRESTAMO', 'Salida por préstamo a cliente'),
         ('SALIDA_ALQUILER', 'Salida vinculada a contrato de alquiler (legado; custodia preferible vía préstamo)'),
         ('SALIDA_MANTENIMIENTO', 'Salida a mantenimiento o taller'),
+        ('SALIDA_PLANTA_EXTERNA', 'Envío a planta externa / en recarga'),
         ('ENTRADA_DEVOLUCION', 'Entrada por devolución de cliente'),
         ('ENTRADA_MANTENIMIENTO', 'Entrada por recepción/finalización de mantenimiento'),
         ('SALIDA_ENTREGA_CLIENTE', 'Entrega al cliente tras servicio de mantenimiento'),
         ('ENTRADA_LLENADO', 'Entrada desde planta de llenado'),
+        ('ENTRADA_PLANTA_EXTERNA', 'Retorno lleno desde planta externa'),
         ('RECARGA_CLIENTE', 'Recarga de gas al balón del cliente en planta'),
         ('TRASLADO_LIMA', 'Traslado hacia Lima'),
         ('RETORNO_LIMA', 'Retorno desde Lima')
@@ -67,6 +73,7 @@ FROM (
         ('PRESTADO_CLIENTE', 'Prestado a cliente'),
         ('EN_RUTA_LIMA', 'En tránsito o en Lima'),
         ('EN_MANTENIMIENTO', 'En mantenimiento o prueba hidrostática'),
+        ('EN_RECARGA_EXTERNA', 'Enviado a planta externa / en recarga'),
         ('EN_PODER_CLIENTE', 'Cilindro propio del cliente fuera de planta'),
         ('ALQUILADO', 'Legado: cilindro bajo contrato de alquiler (preferir PRESTADO_CLIENTE)'),
         ('DEVUELTO', 'Devuelto por cliente'),
@@ -312,6 +319,76 @@ FROM (
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'EstadoContenidoBalon'
+  AND NOT EXISTS (
+      SELECT 1 FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
+  );
+
+-- EstadoRecargaPlanta
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('BORRADOR', 'Orden armada sin confirmar salida'),
+        ('ENVIADO', 'Cilindros enviados a planta externa'),
+        ('RETORNADO', 'Cilindros retornados a almacén'),
+        ('CERRADO', 'Orden cerrada con comprobante de compra')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'EstadoRecargaPlanta'
+  AND NOT EXISTS (
+      SELECT 1 FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
+  );
+
+-- EstadoRecojo
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('PROGRAMADO', 'Visita de recojo programada'),
+        ('EN_RUTA', 'Operario en ruta hacia el cliente'),
+        ('EXITOSO', 'Todos los cilindros fueron recogidos'),
+        ('FALLIDO', 'No se recogió ningún cilindro'),
+        ('REPROGRAMADO', 'Visita parcial; se generó nueva programación'),
+        ('CANCELADO', 'Visita cancelada')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'EstadoRecojo'
+  AND NOT EXISTS (
+      SELECT 1 FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
+  );
+
+-- ResultadoRecojoDetalle
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('RECOGIDO', 'Cilindro recogido y devuelto al almacén'),
+        ('NO_RECOGIDO', 'No se pudo recoger el cilindro en esta visita'),
+        ('EXTENDIDO', 'Se extendió la fecha de retorno pactada')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'ResultadoRecojoDetalle'
+  AND NOT EXISTS (
+      SELECT 1 FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
+  );
+
+-- MotivoFalloRecojo
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('CLIENTE_AUSENTE', 'Cliente ausente en el domicilio'),
+        ('SIN_ACCESO', 'Sin acceso al local / domicilio'),
+        ('CILINDRO_NO_DISPONIBLE', 'Cilindro no disponible en el momento'),
+        ('GAS_NO_USADO', 'Gas aún no utilizado / cliente pide mantener'),
+        ('OTRO', 'Otro motivo')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'MotivoFalloRecojo'
   AND NOT EXISTS (
       SELECT 1 FROM gen_lista_opciones lo
       WHERE lo.id_lista = l.id AND lo.nombre = v.nombre

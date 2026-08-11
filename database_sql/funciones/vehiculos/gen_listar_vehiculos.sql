@@ -20,7 +20,11 @@ BEGIN
     SELECT COUNT(*) INTO v_total
     FROM gen_vehiculo v
     WHERE (p_solo_activos IS NULL OR v.estado = p_solo_activos)
-      AND (p_id_cliente IS NULL OR v.id_cliente = p_id_cliente)
+      AND (
+          p_id_cliente IS NULL
+          OR v.id_cliente = p_id_cliente
+          OR (p_id_cliente = -1 AND v.id_cliente IS NULL)
+      )
       AND (
           p_solo_flota_propia IS NULL
           OR (p_solo_flota_propia IS TRUE AND v.id_cliente IS NULL)
@@ -68,7 +72,11 @@ BEGIN
         LEFT JOIN auth_usuarios uc ON v.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON v.id_usuario_modificacion = um.id
         WHERE (p_solo_activos IS NULL OR v.estado = p_solo_activos)
-          AND (p_id_cliente IS NULL OR v.id_cliente = p_id_cliente)
+          AND (
+              p_id_cliente IS NULL
+              OR v.id_cliente = p_id_cliente
+              OR (p_id_cliente = -1 AND v.id_cliente IS NULL)
+          )
           AND (
               p_solo_flota_propia IS NULL
               OR (p_solo_flota_propia IS TRUE AND v.id_cliente IS NULL)

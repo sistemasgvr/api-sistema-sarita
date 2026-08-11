@@ -1,10 +1,16 @@
+DROP FUNCTION IF EXISTS bal_crear_tipo_balon(VARCHAR, INTEGER, NUMERIC, NUMERIC, INTEGER, NUMERIC, INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS bal_crear_tipo_balon(VARCHAR, INTEGER, NUMERIC, INTEGER, NUMERIC, INTEGER, INTEGER);
+
 CREATE OR REPLACE FUNCTION bal_crear_tipo_balon(
     p_nombre VARCHAR,
     p_id_gas INTEGER DEFAULT NULL,
     p_capacidad NUMERIC DEFAULT NULL,
+    p_capacidad_lb NUMERIC DEFAULT NULL,
     p_id_unidad_medida INTEGER DEFAULT NULL,
     p_peso NUMERIC DEFAULT NULL,
     p_vigencia_ph_anios INTEGER DEFAULT 5,
+    p_presion_llenado_psi NUMERIC DEFAULT NULL,
+    p_peso_tara_lb NUMERIC DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -12,6 +18,7 @@ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
+    v_tara_lb NUMERIC;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -38,13 +45,28 @@ BEGIN
         RETURN json_build_object('error', 'La unidad de medida indicada no existe o está inactiva', 'registro', NULL);
     END IF;
 
+    IF p_capacidad_lb IS NOT NULL AND p_capacidad_lb <= 0 THEN
+        RETURN json_build_object('error', 'La capacidad en lb debe ser mayor a 0', 'registro', NULL);
+    END IF;
+
+    IF p_presion_llenado_psi IS NOT NULL AND p_presion_llenado_psi <= 0 THEN
+        RETURN json_build_object('error', 'La presión de llenado (PSI) debe ser mayor a 0', 'registro', NULL);
+    END IF;
+
+    v_tara_lb := COALESCE(
+        NULLIF(p_peso_tara_lb, 0),
+        CASE WHEN p_peso IS NOT NULL AND p_peso > 0 THEN ROUND(p_peso * 2.20462, 4) ELSE NULL END
+    );
+
     INSERT INTO bal_tipo_balon (
-        nombre, id_gas, capacidad, id_unidad_medida, peso, vigencia_ph_anios,
+        nombre, id_gas, capacidad, capacidad_lb, id_unidad_medida, peso, vigencia_ph_anios,
+        presion_llenado_psi, peso_tara_lb,
         id_usuario_creacion, id_usuario_modificacion
     )
     VALUES (
-        TRIM(p_nombre), p_id_gas, p_capacidad, p_id_unidad_medida, p_peso,
+        TRIM(p_nombre), p_id_gas, p_capacidad, p_capacidad_lb, p_id_unidad_medida, p_peso,
         COALESCE(p_vigencia_ph_anios, 5),
+        p_presion_llenado_psi, v_tara_lb,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;

@@ -30,7 +30,8 @@
 --  7. GRE         → Guías de Remisión Electrónica (remitente 09 / transportista 31)
 --                   con UBIGEO, motivo de traslado y ciclo XML/CDR SUNAT
 --  8. FINANZAS    → Cuentas por cobrar y pagar (fin_cuenta + fin_pago),
---                   préstamos bancarios y cuotas (fin_prestamo_banco)
+--                   caja diaria (fin_caja_sesion / gasto / depósito / observación),
+--                   préstamos bancarios unificados en fin_cuenta
 --  9. COMPRAS     → Comprobantes de compra/gasto con clasificación contable de 3 niveles,
 --                   afectación de inventario y declaración SUNAT
 --
@@ -278,12 +279,26 @@ CREATE TABLE gen_condicion_pago (
     id              SERIAL PRIMARY KEY,
     codigo          varchar(10) NOT NULL UNIQUE,
     nombre          varchar(100) NOT NULL,
+    -- Crédito simple: días hasta un único vencimiento.
+    -- Cuotas: días hasta la 1ª cuota; luego dia_mes_pago cada mes.
     dias_credito     INT NOT NULL DEFAULT 0,
+    numero_cuotas    INT NULL,          -- >1 = plan de cuotas
+    dia_mes_pago     INT NULL,          -- 1..31 para cobro mensual
     estado          INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),
     fecha_creacion   TIMESTAMP DEFAULT NOW(),
-    fecha_modificacion TIMESTAMP DEFAULT NOW()
+    fecha_modificacion TIMESTAMP DEFAULT NOW(),
+    CONSTRAINT chk_gen_condicion_pago_cuotas CHECK (
+        numero_cuotas IS NULL
+        OR (
+            numero_cuotas >= 1
+            AND (
+                numero_cuotas = 1
+                OR (dia_mes_pago IS NOT NULL AND dia_mes_pago BETWEEN 1 AND 31)
+            )
+        )
+    )
 );
 
 -- Datos fiscales de la empresa (RUC, razón social)
@@ -634,7 +649,7 @@ CREATE TABLE pro_producto (
     afecta_stock     BOOLEAN DEFAULT TRUE,    -- false para servicios puros
     precio          NUMERIC(12,4) DEFAULT 0,  -- precio de venta base (POS)
     precio_compra   NUMERIC(12,4) DEFAULT 0,  -- costo/precio de compra
-    precio_garantia NUMERIC(12,4) DEFAULT 0,  -- depósito si es_alquilable
+    precio_garantia NUMERIC(12,4) DEFAULT 0,  -- depósito reembolsable (préstamo industrial / alquiler)
     estado          INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),
@@ -813,7 +828,7 @@ CREATE TABLE bal_movimiento_recarga (
     id                      SERIAL PRIMARY KEY,
     fecha_salida_almacen      DATE NOT NULL,
     id_balon                 INT NOT NULL REFERENCES bal_balon(id),
-    id_balon_origen          INT REFERENCES bal_balon(id),              -- origen EMPRESA LLENO (tipo CLIENTE)
+    id_balon_origen          INT REFERENCES bal_balon(id),              -- origen EMPRESA principal (tipo CLIENTE; ver detalle multi-origen)
     id_cliente               INT REFERENCES cli_clientes(id),           -- cliente que trae el balón (tipo CLIENTE)
     id_tipo_recarga          INT REFERENCES gen_lista_opciones(id),      -- (gen_lista: TipoRecarga) CLIENTE | PLANTA_EXTERNA
     id_producto              INT REFERENCES pro_producto(id),
@@ -842,6 +857,18 @@ CREATE TABLE bal_movimiento_recarga (
     id_usuario_modificacion       INT REFERENCES auth_usuarios(id),
     fecha_creacion           TIMESTAMP DEFAULT NOW(),
     fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+-- Detalle de orígenes cuando una recarga se surte desde varios balones empresa (FIFO)
+CREATE TABLE bal_movimiento_recarga_origen (
+    id                      SERIAL PRIMARY KEY,
+    id_movimiento_recarga   INT NOT NULL REFERENCES bal_movimiento_recarga(id),
+    id_balon                INT NOT NULL REFERENCES bal_balon(id),
+    cantidad                NUMERIC(10,4) NOT NULL,
+    orden                   INT NOT NULL DEFAULT 1,
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW()
 );
 
 -- Préstamo de balones: cliente, empresa↔cliente, o planta proveedora
@@ -891,6 +918,42 @@ CREATE TABLE bal_prestamo_detalle (
     id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
     fecha_creacion       TIMESTAMP DEFAULT NOW(),
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
+);
+
+-- Visita programada de recojo de cilindros en préstamo (distinto a devolución walk-in)
+CREATE TABLE bal_recojo (
+    id                       SERIAL PRIMARY KEY,
+    id_cliente               INT NOT NULL REFERENCES cli_clientes(id),
+    id_prestamo              INT NULL REFERENCES bal_prestamo(id), -- NULL si visita multi-préstamo
+    fecha_programada         DATE NOT NULL,
+    hora_estimada            TIME NULL,
+    fecha_visita             DATE NULL,
+    id_usuario_responsable   INT NULL REFERENCES auth_usuarios(id),
+    id_estado                INT REFERENCES gen_lista_opciones(id), -- EstadoRecojo
+    id_motivo_fallo          INT REFERENCES gen_lista_opciones(id), -- MotivoFalloRecojo
+    observacion              VARCHAR(500),
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE bal_recojo_detalle (
+    id                       SERIAL PRIMARY KEY,
+    id_recojo                INT NOT NULL REFERENCES bal_recojo(id),
+    id_prestamo_detalle      INT NOT NULL REFERENCES bal_prestamo_detalle(id),
+    id_resultado             INT REFERENCES gen_lista_opciones(id), -- ResultadoRecojoDetalle
+    id_estado_contenido      INT REFERENCES gen_lista_opciones(id), -- EstadoContenidoBalon encontrado
+    nueva_fecha_retorno      DATE NULL,
+    id_almacen_destino       INT NULL REFERENCES gen_almacen(id),
+    observacion              VARCHAR(500),
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW(),
+    UNIQUE (id_recojo, id_prestamo_detalle)
 );
 
 -- Alquiler de balones de la empresa al cliente
@@ -1190,11 +1253,12 @@ CREATE TABLE ven_cuotas (
 );
 
 -- Garantía de envase/cilindro cobrada al cliente
--- Una garantía puede cubrir uno o varios cilindros del mismo préstamo
+-- Orígenes: préstamo, alquiler, POS (comprobante en movimientos) o manual (Finanzas)
 CREATE TABLE ven_garantia (
     id                  SERIAL PRIMARY KEY,
     id_cliente           INT NOT NULL REFERENCES cli_clientes(id),
     id_prestamo          INT REFERENCES bal_prestamo(id),       -- préstamo que originó la garantía
+    id_alquiler          INT REFERENCES bal_alquiler(id),       -- alquiler que originó la garantía
     ubicacion           varchar(150),
     id_producto          INT REFERENCES pro_producto(id),
     cantidad_venta       NUMERIC(12,4),
@@ -1205,6 +1269,12 @@ CREATE TABLE ven_garantia (
     monto_saldo          NUMERIC(12,4) NOT NULL DEFAULT 0,
     id_estado            INT REFERENCES gen_lista_opciones(id),  -- ACTIVA, DEVUELTA, PARCIAL
     observacion         varchar(500),
+    -- Campos de recepción/reembolso (manuales / espejo fin_garantia)
+    id_medio_pago         INT REFERENCES gen_lista_opciones(id),
+    fecha_reembolso       DATE,
+    id_medio_reembolso    INT REFERENCES gen_lista_opciones(id),
+    observacion_reembolso VARCHAR(500),
+    id_usuario_reembolso  INT REFERENCES auth_usuarios(id),
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion       INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
@@ -1412,6 +1482,91 @@ CREATE TABLE fin_pago (
     fecha_creacion       TIMESTAMP DEFAULT NOW(),
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
+
+-- Caja diaria / arqueo (distinto de ven_resumen_diario SUNAT).
+-- id_estado → gen_lista EstadoCaja: ABIERTA | CERRADA
+-- Seed: database_sql/seeds/fin_estado_caja.sql
+CREATE TABLE fin_caja_sesion (
+    id                       SERIAL PRIMARY KEY,
+    fecha                    DATE NOT NULL,
+    id_sucursal              INT NULL REFERENCES gen_sucursal(id),
+    id_estado                INT NOT NULL REFERENCES gen_lista_opciones(id),
+    monto_inicial            NUMERIC(12,4) NOT NULL DEFAULT 0,
+    monto_efectivo_contado   NUMERIC(12,4) NULL,
+    monto_esperado           NUMERIC(12,4) NULL,
+    diferencia               NUMERIC(12,4) NULL,
+    observacion_apertura     VARCHAR(500),
+    observacion_cierre       VARCHAR(500),
+    fecha_apertura           TIMESTAMP NOT NULL DEFAULT NOW(),
+    fecha_cierre             TIMESTAMP NULL,
+    id_usuario_apertura      INT NULL REFERENCES auth_usuarios(id),
+    id_usuario_cierre        INT NULL REFERENCES auth_usuarios(id),
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_fin_caja_sesion_fecha_sucursal
+    ON fin_caja_sesion (fecha, COALESCE(id_sucursal, 0))
+    WHERE estado = 1;
+
+CREATE INDEX IF NOT EXISTS idx_fin_caja_sesion_fecha ON fin_caja_sesion(fecha);
+CREATE INDEX IF NOT EXISTS idx_fin_caja_sesion_estado ON fin_caja_sesion(id_estado);
+
+CREATE TABLE fin_caja_gasto (
+    id                       SERIAL PRIMARY KEY,
+    id_sesion                INT NULL REFERENCES fin_caja_sesion(id),
+    fecha                    DATE NOT NULL,
+    concepto                 VARCHAR(200) NOT NULL,
+    monto                    NUMERIC(12,4) NOT NULL CHECK (monto > 0),
+    id_medio_pago            INT NULL REFERENCES gen_lista_opciones(id),
+    id_categoria_gasto       INT NULL REFERENCES gen_clasificacion_gasto(id),
+    numero_operacion         VARCHAR(80),
+    observacion              VARCHAR(500),
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fin_caja_gasto_fecha ON fin_caja_gasto(fecha) WHERE estado = 1;
+CREATE INDEX IF NOT EXISTS idx_fin_caja_gasto_sesion ON fin_caja_gasto(id_sesion) WHERE estado = 1;
+
+CREATE TABLE fin_caja_deposito (
+    id                       SERIAL PRIMARY KEY,
+    id_sesion                INT NULL REFERENCES fin_caja_sesion(id),
+    fecha                    DATE NOT NULL,
+    monto                    NUMERIC(12,4) NOT NULL CHECK (monto > 0),
+    id_cuenta_bancaria       INT NULL REFERENCES gen_cuenta_bancaria(id),
+    id_medio_pago            INT NULL REFERENCES gen_lista_opciones(id),
+    numero_operacion         VARCHAR(80),
+    observacion              VARCHAR(500),
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fin_caja_deposito_fecha ON fin_caja_deposito(fecha) WHERE estado = 1;
+CREATE INDEX IF NOT EXISTS idx_fin_caja_deposito_sesion ON fin_caja_deposito(id_sesion) WHERE estado = 1;
+
+-- Observaciones del libro diario operativo (agregador; no es tabla de asientos)
+CREATE TABLE fin_caja_observacion (
+    id                       SERIAL PRIMARY KEY,
+    fecha                    DATE NOT NULL,
+    texto                    VARCHAR(1000) NOT NULL,
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fin_caja_observacion_fecha ON fin_caja_observacion(fecha) WHERE estado = 1;
 
 
 -- ============================================================
@@ -1674,6 +1829,12 @@ CREATE INDEX idx_bal_prestamo_tipo ON bal_prestamo(id_tipo_prestamo);
 CREATE INDEX idx_bal_prestamo_detalle_balon ON bal_prestamo_detalle(id_balon);
 CREATE INDEX idx_bal_prestamo_detalle_venc ON bal_prestamo_detalle(fecha_vencimiento);
 CREATE INDEX idx_bal_prestamo_detalle_est ON bal_prestamo_detalle(id_estado);
+CREATE INDEX idx_bal_recojo_cliente ON bal_recojo(id_cliente);
+CREATE INDEX idx_bal_recojo_prestamo ON bal_recojo(id_prestamo);
+CREATE INDEX idx_bal_recojo_fecha ON bal_recojo(fecha_programada);
+CREATE INDEX idx_bal_recojo_estado ON bal_recojo(id_estado);
+CREATE INDEX idx_bal_recojo_det_cab ON bal_recojo_detalle(id_recojo);
+CREATE INDEX idx_bal_recojo_det_pd ON bal_recojo_detalle(id_prestamo_detalle);
 CREATE INDEX idx_bal_alquiler_cliente ON bal_alquiler(id_cliente);
 
 -- Ventas
@@ -1689,6 +1850,8 @@ CREATE INDEX idx_ven_resumen_detalle_resumen ON ven_resumen_diario_detalle(id_re
 CREATE INDEX idx_ven_resumen_detalle_comprobante ON ven_resumen_diario_detalle(id_comprobante);
 CREATE INDEX idx_ven_garantia_cliente ON ven_garantia(id_cliente);
 CREATE INDEX idx_ven_garantia_fecha ON ven_garantia(fecha_registro);
+CREATE INDEX idx_ven_garantia_prestamo ON ven_garantia(id_prestamo);
+CREATE INDEX idx_ven_garantia_alquiler ON ven_garantia(id_alquiler);
 CREATE INDEX idx_ven_garantia_mov ON ven_garantia_movimiento(id_garantia);
 
 -- GRE
@@ -1769,6 +1932,7 @@ INSERT INTO gen_lista (nombre, descripcion) VALUES
 ('CategoriaVencimiento', 'Categoría de documentos con vencimiento'),
 ('EstadoGarantia',    'Estados de garantía: ACTIVA, DEVUELTA, PARCIAL'),
 ('TipoMovimientoGarantia', 'COBRO y DEVOLUCION de garantía'),
+('EstadoCaja',        'Estado de sesión de caja diaria: ABIERTA, CERRADA'),
 ('TipoCatalogoPrecio', 'RECARGADO=gas+cilindro, GARANTIA=depósito préstamo, VENTA_CILINDRO=cilindro vacío, ACCESORIO'),
 ('TipoCuentaFinanciera', 'COBRAR (cliente) o PAGAR (proveedor)'),
 ('EstadoPrestamoDetalle', 'Estado por cilindro en préstamo: ACTIVO, PENDIENTE, DEVUELTO, VENCIDO'),
@@ -1785,6 +1949,7 @@ INSERT INTO gen_lista (nombre, descripcion) VALUES
 -- (9, 'PRESTADO_CLIENTE'),
 -- (9, 'EN_RUTA_LIMA'),
 -- (9, 'EN_MANTENIMIENTO'),
+-- (9, 'EN_RECARGA_EXTERNA'), -- enviado a planta externa / en recarga
 -- (9, 'ALQUILADO'),
 -- (9, 'DEVUELTO'),
 -- (9, 'ROBO'),

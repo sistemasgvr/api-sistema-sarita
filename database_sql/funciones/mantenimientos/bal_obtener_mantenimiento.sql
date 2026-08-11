@@ -13,6 +13,16 @@ BEGIN
             m.id,
             m.id_balon,
             b.codigo_balon,
+            m.id_producto,
+            p.codigo AS codigo_producto,
+            p.nombre AS nombre_producto,
+            CASE
+                WHEN m.id_producto IS NOT NULL THEN 'PRODUCTO'
+                ELSE 'CILINDRO'
+            END AS tipo_origen,
+            m.id_almacen,
+            m.id_alquiler,
+            m.id_recojo,
             b.id_propietario,
             prop.nombre AS nombre_propietario,
             b.id_cliente_propietario,
@@ -50,7 +60,8 @@ BEGIN
             m.id_usuario_modificacion,
             um.nombre AS nombre_usuario_modificacion
         FROM bal_mantenimiento m
-        INNER JOIN bal_balon b ON m.id_balon = b.id
+        LEFT JOIN bal_balon b ON m.id_balon = b.id
+        LEFT JOIN pro_producto p ON p.id = m.id_producto
         LEFT JOIN gen_lista_opciones prop ON b.id_propietario = prop.id
         LEFT JOIN cli_clientes cp ON b.id_cliente_propietario = cp.id
         LEFT JOIN gen_lista_opciones tm ON m.id_tipo_mantenimiento = tm.id

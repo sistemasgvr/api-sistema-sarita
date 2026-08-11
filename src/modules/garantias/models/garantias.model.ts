@@ -22,6 +22,10 @@ export class GarantiasModel {
       filtros.idCliente ?? null,
       filtros.idPrestamo ?? null,
       filtros.idEstado ?? null,
+      filtros.idAlquiler ?? null,
+      null,
+      null,
+      null,
     ]);
   }
 
@@ -42,6 +46,8 @@ export class GarantiasModel {
       dto.fechaRegistro ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idAlquiler ?? null,
+      dto.idMedioPago ?? null,
     ]);
   }
 
@@ -53,6 +59,7 @@ export class GarantiasModel {
       dto.fecha ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
+      null,
     ]);
   }
 }

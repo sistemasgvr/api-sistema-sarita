@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS pro_actualizar_producto(INTEGER, VARCHAR, VARCHAR, VARCHAR, INTEGER, INTEGER, VARCHAR, VARCHAR, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, NUMERIC, VARCHAR, INTEGER, NUMERIC, NUMERIC);
+
 CREATE OR REPLACE FUNCTION pro_actualizar_producto(
     p_id INTEGER,
     p_codigo VARCHAR DEFAULT NULL,
@@ -15,7 +17,9 @@ CREATE OR REPLACE FUNCTION pro_actualizar_producto(
     p_codigo_ubicacion VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL,
     p_precio_compra NUMERIC DEFAULT NULL,
-    p_precio_garantia NUMERIC DEFAULT NULL
+    p_precio_garantia NUMERIC DEFAULT NULL,
+    p_factor_kg_m3 NUMERIC DEFAULT NULL,
+    p_factor_lb_m3 NUMERIC DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -68,6 +72,14 @@ BEGIN
         RETURN json_build_object('error', 'La unidad de medida indicada no existe o está inactiva', 'registro', NULL);
     END IF;
 
+    IF p_factor_kg_m3 IS NOT NULL AND p_factor_kg_m3 <= 0 THEN
+        RETURN json_build_object('error', 'El factor kg→m³ debe ser mayor a 0', 'registro', NULL);
+    END IF;
+
+    IF p_factor_lb_m3 IS NOT NULL AND p_factor_lb_m3 <= 0 THEN
+        RETURN json_build_object('error', 'El factor lb→m³ debe ser mayor a 0', 'registro', NULL);
+    END IF;
+
     SELECT COALESCE(p_es_alquilable, es_alquilable)
     INTO v_es_alquilable
     FROM pro_producto
@@ -99,10 +111,14 @@ BEGIN
         END,
         precio = COALESCE(p_precio, precio),
         precio_compra = COALESCE(p_precio_compra, precio_compra),
-        precio_garantia = CASE
-            WHEN NOT v_es_alquilable THEN 0
-            WHEN p_precio_garantia IS NULL THEN precio_garantia
-            ELSE p_precio_garantia
+        precio_garantia = COALESCE(p_precio_garantia, precio_garantia),
+        factor_kg_m3 = CASE
+            WHEN COALESCE(p_es_gas, es_gas) THEN COALESCE(p_factor_kg_m3, factor_kg_m3)
+            ELSE NULL
+        END,
+        factor_lb_m3 = CASE
+            WHEN COALESCE(p_es_gas, es_gas) THEN COALESCE(p_factor_lb_m3, factor_lb_m3)
+            ELSE NULL
         END,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()

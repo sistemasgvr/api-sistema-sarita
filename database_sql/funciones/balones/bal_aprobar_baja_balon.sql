@@ -11,6 +11,7 @@ DECLARE
     v_id_motivo_baja INTEGER;
     v_motivo_detalle VARCHAR;
     v_id_cliente_comprador INTEGER;
+    v_id_comprobante_venta INTEGER;
     v_observacion VARCHAR;
     v_fecha_baja DATE;
     v_id_movimiento INTEGER;
@@ -18,9 +19,11 @@ DECLARE
     v_id_estado_anterior INTEGER;
     v_nombre_motivo VARCHAR;
     v_nombre_estado_destino VARCHAR;
-    v_id_tipo_mov_venta INTEGER;
     v_id_almacen INTEGER;
     v_id_usuario INTEGER;
+    v_codigo_tipo_comp VARCHAR;
+    v_codigo_tipo_doc_ref VARCHAR;
+    v_mov JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -43,6 +46,7 @@ BEGIN
         bb.id_motivo_baja,
         bb.motivo_detalle,
         bb.id_cliente_comprador,
+        bb.id_comprobante_venta,
         bb.observacion,
         bb.fecha_baja
     INTO
@@ -50,6 +54,7 @@ BEGIN
         v_id_motivo_baja,
         v_motivo_detalle,
         v_id_cliente_comprador,
+        v_id_comprobante_venta,
         v_observacion,
         v_fecha_baja
     FROM bal_baja_balon bb
@@ -99,26 +104,41 @@ BEGIN
     v_id_usuario := COALESCE(p_id_usuario_auditoria, p_id_usuario_autoriza);
 
     IF v_nombre_motivo = 'VENDIDO' THEN
-        SELECT lo.id INTO v_id_tipo_mov_venta
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'SALIDA_VENTA' AND lo.estado = 1;
+        v_codigo_tipo_doc_ref := NULL;
+        IF v_id_comprobante_venta IS NOT NULL THEN
+            SELECT lo.descripcion INTO v_codigo_tipo_comp
+            FROM ven_comprobante c
+            INNER JOIN gen_lista_opciones lo ON lo.id = c.id_tipo_comprobante
+            WHERE c.id = v_id_comprobante_venta AND c.estado = 1;
 
-        IF v_id_tipo_mov_venta IS NOT NULL THEN
-            INSERT INTO bal_movimiento (
-                id_balon, id_tipo_movimiento, id_cliente,
-                id_almacen_origen, fecha_movimiento, observacion,
-                id_usuario_creacion, id_usuario_modificacion
-            )
-            VALUES (
-                v_id_balon, v_id_tipo_mov_venta, v_id_cliente_comprador,
-                v_id_almacen, NOW(),
-                COALESCE(v_observacion, 'Baja por venta de cilindro'),
-                v_id_usuario,
-                v_id_usuario
-            )
-            RETURNING id INTO v_id_movimiento;
+            v_codigo_tipo_doc_ref := CASE
+                WHEN v_codigo_tipo_comp = '01' THEN 'FACTURA'
+                WHEN v_codigo_tipo_comp = '03' THEN 'BOLETA'
+                WHEN v_codigo_tipo_comp IN ('NV', 'VSD') THEN 'NOTA_VENTA'
+                ELSE 'FACTURA'
+            END;
         END IF;
+
+        -- Movimiento SALIDA_VENTA con trazabilidad al comprobante (estado lo aplica esta función)
+        v_mov := bal_registrar_salida_documento(
+            v_id_balon,
+            'SALIDA_VENTA',
+            v_id_comprobante_venta,
+            v_codigo_tipo_doc_ref,
+            v_id_cliente_comprador,
+            v_id_almacen,
+            NULL,
+            FALSE,
+            NULL,
+            COALESCE(v_observacion, 'Baja por venta de cilindro'),
+            v_id_usuario
+        );
+
+        IF v_mov->>'error' IS NOT NULL THEN
+            RETURN json_build_object('error', v_mov->>'error', 'registro', NULL);
+        END IF;
+
+        v_id_movimiento := (v_mov->'registro'->>'id')::INTEGER;
     END IF;
 
     UPDATE bal_baja_balon

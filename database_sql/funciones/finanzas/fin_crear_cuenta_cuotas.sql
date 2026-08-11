@@ -23,6 +23,9 @@ DROP FUNCTION IF EXISTS fin_crear_cuenta_cuotas(
 DROP FUNCTION IF EXISTS fin_crear_cuenta_cuotas(
   VARCHAR, INT, VARCHAR, DATE, NUMERIC, INT, DATE, INT, VARCHAR, VARCHAR, INT, NUMERIC, VARCHAR, INT
 );
+DROP FUNCTION IF EXISTS fin_crear_cuenta_cuotas(
+  VARCHAR, INT, VARCHAR, DATE, NUMERIC, INT, DATE, INT, VARCHAR, VARCHAR, INT, NUMERIC, VARCHAR, INT, INT
+);
 
 CREATE OR REPLACE FUNCTION fin_crear_cuenta_cuotas(
     p_tipo                VARCHAR,
@@ -38,7 +41,8 @@ CREATE OR REPLACE FUNCTION fin_crear_cuenta_cuotas(
     p_id_banco            INT     DEFAULT NULL,
     p_tasa_interes        NUMERIC DEFAULT NULL,
     p_numero_comprobante  VARCHAR DEFAULT NULL,
-    p_id_usuario          INT     DEFAULT NULL
+    p_id_usuario          INT     DEFAULT NULL,
+    p_id_comprobante_venta INT    DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -122,15 +126,18 @@ BEGIN
     -- Cabecera
     INSERT INTO fin_cuenta (
         id_tipo_cuenta, id_tercero, tercero_nombre,
+        id_comprobante_venta,
         fecha_emision, fecha_vencimiento,
         monto_pendiente, monto_abonado, monto_saldo,
         numero_cuotas_total,
         descripcion, observacion,
         id_banco, tasa_interes,
         numero_comprobante,
-        id_usuario_creacion
+        id_usuario_creacion,
+        id_usuario_modificacion
     ) VALUES (
         v_id_tipo, v_id_tercero, v_nombre,
+        p_id_comprobante_venta,
         p_fecha_emision, NULL,
         p_monto_total, 0, p_monto_total,
         p_numero_cuotas,
@@ -138,6 +145,7 @@ BEGIN
         NULLIF(TRIM(p_observacion), ''),
         p_id_banco, p_tasa_interes,
         NULLIF(TRIM(p_numero_comprobante), ''),
+        p_id_usuario,
         p_id_usuario
     )
     RETURNING id INTO v_id_padre;
@@ -161,19 +169,23 @@ BEGIN
 
         INSERT INTO fin_cuenta (
             id_tipo_cuenta, id_tercero, tercero_nombre,
+            id_comprobante_venta,
             id_cuenta_padre, numero_cuota,
             fecha_emision, fecha_vencimiento,
             monto_pendiente, monto_abonado, monto_saldo,
             descripcion,
-            id_usuario_creacion
+            id_usuario_creacion,
+            id_usuario_modificacion
         ) VALUES (
             v_id_tipo, v_id_tercero, v_nombre,
+            p_id_comprobante_venta,
             v_id_padre, v_i,
             p_fecha_emision, v_fecha_cuota,
             CASE WHEN v_i = p_numero_cuotas THEN v_ultima_cuota ELSE v_monto_cuota END,
             0,
             CASE WHEN v_i = p_numero_cuotas THEN v_ultima_cuota ELSE v_monto_cuota END,
             'Cuota ' || v_i || ' de ' || p_numero_cuotas,
+            p_id_usuario,
             p_id_usuario
         );
     END LOOP;

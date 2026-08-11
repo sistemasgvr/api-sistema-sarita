@@ -70,6 +70,7 @@ export class ComprasModel {
       dto.declararSunat ?? false,
       dto.glosa ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idRecargaPlanta ?? null,
       dto.guardarBalonesAlmacen ?? false,
     ]);
   }

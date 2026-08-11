@@ -17,13 +17,15 @@ CREATE OR REPLACE FUNCTION com_crear_compra(
     p_declarar_sunat             BOOLEAN DEFAULT FALSE,
     p_glosa                      VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria       INTEGER DEFAULT NULL,
-    p_guardar_balones_almacen    BOOLEAN DEFAULT FALSE
+    p_id_recarga_planta          INTEGER DEFAULT NULL,
+    p_registrar_retorno_balones  BOOLEAN DEFAULT FALSE
 )
 RETURNS JSON
 LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_compra           INTEGER;
+    v_link_planta         JSON;
     v_id_detalle          INTEGER;
     v_item                INTEGER := 0;
     v_linea               JSONB;
@@ -241,28 +243,59 @@ BEGIN
         )
     WHERE id = v_id_compra;
 
-    -- Si esta compra corresponde a una orden de recarga en planta externa,
-    -- se cierra el vínculo: bal_finalizar_recarga_planta siempre marca los
-    -- balones de la orden como llenos (esto refleja la factura recibida).
-    -- Ubicarlos físicamente en el almacén de esta compra y generar su
-    -- movimiento de ingreso es aparte y opcional (p_guardar_balones_almacen):
-    -- registrar la factura no significa que los balones ya llegaron; si no
-    -- se marca, ese ingreso se registra después desde Recargas en planta.
-    -- Si falla, se revierte toda la compra: no debe quedar un comprobante
-    -- que dice estar vinculado a una recarga sin que esta se haya cerrado.
+    -- Vínculo opcional con orden de recarga planta externa (factura de costo).
+    -- El gas NO ingresa a pro_stock: el retorno físico va por bal_actualizar_recarga_planta.
     IF p_id_recarga_planta IS NOT NULL THEN
-        v_result_movimiento := bal_finalizar_recarga_planta(
-            p_id_recarga_planta       => p_id_recarga_planta,
-            p_id_comprobante_compra   => v_id_compra,
-            p_fecha_llegada_almacen   => p_fecha,
-            p_id_almacen              => p_id_almacen,
-            p_id_proveedor            => p_id_proveedor,
-            p_guardar_balones_almacen => COALESCE(p_guardar_balones_almacen, FALSE),
-            p_id_usuario_auditoria    => p_id_usuario_auditoria
+        IF NOT EXISTS (
+            SELECT 1 FROM bal_recarga_planta WHERE id = p_id_recarga_planta AND estado = 1
+        ) THEN
+            RAISE EXCEPTION 'Orden de recarga planta no encontrada o inactiva';
+        END IF;
+
+        IF EXISTS (
+            SELECT 1
+            FROM bal_recarga_planta
+            WHERE id = p_id_recarga_planta
+              AND estado = 1
+              AND id_proveedor IS NOT NULL
+              AND p_id_proveedor IS NOT NULL
+              AND id_proveedor <> p_id_proveedor
+        ) THEN
+            RAISE EXCEPTION 'El proveedor de la compra no coincide con el de la orden de recarga';
+        END IF;
+
+        IF EXISTS (
+            SELECT 1
+            FROM bal_recarga_planta
+            WHERE id = p_id_recarga_planta
+              AND estado = 1
+              AND id_comprobante_compra IS NOT NULL
+              AND id_comprobante_compra <> v_id_compra
+        ) THEN
+            RAISE EXCEPTION 'La orden de recarga ya tiene otra compra vinculada';
+        END IF;
+
+        v_link_planta := bal_actualizar_recarga_planta(
+            p_id_recarga_planta,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            v_id_compra,
+            p_serie,
+            p_numero,
+            CASE WHEN COALESCE(p_registrar_retorno_balones, FALSE) THEN p_fecha ELSE NULL END,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            p_id_usuario_auditoria
         );
 
-        IF (v_result_movimiento->>'error') IS NOT NULL THEN
-            RAISE EXCEPTION 'No se pudo vincular la orden de recarga en planta externa: %', v_result_movimiento->>'error';
+        IF v_link_planta->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_link_planta->>'error';
         END IF;
     END IF;
 

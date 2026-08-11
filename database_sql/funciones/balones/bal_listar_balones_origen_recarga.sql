@@ -1,4 +1,5 @@
--- Balones EMPRESA LLENOS en almacén del mismo gas, con residual >= requerido (FIFO).
+-- Balones EMPRESA LLENOS en almacén del mismo gas con residual > 0 (FIFO).
+-- Ya no exige que un solo balón cubra toda la capacidad: la asignación multi-origen lo resuelve.
 CREATE OR REPLACE FUNCTION bal_listar_balones_origen_recarga(
     p_id_producto_gas INTEGER,
     p_capacidad_requerida NUMERIC DEFAULT NULL,
@@ -12,7 +13,6 @@ AS $function$
 DECLARE
     v_registros JSON;
     v_total BIGINT;
-    v_requerida NUMERIC;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -23,8 +23,6 @@ BEGIN
             'total', 0
         );
     END IF;
-
-    v_requerida := COALESCE(p_capacidad_requerida, 0);
 
     WITH candidatos AS (
         SELECT
@@ -54,7 +52,7 @@ BEGIN
           AND COALESCE(ec.nombre, '') = 'LLENO'
           AND b.id_producto_gas = p_id_producto_gas
           AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
-          AND bal_capacidad_disponible_balon(b.id) >= v_requerida
+          AND bal_capacidad_disponible_balon(b.id) > 0
     )
     SELECT
         (SELECT COUNT(*) FROM candidatos),
@@ -76,7 +74,7 @@ BEGIN
                     capacidad_restante,
                     fecha_creacion
                 FROM candidatos
-                ORDER BY fecha_creacion DESC NULLS LAST, id DESC
+                ORDER BY fecha_creacion ASC NULLS LAST, id ASC
                 LIMIT GREATEST(COALESCE(p_limite, 50), 1)
                 OFFSET GREATEST(COALESCE(p_offset, 0), 0)
             ) t

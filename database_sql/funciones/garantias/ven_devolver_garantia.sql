@@ -1,10 +1,14 @@
+DROP FUNCTION IF EXISTS ven_devolver_garantia(INTEGER, NUMERIC, INTEGER, DATE, VARCHAR, INTEGER);
+DROP FUNCTION IF EXISTS ven_devolver_garantia(INTEGER, NUMERIC, INTEGER, DATE, VARCHAR, INTEGER, INTEGER);
+
 CREATE OR REPLACE FUNCTION ven_devolver_garantia(
     p_id INTEGER,
     p_monto NUMERIC,
     p_id_comprobante INTEGER DEFAULT NULL,
     p_fecha DATE DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_id_medio_reembolso INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -18,6 +22,7 @@ DECLARE
     v_id_estado INTEGER;
     v_nombre_estado VARCHAR;
     v_fecha DATE;
+    v_obs VARCHAR(500);
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -55,6 +60,12 @@ BEGIN
         SELECT 1 FROM ven_comprobante WHERE id = p_id_comprobante AND estado = 1
     ) THEN
         RETURN json_build_object('error', 'El comprobante indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    IF p_id_medio_reembolso IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM gen_lista_opciones WHERE id = p_id_medio_reembolso AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El método de reembolso indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
     SELECT lo.id INTO v_id_tipo_devolucion
@@ -95,13 +106,22 @@ BEGIN
     END IF;
 
     v_fecha := COALESCE(p_fecha, CURRENT_DATE);
+    v_obs := NULLIF(TRIM(COALESCE(p_observacion, '')), '');
 
     UPDATE ven_garantia
     SET
         monto_devuelto = v_nuevo_devuelto,
         monto_saldo = v_nuevo_saldo,
         id_estado = v_id_estado,
-        observacion = COALESCE(NULLIF(TRIM(COALESCE(p_observacion, '')), ''), observacion),
+        observacion = COALESCE(v_obs, observacion),
+        fecha_reembolso = CASE WHEN v_nuevo_saldo = 0 THEN v_fecha ELSE fecha_reembolso END,
+        id_medio_reembolso = COALESCE(p_id_medio_reembolso, id_medio_reembolso),
+        observacion_reembolso = COALESCE(v_obs, observacion_reembolso),
+        id_usuario_reembolso = CASE
+            WHEN v_nuevo_saldo = 0 OR p_id_medio_reembolso IS NOT NULL
+                THEN COALESCE(p_id_usuario_auditoria, id_usuario_reembolso)
+            ELSE id_usuario_reembolso
+        END,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id;
@@ -122,7 +142,7 @@ BEGIN
         p_id_comprobante,
         v_fecha,
         v_monto,
-        COALESCE(NULLIF(TRIM(COALESCE(p_observacion, '')), ''), 'Devolución de garantía'),
+        COALESCE(v_obs, 'Devolución de garantía'),
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     );

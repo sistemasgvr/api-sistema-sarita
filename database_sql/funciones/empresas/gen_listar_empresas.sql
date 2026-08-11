@@ -33,6 +33,8 @@ BEGIN
             e.direccion,
             e.telefono,
             e.email,
+            e.tolerancia_m3_ruta_pueblo,
+            e.psi_minimo_util,
             e.estado,
             e.fecha_creacion,
             e.fecha_modificacion,

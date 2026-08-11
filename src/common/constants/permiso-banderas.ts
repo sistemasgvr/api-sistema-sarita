@@ -208,6 +208,18 @@ export const PermisoBanderas = {
   PRESTAMOS_DETALLE_EDITAR: 'prestamos_detalle.editar',
   PRESTAMOS_DETALLE_ELIMINAR: 'prestamos_detalle.eliminar',
 
+  RECOJOS_BALON_LISTAR: 'recojos_balon.listar',
+  RECOJOS_BALON_VER: 'recojos_balon.ver',
+  RECOJOS_BALON_CREAR: 'recojos_balon.crear',
+  RECOJOS_BALON_EDITAR: 'recojos_balon.editar',
+  RECOJOS_BALON_ELIMINAR: 'recojos_balon.eliminar',
+
+  RUTAS_PUEBLOS_LISTAR: 'rutas_pueblos.listar',
+  RUTAS_PUEBLOS_VER: 'rutas_pueblos.ver',
+  RUTAS_PUEBLOS_CREAR: 'rutas_pueblos.crear',
+  RUTAS_PUEBLOS_EDITAR: 'rutas_pueblos.editar',
+  RUTAS_PUEBLOS_ELIMINAR: 'rutas_pueblos.eliminar',
+
   ALQUILERES_BALON_LISTAR: 'alquileres_balon.listar',
   ALQUILERES_BALON_VER: 'alquileres_balon.ver',
   ALQUILERES_BALON_CREAR: 'alquileres_balon.crear',
@@ -287,6 +299,23 @@ export const PermisoBanderas = {
   FINANZAS_CXP_EDITAR: 'finanzas.cxp.editar',
   FINANZAS_CXP_ELIMINAR: 'finanzas.cxp.eliminar',
   FINANZAS_CXP_REGISTRAR_PAGO: 'finanzas.cxp.registrar_pago',
+
+  FINANZAS_GARANTIAS_VER: 'finanzas.garantias.ver',
+  FINANZAS_GARANTIAS_CREAR: 'finanzas.garantias.crear',
+  FINANZAS_GARANTIAS_EDITAR: 'finanzas.garantias.editar',
+  FINANZAS_GARANTIAS_ELIMINAR: 'finanzas.garantias.eliminar',
+  FINANZAS_GARANTIAS_REEMBOLSAR: 'finanzas.garantias.reembolsar',
+
+  FINANZAS_EXPORTAR: 'finanzas.exportar',
+  FINANZAS_FORZAR_DUPLICADO: 'finanzas.forzar_duplicado',
+
+  CAJA_VER: 'caja.ver',
+  CAJA_ABRIR: 'caja.abrir',
+  CAJA_CERRAR: 'caja.cerrar',
+  CAJA_REGISTRAR_GASTO: 'caja.registrar_gasto',
+  CAJA_REGISTRAR_DEPOSITO: 'caja.registrar_deposito',
+  CAJA_OBSERVACION: 'caja.observacion',
+  CAJA_LIBRO_DIARIO: 'caja.libro_diario',
 } as const;
 
 export type PermisoBandera =

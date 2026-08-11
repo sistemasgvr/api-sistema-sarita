@@ -25,7 +25,11 @@ BEGIN
     FROM gen_chofer ch
     LEFT JOIN cli_clientes c ON ch.id_cliente = c.id
     WHERE (p_solo_activos IS NULL OR ch.estado = p_solo_activos)
-      AND (p_id_cliente IS NULL OR ch.id_cliente = p_id_cliente)
+      AND (
+          p_id_cliente IS NULL
+          OR ch.id_cliente = p_id_cliente
+          OR (p_id_cliente = -1 AND ch.id_cliente IS NULL)
+      )
       AND (
           p_buscar = ''
           OR gen_texto_coincide(ch.nombres, p_buscar)
@@ -64,7 +68,11 @@ BEGIN
         LEFT JOIN auth_usuarios uc ON ch.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON ch.id_usuario_modificacion = um.id
         WHERE (p_solo_activos IS NULL OR ch.estado = p_solo_activos)
-          AND (p_id_cliente IS NULL OR ch.id_cliente = p_id_cliente)
+          AND (
+              p_id_cliente IS NULL
+              OR ch.id_cliente = p_id_cliente
+              OR (p_id_cliente = -1 AND ch.id_cliente IS NULL)
+          )
           AND (
               p_buscar = ''
               OR gen_texto_coincide(ch.nombres, p_buscar)

@@ -1,3 +1,6 @@
+DROP FUNCTION IF EXISTS ven_crear_garantia(INTEGER, NUMERIC, INTEGER, INTEGER, INTEGER, VARCHAR, NUMERIC, INTEGER, DATE, VARCHAR, INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS ven_crear_garantia(INTEGER, NUMERIC, INTEGER, INTEGER, INTEGER, VARCHAR, NUMERIC, INTEGER, DATE, VARCHAR, INTEGER, INTEGER, INTEGER);
+
 CREATE OR REPLACE FUNCTION ven_crear_garantia(
     p_id_cliente INTEGER,
     p_monto NUMERIC,
@@ -9,7 +12,9 @@ CREATE OR REPLACE FUNCTION ven_crear_garantia(
     p_id_unidad_medida INTEGER DEFAULT NULL,
     p_fecha_registro DATE DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_id_alquiler INTEGER DEFAULT NULL,
+    p_id_medio_pago INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -42,6 +47,12 @@ BEGIN
         RETURN json_build_object('error', 'El préstamo indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
+    IF p_id_alquiler IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM bal_alquiler WHERE id = p_id_alquiler AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El alquiler indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
     IF p_id_producto IS NOT NULL AND NOT EXISTS (
         SELECT 1 FROM pro_producto WHERE id = p_id_producto AND estado = 1
     ) THEN
@@ -52,6 +63,12 @@ BEGIN
         SELECT 1 FROM ven_comprobante WHERE id = p_id_comprobante AND estado = 1
     ) THEN
         RETURN json_build_object('error', 'El comprobante indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    IF p_id_medio_pago IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM gen_lista_opciones WHERE id = p_id_medio_pago AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El método de pago indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
     SELECT lo.id INTO v_id_estado_activa
@@ -79,6 +96,7 @@ BEGIN
     INSERT INTO ven_garantia (
         id_cliente,
         id_prestamo,
+        id_alquiler,
         ubicacion,
         id_producto,
         cantidad_venta,
@@ -89,12 +107,14 @@ BEGIN
         monto_saldo,
         id_estado,
         observacion,
+        id_medio_pago,
         id_usuario_creacion,
         id_usuario_modificacion
     )
     VALUES (
         p_id_cliente,
         p_id_prestamo,
+        p_id_alquiler,
         NULLIF(TRIM(COALESCE(p_ubicacion, '')), ''),
         p_id_producto,
         p_cantidad_venta,
@@ -105,6 +125,7 @@ BEGIN
         v_monto,
         v_id_estado_activa,
         NULLIF(TRIM(COALESCE(p_observacion, '')), ''),
+        p_id_medio_pago,
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     )

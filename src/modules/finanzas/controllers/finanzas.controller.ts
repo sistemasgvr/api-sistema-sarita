@@ -18,6 +18,13 @@ import { FiltroCuentaDto } from '../dto/filtro-cuenta.dto';
 import { RegistrarPagoDto } from '../dto/registrar-pago.dto';
 import { CrearCuentaCuotasDto, CrearCuentaDto } from '../dto/crear-cuenta.dto';
 import { ActualizarCuentaDto } from '../dto/actualizar-cuenta.dto';
+import {
+  ActualizarGarantiaDto,
+  CrearGarantiaDto,
+  FiltroGarantiaDto,
+  ReembolsarGarantiaDto,
+} from '../dto/garantia.dto';
+import { VerificarDuplicadoPagoDto } from '../dto/verificar-duplicado.dto';
 
 @ApiTags('Finanzas')
 @Controller('finanzas')
@@ -28,6 +35,73 @@ export class FinanzasController {
   @ApiOperation({ summary: 'Listar medios de pago disponibles' })
   mediosPago() {
     return this.finanzasLogic.listarMediosPago();
+  }
+
+  @Post('verificar-duplicado-pago')
+  @ApiOperation({
+    summary: 'Verifica si un pago propuesto podría ser duplicado antes de registrar',
+  })
+  verificarDuplicadoPago(@Body() dto: VerificarDuplicadoPagoDto) {
+    return this.finanzasLogic.verificarDuplicadoPago(dto);
+  }
+
+  // ---------------- Garantías (ven_garantia: POS / préstamos / alquileres / manual) ----------------
+
+  @Get('garantias')
+  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_VER)
+  @ApiOperation({
+    summary: 'Listar garantías operativas (préstamos, alquileres, POS y manuales)',
+  })
+  listarGarantias(@Query() filtros: FiltroGarantiaDto) {
+    return this.finanzasLogic.listarGarantias(filtros);
+  }
+
+  @Get('garantias/:id')
+  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_VER)
+  @ApiOperation({ summary: 'Obtener garantía por ID (incluye movimientos)' })
+  obtenerGarantia(@Param('id', ParseIntPipe) id: number) {
+    return this.finanzasLogic.obtenerGarantia(id);
+  }
+
+  @Post('garantias')
+  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_CREAR)
+  @ApiOperation({ summary: 'Registrar una garantía manual (sin préstamo/alquiler/POS)' })
+  crearGarantia(@Body() dto: CrearGarantiaDto) {
+    return this.finanzasLogic.crearGarantia(dto);
+  }
+
+  @Patch('garantias/:id')
+  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_EDITAR)
+  @ApiOperation({
+    summary: 'Editar una garantía manual (sin devoluciones ni vínculo operativo)',
+  })
+  actualizarGarantia(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarGarantiaDto,
+  ) {
+    return this.finanzasLogic.actualizarGarantia(id, dto);
+  }
+
+  @Delete('garantias/:id')
+  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_ELIMINAR)
+  @ApiOperation({ summary: 'Eliminar (baja lógica) una garantía manual' })
+  eliminarGarantia(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.finanzasLogic.eliminarGarantia(id, dto.idUsuarioAuditoria);
+  }
+
+  @Post('garantias/:id/reembolsar')
+  @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_REEMBOLSAR)
+  @ApiOperation({
+    summary: 'Devolver garantía (parcial o total; actualiza saldo y estado)',
+  })
+  reembolsarGarantia(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReembolsarGarantiaDto,
+  ) {
+    return this.finanzasLogic.reembolsarGarantia(id, dto);
   }
 
   // ---------------- Cuentas por Cobrar ----------------

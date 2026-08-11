@@ -53,6 +53,8 @@ export class EmpresasModel {
     direccion: string | null,
     telefono: string | null,
     email: string | null,
+    toleranciaM3RutaPueblo: number | null,
+    psiMinimoUtil: number | null,
     idUsuarioAuditoria?: number,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('gen_actualizar_empresa', [
@@ -63,6 +65,8 @@ export class EmpresasModel {
       direccion,
       telefono,
       email,
+      toleranciaM3RutaPueblo,
+      psiMinimoUtil,
       idUsuarioAuditoria ?? null,
     ]);
   }
