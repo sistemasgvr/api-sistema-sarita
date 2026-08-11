@@ -69,6 +69,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 //Módulo Finanzas
 import { FinanzasModule } from './modules/finanzas/finanzas.module';
+import { CajaModule } from './modules/caja/caja.module';
 
 @Module({
   imports: [
@@ -138,6 +139,7 @@ import { FinanzasModule } from './modules/finanzas/finanzas.module';
     NotificacionesModule,
     DashboardModule,
     FinanzasModule,
+    CajaModule,
   ],
   providers: [
     {

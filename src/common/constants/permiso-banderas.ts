@@ -302,6 +302,14 @@ export const PermisoBanderas = {
 
   FINANZAS_EXPORTAR: 'finanzas.exportar',
   FINANZAS_FORZAR_DUPLICADO: 'finanzas.forzar_duplicado',
+
+  CAJA_VER: 'caja.ver',
+  CAJA_ABRIR: 'caja.abrir',
+  CAJA_CERRAR: 'caja.cerrar',
+  CAJA_REGISTRAR_GASTO: 'caja.registrar_gasto',
+  CAJA_REGISTRAR_DEPOSITO: 'caja.registrar_deposito',
+  CAJA_OBSERVACION: 'caja.observacion',
+  CAJA_LIBRO_DIARIO: 'caja.libro_diario',
 } as const;
 
 export type PermisoBandera =

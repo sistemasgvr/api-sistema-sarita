@@ -30,7 +30,8 @@
 --  7. GRE         → Guías de Remisión Electrónica (remitente 09 / transportista 31)
 --                   con UBIGEO, motivo de traslado y ciclo XML/CDR SUNAT
 --  8. FINANZAS    → Cuentas por cobrar y pagar (fin_cuenta + fin_pago),
---                   préstamos bancarios y cuotas (fin_prestamo_banco)
+--                   caja diaria (fin_caja_sesion / gasto / depósito / observación),
+--                   préstamos bancarios unificados en fin_cuenta
 --  9. COMPRAS     → Comprobantes de compra/gasto con clasificación contable de 3 niveles,
 --                   afectación de inventario y declaración SUNAT
 --
@@ -1456,6 +1457,91 @@ CREATE TABLE fin_pago (
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
+-- Caja diaria / arqueo (distinto de ven_resumen_diario SUNAT).
+-- id_estado → gen_lista EstadoCaja: ABIERTA | CERRADA
+-- Seed: database_sql/seeds/fin_estado_caja.sql
+CREATE TABLE fin_caja_sesion (
+    id                       SERIAL PRIMARY KEY,
+    fecha                    DATE NOT NULL,
+    id_sucursal              INT NULL REFERENCES gen_sucursal(id),
+    id_estado                INT NOT NULL REFERENCES gen_lista_opciones(id),
+    monto_inicial            NUMERIC(12,4) NOT NULL DEFAULT 0,
+    monto_efectivo_contado   NUMERIC(12,4) NULL,
+    monto_esperado           NUMERIC(12,4) NULL,
+    diferencia               NUMERIC(12,4) NULL,
+    observacion_apertura     VARCHAR(500),
+    observacion_cierre       VARCHAR(500),
+    fecha_apertura           TIMESTAMP NOT NULL DEFAULT NOW(),
+    fecha_cierre             TIMESTAMP NULL,
+    id_usuario_apertura      INT NULL REFERENCES auth_usuarios(id),
+    id_usuario_cierre        INT NULL REFERENCES auth_usuarios(id),
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_fin_caja_sesion_fecha_sucursal
+    ON fin_caja_sesion (fecha, COALESCE(id_sucursal, 0))
+    WHERE estado = 1;
+
+CREATE INDEX IF NOT EXISTS idx_fin_caja_sesion_fecha ON fin_caja_sesion(fecha);
+CREATE INDEX IF NOT EXISTS idx_fin_caja_sesion_estado ON fin_caja_sesion(id_estado);
+
+CREATE TABLE fin_caja_gasto (
+    id                       SERIAL PRIMARY KEY,
+    id_sesion                INT NULL REFERENCES fin_caja_sesion(id),
+    fecha                    DATE NOT NULL,
+    concepto                 VARCHAR(200) NOT NULL,
+    monto                    NUMERIC(12,4) NOT NULL CHECK (monto > 0),
+    id_medio_pago            INT NULL REFERENCES gen_lista_opciones(id),
+    id_categoria_gasto       INT NULL REFERENCES gen_clasificacion_gasto(id),
+    numero_operacion         VARCHAR(80),
+    observacion              VARCHAR(500),
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fin_caja_gasto_fecha ON fin_caja_gasto(fecha) WHERE estado = 1;
+CREATE INDEX IF NOT EXISTS idx_fin_caja_gasto_sesion ON fin_caja_gasto(id_sesion) WHERE estado = 1;
+
+CREATE TABLE fin_caja_deposito (
+    id                       SERIAL PRIMARY KEY,
+    id_sesion                INT NULL REFERENCES fin_caja_sesion(id),
+    fecha                    DATE NOT NULL,
+    monto                    NUMERIC(12,4) NOT NULL CHECK (monto > 0),
+    id_cuenta_bancaria       INT NULL REFERENCES gen_cuenta_bancaria(id),
+    id_medio_pago            INT NULL REFERENCES gen_lista_opciones(id),
+    numero_operacion         VARCHAR(80),
+    observacion              VARCHAR(500),
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fin_caja_deposito_fecha ON fin_caja_deposito(fecha) WHERE estado = 1;
+CREATE INDEX IF NOT EXISTS idx_fin_caja_deposito_sesion ON fin_caja_deposito(id_sesion) WHERE estado = 1;
+
+-- Observaciones del libro diario operativo (agregador; no es tabla de asientos)
+CREATE TABLE fin_caja_observacion (
+    id                       SERIAL PRIMARY KEY,
+    fecha                    DATE NOT NULL,
+    texto                    VARCHAR(1000) NOT NULL,
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fin_caja_observacion_fecha ON fin_caja_observacion(fecha) WHERE estado = 1;
+
 
 -- ============================================================
 -- GRUPO 9: FINANZAS (PRÉSTAMOS BANCARIOS) — UNIFICADO EN fin_cuenta
@@ -1815,6 +1901,7 @@ INSERT INTO gen_lista (nombre, descripcion) VALUES
 ('CategoriaVencimiento', 'Categoría de documentos con vencimiento'),
 ('EstadoGarantia',    'Estados de garantía: ACTIVA, DEVUELTA, PARCIAL'),
 ('TipoMovimientoGarantia', 'COBRO y DEVOLUCION de garantía'),
+('EstadoCaja',        'Estado de sesión de caja diaria: ABIERTA, CERRADA'),
 ('TipoCatalogoPrecio', 'RECARGADO=gas+cilindro, GARANTIA=depósito préstamo, VENTA_CILINDRO=cilindro vacío, ACCESORIO'),
 ('TipoCuentaFinanciera', 'COBRAR (cliente) o PAGAR (proveedor)'),
 ('EstadoPrestamoDetalle', 'Estado por cilindro en préstamo: ACTIVO, PENDIENTE, DEVUELTO, VENCIDO'),

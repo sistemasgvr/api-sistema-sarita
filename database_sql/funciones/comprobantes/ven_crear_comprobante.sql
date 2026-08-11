@@ -78,6 +78,7 @@ DECLARE
     v_nombre_unidad VARCHAR;
     v_es_gas BOOLEAN;
     v_es_servicio BOOLEAN;
+    v_err_caja TEXT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -93,6 +94,12 @@ BEGIN
 
     IF p_fecha IS NULL THEN
         RETURN json_build_object('error', 'La fecha del comprobante es obligatoria', 'registro', NULL);
+    END IF;
+
+    -- Operación del día: requiere caja ABIERTA (arqueo / control operativo)
+    v_err_caja := fin_caja_assert_abierta(p_fecha, p_id_sucursal);
+    IF v_err_caja IS NOT NULL THEN
+        RETURN json_build_object('error', v_err_caja, 'registro', NULL);
     END IF;
 
     IF p_id_cliente IS NULL THEN
