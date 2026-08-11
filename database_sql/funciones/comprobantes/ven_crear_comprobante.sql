@@ -79,6 +79,15 @@ DECLARE
     v_es_gas BOOLEAN;
     v_es_servicio BOOLEAN;
     v_err_caja TEXT;
+    v_dias_credito INTEGER := 0;
+    v_numero_cuotas INTEGER := 0;
+    v_dia_mes_pago INTEGER;
+    v_fecha_venc_cxc DATE;
+    v_fecha_primera_cuota DATE;
+    v_id_tipo_cobrar INTEGER;
+    v_cxc_result JSON;
+    v_mes_base DATE;
+    v_ultimo_dia_mes DATE;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -748,6 +757,161 @@ BEGIN
                 p_id_usuario_auditoria
             );
         END LOOP;
+    END IF;
+
+    -- Crédito / cuotas: genera CxC vinculada al comprobante según condición de pago.
+    IF NOT v_es_nota_credito
+       AND p_id_condicion_pago IS NOT NULL
+       AND COALESCE(v_total_importe, 0) > 0
+    THEN
+        SELECT
+            COALESCE(cp.dias_credito, 0),
+            COALESCE(cp.numero_cuotas, 0),
+            cp.dia_mes_pago
+        INTO v_dias_credito, v_numero_cuotas, v_dia_mes_pago
+        FROM gen_condicion_pago cp
+        WHERE cp.id = p_id_condicion_pago
+          AND cp.estado = 1;
+
+        IF v_dias_credito > 0 OR v_numero_cuotas > 1 THEN
+            IF EXISTS (
+                SELECT 1
+                FROM cli_clientes c
+                WHERE c.id = p_id_cliente
+                  AND UPPER(COALESCE(c.codigo_interno, '')) = 'CVARIOS'
+            ) THEN
+                RAISE EXCEPTION
+                    'No se puede vender a crédito a Clientes Varios. Selecciona un cliente identificado.';
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM fin_cuenta fc
+                WHERE fc.id_comprobante_venta = v_id
+                  AND fc.estado = 1
+            ) THEN
+                IF v_numero_cuotas > 1 THEN
+                    IF v_dia_mes_pago IS NULL OR v_dia_mes_pago < 1 OR v_dia_mes_pago > 31 THEN
+                        RAISE EXCEPTION
+                            'La condición de pago en cuotas requiere día del mes a cobrar (1 a 31).';
+                    END IF;
+
+                    -- Primera cuota: fecha vencimiento explícita, o emisión + días, o próximo día_mes_pago
+                    IF p_fecha_vencimiento IS NOT NULL THEN
+                        v_fecha_primera_cuota := p_fecha_vencimiento;
+                    ELSIF v_dias_credito > 0 THEN
+                        v_fecha_primera_cuota := COALESCE(p_fecha, CURRENT_DATE) + v_dias_credito;
+                    ELSE
+                        v_mes_base := date_trunc('month', COALESCE(p_fecha, CURRENT_DATE))::date;
+                        v_ultimo_dia_mes := (v_mes_base + INTERVAL '1 month - 1 day')::date;
+                        v_fecha_primera_cuota := LEAST(
+                            (v_mes_base + ((v_dia_mes_pago - 1) * INTERVAL '1 day'))::date,
+                            v_ultimo_dia_mes
+                        );
+                        IF v_fecha_primera_cuota < COALESCE(p_fecha, CURRENT_DATE) THEN
+                            v_mes_base := (v_mes_base + INTERVAL '1 month')::date;
+                            v_ultimo_dia_mes := (v_mes_base + INTERVAL '1 month - 1 day')::date;
+                            v_fecha_primera_cuota := LEAST(
+                                (v_mes_base + ((v_dia_mes_pago - 1) * INTERVAL '1 day'))::date,
+                                v_ultimo_dia_mes
+                            );
+                        END IF;
+                    END IF;
+
+                    UPDATE ven_comprobante
+                    SET fecha_vencimiento = v_fecha_primera_cuota
+                    WHERE id = v_id
+                      AND fecha_vencimiento IS NULL;
+
+                    v_cxc_result := fin_crear_cuenta_cuotas(
+                        'COBRAR',
+                        p_id_cliente,
+                        NULL,
+                        COALESCE(p_fecha, CURRENT_DATE),
+                        v_total_importe,
+                        v_numero_cuotas,
+                        v_fecha_primera_cuota,
+                        v_dia_mes_pago,
+                        format(
+                            'CxC en %s cuotas (día %s) %s-%s',
+                            v_numero_cuotas,
+                            v_dia_mes_pago,
+                            v_serie,
+                            v_numero
+                        ),
+                        NULL,
+                        NULL,
+                        NULL,
+                        v_serie || '-' || v_numero,
+                        p_id_usuario_auditoria,
+                        v_id
+                    );
+
+                    IF v_cxc_result->>'error' IS NOT NULL THEN
+                        RAISE EXCEPTION '%', v_cxc_result->>'error';
+                    END IF;
+                ELSE
+                    -- Crédito simple (un solo vencimiento)
+                    v_fecha_venc_cxc := COALESCE(
+                        p_fecha_vencimiento,
+                        (COALESCE(p_fecha, CURRENT_DATE) + v_dias_credito)
+                    );
+
+                    IF p_fecha_vencimiento IS NULL THEN
+                        UPDATE ven_comprobante
+                        SET fecha_vencimiento = v_fecha_venc_cxc
+                        WHERE id = v_id;
+                    END IF;
+
+                    SELECT glo.id
+                    INTO v_id_tipo_cobrar
+                    FROM gen_lista_opciones glo
+                    JOIN gen_lista gl ON gl.id = glo.id_lista
+                    WHERE gl.nombre = 'TipoCuentaFinanciera'
+                      AND glo.nombre = 'COBRAR'
+                      AND glo.estado = 1
+                    LIMIT 1;
+
+                    IF v_id_tipo_cobrar IS NULL THEN
+                        RAISE EXCEPTION
+                            'No está configurado el tipo de cuenta COBRAR (TipoCuentaFinanciera).';
+                    END IF;
+
+                    INSERT INTO fin_cuenta (
+                        id_tipo_cuenta,
+                        id_tercero,
+                        id_comprobante_venta,
+                        numero_comprobante,
+                        fecha_emision,
+                        fecha_vencimiento,
+                        monto_pendiente,
+                        monto_abonado,
+                        monto_saldo,
+                        descripcion,
+                        id_usuario_creacion,
+                        id_usuario_modificacion
+                    ) VALUES (
+                        v_id_tipo_cobrar,
+                        p_id_cliente,
+                        v_id,
+                        v_serie || '-' || v_numero,
+                        COALESCE(p_fecha, CURRENT_DATE),
+                        v_fecha_venc_cxc,
+                        v_total_importe,
+                        0,
+                        v_total_importe,
+                        format(
+                            'CxC por venta a crédito (%s días) %s-%s',
+                            v_dias_credito,
+                            v_serie,
+                            v_numero
+                        ),
+                        p_id_usuario_auditoria,
+                        p_id_usuario_auditoria
+                    );
+                END IF;
+            END IF;
+        END IF;
     END IF;
 
     RETURN ven_obtener_comprobante(v_id);

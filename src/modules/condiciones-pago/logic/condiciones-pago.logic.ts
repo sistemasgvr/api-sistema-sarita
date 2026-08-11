@@ -30,6 +30,8 @@ export class CondicionesPagoLogic {
       dto.codigo,
       dto.nombre,
       dto.diasCredito,
+      dto.numeroCuotas ?? null,
+      dto.diaMesPago ?? null,
       dto.idUsuarioAuditoria,
     );
     return mapSingleResult(result, 'No se pudo crear la condición de pago');
@@ -41,6 +43,8 @@ export class CondicionesPagoLogic {
       dto.codigo ?? null,
       dto.nombre ?? null,
       dto.diasCredito ?? null,
+      dto.numeroCuotas !== undefined ? dto.numeroCuotas : null,
+      dto.diaMesPago !== undefined ? dto.diaMesPago : null,
       dto.idUsuarioAuditoria,
     );
     return mapSingleResult(result, `Condición de pago ${id} no encontrada`);

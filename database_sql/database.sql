@@ -279,12 +279,26 @@ CREATE TABLE gen_condicion_pago (
     id              SERIAL PRIMARY KEY,
     codigo          varchar(10) NOT NULL UNIQUE,
     nombre          varchar(100) NOT NULL,
+    -- Crédito simple: días hasta un único vencimiento.
+    -- Cuotas: días hasta la 1ª cuota; luego dia_mes_pago cada mes.
     dias_credito     INT NOT NULL DEFAULT 0,
+    numero_cuotas    INT NULL,          -- >1 = plan de cuotas
+    dia_mes_pago     INT NULL,          -- 1..31 para cobro mensual
     estado          INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),
     fecha_creacion   TIMESTAMP DEFAULT NOW(),
-    fecha_modificacion TIMESTAMP DEFAULT NOW()
+    fecha_modificacion TIMESTAMP DEFAULT NOW(),
+    CONSTRAINT chk_gen_condicion_pago_cuotas CHECK (
+        numero_cuotas IS NULL
+        OR (
+            numero_cuotas >= 1
+            AND (
+                numero_cuotas = 1
+                OR (dia_mes_pago IS NOT NULL AND dia_mes_pago BETWEEN 1 AND 31)
+            )
+        )
+    )
 );
 
 -- Datos fiscales de la empresa (RUC, razón social)
@@ -814,7 +828,7 @@ CREATE TABLE bal_movimiento_recarga (
     id                      SERIAL PRIMARY KEY,
     fecha_salida_almacen      DATE NOT NULL,
     id_balon                 INT NOT NULL REFERENCES bal_balon(id),
-    id_balon_origen          INT REFERENCES bal_balon(id),              -- origen EMPRESA LLENO (tipo CLIENTE)
+    id_balon_origen          INT REFERENCES bal_balon(id),              -- origen EMPRESA principal (tipo CLIENTE; ver detalle multi-origen)
     id_cliente               INT REFERENCES cli_clientes(id),           -- cliente que trae el balón (tipo CLIENTE)
     id_tipo_recarga          INT REFERENCES gen_lista_opciones(id),      -- (gen_lista: TipoRecarga) CLIENTE | PLANTA_EXTERNA
     id_producto              INT REFERENCES pro_producto(id),
@@ -843,6 +857,18 @@ CREATE TABLE bal_movimiento_recarga (
     id_usuario_modificacion       INT REFERENCES auth_usuarios(id),
     fecha_creacion           TIMESTAMP DEFAULT NOW(),
     fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+-- Detalle de orígenes cuando una recarga se surte desde varios balones empresa (FIFO)
+CREATE TABLE bal_movimiento_recarga_origen (
+    id                      SERIAL PRIMARY KEY,
+    id_movimiento_recarga   INT NOT NULL REFERENCES bal_movimiento_recarga(id),
+    id_balon                INT NOT NULL REFERENCES bal_balon(id),
+    cantidad                NUMERIC(10,4) NOT NULL,
+    orden                   INT NOT NULL DEFAULT 1,
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW()
 );
 
 -- Préstamo de balones: cliente, empresa↔cliente, o planta proveedora

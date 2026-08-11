@@ -48,6 +48,22 @@ export class MovimientosRecargaModel {
     ]);
   }
 
+  asignarOrigenes(filtros: FiltroOrigenRecargaDto) {
+    return this.db.callFunctionJson<{
+      error?: string;
+      origenes?: unknown[];
+      requerido?: number;
+      id_balon_origen_principal?: number;
+      etiqueta?: string;
+      total_disponible?: number;
+    }>('bal_asignar_origenes_recarga', [
+      filtros.idProductoGas,
+      filtros.capacidad ?? null,
+      filtros.idAlmacen ?? null,
+      filtros.idBalonPreferido ?? null,
+    ]);
+  }
+
   obtenerPorId(id: number) {
     return this.db.callFunctionJson<AuthSingleResult>('bal_obtener_movimiento_recarga', [id]);
   }
@@ -91,8 +107,10 @@ export class MovimientosRecargaModel {
       dto.idMedioPago ?? null,
       dto.idAlmacen ?? null,
       dto.observacion ?? null,
-      dto.idBalonOrigen,
+      dto.idBalonOrigen ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idCondicionPago ?? null,
+      dto.fechaVencimiento ?? null,
     ]);
   }
 
@@ -107,7 +125,7 @@ export class MovimientosRecargaModel {
         dto.capacidad ?? null,
         dto.idAlmacen ?? null,
         dto.observacion ?? null,
-        dto.idBalonOrigen,
+        dto.idBalonOrigen ?? null,
         dto.idUsuarioAuditoria ?? null,
       ],
     );

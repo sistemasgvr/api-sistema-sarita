@@ -5,8 +5,10 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 
@@ -23,11 +25,40 @@ export class CreateCondicionPagoDto extends AuditoriaDto {
   @MaxLength(100)
   nombre!: string;
 
-  @ApiProperty({ example: 0, default: 0 })
+  @ApiProperty({
+    example: 0,
+    default: 0,
+    description: 'Días hasta vencimiento (crédito) o hasta la 1ª cuota',
+  })
   @Type(() => Number)
   @IsInt()
   @Min(0)
   diasCredito!: number;
+
+  @ApiPropertyOptional({
+    example: 3,
+    nullable: true,
+    description: 'Cantidad de cuotas (>1 = plan mensual). Null = sin plan.',
+  })
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  numeroCuotas?: number | null;
+
+  @ApiPropertyOptional({
+    example: 15,
+    nullable: true,
+    description: 'Día del mes (1..31) a cobrar cada cuota',
+  })
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  diaMesPago?: number | null;
 }
 
 export class UpdateCondicionPagoDto extends AuditoriaDto {
@@ -49,4 +80,21 @@ export class UpdateCondicionPagoDto extends AuditoriaDto {
   @IsInt()
   @Min(0)
   diasCredito?: number;
+
+  @ApiPropertyOptional({ example: 3, nullable: true })
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  numeroCuotas?: number | null;
+
+  @ApiPropertyOptional({ example: 15, nullable: true })
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  diaMesPago?: number | null;
 }

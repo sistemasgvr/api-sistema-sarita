@@ -29,11 +29,20 @@ export class CondicionesPagoModel {
     codigo: string,
     nombre: string,
     diasCredito: number,
+    numeroCuotas: number | null,
+    diaMesPago: number | null,
     idUsuarioAuditoria?: number,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>(
       'gen_crear_condicion_pago',
-      [codigo, nombre, diasCredito, idUsuarioAuditoria ?? null],
+      [
+        codigo,
+        nombre,
+        diasCredito,
+        numeroCuotas,
+        diaMesPago,
+        idUsuarioAuditoria ?? null,
+      ],
     );
   }
 
@@ -42,11 +51,21 @@ export class CondicionesPagoModel {
     codigo: string | null,
     nombre: string | null,
     diasCredito: number | null,
+    numeroCuotas: number | null,
+    diaMesPago: number | null,
     idUsuarioAuditoria?: number,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>(
       'gen_actualizar_condicion_pago',
-      [id, codigo, nombre, diasCredito, idUsuarioAuditoria ?? null],
+      [
+        id,
+        codigo,
+        nombre,
+        diasCredito,
+        numeroCuotas,
+        diaMesPago,
+        idUsuarioAuditoria ?? null,
+      ],
     );
   }
 

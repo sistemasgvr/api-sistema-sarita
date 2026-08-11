@@ -1,3 +1,8 @@
+DROP FUNCTION IF EXISTS bal_crear_recarga_cliente(
+    INTEGER, INTEGER, INTEGER, NUMERIC, NUMERIC, INTEGER, VARCHAR, NUMERIC,
+    INTEGER, INTEGER, VARCHAR, INTEGER, INTEGER
+);
+
 CREATE OR REPLACE FUNCTION bal_crear_recarga_cliente(
     p_id_cliente INTEGER,
     p_id_balon INTEGER,
@@ -11,7 +16,9 @@ CREATE OR REPLACE FUNCTION bal_crear_recarga_cliente(
     p_id_almacen INTEGER DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
     p_id_balon_origen INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_id_condicion_pago INTEGER DEFAULT NULL,
+    p_fecha_vencimiento DATE DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -38,7 +45,9 @@ DECLARE
     v_capacidad_destino NUMERIC;
     v_producto_nombre VARCHAR;
     v_consumo JSON;
-    v_origen_ok BOOLEAN;
+    v_asignacion JSON;
+    v_origenes JSON;
+    v_id_balon_origen_principal INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
     v_fecha := CURRENT_DATE;
@@ -51,16 +60,7 @@ BEGIN
         RETURN json_build_object('error', 'El balón es obligatorio', 'registro', NULL);
     END IF;
 
-    IF p_id_balon_origen IS NULL THEN
-        RETURN json_build_object(
-            'error',
-            'Debe indicar el balón empresa origen de la recarga',
-            'registro',
-            NULL
-        );
-    END IF;
-
-    IF p_id_balon_origen = p_id_balon THEN
+    IF p_id_balon_origen IS NOT NULL AND p_id_balon_origen = p_id_balon THEN
         RETURN json_build_object(
             'error',
             'El balón origen no puede ser el mismo que el destino',
@@ -184,30 +184,19 @@ BEGIN
         );
     END IF;
 
-    SELECT EXISTS (
-        SELECT 1
-        FROM bal_balon b
-        LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
-        LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
-        LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
-        WHERE b.id = p_id_balon_origen
-          AND b.estado = 1
-          AND COALESCE(prop.nombre, '') = 'EMPRESA'
-          AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
-          AND COALESCE(ec.nombre, '') = 'LLENO'
-          AND b.id_producto_gas = p_id_producto
-          AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
-          AND bal_capacidad_disponible_balon(b.id) >= v_capacidad
-    ) INTO v_origen_ok;
+    v_asignacion := bal_asignar_origenes_recarga(
+        p_id_producto,
+        v_capacidad,
+        p_id_almacen,
+        p_id_balon_origen
+    );
 
-    IF NOT COALESCE(v_origen_ok, FALSE) THEN
-        RETURN json_build_object(
-            'error',
-            'No hay balón empresa LLENO válido del mismo gas con capacidad suficiente (origen inválido o sin stock físico)',
-            'registro',
-            NULL
-        );
+    IF v_asignacion->>'error' IS NOT NULL THEN
+        RETURN json_build_object('error', v_asignacion->>'error', 'registro', NULL);
     END IF;
+
+    v_origenes := v_asignacion->'origenes';
+    v_id_balon_origen_principal := (v_asignacion->>'id_balon_origen_principal')::INTEGER;
 
     v_detalles := json_build_array(
         json_build_object(
@@ -235,11 +224,11 @@ BEGIN
         NULL,
         NULL,
         v_id_tipo_venta,
-        NULL,
+        p_fecha_vencimiento,
         3.5,
         NULL,
         p_id_almacen,
-        NULL,
+        p_id_condicion_pago,
         v_id_moneda,
         p_id_medio_pago,
         'Recarga de balón',
@@ -264,9 +253,8 @@ BEGIN
     v_serie_comprobante := v_comprobante->>'serie';
     v_numero_comprobante := v_comprobante->>'numero';
 
-    v_consumo := bal_consumir_capacidad_balon_origen(
-        p_id_balon_origen,
-        v_capacidad,
+    v_consumo := bal_consumir_capacidad_origenes_recarga(
+        v_origenes,
         p_id_usuario_auditoria
     );
 
@@ -295,7 +283,7 @@ BEGIN
     VALUES (
         v_fecha,
         p_id_balon,
-        p_id_balon_origen,
+        v_id_balon_origen_principal,
         p_id_cliente,
         v_id_tipo_recarga,
         p_id_producto,
@@ -304,12 +292,35 @@ BEGIN
         v_numero_comprobante,
         v_id_comprobante,
         v_fecha,
-        p_observacion,
+        CASE
+            WHEN COALESCE(v_asignacion->>'etiqueta', '') <> '' THEN
+                TRIM(BOTH ' ' FROM CONCAT_WS(
+                    ' | ',
+                    NULLIF(TRIM(COALESCE(p_observacion, '')), ''),
+                    'Orígenes: ' || (v_asignacion->>'etiqueta')
+                ))
+            ELSE p_observacion
+        END,
         p_id_almacen,
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     )
     RETURNING id INTO v_id_recarga;
+
+    INSERT INTO bal_movimiento_recarga_origen (
+        id_movimiento_recarga,
+        id_balon,
+        cantidad,
+        orden,
+        id_usuario_creacion
+    )
+    SELECT
+        v_id_recarga,
+        (o->>'id_balon')::INTEGER,
+        (o->>'cantidad')::NUMERIC,
+        COALESCE((o->>'orden')::INTEGER, 1),
+        p_id_usuario_auditoria
+    FROM json_array_elements(v_origenes) o;
 
     IF v_id_tipo_movimiento IS NOT NULL THEN
         INSERT INTO bal_movimiento (

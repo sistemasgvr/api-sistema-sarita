@@ -49,6 +49,23 @@ export class MovimientosRecargaLogic {
     );
   }
 
+  async asignarOrigenes(filtros: FiltroOrigenRecargaDto) {
+    if (!filtros.capacidad || Number(filtros.capacidad) <= 0) {
+      throw new BadRequestException('La capacidad a surtir es obligatoria');
+    }
+    const result = await this.model.asignarOrigenes(filtros);
+    if (result.error) {
+      throw new BadRequestException(result.error);
+    }
+    return ResponseHelper.success({
+      origenes: result.origenes ?? [],
+      requerido: result.requerido,
+      idBalonOrigenPrincipal: result.id_balon_origen_principal,
+      etiqueta: result.etiqueta,
+      totalDisponible: result.total_disponible,
+    });
+  }
+
   async obtenerPorId(id: number) {
     const result = await this.model.obtenerPorId(id);
     return mapSingleResult(result, `Movimiento de recarga ${id} no encontrado`);
