@@ -23,11 +23,17 @@ DECLARE
     v_id INTEGER;
     v_id_cliente INTEGER;
     v_id_estado_prestado INTEGER;
+    v_id_almacen_origen INTEGER;
+    v_id_comprobante INTEGER;
+    v_codigo_tipo_comp VARCHAR;
+    v_id_documento_ref INTEGER;
+    v_codigo_tipo_doc_ref VARCHAR;
+    v_mov JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT id_cliente
-    INTO v_id_cliente
+    SELECT id_cliente, id_comprobante_venta
+    INTO v_id_cliente, v_id_comprobante
     FROM bal_prestamo
     WHERE id = p_id_prestamo AND estado = 1;
 
@@ -124,12 +130,49 @@ BEGIN
     RETURNING id INTO v_id;
 
     IF p_id_balon IS NOT NULL AND v_id_cliente IS NOT NULL THEN
-        -- En cliente no sabemos si consume el gas → contenido DESCONOCIDO.
+        SELECT id_almacen INTO v_id_almacen_origen
+        FROM bal_balon
+        WHERE id = p_id_balon AND estado = 1;
+
+        IF v_id_comprobante IS NOT NULL THEN
+            SELECT lo.descripcion INTO v_codigo_tipo_comp
+            FROM ven_comprobante c
+            INNER JOIN gen_lista_opciones lo ON lo.id = c.id_tipo_comprobante
+            WHERE c.id = v_id_comprobante AND c.estado = 1;
+
+            v_id_documento_ref := v_id_comprobante;
+            v_codigo_tipo_doc_ref := CASE
+                WHEN v_codigo_tipo_comp = '01' THEN 'FACTURA'
+                WHEN v_codigo_tipo_comp = '03' THEN 'BOLETA'
+                WHEN v_codigo_tipo_comp IN ('NV', 'VSD') THEN 'NOTA_VENTA'
+                ELSE 'FACTURA'
+            END;
+        ELSE
+            v_id_documento_ref := p_id_prestamo;
+            v_codigo_tipo_doc_ref := 'PRESTAMO';
+        END IF;
+
+        -- Libro + custodia (idempotente). Contenido desconocido al salir a cliente.
+        v_mov := bal_registrar_salida_documento(
+            p_id_balon,
+            'SALIDA_PRESTAMO',
+            v_id_documento_ref,
+            v_codigo_tipo_doc_ref,
+            v_id_cliente,
+            v_id_almacen_origen,
+            'PRESTADO_CLIENTE',
+            TRUE,
+            NULL,
+            COALESCE(NULLIF(TRIM(p_observacion), ''), 'Salida automática por préstamo'),
+            p_id_usuario_auditoria
+        );
+
+        IF v_mov->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_mov->>'error';
+        END IF;
+
         UPDATE bal_balon
         SET
-            id_cliente_ubicacion = v_id_cliente,
-            id_almacen = NULL,
-            id_estado_balon = v_id_estado_prestado,
             id_estado_contenido = COALESCE(bal_id_estado_contenido('DESCONOCIDO'), id_estado_contenido),
             capacidad_restante = NULL,
             id_usuario_modificacion = p_id_usuario_auditoria,
