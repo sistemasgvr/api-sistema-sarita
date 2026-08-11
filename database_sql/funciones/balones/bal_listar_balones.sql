@@ -195,6 +195,7 @@ BEGIN
             END AS estado_ph,
             b.presion_actual,
             b.capacidad_restante,
+            b.capacidad_restante_lb,
             EXISTS (
                 SELECT 1
                 FROM bal_baja_balon bb

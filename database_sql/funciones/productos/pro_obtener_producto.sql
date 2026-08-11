@@ -30,6 +30,8 @@ BEGIN
             p.precio,
             p.precio_compra,
             p.precio_garantia,
+            p.factor_kg_m3,
+            p.factor_lb_m3,
             p.estado,
             p.fecha_creacion,
             p.fecha_modificacion,

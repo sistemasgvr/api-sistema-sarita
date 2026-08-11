@@ -36,6 +36,7 @@ DECLARE
     v_id_tipo_entrada INTEGER;
     v_mov JSON;
     v_obs VARCHAR;
+    v_m3_sync NUMERIC;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -179,15 +180,28 @@ BEGIN
     END IF;
 
     IF p_fecha_llegada_almacen IS NOT NULL THEN
+        SELECT COALESCE(NULLIF(v_capacidad_tipo, 0), p_capacidad, b.capacidad_restante)
+        INTO v_m3_sync
+        FROM bal_balon b
+        WHERE b.id = p_id_balon AND b.estado = 1;
+
         UPDATE bal_balon
         SET
             id_estado_balon = v_id_estado_en_almacen,
             id_producto_gas = COALESCE(p_id_producto, id_producto_gas),
-            id_estado_contenido = COALESCE(bal_id_estado_contenido('LLENO'), id_estado_contenido),
-            capacidad_restante = COALESCE(NULLIF(v_capacidad_tipo, 0), p_capacidad, capacidad_restante),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = p_id_balon AND estado = 1;
+
+        PERFORM bal_sync_capacidad_restante(
+            p_id_balon,
+            v_m3_sync,
+            NULL,
+            NULL,
+            'FROM_M3',
+            NULL,
+            p_id_usuario_auditoria
+        );
 
         v_mov := bal_crear_movimiento(
             p_id_balon,
@@ -208,11 +222,19 @@ BEGIN
         UPDATE bal_balon
         SET
             id_estado_balon = v_id_estado_recarga_externa,
-            id_estado_contenido = COALESCE(bal_id_estado_contenido('VACIO'), id_estado_contenido),
-            capacidad_restante = 0,
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = p_id_balon AND estado = 1;
+
+        PERFORM bal_sync_capacidad_restante(
+            p_id_balon,
+            0,
+            NULL,
+            NULL,
+            'FROM_M3',
+            NULL,
+            p_id_usuario_auditoria
+        );
     END IF;
 
     RETURN bal_obtener_movimiento_recarga(v_id);

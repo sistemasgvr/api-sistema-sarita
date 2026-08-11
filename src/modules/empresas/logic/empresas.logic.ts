@@ -44,6 +44,8 @@ export class EmpresasLogic {
       dto.direccion ?? null,
       dto.telefono ?? null,
       dto.email ?? null,
+      dto.toleranciaM3RutaPueblo ?? null,
+      dto.psiMinimoUtil ?? null,
       dto.idUsuarioAuditoria,
     );
     return mapSingleResult(result, `Empresa ${id} no encontrada`);

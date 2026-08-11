@@ -10,7 +10,7 @@ AS $function$
 DECLARE
     v_disponible NUMERIC;
     v_nuevo NUMERIC;
-    v_id_vacio INTEGER;
+    v_sync JSON;
 BEGIN
     IF p_id_balon IS NULL THEN
         RETURN json_build_object('error', 'El balón origen es obligatorio');
@@ -33,33 +33,29 @@ BEGIN
         );
     END IF;
 
-    v_nuevo := v_disponible - p_cantidad;
-    v_id_vacio := bal_id_estado_contenido('VACIO');
+    v_nuevo := GREATEST(v_disponible - p_cantidad, 0);
 
-    IF v_nuevo <= 0 THEN
-        UPDATE bal_balon
-        SET
-            capacidad_restante = 0,
-            id_estado_contenido = COALESCE(v_id_vacio, id_estado_contenido),
-            id_usuario_modificacion = p_id_usuario_auditoria,
-            fecha_modificacion = NOW()
-        WHERE id = p_id_balon AND estado = 1;
-    ELSE
-        UPDATE bal_balon
-        SET
-            capacidad_restante = v_nuevo,
-            id_usuario_modificacion = p_id_usuario_auditoria,
-            fecha_modificacion = NOW()
-        WHERE id = p_id_balon AND estado = 1;
-    END IF;
+    v_sync := bal_sync_capacidad_restante(
+        p_id_balon,
+        v_nuevo,
+        NULL,
+        NULL,
+        'FROM_M3',
+        NULL,
+        p_id_usuario_auditoria
+    );
 
-    IF NOT FOUND THEN
-        RETURN json_build_object('error', 'No se pudo actualizar el balón origen');
+    IF COALESCE((v_sync->>'ok')::BOOLEAN, FALSE) IS NOT TRUE THEN
+        RETURN json_build_object(
+            'error',
+            COALESCE(v_sync->>'error', 'No se pudo actualizar el balón origen')
+        );
     END IF;
 
     RETURN json_build_object(
         'ok', TRUE,
         'capacidad_restante', GREATEST(v_nuevo, 0),
+        'capacidad_restante_lb', v_sync->'capacidad_restante_lb',
         'quedo_vacio', v_nuevo <= 0
     );
 END;

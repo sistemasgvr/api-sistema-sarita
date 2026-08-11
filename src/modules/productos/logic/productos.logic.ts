@@ -128,6 +128,8 @@ export class ProductosLogic {
       dto.idUsuarioAuditoria,
       dto.precioCompra ?? 0,
       dto.precioGarantia ?? 0,
+      dto.factorKgM3 ?? null,
+      dto.factorLbM3 ?? null,
     );
     return mapSingleResult(result, 'No se pudo crear el producto');
   }
@@ -153,6 +155,8 @@ export class ProductosLogic {
       dto.idUsuarioAuditoria,
       dto.precioCompra ?? null,
       dto.precioGarantia ?? null,
+      dto.factorKgM3 ?? null,
+      dto.factorLbM3 ?? null,
     );
     return mapSingleResult(result, `Producto ${id} no encontrado`);
   }

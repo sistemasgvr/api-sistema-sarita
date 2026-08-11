@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS pro_crear_producto(VARCHAR, VARCHAR, INTEGER, VARCHAR, INTEGER, VARCHAR, VARCHAR, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, NUMERIC, VARCHAR, INTEGER, NUMERIC, NUMERIC);
+
 CREATE OR REPLACE FUNCTION pro_crear_producto(
     p_codigo VARCHAR,
     p_nombre VARCHAR,
@@ -14,7 +16,9 @@ CREATE OR REPLACE FUNCTION pro_crear_producto(
     p_codigo_ubicacion VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL,
     p_precio_compra NUMERIC DEFAULT 0,
-    p_precio_garantia NUMERIC DEFAULT 0
+    p_precio_garantia NUMERIC DEFAULT 0,
+    p_factor_kg_m3 NUMERIC DEFAULT NULL,
+    p_factor_lb_m3 NUMERIC DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -66,6 +70,14 @@ BEGIN
         RETURN json_build_object('error', 'La unidad de medida indicada no existe o está inactiva', 'registro', NULL);
     END IF;
 
+    IF p_factor_kg_m3 IS NOT NULL AND p_factor_kg_m3 <= 0 THEN
+        RETURN json_build_object('error', 'El factor kg→m³ debe ser mayor a 0', 'registro', NULL);
+    END IF;
+
+    IF p_factor_lb_m3 IS NOT NULL AND p_factor_lb_m3 <= 0 THEN
+        RETURN json_build_object('error', 'El factor lb→m³ debe ser mayor a 0', 'registro', NULL);
+    END IF;
+
     INSERT INTO pro_producto (
         codigo,
         codigo_barra,
@@ -82,6 +94,8 @@ BEGIN
         precio,
         precio_compra,
         precio_garantia,
+        factor_kg_m3,
+        factor_lb_m3,
         id_usuario_creacion,
         id_usuario_modificacion
     )
@@ -97,7 +111,6 @@ BEGIN
         COALESCE(p_es_gas, FALSE),
         COALESCE(p_es_servicio, FALSE),
         v_es_alquilable,
-        -- Gas/servicio: no usan pro_stock. Accesorio con afecta_stock arranca en 0 por almacén.
         CASE
             WHEN COALESCE(p_es_gas, FALSE) OR COALESCE(p_es_servicio, FALSE) THEN FALSE
             ELSE COALESCE(p_afecta_stock, TRUE)
@@ -105,6 +118,8 @@ BEGIN
         COALESCE(p_precio, 0),
         COALESCE(p_precio_compra, 0),
         COALESCE(p_precio_garantia, 0),
+        CASE WHEN COALESCE(p_es_gas, FALSE) THEN p_factor_kg_m3 ELSE NULL END,
+        CASE WHEN COALESCE(p_es_gas, FALSE) THEN p_factor_lb_m3 ELSE NULL END,
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     )

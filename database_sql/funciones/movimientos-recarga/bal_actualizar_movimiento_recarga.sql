@@ -37,6 +37,7 @@ DECLARE
     v_mov JSON;
     v_obs VARCHAR;
     v_ya_tiene_entrada BOOLEAN;
+    v_m3_sync NUMERIC;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -113,15 +114,28 @@ BEGIN
         LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
         WHERE b.id = v_id_balon;
 
+        SELECT COALESCE(NULLIF(v_capacidad_tipo, 0), p_capacidad, b.capacidad_restante)
+        INTO v_m3_sync
+        FROM bal_balon b
+        WHERE b.id = v_id_balon AND b.estado = 1;
+
         UPDATE bal_balon
         SET
             id_estado_balon = v_id_estado_en_almacen,
             id_producto_gas = COALESCE(v_id_producto, id_producto_gas),
-            id_estado_contenido = COALESCE(bal_id_estado_contenido('LLENO'), id_estado_contenido),
-            capacidad_restante = COALESCE(NULLIF(v_capacidad_tipo, 0), p_capacidad, capacidad_restante),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_balon AND estado = 1;
+
+        PERFORM bal_sync_capacidad_restante(
+            v_id_balon,
+            v_m3_sync,
+            NULL,
+            NULL,
+            'FROM_M3',
+            NULL,
+            p_id_usuario_auditoria
+        );
 
         -- Primera vez que se registra llegada: movimiento de entrada.
         IF v_fecha_llegada_antes IS NULL THEN

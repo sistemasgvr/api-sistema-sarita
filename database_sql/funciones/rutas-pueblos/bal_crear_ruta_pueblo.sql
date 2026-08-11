@@ -23,6 +23,13 @@ DECLARE
     v_balones INTEGER[] := ARRAY[]::INTEGER[];
     v_estado_balon VARCHAR;
     v_id_almacen_balon INTEGER;
+    v_factor NUMERIC;
+    v_tolerancia NUMERIC;
+    v_cap_m3 NUMERIC;
+    v_cap_lb NUMERIC;
+    v_factor_tipo NUMERIC;
+    v_factores NUMERIC[] := ARRAY[]::NUMERIC[];
+    v_nombre_tipo VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -48,24 +55,23 @@ BEGIN
         RETURN json_build_object('error', 'Estado ABIERTA no configurado', 'registro', NULL);
     END IF;
 
-    INSERT INTO bal_ruta_pueblo (
-        fecha, id_almacen, id_usuario_responsable, id_chofer,
-        factor_lb_m3, tolerancia_m3, id_estado, observacion,
-        id_usuario_creacion, id_usuario_modificacion
-    ) VALUES (
-        COALESCE(p_fecha, CURRENT_DATE),
-        p_id_almacen,
-        p_id_usuario_responsable,
-        p_id_chofer,
-        COALESCE(NULLIF(p_factor_lb_m3, 0), 0.317400),
-        COALESCE(NULLIF(p_tolerancia_m3, 0), 0.5000),
-        v_id_estado,
-        NULLIF(TRIM(COALESCE(p_observacion, '')), ''),
-        p_id_usuario_auditoria,
-        p_id_usuario_auditoria
+    -- Tolerancia: parámetro opcional o default de empresa
+    SELECT COALESCE(
+        NULLIF(p_tolerancia_m3, 0),
+        e.tolerancia_m3_ruta_pueblo,
+        0.5000
     )
-    RETURNING id INTO v_id;
+    INTO v_tolerancia
+    FROM gen_empresa e
+    WHERE e.estado = 1
+    ORDER BY e.id
+    LIMIT 1;
 
+    IF v_tolerancia IS NULL THEN
+        v_tolerancia := COALESCE(NULLIF(p_tolerancia_m3, 0), 0.5000);
+    END IF;
+
+    -- Validar cilindros y derivar factor por tipo (capacidad m³ / capacidad lb)
     FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
     LOOP
         v_item := v_item + 1;
@@ -76,10 +82,6 @@ BEGIN
         v_lb_salida := COALESCE(
             (v_detalle->>'lbSalida')::NUMERIC,
             (v_detalle->>'lb_salida')::NUMERIC
-        );
-        v_sellado := COALESCE(
-            (v_detalle->>'sellado')::BOOLEAN,
-            FALSE
         );
 
         IF v_id_balon IS NULL THEN
@@ -95,10 +97,11 @@ BEGIN
         END IF;
         v_balones := array_append(v_balones, v_id_balon);
 
-        SELECT eb.nombre, b.id_almacen
-        INTO v_estado_balon, v_id_almacen_balon
+        SELECT eb.nombre, b.id_almacen, tb.capacidad, tb.capacidad_lb, tb.nombre
+        INTO v_estado_balon, v_id_almacen_balon, v_cap_m3, v_cap_lb, v_nombre_tipo
         FROM bal_balon b
         LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+        LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon AND tb.estado = 1
         WHERE b.id = v_id_balon AND b.estado = 1;
 
         IF v_estado_balon IS NULL THEN
@@ -113,6 +116,16 @@ BEGIN
             RAISE EXCEPTION 'Cilindro % no está en el almacén de la ruta', v_id_balon;
         END IF;
 
+        IF v_cap_m3 IS NULL OR v_cap_m3 <= 0 OR v_cap_lb IS NULL OR v_cap_lb <= 0 THEN
+            RAISE EXCEPTION
+                'El tipo "%" del cilindro % no tiene capacidad m³ y lb configuradas. Edítalo en Tipos de balón.',
+                COALESCE(v_nombre_tipo, '(sin tipo)'),
+                v_id_balon;
+        END IF;
+
+        v_factor_tipo := ROUND(v_cap_m3 / v_cap_lb, 6);
+        v_factores := array_append(v_factores, v_factor_tipo);
+
         IF EXISTS (
             SELECT 1
             FROM bal_ruta_pueblo_detalle d
@@ -124,6 +137,48 @@ BEGIN
         ) THEN
             RAISE EXCEPTION 'Cilindro % ya está en otra ruta abierta/en tránsito', v_id_balon;
         END IF;
+    END LOOP;
+
+    -- Snapshot del factor: parámetro explícito o promedio de tipos de la ruta
+    IF NULLIF(p_factor_lb_m3, 0) IS NOT NULL THEN
+        v_factor := p_factor_lb_m3;
+    ELSE
+        SELECT ROUND(AVG(f), 6) INTO v_factor
+        FROM unnest(v_factores) AS f;
+    END IF;
+
+    INSERT INTO bal_ruta_pueblo (
+        fecha, id_almacen, id_usuario_responsable, id_chofer,
+        factor_lb_m3, tolerancia_m3, id_estado, observacion,
+        id_usuario_creacion, id_usuario_modificacion
+    ) VALUES (
+        COALESCE(p_fecha, CURRENT_DATE),
+        p_id_almacen,
+        p_id_usuario_responsable,
+        p_id_chofer,
+        v_factor,
+        v_tolerancia,
+        v_id_estado,
+        NULLIF(TRIM(COALESCE(p_observacion, '')), ''),
+        p_id_usuario_auditoria,
+        p_id_usuario_auditoria
+    )
+    RETURNING id INTO v_id;
+
+    FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
+    LOOP
+        v_id_balon := COALESCE(
+            (v_detalle->>'idBalon')::INTEGER,
+            (v_detalle->>'id_balon')::INTEGER
+        );
+        v_lb_salida := COALESCE(
+            (v_detalle->>'lbSalida')::NUMERIC,
+            (v_detalle->>'lb_salida')::NUMERIC
+        );
+        v_sellado := COALESCE(
+            (v_detalle->>'sellado')::BOOLEAN,
+            FALSE
+        );
 
         INSERT INTO bal_ruta_pueblo_detalle (
             id_ruta_pueblo, id_balon, sellado, lb_salida, observacion,

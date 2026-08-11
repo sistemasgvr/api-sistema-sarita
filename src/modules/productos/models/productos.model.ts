@@ -55,6 +55,8 @@ export class ProductosModel {
     idUsuarioAuditoria?: number,
     precioCompra?: number,
     precioGarantia?: number,
+    factorKgM3?: number | null,
+    factorLbM3?: number | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('pro_crear_producto', [
       codigo,
@@ -73,6 +75,8 @@ export class ProductosModel {
       idUsuarioAuditoria ?? null,
       precioCompra ?? 0,
       precioGarantia ?? 0,
+      factorKgM3 ?? null,
+      factorLbM3 ?? null,
     ]);
   }
 
@@ -94,6 +98,8 @@ export class ProductosModel {
     idUsuarioAuditoria?: number,
     precioCompra?: number | null,
     precioGarantia?: number | null,
+    factorKgM3?: number | null,
+    factorLbM3?: number | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('pro_actualizar_producto', [
       id,
@@ -113,6 +119,8 @@ export class ProductosModel {
       idUsuarioAuditoria ?? null,
       precioCompra ?? null,
       precioGarantia ?? null,
+      factorKgM3 ?? null,
+      factorLbM3 ?? null,
     ]);
   }
 

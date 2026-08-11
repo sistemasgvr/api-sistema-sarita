@@ -250,11 +250,20 @@ BEGIN
             id_cliente_ubicacion = v_id_cliente_destino,
             id_estado_balon = v_id_estado_destino,
             id_estado_contenido = COALESCE(bal_id_estado_contenido('VACIO'), id_estado_contenido),
-            capacidad_restante = NULL,
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_balon
           AND estado = 1;
+
+        PERFORM bal_sync_capacidad_restante(
+            v_id_balon,
+            NULL,
+            NULL,
+            NULL,
+            'CLEAR',
+            NULL,
+            p_id_usuario_auditoria
+        );
     ELSE
         -- Inventario empresa: reingreso a almacén
         v_id_almacen_destino := COALESCE(p_id_almacen_destino, v_id_almacen);

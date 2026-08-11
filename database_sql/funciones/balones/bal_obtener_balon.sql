@@ -60,6 +60,7 @@ BEGIN
             b.numero_recepcion,
             b.presion_actual,
             b.capacidad_restante,
+            b.capacidad_restante_lb,
             b.observacion,
             b.estado,
             b.fecha_creacion,

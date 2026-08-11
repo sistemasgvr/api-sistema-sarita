@@ -231,6 +231,20 @@ export class CreateProductoDto extends AuditoriaDto {
   @IsNumber()
   @Min(0)
   precioGarantia?: number;
+
+  @ApiPropertyOptional({ description: 'm³ por 1 kg (solo gases)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.000001)
+  factorKgM3?: number;
+
+  @ApiPropertyOptional({ description: 'm³ por 1 lb (solo gases)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.000001)
+  factorLbM3?: number;
 }
 
 export class UpdateProductoDto extends AuditoriaDto {
@@ -322,4 +336,18 @@ export class UpdateProductoDto extends AuditoriaDto {
   @IsNumber()
   @Min(0)
   precioGarantia?: number;
+
+  @ApiPropertyOptional({ description: 'm³ por 1 kg (solo gases)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.000001)
+  factorKgM3?: number;
+
+  @ApiPropertyOptional({ description: 'm³ por 1 lb (solo gases)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.000001)
+  factorLbM3?: number;
 }

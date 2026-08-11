@@ -31,11 +31,19 @@ export class CreateTiposBalonDto extends AuditoriaDto {
   @IsNumber()
   idGas?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Capacidad nominal en m³' })
   @Type(() => Number)
   @IsOptional()
   @IsNumber()
   capacidad?: number;
+
+  @ApiPropertyOptional({
+    description: 'Peso del gas con cilindro lleno (lb). Factor ruta = capacidad / capacidadLb',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  capacidadLb?: number;
 
   @ApiPropertyOptional()
   @Type(() => Number)
@@ -54,6 +62,18 @@ export class CreateTiposBalonDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   vigenciaPhAnios?: number;
+
+  @ApiPropertyOptional({ description: 'PSI de llenado a capacidad nominal' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  presionLlenadoPsi?: number;
+
+  @ApiPropertyOptional({ description: 'Peso tara del cilindro vacío (lb)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  pesoTaraLb?: number;
 }
 
 export class UpdateTiposBalonDto extends AuditoriaDto {
@@ -69,11 +89,19 @@ export class UpdateTiposBalonDto extends AuditoriaDto {
   @IsNumber()
   idGas?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Capacidad nominal en m³' })
   @Type(() => Number)
   @IsOptional()
   @IsNumber()
   capacidad?: number;
+
+  @ApiPropertyOptional({
+    description: 'Peso del gas con cilindro lleno (lb). Factor ruta = capacidad / capacidadLb',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  capacidadLb?: number;
 
   @ApiPropertyOptional()
   @Type(() => Number)
@@ -92,4 +120,16 @@ export class UpdateTiposBalonDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   vigenciaPhAnios?: number;
+
+  @ApiPropertyOptional({ description: 'PSI de llenado a capacidad nominal' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  presionLlenadoPsi?: number;
+
+  @ApiPropertyOptional({ description: 'Peso tara del cilindro vacío (lb)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  pesoTaraLb?: number;
 }

@@ -174,10 +174,19 @@ BEGIN
         UPDATE bal_balon
         SET
             id_estado_contenido = COALESCE(bal_id_estado_contenido('DESCONOCIDO'), id_estado_contenido),
-            capacidad_restante = NULL,
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = p_id_balon AND estado = 1;
+
+        PERFORM bal_sync_capacidad_restante(
+            p_id_balon,
+            NULL,
+            NULL,
+            NULL,
+            'CLEAR',
+            NULL,
+            p_id_usuario_auditoria
+        );
     END IF;
 
     RETURN bal_obtener_prestamo_detalle(v_id);

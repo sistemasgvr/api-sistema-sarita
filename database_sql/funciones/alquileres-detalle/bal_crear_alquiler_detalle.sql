@@ -151,10 +151,19 @@ BEGIN
         id_almacen = NULL,
         id_estado_balon = v_id_estado_alquilado,
         id_estado_contenido = COALESCE(bal_id_estado_contenido('DESCONOCIDO'), id_estado_contenido),
-        capacidad_restante = NULL,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id_balon AND estado = 1;
+
+    PERFORM bal_sync_capacidad_restante(
+        p_id_balon,
+        NULL,
+        NULL,
+        NULL,
+        'CLEAR',
+        NULL,
+        p_id_usuario_auditoria
+    );
 
     RETURN bal_obtener_alquiler_detalle(v_id);
 END;

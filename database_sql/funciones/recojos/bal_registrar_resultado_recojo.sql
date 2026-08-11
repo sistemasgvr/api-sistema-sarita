@@ -46,6 +46,10 @@ DECLARE
     v_repro_detalles JSONB := '[]'::JSONB;
     v_cantidad_restante NUMERIC(10,4);
     v_capacidad_tipo NUMERIC(10,4);
+    v_lb_restante NUMERIC(10,4);
+    v_peso_bruto_lb NUMERIC(10,4);
+    v_presion_psi NUMERIC(10,4);
+    v_sync JSON;
     v_tiene_regulador BOOLEAN := FALSE;
     v_reg JSONB;
     v_reg_resultado VARCHAR;
@@ -168,6 +172,22 @@ BEGIN
         v_cantidad_restante := COALESCE(
             NULLIF(v_item->>'cantidadRestante', '')::NUMERIC,
             NULLIF(v_item->>'cantidad_restante', '')::NUMERIC
+        );
+        v_lb_restante := COALESCE(
+            NULLIF(v_item->>'lbRetorno', '')::NUMERIC,
+            NULLIF(v_item->>'lb_retorno', '')::NUMERIC,
+            NULLIF(v_item->>'capacidadRestanteLb', '')::NUMERIC,
+            NULLIF(v_item->>'capacidad_restante_lb', '')::NUMERIC
+        );
+        v_peso_bruto_lb := COALESCE(
+            NULLIF(v_item->>'pesoBrutoLb', '')::NUMERIC,
+            NULLIF(v_item->>'peso_bruto_lb', '')::NUMERIC
+        );
+        v_presion_psi := COALESCE(
+            NULLIF(v_item->>'presionActual', '')::NUMERIC,
+            NULLIF(v_item->>'presion_actual', '')::NUMERIC,
+            NULLIF(v_item->>'presionPsi', '')::NUMERIC,
+            NULLIF(v_item->>'presion_psi', '')::NUMERIC
         );
 
         IF (v_id_pd IS NOT NULL)::INTEGER + (v_id_ad IS NOT NULL)::INTEGER <> 1 THEN
@@ -320,18 +340,52 @@ BEGIN
                 RETURN json_build_object('error', v_dev->>'error', 'registro', NULL);
             END IF;
 
-            IF v_id_balon IS NOT NULL AND v_cantidad_restante IS NOT NULL THEN
-                UPDATE bal_balon
-                SET
-                    capacidad_restante = v_cantidad_restante,
-                    id_estado_contenido = COALESCE(
-                        bal_id_estado_contenido(COALESCE(v_nombre_contenido, 'VACIO')),
-                        id_estado_contenido
-                    ),
-                    id_usuario_modificacion = p_id_usuario_auditoria,
-                    fecha_modificacion = NOW()
-                WHERE id = v_id_balon
-                  AND estado = 1;
+            -- Residual dual: prioridad bruto lb > lb residual > m³; PSI opcional
+            IF v_id_balon IS NOT NULL AND (
+                v_peso_bruto_lb IS NOT NULL
+                OR v_lb_restante IS NOT NULL
+                OR v_cantidad_restante IS NOT NULL
+            ) THEN
+                IF v_peso_bruto_lb IS NOT NULL THEN
+                    v_sync := bal_sync_capacidad_restante(
+                        v_id_balon,
+                        NULL,
+                        NULL,
+                        v_presion_psi,
+                        'FROM_BRUTO_LB',
+                        v_peso_bruto_lb,
+                        p_id_usuario_auditoria
+                    );
+                ELSIF v_lb_restante IS NOT NULL THEN
+                    v_sync := bal_sync_capacidad_restante(
+                        v_id_balon,
+                        NULL,
+                        v_lb_restante,
+                        v_presion_psi,
+                        'FROM_LB',
+                        NULL,
+                        p_id_usuario_auditoria
+                    );
+                ELSE
+                    v_sync := bal_sync_capacidad_restante(
+                        v_id_balon,
+                        v_cantidad_restante,
+                        NULL,
+                        v_presion_psi,
+                        'FROM_M3',
+                        NULL,
+                        p_id_usuario_auditoria
+                    );
+                END IF;
+
+                IF COALESCE((v_sync->>'ok')::BOOLEAN, FALSE) IS NOT TRUE THEN
+                    RETURN json_build_object(
+                        'error',
+                        COALESCE(v_sync->>'error', 'No se pudo sincronizar capacidad residual'),
+                        'registro',
+                        NULL
+                    );
+                END IF;
             END IF;
         ELSIF v_resultado = 'EXTENDIDO' THEN
             v_cnt_extendido := v_cnt_extendido + 1;

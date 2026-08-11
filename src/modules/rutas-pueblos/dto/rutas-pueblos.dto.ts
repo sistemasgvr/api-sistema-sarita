@@ -86,7 +86,8 @@ export class CreateRutaPuebloDto extends AuditoriaDto {
   idChofer?: number;
 
   @ApiPropertyOptional({
-    description: 'm³ = Δlb × factor (default 0.3174 ≈ O2)',
+    description:
+      'Opcional. Si se omite, se calcula como capacidad_m3 / capacidad_lb del tipo de cada cilindro',
   })
   @Type(() => Number)
   @IsOptional()
@@ -94,7 +95,10 @@ export class CreateRutaPuebloDto extends AuditoriaDto {
   @Min(0.000001)
   factorLbM3?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Opcional. Si se omite, usa tolerancia_m3_ruta_pueblo de la empresa (default 0.5)',
+  })
   @Type(() => Number)
   @IsOptional()
   @IsNumber()

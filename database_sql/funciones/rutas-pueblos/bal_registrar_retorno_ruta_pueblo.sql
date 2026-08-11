@@ -9,6 +9,7 @@ AS $function$
 DECLARE
     v_estado VARCHAR;
     v_id_almacen INTEGER;
+    v_factor_ruta NUMERIC;
     v_factor NUMERIC;
     v_detalle JSON;
     v_id_balon INTEGER;
@@ -18,12 +19,14 @@ DECLARE
     v_m3_delta NUMERIC;
     v_restante_m3 NUMERIC;
     v_mov JSON;
-    v_contenido VARCHAR;
+    v_cap_m3 NUMERIC;
+    v_cap_lb NUMERIC;
+    v_sync JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
     SELECT er.nombre, r.id_almacen, r.factor_lb_m3
-    INTO v_estado, v_id_almacen, v_factor
+    INTO v_estado, v_id_almacen, v_factor_ruta
     FROM bal_ruta_pueblo r
     LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
     WHERE r.id = p_id AND r.estado = 1;
@@ -40,7 +43,7 @@ BEGIN
     IF v_estado = 'ABIERTA' THEN
         PERFORM bal_iniciar_ruta_pueblo(p_id, p_id_usuario_auditoria);
         SELECT er.nombre, r.id_almacen, r.factor_lb_m3
-        INTO v_estado, v_id_almacen, v_factor
+        INTO v_estado, v_id_almacen, v_factor_ruta
         FROM bal_ruta_pueblo r
         LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
         WHERE r.id = p_id AND r.estado = 1;
@@ -81,12 +84,21 @@ BEGIN
                 v_id_balon, v_lb_retorno, v_lb_salida;
         END IF;
 
+        -- Factor por tipo del cilindro; fallback al snapshot de la ruta
+        SELECT tb.capacidad, tb.capacidad_lb
+        INTO v_cap_m3, v_cap_lb
+        FROM bal_balon b
+        LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon AND tb.estado = 1
+        WHERE b.id = v_id_balon AND b.estado = 1;
+
+        IF v_cap_m3 IS NOT NULL AND v_cap_m3 > 0 AND v_cap_lb IS NOT NULL AND v_cap_lb > 0 THEN
+            v_factor := ROUND(v_cap_m3 / v_cap_lb, 6);
+        ELSE
+            v_factor := COALESCE(v_factor_ruta, 0.317400);
+        END IF;
+
         v_m3_delta := ROUND((v_lb_salida - v_lb_retorno) * v_factor, 4);
         v_restante_m3 := ROUND(v_lb_retorno * v_factor, 4);
-        v_contenido := CASE
-            WHEN v_lb_retorno <= 0 THEN 'VACIO'
-            ELSE 'LLENO'
-        END;
 
         UPDATE bal_ruta_pueblo_detalle
         SET
@@ -132,11 +144,26 @@ BEGIN
                 WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
                 LIMIT 1
             ),
-            capacidad_restante = CASE WHEN v_restante_m3 > 0 THEN v_restante_m3 ELSE 0 END,
-            id_estado_contenido = COALESCE(bal_id_estado_contenido(v_contenido), id_estado_contenido),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_balon AND estado = 1;
+
+        -- Residual dual + contenido (parcial → DESCONOCIDO; 0 → VACIO; casi lleno → LLENO)
+        v_sync := bal_sync_capacidad_restante(
+            v_id_balon,
+            NULL,
+            v_lb_retorno,
+            NULL,
+            'FROM_LB',
+            NULL,
+            p_id_usuario_auditoria
+        );
+
+        IF COALESCE((v_sync->>'ok')::BOOLEAN, FALSE) IS NOT TRUE THEN
+            RAISE EXCEPTION 'Cilindro %: %',
+                v_id_balon,
+                COALESCE(v_sync->>'error', 'No se pudo sincronizar capacidad residual');
+        END IF;
     END LOOP;
 
     UPDATE bal_ruta_pueblo

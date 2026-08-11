@@ -1,10 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsEmail,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 
@@ -44,6 +47,26 @@ export class CreateEmpresaDto extends AuditoriaDto {
   @IsEmail()
   @MaxLength(150)
   email?: string;
+
+  @ApiPropertyOptional({
+    description: 'Descuadre permitido (m³) al cerrar ruta pueblos',
+    example: 0.5,
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  toleranciaM3RutaPueblo?: number;
+
+  @ApiPropertyOptional({
+    description: 'PSI bajo este umbral = cilindro vacío / enviar a planta',
+    example: 100,
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  psiMinimoUtil?: number;
 }
 
 export class UpdateEmpresaDto extends AuditoriaDto {
@@ -82,4 +105,24 @@ export class UpdateEmpresaDto extends AuditoriaDto {
   @IsEmail()
   @MaxLength(150)
   email?: string;
+
+  @ApiPropertyOptional({
+    description: 'Descuadre permitido (m³) al cerrar ruta pueblos',
+    example: 0.5,
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  toleranciaM3RutaPueblo?: number;
+
+  @ApiPropertyOptional({
+    description: 'PSI bajo este umbral = cilindro vacío / enviar a planta',
+    example: 100,
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  psiMinimoUtil?: number;
 }

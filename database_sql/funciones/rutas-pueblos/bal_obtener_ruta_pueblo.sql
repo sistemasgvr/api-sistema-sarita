@@ -51,6 +51,8 @@ BEGIN
             b.codigo_balon,
             tb.nombre AS nombre_tipo_balon,
             tb.capacidad AS capacidad_tipo,
+            tb.capacidad_lb AS capacidad_lb_tipo,
+            bal_factor_lb_m3(tb.id, b.id_producto_gas) AS factor_lb_m3_tipo,
             det.sellado,
             det.lb_salida,
             det.lb_retorno,
