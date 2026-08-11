@@ -214,6 +214,12 @@ export const PermisoBanderas = {
   RECOJOS_BALON_EDITAR: 'recojos_balon.editar',
   RECOJOS_BALON_ELIMINAR: 'recojos_balon.eliminar',
 
+  RUTAS_PUEBLOS_LISTAR: 'rutas_pueblos.listar',
+  RUTAS_PUEBLOS_VER: 'rutas_pueblos.ver',
+  RUTAS_PUEBLOS_CREAR: 'rutas_pueblos.crear',
+  RUTAS_PUEBLOS_EDITAR: 'rutas_pueblos.editar',
+  RUTAS_PUEBLOS_ELIMINAR: 'rutas_pueblos.eliminar',
+
   ALQUILERES_BALON_LISTAR: 'alquileres_balon.listar',
   ALQUILERES_BALON_VER: 'alquileres_balon.ver',
   ALQUILERES_BALON_CREAR: 'alquileres_balon.crear',

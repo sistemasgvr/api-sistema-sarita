@@ -93,7 +93,7 @@ BEGIN
         END IF;
     END IF;
 
-    -- Idempotencia: mismo balón + mismo documento
+    -- Idempotencia: mismo balón + mismo documento + mismo tipo de movimiento
     IF p_id_documento_ref IS NOT NULL AND v_id_tipo_doc IS NOT NULL THEN
         SELECT m.id INTO v_id_movimiento
         FROM bal_movimiento m
@@ -101,6 +101,7 @@ BEGIN
           AND m.id_balon = p_id_balon
           AND m.id_documento_ref = p_id_documento_ref
           AND m.id_tipo_documento_ref = v_id_tipo_doc
+          AND m.id_tipo_movimiento = v_id_tipo_mov
         ORDER BY m.id
         LIMIT 1;
 
