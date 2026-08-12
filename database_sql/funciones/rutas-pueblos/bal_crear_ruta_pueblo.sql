@@ -123,6 +123,15 @@ BEGIN
                 v_id_balon;
         END IF;
 
+        IF v_lb_salida > v_cap_lb THEN
+            RAISE EXCEPTION
+                'Cilindro %: libras de salida (%.4f) no pueden superar la capacidad lb del tipo "%" (%.4f)',
+                v_id_balon,
+                v_lb_salida,
+                COALESCE(v_nombre_tipo, '(sin tipo)'),
+                v_cap_lb;
+        END IF;
+
         v_factor_tipo := ROUND(v_cap_m3 / v_cap_lb, 6);
         v_factores := array_append(v_factores, v_factor_tipo);
 

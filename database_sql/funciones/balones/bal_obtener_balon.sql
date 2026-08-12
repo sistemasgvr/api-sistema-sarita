@@ -36,6 +36,7 @@ BEGIN
             b.id_tipo_balon,
             tb.nombre AS nombre_tipo_balon,
             tb.capacidad,
+            tb.capacidad_lb,
             tb.peso AS peso_tipo_balon,
             um.nombre AS nombre_unidad_medida,
             tb.vigencia_ph_anios AS vigencia_ph_tipo_anios,
