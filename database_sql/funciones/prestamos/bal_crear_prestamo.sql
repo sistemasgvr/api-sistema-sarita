@@ -19,6 +19,8 @@ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
+    v_id_estado INTEGER;
+    v_nombre_tipo VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -26,16 +28,53 @@ BEGIN
         RETURN json_build_object('error', 'El tipo de préstamo es obligatorio', 'registro', NULL);
     END IF;
 
-    IF NOT EXISTS (
-        SELECT 1 FROM gen_lista_opciones WHERE id = p_id_tipo_prestamo AND estado = 1
-    ) THEN
+    SELECT lo.nombre
+    INTO v_nombre_tipo
+    FROM gen_lista_opciones lo
+    WHERE lo.id = p_id_tipo_prestamo AND lo.estado = 1;
+
+    IF v_nombre_tipo IS NULL THEN
         RETURN json_build_object('error', 'El tipo de préstamo indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    -- Préstamos a/desde cliente requieren cliente activo
+    IF v_nombre_tipo IN ('ENVASE_EMPRESA_A_CLIENTE', 'CILINDRO_CLIENTE_A_EMPRESA') THEN
+        IF p_id_cliente IS NULL THEN
+            RETURN json_build_object('error', 'El cliente es obligatorio para este tipo de préstamo', 'registro', NULL);
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1 FROM cli_clientes WHERE id = p_id_cliente AND estado = 1
+        ) THEN
+            RETURN json_build_object('error', 'El cliente indicado no existe o está inactivo', 'registro', NULL);
+        END IF;
+    ELSIF p_id_cliente IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM cli_clientes WHERE id = p_id_cliente AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El cliente indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
     IF p_numero_prestamo IS NOT NULL AND EXISTS (
         SELECT 1 FROM bal_prestamo WHERE numero_prestamo = TRIM(p_numero_prestamo)
     ) THEN
         RETURN json_build_object('error', 'Ya existe un préstamo con el número ' || TRIM(p_numero_prestamo), 'registro', NULL);
+    END IF;
+
+    v_id_estado := p_id_estado;
+    IF v_id_estado IS NULL THEN
+        SELECT lo.id INTO v_id_estado
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON l.id = lo.id_lista
+        WHERE l.nombre = 'EstadoPrestamo' AND lo.nombre = 'ACTIVO' AND lo.estado = 1
+        LIMIT 1;
+
+        IF v_id_estado IS NULL THEN
+            RETURN json_build_object(
+                'error',
+                'No se encontró el estado ACTIVO del préstamo. Revise el catálogo EstadoPrestamo.',
+                'registro',
+                NULL
+            );
+        END IF;
     END IF;
 
     INSERT INTO bal_prestamo (
@@ -48,7 +87,7 @@ BEGIN
     VALUES (
         NULLIF(TRIM(p_numero_prestamo), ''), p_id_tipo_prestamo, p_id_cliente, p_id_proveedor, p_id_almacen,
         p_fecha_salida, p_fecha_retorno_pactada, p_fecha_retorno_real,
-        p_titulo, p_observacion, p_id_estado,
+        p_titulo, p_observacion, v_id_estado,
         p_id_comprobante_venta, p_id_comprobante_compra,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )

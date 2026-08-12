@@ -30,6 +30,7 @@ DECLARE
     v_fecha_llegada DATE;
     v_id_producto INTEGER;
     v_id_almacen INTEGER;
+    v_id_proveedor INTEGER;
     v_capacidad_tipo NUMERIC;
     v_id_estado_en_almacen INTEGER;
     v_id_tipo_doc_recarga INTEGER;
@@ -85,8 +86,8 @@ BEGIN
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1
-    RETURNING id_balon, fecha_llegada_almacen, id_producto, id_almacen, observacion
-    INTO v_id_balon, v_fecha_llegada, v_id_producto, v_id_almacen, v_obs;
+    RETURNING id_balon, fecha_llegada_almacen, id_producto, id_almacen, id_proveedor, observacion
+    INTO v_id_balon, v_fecha_llegada, v_id_producto, v_id_almacen, v_id_proveedor, v_obs;
 
     IF NOT FOUND THEN
         RETURN json_build_object('registro', NULL);
@@ -175,7 +176,7 @@ BEGIN
                     v_id_tipo_entrada,
                     p_id,
                     v_id_tipo_doc_recarga,
-                    NULL::INTEGER,
+                    v_id_proveedor,
                     NULL::INTEGER,
                     v_id_almacen,
                     v_fecha_llegada::TIMESTAMP,

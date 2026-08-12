@@ -20,9 +20,18 @@ BEGIN
             tdr.nombre AS nombre_tipo_documento_ref,
             CASE tdr.nombre
                 WHEN 'RECARGA' THEN COALESCE(
+                    NULLIF(CONCAT_WS('-', NULLIF(cc.serie, ''), NULLIF(cc.numero, '')), ''),
                     NULLIF(CONCAT_WS('-', NULLIF(mr.serie_factura, ''), NULLIF(mr.numero_factura, '')), ''),
+                    NULLIF(CONCAT_WS('-', NULLIF(mr_linea.serie_factura, ''), NULLIF(mr_linea.numero_factura, '')), ''),
+                    NULLIF(CONCAT_WS('-', NULLIF(rp.serie_factura, ''), NULLIF(rp.numero_factura, '')), ''),
+                    NULLIF(TRIM(rp.numero), ''),
                     NULLIF(mr.lote, ''),
-                    'Recarga #' || mr.id::TEXT
+                    NULLIF(mr_linea.lote, ''),
+                    CASE
+                        WHEN mr.id IS NOT NULL THEN 'Recarga #' || mr.id::TEXT
+                        WHEN rp.id IS NOT NULL THEN 'Orden ' || COALESCE(NULLIF(TRIM(rp.numero), ''), '#' || rp.id::TEXT)
+                        ELSE NULL
+                    END
                 )
                 WHEN 'ALQUILER' THEN COALESCE(alq.numero_alquiler, 'Alquiler #' || alq.id::TEXT)
                 WHEN 'PRESTAMO' THEN COALESCE(pr.numero_prestamo, 'Préstamo #' || pr.id::TEXT)
@@ -39,7 +48,13 @@ BEGIN
                 ELSE NULL
             END AS documento_numero,
             CASE tdr.nombre
-                WHEN 'RECARGA' THEN mr.fecha_salida_almacen::TEXT
+                WHEN 'RECARGA' THEN COALESCE(
+                    cc.fecha::TEXT,
+                    mr.fecha_salida_almacen::TEXT,
+                    mr_linea.fecha_salida_almacen::TEXT,
+                    rp.fecha_salida::TEXT,
+                    rp.fecha_llegada_almacen::TEXT
+                )
                 WHEN 'ALQUILER' THEN alq.fecha_inicio::TEXT
                 WHEN 'PRESTAMO' THEN pr.fecha_salida::TEXT
                 WHEN 'MANTENIMIENTO' THEN mt.fecha_ingreso::TEXT
@@ -52,30 +67,99 @@ BEGIN
                 ELSE NULL
             END AS documento_fecha,
             CASE tdr.nombre
-                WHEN 'RECARGA' THEN mr_cli.razon_social
-                WHEN 'ALQUILER' THEN alq_cli.razon_social
-                WHEN 'PRESTAMO' THEN COALESCE(pr_cli.razon_social, pr_prov.razon_social)
-                WHEN 'MANTENIMIENTO' THEN COALESCE(mt_vc_cli.razon_social, mt_prov.razon_social)
-                WHEN 'GRE' THEN gre_cli.razon_social
-                WHEN 'FACTURA' THEN COALESCE(vc_cli.razon_social, mt_prov.razon_social)
-                WHEN 'BOLETA' THEN vc_cli.razon_social
-                WHEN 'NOTA_CREDITO' THEN vc_cli.razon_social
-                WHEN 'NOTA_DEBITO' THEN vc_cli.razon_social
-                WHEN 'NOTA_VENTA' THEN vc_cli.razon_social
+                WHEN 'RECARGA' THEN COALESCE(
+                    NULLIF(TRIM(rp_prov.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', rp_prov.nombres, rp_prov.apellido_paterno, rp_prov.apellido_materno)), ''),
+                    rp_prov.numero_documento,
+                    NULLIF(TRIM(mr_prov.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', mr_prov.nombres, mr_prov.apellido_paterno, mr_prov.apellido_materno)), ''),
+                    mr_prov.numero_documento,
+                    NULLIF(TRIM(mr_linea_prov.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', mr_linea_prov.nombres, mr_linea_prov.apellido_paterno, mr_linea_prov.apellido_materno)), ''),
+                    mr_linea_prov.numero_documento,
+                    NULLIF(TRIM(cc_prov.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', cc_prov.nombres, cc_prov.apellido_paterno, cc_prov.apellido_materno)), ''),
+                    cc_prov.numero_documento,
+                    NULLIF(TRIM(c.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), ''),
+                    c.numero_documento
+                )
+                WHEN 'ALQUILER' THEN COALESCE(
+                    NULLIF(TRIM(alq_cli.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', alq_cli.nombres, alq_cli.apellido_paterno, alq_cli.apellido_materno)), ''),
+                    alq_cli.numero_documento
+                )
+                WHEN 'PRESTAMO' THEN COALESCE(
+                    NULLIF(TRIM(pr_cli.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', pr_cli.nombres, pr_cli.apellido_paterno, pr_cli.apellido_materno)), ''),
+                    pr_cli.numero_documento,
+                    NULLIF(TRIM(pr_prov.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', pr_prov.nombres, pr_prov.apellido_paterno, pr_prov.apellido_materno)), ''),
+                    pr_prov.numero_documento
+                )
+                WHEN 'MANTENIMIENTO' THEN COALESCE(
+                    NULLIF(TRIM(mt_vc_cli.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', mt_vc_cli.nombres, mt_vc_cli.apellido_paterno, mt_vc_cli.apellido_materno)), ''),
+                    mt_vc_cli.numero_documento,
+                    NULLIF(TRIM(mt_prov.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', mt_prov.nombres, mt_prov.apellido_paterno, mt_prov.apellido_materno)), ''),
+                    mt_prov.numero_documento
+                )
+                WHEN 'GRE' THEN COALESCE(
+                    NULLIF(TRIM(gre_cli.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', gre_cli.nombres, gre_cli.apellido_paterno, gre_cli.apellido_materno)), ''),
+                    gre_cli.numero_documento
+                )
+                WHEN 'FACTURA' THEN COALESCE(
+                    NULLIF(TRIM(vc_cli.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', vc_cli.nombres, vc_cli.apellido_paterno, vc_cli.apellido_materno)), ''),
+                    vc_cli.numero_documento,
+                    NULLIF(TRIM(mt_prov.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', mt_prov.nombres, mt_prov.apellido_paterno, mt_prov.apellido_materno)), ''),
+                    mt_prov.numero_documento
+                )
+                WHEN 'BOLETA' THEN COALESCE(
+                    NULLIF(TRIM(vc_cli.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', vc_cli.nombres, vc_cli.apellido_paterno, vc_cli.apellido_materno)), ''),
+                    vc_cli.numero_documento
+                )
+                WHEN 'NOTA_CREDITO' THEN COALESCE(
+                    NULLIF(TRIM(vc_cli.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', vc_cli.nombres, vc_cli.apellido_paterno, vc_cli.apellido_materno)), ''),
+                    vc_cli.numero_documento
+                )
+                WHEN 'NOTA_DEBITO' THEN COALESCE(
+                    NULLIF(TRIM(vc_cli.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', vc_cli.nombres, vc_cli.apellido_paterno, vc_cli.apellido_materno)), ''),
+                    vc_cli.numero_documento
+                )
+                WHEN 'NOTA_VENTA' THEN COALESCE(
+                    NULLIF(TRIM(vc_cli.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', vc_cli.nombres, vc_cli.apellido_paterno, vc_cli.apellido_materno)), ''),
+                    vc_cli.numero_documento
+                )
                 ELSE NULL
             END AS documento_cliente,
             CASE
-                WHEN tdr.nombre = 'RECARGA' THEN mr.lote
+                WHEN tdr.nombre = 'RECARGA' THEN COALESCE(mr.lote, mr_linea.lote, rp.lote, rpd.lote)
                 ELSE NULL
             END AS documento_lote,
             CASE tdr.nombre
                 WHEN 'RECARGA' THEN NULLIF(CONCAT_WS(
                     ' · ',
-                    NULLIF(mr_tipo.nombre, ''),
-                    NULLIF(mr_prod.nombre, ''),
+                    NULLIF(COALESCE(mr_tipo.nombre, mr_linea_tipo.nombre), ''),
+                    NULLIF(COALESCE(mr_prod.nombre, mr_linea_prod.nombre, rpd_prod.nombre), ''),
                     CASE
-                        WHEN mr.serie_guia_salida IS NOT NULL AND mr.numero_guia_salida IS NOT NULL
-                        THEN 'Guía salida ' || mr.serie_guia_salida || '-' || mr.numero_guia_salida
+                        WHEN COALESCE(mr.serie_guia_salida, mr_linea.serie_guia_salida, rp.serie_guia_salida) IS NOT NULL
+                         AND COALESCE(mr.numero_guia_salida, mr_linea.numero_guia_salida, rp.numero_guia_salida) IS NOT NULL
+                        THEN 'Guía salida '
+                            || COALESCE(mr.serie_guia_salida, mr_linea.serie_guia_salida, rp.serie_guia_salida)
+                            || '-'
+                            || COALESCE(mr.numero_guia_salida, mr_linea.numero_guia_salida, rp.numero_guia_salida)
+                        ELSE NULL
+                    END,
+                    CASE
+                        WHEN rp.numero IS NOT NULL THEN 'Orden ' || rp.numero
                         ELSE NULL
                     END
                 ), '')
@@ -132,10 +216,26 @@ BEGIN
             COALESCE(
                 NULLIF(TRIM(c.razon_social), ''),
                 NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), ''),
-                c.numero_documento
+                c.numero_documento,
+                NULLIF(TRIM(rp_prov.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', rp_prov.nombres, rp_prov.apellido_paterno, rp_prov.apellido_materno)), ''),
+                rp_prov.numero_documento,
+                NULLIF(TRIM(mr_prov.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', mr_prov.nombres, mr_prov.apellido_paterno, mr_prov.apellido_materno)), ''),
+                mr_prov.numero_documento,
+                NULLIF(TRIM(mr_linea_prov.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', mr_linea_prov.nombres, mr_linea_prov.apellido_paterno, mr_linea_prov.apellido_materno)), ''),
+                mr_linea_prov.numero_documento
             ) AS nombre_cliente,
             m.id_almacen_origen,
-            ao.nombre AS nombre_almacen_origen,
+            COALESCE(
+                ao.nombre,
+                CASE
+                    WHEN tm.nombre IN ('ENTRADA_LLENADO', 'ENTRADA_PLANTA_EXTERNA')
+                    THEN 'Planta externa'
+                    ELSE NULL
+                END
+            ) AS nombre_almacen_origen,
             m.id_almacen_destino,
             ad.nombre AS nombre_almacen_destino,
             m.fecha_movimiento,
@@ -156,12 +256,37 @@ BEGIN
         LEFT JOIN gen_almacen ad ON m.id_almacen_destino = ad.id
         LEFT JOIN auth_usuarios uc ON m.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON m.id_usuario_modificacion = um.id
+        -- Recarga por línea (salida/entrada planta externa): id_documento_ref = bal_movimiento_recarga.id
         LEFT JOIN bal_movimiento_recarga mr
             ON tdr.nombre = 'RECARGA'
+           AND tm.nombre IN ('SALIDA_PLANTA_EXTERNA', 'ENTRADA_PLANTA_EXTERNA')
            AND mr.id = m.id_documento_ref
-        LEFT JOIN cli_clientes mr_cli ON mr.id_cliente = mr_cli.id
+        LEFT JOIN cli_clientes mr_prov ON mr.id_proveedor = mr_prov.id
         LEFT JOIN pro_producto mr_prod ON mr.id_producto = mr_prod.id
         LEFT JOIN gen_lista_opciones mr_tipo ON mr.id_tipo_recarga = mr_tipo.id
+        -- Orden de recarga planta (ENTRADA_LLENADO) o vía línea
+        LEFT JOIN bal_recarga_planta rp
+            ON tdr.nombre = 'RECARGA'
+           AND (
+                (tm.nombre = 'ENTRADA_LLENADO' AND rp.id = m.id_documento_ref)
+                OR (mr.id IS NOT NULL AND rp.id = mr.id_recarga_planta)
+           )
+        LEFT JOIN cli_clientes rp_prov ON rp.id_proveedor = rp_prov.id
+        LEFT JOIN com_comprobante_compra cc ON cc.id = rp.id_comprobante_compra AND cc.estado = 1
+        LEFT JOIN cli_clientes cc_prov ON cc.id_proveedor = cc_prov.id
+        -- Línea de la orden para este cilindro (enriquece ENTRADA_LLENADO)
+        LEFT JOIN bal_recarga_planta_detalle rpd
+            ON tm.nombre = 'ENTRADA_LLENADO'
+           AND rpd.id_recarga_planta = rp.id
+           AND rpd.id_balon = m.id_balon
+           AND rpd.estado = 1
+        LEFT JOIN pro_producto rpd_prod ON rpd.id_producto = rpd_prod.id
+        LEFT JOIN bal_movimiento_recarga mr_linea
+            ON mr_linea.id = rpd.id_movimiento_recarga
+           AND mr_linea.estado = 1
+        LEFT JOIN cli_clientes mr_linea_prov ON mr_linea.id_proveedor = mr_linea_prov.id
+        LEFT JOIN pro_producto mr_linea_prod ON mr_linea.id_producto = mr_linea_prod.id
+        LEFT JOIN gen_lista_opciones mr_linea_tipo ON mr_linea.id_tipo_recarga = mr_linea_tipo.id
         LEFT JOIN bal_alquiler alq
             ON tdr.nombre = 'ALQUILER'
            AND alq.id = m.id_documento_ref
