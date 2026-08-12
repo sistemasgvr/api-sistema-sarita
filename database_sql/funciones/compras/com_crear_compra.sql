@@ -1,3 +1,21 @@
+-- p_id_comprobante_referencia: opcional. Si se indica, esta compra
+-- nueva "corrige" a la compra referenciada, la cual DEBE estar
+-- anulada (estado=0) — no se permite referenciar una compra activa.
+-- precio_unitario en los detalles se asume CON IGV incluido (es lo que
+-- factura el proveedor). Al guardar se descompone en base imponible
+-- (sub_total) + IGV (igv), igual que en ven_crear_comprobante.
+--
+-- p_id_recarga_planta: opcional. Si se indica, esta compra factura una
+-- orden de recarga en planta externa (bal_recarga_planta). La orden debe
+-- existir, estar activa y NO estar ya cerrada/facturada (no se permite
+-- vincular la misma orden a dos compras).
+--
+-- p_guardar_balones_almacen: solo aplica junto con p_id_recarga_planta.
+-- FALSE por defecto: la factura queda vinculada a la orden pero los
+-- balones NO se mueven de almacén todavía (pueden seguir en tránsito) —
+-- ese ingreso se administra después desde el módulo de Recargas en
+-- planta. En TRUE, además ubica cada balón de la orden en p_id_almacen y
+-- genera su movimiento de kardex (ENTRADA_LLENADO) de una vez.
 
 CREATE OR REPLACE FUNCTION com_crear_compra(
     p_id_tipo_comprobante        INTEGER,
@@ -17,15 +35,13 @@ CREATE OR REPLACE FUNCTION com_crear_compra(
     p_declarar_sunat             BOOLEAN DEFAULT FALSE,
     p_glosa                      VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria       INTEGER DEFAULT NULL,
-    p_id_recarga_planta          INTEGER DEFAULT NULL,
-    p_registrar_retorno_balones  BOOLEAN DEFAULT FALSE
+    p_guardar_balones_almacen    BOOLEAN DEFAULT FALSE
 )
 RETURNS JSON
 LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_compra           INTEGER;
-    v_link_planta         JSON;
     v_id_detalle          INTEGER;
     v_item                INTEGER := 0;
     v_linea               JSONB;
@@ -51,23 +67,23 @@ DECLARE
     v_recarga_estado_nombre  VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
- 
+
     IF p_fecha IS NULL THEN
         RETURN json_build_object('error', 'La fecha de la compra es obligatoria', 'registro', NULL);
     END IF;
- 
+
     IF NOT EXISTS (
         SELECT 1 FROM cli_clientes WHERE id = p_id_proveedor AND estado = 1
     ) THEN
         RETURN json_build_object('error', 'El proveedor indicado no existe o está inactivo', 'registro', NULL);
     END IF;
- 
+
     IF NOT EXISTS (
         SELECT 1 FROM gen_almacen WHERE id = p_id_almacen AND estado = 1
     ) THEN
         RETURN json_build_object('error', 'El almacén (por defecto) indicado no existe o está inactivo', 'registro', NULL);
     END IF;
- 
+
     -- El detalle de productos es opcional: se puede registrar la cabecera
     -- (por ejemplo, ligada a una orden de recarga en planta externa) y
     -- agregar las líneas después con com_crear_compra_detalle.
@@ -80,18 +96,18 @@ BEGIN
         SELECT estado, serie, numero INTO v_ref_estado, v_ref_serie, v_ref_numero
         FROM com_comprobante_compra
         WHERE id = p_id_comprobante_referencia;
- 
+
         IF v_ref_estado IS NULL THEN
             RETURN json_build_object('error', 'La compra de referencia indicada no existe', 'registro', NULL);
         END IF;
- 
+
         IF v_ref_estado <> 0 THEN
             RETURN json_build_object(
                 'error', 'La compra de referencia debe estar anulada antes de registrar la corrección (serie ' || v_ref_serie || '-' || v_ref_numero || ' sigue activa)',
                 'registro', NULL
             );
         END IF;
- 
+
         IF v_glosa_final IS NULL THEN
             v_glosa_final := 'Corrige compra anulada ' || v_ref_serie || '-' || v_ref_numero;
         END IF;
@@ -153,44 +169,44 @@ BEGIN
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id_compra;
- 
+
     FOR v_linea IN SELECT * FROM jsonb_array_elements(COALESCE(p_detalles, '[]'::JSONB))
     LOOP
         v_item := v_item + 1;
- 
+
         v_id_producto := (v_linea->>'id_producto')::INTEGER;
         v_cantidad := (v_linea->>'cantidad')::NUMERIC;
         v_precio_unitario := COALESCE((v_linea->>'precio_unitario')::NUMERIC, 0);
         v_id_almacen_linea := COALESCE((v_linea->>'id_almacen')::INTEGER, p_id_almacen);
- 
+
         IF v_id_producto IS NULL THEN
             RAISE EXCEPTION 'La línea % no tiene id_producto', v_item;
         END IF;
- 
+
         IF v_cantidad IS NULL OR v_cantidad <= 0 THEN
             RAISE EXCEPTION 'La cantidad de la línea % debe ser mayor a cero', v_item;
         END IF;
- 
+
         IF NOT EXISTS (SELECT 1 FROM gen_almacen WHERE id = v_id_almacen_linea AND estado = 1) THEN
             RAISE EXCEPTION 'El almacén id=% de la línea % no existe o está inactivo', v_id_almacen_linea, v_item;
         END IF;
- 
+
         SELECT afecta_stock INTO v_afecta_stock
         FROM pro_producto
         WHERE id = v_id_producto AND estado = 1;
- 
+
         IF v_afecta_stock IS NULL THEN
             RAISE EXCEPTION 'El producto id=% de la línea % no existe o está inactivo', v_id_producto, v_item;
         END IF;
- 
+
         v_importe := v_cantidad * v_precio_unitario;
         v_total_bruto := v_total_bruto + v_importe;
- 
+
         v_descripcion_linea := v_linea->>'descripcion';
         IF v_descripcion_linea IS NULL THEN
             SELECT nombre INTO v_descripcion_linea FROM pro_producto WHERE id = v_id_producto;
         END IF;
- 
+
         INSERT INTO com_comprobante_compra_detalle (
             id_comprobante, item, id_clasificacion_gasto, id_producto, descripcion,
             id_unidad_medida, id_almacen, cantidad, precio_unitario, importe,
@@ -206,7 +222,7 @@ BEGIN
             v_afecta_stock, p_id_usuario_auditoria, p_id_usuario_auditoria
         )
         RETURNING id INTO v_id_detalle;
- 
+
         IF v_afecta_stock THEN
             v_result_movimiento := pro_crear_movimiento(
                 p_fecha                 => p_fecha,
@@ -219,14 +235,14 @@ BEGIN
                 p_glosa                 => 'Ingreso por compra ' || p_serie || '-' || p_numero,
                 p_id_usuario_auditoria  => p_id_usuario_auditoria
             );
- 
+
             IF (v_result_movimiento->>'error') IS NOT NULL THEN
                 RAISE EXCEPTION '%', v_result_movimiento->>'error';
             END IF;
         END IF;
- 
+
     END LOOP;
- 
+
     v_base_imponible := ROUND(v_total_bruto / (1 + v_tasa_igv), 4);
     v_igv_calculado := v_total_bruto - v_base_imponible;
 
@@ -243,59 +259,28 @@ BEGIN
         )
     WHERE id = v_id_compra;
 
-    -- Vínculo opcional con orden de recarga planta externa (factura de costo).
-    -- El gas NO ingresa a pro_stock: el retorno físico va por bal_actualizar_recarga_planta.
+    -- Si esta compra corresponde a una orden de recarga en planta externa,
+    -- se cierra el vínculo: bal_finalizar_recarga_planta siempre marca los
+    -- balones de la orden como llenos (esto refleja la factura recibida).
+    -- Ubicarlos físicamente en el almacén de esta compra y generar su
+    -- movimiento de ingreso es aparte y opcional (p_guardar_balones_almacen):
+    -- registrar la factura no significa que los balones ya llegaron; si no
+    -- se marca, ese ingreso se registra después desde Recargas en planta.
+    -- Si falla, se revierte toda la compra: no debe quedar un comprobante
+    -- que dice estar vinculado a una recarga sin que esta se haya cerrado.
     IF p_id_recarga_planta IS NOT NULL THEN
-        IF NOT EXISTS (
-            SELECT 1 FROM bal_recarga_planta WHERE id = p_id_recarga_planta AND estado = 1
-        ) THEN
-            RAISE EXCEPTION 'Orden de recarga planta no encontrada o inactiva';
-        END IF;
-
-        IF EXISTS (
-            SELECT 1
-            FROM bal_recarga_planta
-            WHERE id = p_id_recarga_planta
-              AND estado = 1
-              AND id_proveedor IS NOT NULL
-              AND p_id_proveedor IS NOT NULL
-              AND id_proveedor <> p_id_proveedor
-        ) THEN
-            RAISE EXCEPTION 'El proveedor de la compra no coincide con el de la orden de recarga';
-        END IF;
-
-        IF EXISTS (
-            SELECT 1
-            FROM bal_recarga_planta
-            WHERE id = p_id_recarga_planta
-              AND estado = 1
-              AND id_comprobante_compra IS NOT NULL
-              AND id_comprobante_compra <> v_id_compra
-        ) THEN
-            RAISE EXCEPTION 'La orden de recarga ya tiene otra compra vinculada';
-        END IF;
-
-        v_link_planta := bal_actualizar_recarga_planta(
-            p_id_recarga_planta,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            v_id_compra,
-            p_serie,
-            p_numero,
-            CASE WHEN COALESCE(p_registrar_retorno_balones, FALSE) THEN p_fecha ELSE NULL END,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            p_id_usuario_auditoria
+        v_result_movimiento := bal_finalizar_recarga_planta(
+            p_id_recarga_planta       => p_id_recarga_planta,
+            p_id_comprobante_compra   => v_id_compra,
+            p_fecha_llegada_almacen   => p_fecha,
+            p_id_almacen              => p_id_almacen,
+            p_id_proveedor            => p_id_proveedor,
+            p_guardar_balones_almacen => COALESCE(p_guardar_balones_almacen, FALSE),
+            p_id_usuario_auditoria    => p_id_usuario_auditoria
         );
 
-        IF v_link_planta->>'error' IS NOT NULL THEN
-            RAISE EXCEPTION '%', v_link_planta->>'error';
+        IF (v_result_movimiento->>'error') IS NOT NULL THEN
+            RAISE EXCEPTION 'No se pudo vincular la orden de recarga en planta externa: %', v_result_movimiento->>'error';
         END IF;
     END IF;
 
