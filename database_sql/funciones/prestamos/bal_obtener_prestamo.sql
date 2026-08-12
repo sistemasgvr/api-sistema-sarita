@@ -15,9 +15,17 @@ BEGIN
             pr.id_tipo_prestamo,
             tp.nombre AS nombre_tipo_prestamo,
             pr.id_cliente,
-            c.razon_social AS nombre_cliente,
+            COALESCE(
+                NULLIF(TRIM(c.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), ''),
+                c.numero_documento
+            ) AS nombre_cliente,
             pr.id_proveedor,
-            prov.razon_social AS nombre_proveedor,
+            COALESCE(
+                NULLIF(TRIM(prov.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', prov.nombres, prov.apellido_paterno, prov.apellido_materno)), ''),
+                prov.numero_documento
+            ) AS nombre_proveedor,
             pr.id_almacen,
             a.nombre AS nombre_almacen,
             pr.fecha_salida,
@@ -31,7 +39,11 @@ BEGIN
             cv.serie AS serie_comprobante_venta,
             cv.numero AS numero_comprobante_venta,
             cv.fecha AS fecha_comprobante_venta,
-            cv_cli.razon_social AS nombre_cliente_comprobante_venta,
+            COALESCE(
+                NULLIF(TRIM(cv_cli.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', cv_cli.nombres, cv_cli.apellido_paterno, cv_cli.apellido_materno)), ''),
+                cv_cli.numero_documento
+            ) AS nombre_cliente_comprobante_venta,
             cv.total_importe AS total_comprobante_venta,
             pr.id_comprobante_compra,
             cc.serie AS serie_comprobante_compra,

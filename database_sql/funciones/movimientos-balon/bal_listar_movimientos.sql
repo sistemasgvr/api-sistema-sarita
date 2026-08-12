@@ -45,14 +45,26 @@ BEGIN
             m.id_documento_ref,
             m.id_tipo_documento_ref,
             tdr.nombre AS nombre_tipo_documento_ref,
-            m.id_cliente,
+            COALESCE(
+                m.id_cliente,
+                mr.id_proveedor,
+                rp.id_proveedor,
+                mt.id_proveedor
+            ) AS id_cliente,
             COALESCE(
                 NULLIF(TRIM(c.razon_social), ''),
                 NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), ''),
                 c.numero_documento
             ) AS nombre_cliente,
             m.id_almacen_origen,
-            ao.nombre AS nombre_almacen_origen,
+            COALESCE(
+                ao.nombre,
+                CASE
+                    WHEN tm.nombre IN ('ENTRADA_LLENADO', 'ENTRADA_PLANTA_EXTERNA')
+                    THEN 'Planta externa'
+                    ELSE NULL
+                END
+            ) AS nombre_almacen_origen,
             m.id_almacen_destino,
             ad.nombre AS nombre_almacen_destino,
             m.fecha_movimiento,
@@ -70,7 +82,21 @@ BEGIN
         INNER JOIN bal_balon b ON m.id_balon = b.id
         LEFT JOIN gen_lista_opciones tm ON m.id_tipo_movimiento = tm.id
         LEFT JOIN gen_lista_opciones tdr ON m.id_tipo_documento_ref = tdr.id
-        LEFT JOIN cli_clientes c ON m.id_cliente = c.id
+        LEFT JOIN bal_movimiento_recarga mr
+            ON tdr.nombre = 'RECARGA'
+           AND mr.id = m.id_documento_ref
+        LEFT JOIN bal_recarga_planta rp
+            ON tdr.nombre = 'RECARGA'
+           AND rp.id = COALESCE(mr.id_recarga_planta, m.id_documento_ref)
+        LEFT JOIN bal_mantenimiento mt
+            ON tdr.nombre = 'MANTENIMIENTO'
+           AND mt.id = m.id_documento_ref
+        LEFT JOIN cli_clientes c ON c.id = COALESCE(
+            m.id_cliente,
+            mr.id_proveedor,
+            rp.id_proveedor,
+            mt.id_proveedor
+        )
         LEFT JOIN gen_almacen ao ON m.id_almacen_origen = ao.id
         LEFT JOIN gen_almacen ad ON m.id_almacen_destino = ad.id
         WHERE m.estado = 1

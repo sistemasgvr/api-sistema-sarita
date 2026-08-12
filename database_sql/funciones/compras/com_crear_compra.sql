@@ -1,21 +1,14 @@
--- p_id_comprobante_referencia: opcional. Si se indica, esta compra
--- nueva "corrige" a la compra referenciada, la cual DEBE estar
--- anulada (estado=0) — no se permite referenciar una compra activa.
--- precio_unitario en los detalles se asume CON IGV incluido (es lo que
--- factura el proveedor). Al guardar se descompone en base imponible
--- (sub_total) + IGV (igv), igual que en ven_crear_comprobante.
---
--- p_id_recarga_planta: opcional. Si se indica, esta compra factura una
--- orden de recarga en planta externa (bal_recarga_planta). La orden debe
--- existir, estar activa y NO estar ya cerrada/facturada (no se permite
--- vincular la misma orden a dos compras).
---
--- p_guardar_balones_almacen: solo aplica junto con p_id_recarga_planta.
--- FALSE por defecto: la factura queda vinculada a la orden pero los
--- balones NO se mueven de almacén todavía (pueden seguir en tránsito) —
--- ese ingreso se administra después desde el módulo de Recargas en
--- planta. En TRUE, además ubica cada balón de la orden en p_id_almacen y
--- genera su movimiento de kardex (ENTRADA_LLENADO) de una vez.
+
+DROP FUNCTION IF EXISTS com_crear_compra(
+    INTEGER, VARCHAR, VARCHAR, DATE, INTEGER, INTEGER, JSONB,
+    INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER,
+    BOOLEAN, VARCHAR, INTEGER, INTEGER, BOOLEAN
+);
+DROP FUNCTION IF EXISTS com_crear_compra(
+    INTEGER, VARCHAR, VARCHAR, DATE, INTEGER, INTEGER, JSONB,
+    INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER,
+    BOOLEAN, VARCHAR, INTEGER, BOOLEAN
+);
 
 CREATE OR REPLACE FUNCTION com_crear_compra(
     p_id_tipo_comprobante        INTEGER,
@@ -35,7 +28,7 @@ CREATE OR REPLACE FUNCTION com_crear_compra(
     p_declarar_sunat             BOOLEAN DEFAULT FALSE,
     p_glosa                      VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria       INTEGER DEFAULT NULL,
-    p_guardar_balones_almacen    BOOLEAN DEFAULT FALSE
+    p_registrar_retorno_balones  BOOLEAN DEFAULT FALSE
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -283,6 +276,9 @@ BEGIN
             RAISE EXCEPTION 'No se pudo vincular la orden de recarga en planta externa: %', v_result_movimiento->>'error';
         END IF;
     END IF;
+
+    -- Crédito / cuotas: genera CxP vinculada a la compra según condición de pago.
+    PERFORM com_generar_cxp_compra(v_id_compra, p_id_usuario_auditoria);
 
     RETURN com_obtener_compra(v_id_compra);
 END;

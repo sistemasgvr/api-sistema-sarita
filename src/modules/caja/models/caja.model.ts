@@ -60,6 +60,12 @@ export class CajaModel {
     ]);
   }
 
+  listarPendienteCierre(idSucursal?: number) {
+    return this.db.callFunctionJson<AuthListResult>('fin_listar_caja_pendiente_cierre', [
+      idSucursal ?? null,
+    ]);
+  }
+
   crearGasto(dto: CrearCajaGastoDto) {
     return this.db.callFunctionJson<AuthSingleResult>('fin_crear_caja_gasto', [
       dto.fecha,

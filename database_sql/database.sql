@@ -776,7 +776,7 @@ CREATE TABLE bal_balon (
     id_organo_inspector   INT REFERENCES gen_lista_opciones(id), -- OrganoInspectorCilindro
     organo_inspector_no_aplica BOOLEAN NOT NULL DEFAULT FALSE,
     -- Gas / producto actual en el cilindro
-    id_tipo_balon         INT REFERENCES bal_tipo_balon(id),
+    id_tipo_balon         INT NOT NULL REFERENCES bal_tipo_balon(id),
     id_producto_gas       INT REFERENCES pro_producto(id),
     -- Estado actual del balón (ubicación / custodia)
     id_estado_balon       INT REFERENCES gen_lista_opciones(id),

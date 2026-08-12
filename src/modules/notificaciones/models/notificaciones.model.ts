@@ -191,4 +191,11 @@ export class NotificacionesModel {
       [diasMin, fecha ?? null],
     );
   }
+
+  listarCajaPendienteCierre() {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'fin_listar_caja_pendiente_cierre',
+      [null],
+    );
+  }
 }

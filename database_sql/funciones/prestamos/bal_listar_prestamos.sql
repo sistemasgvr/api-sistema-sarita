@@ -36,7 +36,11 @@ BEGIN
             pr.id_tipo_prestamo,
             tp.nombre AS nombre_tipo_prestamo,
             pr.id_cliente,
-            c.razon_social AS nombre_cliente,
+            COALESCE(
+                NULLIF(TRIM(c.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), ''),
+                c.numero_documento
+            ) AS nombre_cliente,
             pr.fecha_salida,
             pr.fecha_retorno_pactada,
             pr.fecha_retorno_real,

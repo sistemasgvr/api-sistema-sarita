@@ -37,10 +37,14 @@ BEGIN
             s.monto_esperado AS "montoEsperado",
             s.diferencia,
             s.fecha_apertura AS "fechaApertura",
-            s.fecha_cierre AS "fechaCierre"
+            s.fecha_cierre AS "fechaCierre",
+            ua.nombre AS "usuarioApertura",
+            uc.nombre AS "usuarioCierre"
         FROM fin_caja_sesion s
         LEFT JOIN gen_sucursal suc ON suc.id = s.id_sucursal
         LEFT JOIN gen_lista_opciones est ON est.id = s.id_estado
+        LEFT JOIN auth_usuarios ua ON ua.id = s.id_usuario_apertura
+        LEFT JOIN auth_usuarios uc ON uc.id = s.id_usuario_cierre
         WHERE s.estado = 1
           AND (p_fecha_desde IS NULL OR s.fecha >= p_fecha_desde)
           AND (p_fecha_hasta IS NULL OR s.fecha <= p_fecha_hasta)

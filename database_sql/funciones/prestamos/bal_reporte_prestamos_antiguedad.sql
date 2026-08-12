@@ -24,9 +24,17 @@ BEGIN
             p.numero_prestamo,
             p.id_almacen,
             p.id_cliente,
-            COALESCE(c.razon_social, TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno))) AS nombre_cliente,
+            COALESCE(
+                NULLIF(TRIM(c.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), ''),
+                c.numero_documento
+            ) AS nombre_cliente,
             p.id_proveedor,
-            COALESCE(prov.razon_social, TRIM(CONCAT_WS(' ', prov.nombres, prov.apellido_paterno))) AS nombre_proveedor,
+            COALESCE(
+                NULLIF(TRIM(prov.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', prov.nombres, prov.apellido_paterno, prov.apellido_materno)), ''),
+                prov.numero_documento
+            ) AS nombre_proveedor,
             pd.id_balon,
             b.codigo_balon,
             b.numero_serie,

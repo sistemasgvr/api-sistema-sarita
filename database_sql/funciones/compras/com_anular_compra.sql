@@ -20,6 +20,8 @@ DECLARE
     v_id_estado_retornado INTEGER;
     v_id_estado_enviado   INTEGER;
     v_orden               RECORD;
+    v_hay_pagos_cxp       BOOLEAN;
+    v_id_cuenta_padre     INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -29,8 +31,35 @@ BEGIN
     WHERE id = p_id_comprobante AND estado = 1
     FOR UPDATE;
 
-    IF v_id_almacen_default IS NULL THEN
+    IF NOT FOUND THEN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id_comprobante);
+    END IF;
+
+    -- No anular si la CxP vinculada ya tiene pagos.
+    SELECT EXISTS (
+        SELECT 1
+        FROM fin_pago p
+        JOIN fin_cuenta c ON c.id = p.id_cuenta
+        WHERE p.estado = 1
+          AND c.estado = 1
+          AND (
+              c.id_comprobante_compra = p_id_comprobante
+              OR c.id_cuenta_padre IN (
+                  SELECT fc.id
+                  FROM fin_cuenta fc
+                  WHERE fc.id_comprobante_compra = p_id_comprobante
+                    AND fc.estado = 1
+                    AND fc.id_cuenta_padre IS NULL
+              )
+          )
+    ) INTO v_hay_pagos_cxp;
+
+    IF v_hay_pagos_cxp THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id_comprobante,
+            'error', 'No se puede anular: la cuenta por pagar vinculada tiene pagos registrados. Anule primero los pagos en Finanzas.'
+        );
     END IF;
 
     SELECT glo.id INTO v_id_tipo_salida
@@ -163,6 +192,22 @@ BEGIN
         fecha_modificacion = NOW()
     WHERE id_comprobante_compra = p_id_comprobante
       AND estado = 1;
+
+    -- Baja lógica de CxP vinculada (cabeceras + cuotas hijas). Ya validado sin pagos.
+    FOR v_id_cuenta_padre IN
+        SELECT fc.id
+        FROM fin_cuenta fc
+        WHERE fc.id_comprobante_compra = p_id_comprobante
+          AND fc.estado = 1
+          AND fc.id_cuenta_padre IS NULL
+    LOOP
+        UPDATE fin_cuenta
+        SET estado = 0,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id = v_id_cuenta_padre
+           OR id_cuenta_padre = v_id_cuenta_padre;
+    END LOOP;
 
     RETURN json_build_object('eliminado', TRUE, 'id', p_id_comprobante);
 END;

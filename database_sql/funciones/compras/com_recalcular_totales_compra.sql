@@ -27,5 +27,9 @@ BEGIN
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id_comprobante;
+
+    -- Si la cabecera se creó sin líneas (total 0) y ahora hay importe + crédito/cuotas,
+    -- genera la CxP (idempotente si ya existe).
+    PERFORM com_generar_cxp_compra(p_id_comprobante, p_id_usuario_auditoria);
 END;
 $function$;
