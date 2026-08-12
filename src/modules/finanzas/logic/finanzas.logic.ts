@@ -16,12 +16,14 @@ import {
   ReembolsarGarantiaDto,
 } from '../dto/garantia.dto';
 import { VerificarDuplicadoPagoDto } from '../dto/verificar-duplicado.dto';
+import { FiltroSaldosPorTerceroDto } from '../dto/filtro-saldos-tercero.dto';
 import { NotificacionesLogic } from '../../notificaciones/logic/notificaciones.logic';
 import {
   TipoNotificacion,
   TipoReferenciaNotificacion,
 } from '../../notificaciones/constants/tipo-notificacion';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
+import { ResponseHelper } from '../../../common/helpers/response.helper';
 
 @Injectable()
 export class FinanzasLogic {
@@ -35,6 +37,18 @@ export class FinanzasLogic {
   async listarCuentas(tipo: TipoCuenta, filtros: FiltroCuentaDto) {
     const result = await this.finanzasModel.listarCuentas(tipo, filtros);
     return mapListResult(result, filtros);
+  }
+
+  async listarSaldosPorTercero(tipo: TipoCuenta, filtros: FiltroSaldosPorTerceroDto) {
+    const result = await this.finanzasModel.listarSaldosPorTercero(tipo, filtros);
+    const pagina = filtros.pagina ?? 1;
+    const limite = filtros.limite ?? 50;
+    return ResponseHelper.paginated(result.registros ?? [], {
+      pagina,
+      limite,
+      total: Number(result.total ?? 0),
+      resumen: (result.resumen ?? null) as Record<string, unknown> | null,
+    });
   }
 
   async crearCuenta(tipo: TipoCuenta, dto: CrearCuentaDto) {
