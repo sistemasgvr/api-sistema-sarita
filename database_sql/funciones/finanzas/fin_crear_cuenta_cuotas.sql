@@ -26,23 +26,27 @@ DROP FUNCTION IF EXISTS fin_crear_cuenta_cuotas(
 DROP FUNCTION IF EXISTS fin_crear_cuenta_cuotas(
   VARCHAR, INT, VARCHAR, DATE, NUMERIC, INT, DATE, INT, VARCHAR, VARCHAR, INT, NUMERIC, VARCHAR, INT, INT
 );
+DROP FUNCTION IF EXISTS fin_crear_cuenta_cuotas(
+  VARCHAR, INT, VARCHAR, DATE, NUMERIC, INT, DATE, INT, VARCHAR, VARCHAR, INT, NUMERIC, VARCHAR, INT, INT, INT
+);
 
 CREATE OR REPLACE FUNCTION fin_crear_cuenta_cuotas(
-    p_tipo                VARCHAR,
-    p_id_tercero          INT     DEFAULT NULL,
-    p_tercero_nombre      VARCHAR DEFAULT NULL,
-    p_fecha_emision       DATE    DEFAULT NULL,
-    p_monto_total         NUMERIC DEFAULT NULL,
-    p_numero_cuotas       INT     DEFAULT NULL,
-    p_fecha_primera_cuota DATE    DEFAULT NULL,   -- fecha exacta de la cuota #1
-    p_dia_mes_pago        INT     DEFAULT NULL,   -- 1..31; día del mes para cuotas #2..N
-    p_descripcion         VARCHAR DEFAULT NULL,
-    p_observacion         VARCHAR DEFAULT NULL,
-    p_id_banco            INT     DEFAULT NULL,
-    p_tasa_interes        NUMERIC DEFAULT NULL,
-    p_numero_comprobante  VARCHAR DEFAULT NULL,
-    p_id_usuario          INT     DEFAULT NULL,
-    p_id_comprobante_venta INT    DEFAULT NULL
+    p_tipo                 VARCHAR,
+    p_id_tercero           INT     DEFAULT NULL,
+    p_tercero_nombre       VARCHAR DEFAULT NULL,
+    p_fecha_emision        DATE    DEFAULT NULL,
+    p_monto_total          NUMERIC DEFAULT NULL,
+    p_numero_cuotas        INT     DEFAULT NULL,
+    p_fecha_primera_cuota  DATE    DEFAULT NULL,   -- fecha exacta de la cuota #1
+    p_dia_mes_pago         INT     DEFAULT NULL,   -- 1..31; día del mes para cuotas #2..N
+    p_descripcion          VARCHAR DEFAULT NULL,
+    p_observacion          VARCHAR DEFAULT NULL,
+    p_id_banco             INT     DEFAULT NULL,
+    p_tasa_interes         NUMERIC DEFAULT NULL,
+    p_numero_comprobante   VARCHAR DEFAULT NULL,
+    p_id_usuario           INT     DEFAULT NULL,
+    p_id_comprobante_venta INT     DEFAULT NULL,
+    p_id_comprobante_compra INT    DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -126,7 +130,7 @@ BEGIN
     -- Cabecera
     INSERT INTO fin_cuenta (
         id_tipo_cuenta, id_tercero, tercero_nombre,
-        id_comprobante_venta,
+        id_comprobante_venta, id_comprobante_compra,
         fecha_emision, fecha_vencimiento,
         monto_pendiente, monto_abonado, monto_saldo,
         numero_cuotas_total,
@@ -137,7 +141,7 @@ BEGIN
         id_usuario_modificacion
     ) VALUES (
         v_id_tipo, v_id_tercero, v_nombre,
-        p_id_comprobante_venta,
+        p_id_comprobante_venta, p_id_comprobante_compra,
         p_fecha_emision, NULL,
         p_monto_total, 0, p_monto_total,
         p_numero_cuotas,
@@ -153,11 +157,8 @@ BEGIN
     -- Cuotas hijas
     FOR v_i IN 1..p_numero_cuotas LOOP
         IF v_i = 1 THEN
-            -- Cuota 1: la fecha exacta que dio el usuario
             v_fecha_cuota := p_fecha_primera_cuota;
         ELSE
-            -- Cuotas siguientes: día p_dia_mes_pago del mes correspondiente,
-            -- acotado al último día si el mes no tiene ese día (ej. 31 → feb 28/29)
             v_mes_base := date_trunc('month', p_fecha_primera_cuota)::date
                           + ((v_i - 1) * INTERVAL '1 month');
             v_ultimo_dia_mes := (v_mes_base + INTERVAL '1 month - 1 day')::date;
@@ -169,7 +170,7 @@ BEGIN
 
         INSERT INTO fin_cuenta (
             id_tipo_cuenta, id_tercero, tercero_nombre,
-            id_comprobante_venta,
+            id_comprobante_venta, id_comprobante_compra,
             id_cuenta_padre, numero_cuota,
             fecha_emision, fecha_vencimiento,
             monto_pendiente, monto_abonado, monto_saldo,
@@ -178,7 +179,7 @@ BEGIN
             id_usuario_modificacion
         ) VALUES (
             v_id_tipo, v_id_tercero, v_nombre,
-            p_id_comprobante_venta,
+            p_id_comprobante_venta, p_id_comprobante_compra,
             v_id_padre, v_i,
             p_fecha_emision, v_fecha_cuota,
             CASE WHEN v_i = p_numero_cuotas THEN v_ultima_cuota ELSE v_monto_cuota END,
@@ -190,7 +191,6 @@ BEGIN
         );
     END LOOP;
 
-    -- Devolver la cabecera con sus cuotas
     SELECT row_to_json(t) INTO v_registro
     FROM (
         SELECT

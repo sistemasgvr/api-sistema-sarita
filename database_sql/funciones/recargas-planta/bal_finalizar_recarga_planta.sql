@@ -40,7 +40,8 @@ DECLARE
     v_resultado             JSON;
     v_id_estado_en_almacen  INTEGER;
     v_id_tipo_entrada_llenado INTEGER;
-    v_id_tipo_doc_ref_recarga INTEGER;
+    v_id_tipo_doc_ref       INTEGER;
+    v_id_documento_ref      INTEGER;
     v_det                   RECORD;
     v_mov                   JSON;
 BEGIN
@@ -78,15 +79,23 @@ BEGIN
         WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_LLENADO' AND lo.estado = 1
         LIMIT 1;
 
-        SELECT lo.id INTO v_id_tipo_doc_ref_recarga
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON l.id = lo.id_lista
-        WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'RECARGA' AND lo.estado = 1
-        LIMIT 1;
+        -- Preferir COMPRA como documento de referencia cuando la factura ya está vinculada.
+        IF p_id_comprobante_compra IS NOT NULL THEN
+            SELECT lo.id INTO v_id_tipo_doc_ref
+            FROM gen_lista_opciones lo
+            INNER JOIN gen_lista l ON l.id = lo.id_lista
+            WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'COMPRA' AND lo.estado = 1
+            LIMIT 1;
+            v_id_documento_ref := p_id_comprobante_compra;
+        ELSE
+            SELECT lo.id INTO v_id_tipo_doc_ref
+            FROM gen_lista_opciones lo
+            INNER JOIN gen_lista l ON l.id = lo.id_lista
+            WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'RECARGA' AND lo.estado = 1
+            LIMIT 1;
+            v_id_documento_ref := p_id_recarga_planta;
+        END IF;
 
-        -- Un movimiento de kardex (bal_movimiento) por cada balón de la orden.
-        -- id_producto_gas ya quedó fijado por la cascada de arriba: por eso
-        -- bal_actualizar_balon (que exige producto_gas) se llama después.
         FOR v_det IN
             SELECT d.id_balon
             FROM bal_recarga_planta_detalle d
@@ -100,15 +109,21 @@ BEGIN
                 p_id_usuario_auditoria => p_id_usuario_auditoria
             );
 
-            IF v_id_tipo_entrada_llenado IS NOT NULL THEN
+            IF v_id_tipo_entrada_llenado IS NOT NULL AND v_id_tipo_doc_ref IS NOT NULL THEN
                 v_mov := bal_crear_movimiento(
                     p_id_balon              => v_det.id_balon,
                     p_id_tipo_movimiento    => v_id_tipo_entrada_llenado,
-                    p_id_documento_ref      => p_id_recarga_planta,
-                    p_id_tipo_documento_ref => v_id_tipo_doc_ref_recarga,
+                    p_id_documento_ref      => v_id_documento_ref,
+                    p_id_tipo_documento_ref => v_id_tipo_doc_ref,
                     p_id_cliente            => p_id_proveedor,
                     p_id_almacen_destino    => p_id_almacen,
-                    p_observacion           => 'Entrada por recarga en planta externa (orden #' || p_id_recarga_planta || ')',
+                    p_observacion           => CASE
+                        WHEN p_id_comprobante_compra IS NOT NULL THEN
+                            'Entrada por compra #' || p_id_comprobante_compra
+                            || ' (orden planta #' || p_id_recarga_planta || ')'
+                        ELSE
+                            'Entrada por recarga en planta externa (orden #' || p_id_recarga_planta || ')'
+                    END,
                     p_id_usuario_auditoria  => p_id_usuario_auditoria
                 );
 

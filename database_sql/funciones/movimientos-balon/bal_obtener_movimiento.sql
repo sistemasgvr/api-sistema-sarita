@@ -37,6 +37,7 @@ BEGIN
                 WHEN 'PRESTAMO' THEN COALESCE(pr.numero_prestamo, 'Préstamo #' || pr.id::TEXT)
                 WHEN 'MANTENIMIENTO' THEN 'Mantenimiento #' || mt.id::TEXT
                 WHEN 'GRE' THEN CONCAT_WS('-', gre.serie, gre.numero)
+                WHEN 'COMPRA' THEN CONCAT_WS('-', cc_doc.serie, cc_doc.numero)
                 WHEN 'FACTURA' THEN COALESCE(
                     CONCAT_WS('-', vc.serie, vc.numero),
                     CASE WHEN mt.id IS NOT NULL THEN 'Mantenimiento #' || mt.id::TEXT END
@@ -59,6 +60,7 @@ BEGIN
                 WHEN 'PRESTAMO' THEN pr.fecha_salida::TEXT
                 WHEN 'MANTENIMIENTO' THEN mt.fecha_ingreso::TEXT
                 WHEN 'GRE' THEN gre.fecha::TEXT
+                WHEN 'COMPRA' THEN cc_doc.fecha::TEXT
                 WHEN 'FACTURA' THEN COALESCE(vc.fecha::TEXT, mt.fecha_ingreso::TEXT)
                 WHEN 'BOLETA' THEN vc.fecha::TEXT
                 WHEN 'NOTA_CREDITO' THEN vc.fecha::TEXT
@@ -110,6 +112,11 @@ BEGIN
                     NULLIF(TRIM(CONCAT_WS(' ', gre_cli.nombres, gre_cli.apellido_paterno, gre_cli.apellido_materno)), ''),
                     gre_cli.numero_documento
                 )
+                WHEN 'COMPRA' THEN COALESCE(
+                    NULLIF(TRIM(cc_doc_prov.razon_social), ''),
+                    NULLIF(TRIM(CONCAT_WS(' ', cc_doc_prov.nombres, cc_doc_prov.apellido_paterno, cc_doc_prov.apellido_materno)), ''),
+                    cc_doc_prov.numero_documento
+                )
                 WHEN 'FACTURA' THEN COALESCE(
                     NULLIF(TRIM(vc_cli.razon_social), ''),
                     NULLIF(TRIM(CONCAT_WS(' ', vc_cli.nombres, vc_cli.apellido_paterno, vc_cli.apellido_materno)), ''),
@@ -150,6 +157,10 @@ BEGIN
                     NULLIF(COALESCE(mr_tipo.nombre, mr_linea_tipo.nombre), ''),
                     NULLIF(COALESCE(mr_prod.nombre, mr_linea_prod.nombre, rpd_prod.nombre), ''),
                     CASE
+                        WHEN rp.numero IS NOT NULL THEN 'Orden ' || rp.numero
+                        ELSE NULL
+                    END,
+                    CASE
                         WHEN COALESCE(mr.serie_guia_salida, mr_linea.serie_guia_salida, rp.serie_guia_salida) IS NOT NULL
                          AND COALESCE(mr.numero_guia_salida, mr_linea.numero_guia_salida, rp.numero_guia_salida) IS NOT NULL
                         THEN 'Guía salida '
@@ -157,9 +168,19 @@ BEGIN
                             || '-'
                             || COALESCE(mr.numero_guia_salida, mr_linea.numero_guia_salida, rp.numero_guia_salida)
                         ELSE NULL
+                    END
+                ), '')
+                WHEN 'COMPRA' THEN NULLIF(CONCAT_WS(
+                    ' · ',
+                    NULLIF(COALESCE(rpd_prod.nombre, mr_linea_prod.nombre, mr_prod.nombre), ''),
+                    CASE
+                        WHEN rp_compra.numero IS NOT NULL THEN 'Orden planta ' || rp_compra.numero
+                        WHEN rp_compra.id IS NOT NULL THEN 'Orden planta #' || rp_compra.id::TEXT
+                        ELSE NULL
                     END,
                     CASE
-                        WHEN rp.numero IS NOT NULL THEN 'Orden ' || rp.numero
+                        WHEN rp_compra.serie_guia_salida IS NOT NULL AND rp_compra.numero_guia_salida IS NOT NULL
+                        THEN 'Guía salida ' || rp_compra.serie_guia_salida || '-' || rp_compra.numero_guia_salida
                         ELSE NULL
                     END
                 ), '')
@@ -274,12 +295,25 @@ BEGIN
         LEFT JOIN cli_clientes rp_prov ON rp.id_proveedor = rp_prov.id
         LEFT JOIN com_comprobante_compra cc ON cc.id = rp.id_comprobante_compra AND cc.estado = 1
         LEFT JOIN cli_clientes cc_prov ON cc.id_proveedor = cc_prov.id
-        -- Línea de la orden para este cilindro (enriquece ENTRADA_LLENADO)
+        -- Compra como documento principal del movimiento (entrada con factura vinculada)
+        LEFT JOIN com_comprobante_compra cc_doc
+            ON tdr.nombre = 'COMPRA'
+           AND cc_doc.id = m.id_documento_ref
+           AND cc_doc.estado = 1
+        LEFT JOIN cli_clientes cc_doc_prov ON cc_doc.id_proveedor = cc_doc_prov.id
+        LEFT JOIN bal_recarga_planta rp_compra
+            ON tdr.nombre = 'COMPRA'
+           AND rp_compra.id_comprobante_compra = m.id_documento_ref
+           AND rp_compra.estado = 1
+        -- Línea de la orden para este cilindro (enriquece ENTRADA_LLENADO / COMPRA)
         LEFT JOIN bal_recarga_planta_detalle rpd
-            ON tm.nombre = 'ENTRADA_LLENADO'
-           AND rpd.id_recarga_planta = rp.id
+            ON tm.nombre IN ('ENTRADA_LLENADO', 'ENTRADA_PLANTA_EXTERNA')
            AND rpd.id_balon = m.id_balon
            AND rpd.estado = 1
+           AND (
+                (tdr.nombre = 'RECARGA' AND rpd.id_recarga_planta = rp.id)
+                OR (tdr.nombre = 'COMPRA' AND rpd.id_recarga_planta = rp_compra.id)
+           )
         LEFT JOIN pro_producto rpd_prod ON rpd.id_producto = rpd_prod.id
         LEFT JOIN bal_movimiento_recarga mr_linea
             ON mr_linea.id = rpd.id_movimiento_recarga

@@ -33,8 +33,10 @@ DECLARE
     v_id_proveedor INTEGER;
     v_capacidad_tipo NUMERIC;
     v_id_estado_en_almacen INTEGER;
-    v_id_tipo_doc_recarga INTEGER;
+    v_id_tipo_doc_ref INTEGER;
     v_id_tipo_entrada INTEGER;
+    v_id_documento_ref INTEGER;
+    v_id_compra INTEGER;
     v_mov JSON;
     v_obs VARCHAR;
     v_ya_tiene_entrada BOOLEAN;
@@ -139,12 +141,28 @@ BEGIN
         );
 
         -- Primera vez que se registra llegada: movimiento de entrada.
+        -- Si ya hay compra vinculada, el documento de referencia es COMPRA (no GRE/RECARGA).
         IF v_fecha_llegada_antes IS NULL THEN
-            SELECT lo.id INTO v_id_tipo_doc_recarga
-            FROM gen_lista_opciones lo
-            INNER JOIN gen_lista l ON lo.id_lista = l.id
-            WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'RECARGA' AND lo.estado = 1
-            LIMIT 1;
+            SELECT COALESCE(p_id_comprobante_compra, id_comprobante_compra)
+            INTO v_id_compra
+            FROM bal_movimiento_recarga
+            WHERE id = p_id;
+
+            IF v_id_compra IS NOT NULL THEN
+                SELECT lo.id INTO v_id_tipo_doc_ref
+                FROM gen_lista_opciones lo
+                INNER JOIN gen_lista l ON lo.id_lista = l.id
+                WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'COMPRA' AND lo.estado = 1
+                LIMIT 1;
+                v_id_documento_ref := v_id_compra;
+            ELSE
+                SELECT lo.id INTO v_id_tipo_doc_ref
+                FROM gen_lista_opciones lo
+                INNER JOIN gen_lista l ON lo.id_lista = l.id
+                WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'RECARGA' AND lo.estado = 1
+                LIMIT 1;
+                v_id_documento_ref := p_id;
+            END IF;
 
             SELECT lo.id INTO v_id_tipo_entrada
             FROM gen_lista_opciones lo
@@ -161,31 +179,75 @@ BEGIN
                 );
             END IF;
 
+            IF v_id_tipo_doc_ref IS NULL THEN
+                RETURN json_build_object(
+                    'error',
+                    'Falta TipoDocumentoRef COMPRA o RECARGA en el catálogo.',
+                    'registro',
+                    NULL
+                );
+            END IF;
+
             SELECT EXISTS (
                 SELECT 1
                 FROM bal_movimiento m
                 WHERE m.estado = 1
                   AND m.id_balon = v_id_balon
-                  AND m.id_documento_ref = p_id
                   AND m.id_tipo_movimiento = v_id_tipo_entrada
+                  AND (
+                    m.id_documento_ref = p_id
+                    OR (v_id_compra IS NOT NULL AND m.id_documento_ref = v_id_compra)
+                  )
             ) INTO v_ya_tiene_entrada;
 
             IF NOT COALESCE(v_ya_tiene_entrada, FALSE) THEN
                 v_mov := bal_crear_movimiento(
                     v_id_balon,
                     v_id_tipo_entrada,
-                    p_id,
-                    v_id_tipo_doc_recarga,
+                    v_id_documento_ref,
+                    v_id_tipo_doc_ref,
                     v_id_proveedor,
                     NULL::INTEGER,
                     v_id_almacen,
                     v_fecha_llegada::TIMESTAMP,
-                    COALESCE(NULLIF(TRIM(v_obs), ''), 'Retorno planta externa'),
+                    COALESCE(
+                        NULLIF(TRIM(v_obs), ''),
+                        CASE
+                            WHEN v_id_compra IS NOT NULL THEN 'Retorno planta externa (compra #' || v_id_compra || ')'
+                            ELSE 'Retorno planta externa'
+                        END
+                    ),
                     p_id_usuario_auditoria
                 );
                 IF v_mov->>'error' IS NOT NULL THEN
                     RETURN json_build_object('error', v_mov->>'error', 'registro', NULL);
                 END IF;
+            END IF;
+        ELSIF p_id_comprobante_compra IS NOT NULL THEN
+            -- Compra vinculada después de la entrada: reapunta el kardex a COMPRA.
+            SELECT lo.id INTO v_id_tipo_doc_ref
+            FROM gen_lista_opciones lo
+            INNER JOIN gen_lista l ON lo.id_lista = l.id
+            WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'COMPRA' AND lo.estado = 1
+            LIMIT 1;
+
+            SELECT lo.id INTO v_id_tipo_entrada
+            FROM gen_lista_opciones lo
+            INNER JOIN gen_lista l ON lo.id_lista = l.id
+            WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_PLANTA_EXTERNA' AND lo.estado = 1
+            LIMIT 1;
+
+            IF v_id_tipo_doc_ref IS NOT NULL AND v_id_tipo_entrada IS NOT NULL THEN
+                UPDATE bal_movimiento m
+                SET
+                    id_documento_ref = p_id_comprobante_compra,
+                    id_tipo_documento_ref = v_id_tipo_doc_ref,
+                    id_usuario_modificacion = p_id_usuario_auditoria,
+                    fecha_modificacion = NOW()
+                WHERE m.estado = 1
+                  AND m.id_balon = v_id_balon
+                  AND m.id_tipo_movimiento = v_id_tipo_entrada
+                  AND m.id_documento_ref = p_id;
             END IF;
         END IF;
     END IF;

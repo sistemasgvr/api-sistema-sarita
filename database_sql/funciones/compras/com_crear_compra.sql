@@ -1,4 +1,15 @@
 
+DROP FUNCTION IF EXISTS com_crear_compra(
+    INTEGER, VARCHAR, VARCHAR, DATE, INTEGER, INTEGER, JSONB,
+    INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER,
+    BOOLEAN, VARCHAR, INTEGER, INTEGER, BOOLEAN
+);
+DROP FUNCTION IF EXISTS com_crear_compra(
+    INTEGER, VARCHAR, VARCHAR, DATE, INTEGER, INTEGER, JSONB,
+    INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER,
+    BOOLEAN, VARCHAR, INTEGER, BOOLEAN
+);
+
 CREATE OR REPLACE FUNCTION com_crear_compra(
     p_id_tipo_comprobante        INTEGER,
     p_serie                      VARCHAR,
@@ -17,7 +28,6 @@ CREATE OR REPLACE FUNCTION com_crear_compra(
     p_declarar_sunat             BOOLEAN DEFAULT FALSE,
     p_glosa                      VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria       INTEGER DEFAULT NULL,
-    p_id_recarga_planta          INTEGER DEFAULT NULL,
     p_registrar_retorno_balones  BOOLEAN DEFAULT FALSE
 )
 RETURNS JSON
@@ -298,6 +308,9 @@ BEGIN
             RAISE EXCEPTION '%', v_link_planta->>'error';
         END IF;
     END IF;
+
+    -- Crédito / cuotas: genera CxP vinculada a la compra según condición de pago.
+    PERFORM com_generar_cxp_compra(v_id_compra, p_id_usuario_auditoria);
 
     RETURN com_obtener_compra(v_id_compra);
 END;

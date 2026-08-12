@@ -7,6 +7,7 @@ AS $function$
 DECLARE
     v_cabecera JSON;
     v_detalle  JSON;
+    v_cuenta   JSON;
 BEGIN
     SELECT json_build_object(
         'id',                        c.id,
@@ -102,11 +103,43 @@ BEGIN
           AND cd.estado = 1
     ) sub;
 
+    SELECT json_build_object(
+        'id', fc.id,
+        'descripcion', fc.descripcion,
+        'numero_cuotas_total', fc.numero_cuotas_total,
+        'monto_pendiente', fc.monto_pendiente,
+        'monto_abonado', COALESCE(fc.monto_abonado, 0),
+        'saldo', COALESCE(fc.monto_saldo, fc.monto_pendiente - COALESCE(fc.monto_abonado, 0)),
+        'fecha_vencimiento', fc.fecha_vencimiento,
+        'cuotas', (
+            SELECT COALESCE(json_agg(
+                json_build_object(
+                    'id', h.id,
+                    'numero_cuota', h.numero_cuota,
+                    'fecha_vencimiento', h.fecha_vencimiento,
+                    'monto_pendiente', h.monto_pendiente,
+                    'monto_abonado', COALESCE(h.monto_abonado, 0),
+                    'saldo', COALESCE(h.monto_saldo, h.monto_pendiente - COALESCE(h.monto_abonado, 0))
+                ) ORDER BY h.numero_cuota
+            ), '[]'::json)
+            FROM fin_cuenta h
+            WHERE h.id_cuenta_padre = fc.id AND h.estado = 1
+        )
+    )
+    INTO v_cuenta
+    FROM fin_cuenta fc
+    WHERE fc.id_comprobante_compra = p_id
+      AND fc.estado = 1
+      AND fc.id_cuenta_padre IS NULL
+    ORDER BY fc.id
+    LIMIT 1;
+
     RETURN json_build_object(
         'error', NULL,
         'registro', json_build_object(
             'cabecera', v_cabecera,
-            'detalle', v_detalle
+            'detalle', v_detalle,
+            'cuenta_por_pagar', v_cuenta
         )
     );
 END;
