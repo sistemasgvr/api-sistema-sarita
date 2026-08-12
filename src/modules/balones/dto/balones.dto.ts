@@ -32,6 +32,44 @@ export class FiltroStockGasDto extends FiltroPaginacionDto {
   idProductoGas?: number;
 }
 
+export class FiltroBalonesPropietarioDto extends FiltroPaginacionDto {
+  @ApiPropertyOptional({
+    description: 'Tipo de propietario: EMPRESA | PLANTA | CLIENTE',
+    example: 'EMPRESA',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  tipoPropietario?: string;
+
+  @ApiPropertyOptional({ description: 'Proveedor concreto (propietario PLANTA)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idPlanta?: number;
+
+  @ApiPropertyOptional({ description: 'Cliente dueño (propietario CLIENTE)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idClientePropietario?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idAlmacen?: number;
+
+  @ApiPropertyOptional({
+    description: 'Excluye DADO_DE_BAJA / ROBO (default true)',
+    default: true,
+  })
+  @Transform(({ value }) => toOptionalBoolean(value))
+  @IsOptional()
+  @IsBoolean()
+  excluirBajas?: boolean;
+}
+
 export class FiltroBalonesDto extends FiltroPaginacionDto {
   @ApiPropertyOptional()
   @Type(() => Number)
