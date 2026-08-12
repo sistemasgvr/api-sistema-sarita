@@ -44,6 +44,19 @@ export class CajaController {
     return this.cajaLogic.listarSesiones(filtros);
   }
 
+  @Get('pendiente-cierre')
+  @Permisos(PermisoBanderas.CAJA_VER)
+  @ApiOperation({
+    summary: 'Cajas ABIERTA de días anteriores (pendientes de arqueo / cierre diario)',
+  })
+  listarPendienteCierre(@Query('idSucursal') idSucursal?: string) {
+    const parsed =
+      idSucursal != null && idSucursal !== '' ? Number(idSucursal) : undefined;
+    return this.cajaLogic.listarPendienteCierre(
+      Number.isFinite(parsed) ? parsed : undefined,
+    );
+  }
+
   @Get('sesiones/:id')
   @Permisos(PermisoBanderas.CAJA_VER)
   @ApiOperation({ summary: 'Obtener sesión de caja con totales' })

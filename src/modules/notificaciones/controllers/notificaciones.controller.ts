@@ -175,4 +175,13 @@ export class NotificacionesController {
   ejecutarGuiasPendientesSunat() {
     return this.logic.detectarYNotificarGuiasPendientesSunat();
   }
+
+  @Post('jobs/caja-sin-cerrar')
+  @NotificacionesJobsAuth()
+  @ApiOperation({
+    summary: 'Detectar sesiones de caja ABIERTA de días anteriores (sin arqueo diario)',
+  })
+  ejecutarCajaSinCerrar() {
+    return this.logic.detectarYNotificarCajaSinCerrar();
+  }
 }

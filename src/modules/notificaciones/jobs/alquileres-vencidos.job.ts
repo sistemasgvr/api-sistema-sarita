@@ -32,6 +32,7 @@ export class AlquileresVencidosJob {
         'guiasPendientesSunat',
         () => this.notificacionesLogic.detectarYNotificarGuiasPendientesSunat(),
       ],
+      ['cajaSinCerrar', () => this.notificacionesLogic.detectarYNotificarCajaSinCerrar()],
     ] as const) {
       try {
         resultados[clave] = await fn();

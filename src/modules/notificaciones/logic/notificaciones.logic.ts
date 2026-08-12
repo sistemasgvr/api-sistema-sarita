@@ -578,6 +578,66 @@ export class NotificacionesLogic {
     };
   }
 
+  async detectarYNotificarCajaSinCerrar(idUsuarioAuditoria?: number) {
+    const raw = await this.model.listarCajaPendienteCierre();
+    const items = (raw.registros ?? []) as Array<{
+      id: number;
+      fecha?: string;
+      nombreSucursal?: string | null;
+      usuarioApertura?: string | null;
+      diasAbierta?: number;
+      fechaApertura?: string | null;
+    }>;
+    const destinatarios = this.normalizeIds(
+      (await this.model.listarIdsPorPermiso(PermisoBanderas.CAJA_CERRAR)).ids,
+    );
+
+    if (destinatarios.length === 0) {
+      return { items: items.length, destinatarios: 0, notificaciones: 0 };
+    }
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    let notificaciones = 0;
+
+    for (const item of items) {
+      const fechaTxt = String(item.fecha ?? '').slice(0, 10);
+      const dias = Number(item.diasAbierta ?? 0);
+      const sucursal = item.nombreSucursal ? ` (${item.nombreSucursal})` : '';
+      const mensaje = `La caja del ${fechaTxt}${sucursal} lleva ${dias} día(s) abierta sin arqueo. Ciérrala en Ventas → Caja antes de operar el día de hoy.`;
+
+      for (const idUsuario of destinatarios) {
+        const creado = await this.crearYEmitir({
+          idUsuario,
+          codigoTipo: TipoNotificacion.CAJA_SIN_CERRAR,
+          titulo: 'Caja sin cerrar',
+          mensaje,
+          payload: {
+            idSesion: item.id,
+            fecha: item.fecha,
+            diasAbierta: item.diasAbierta,
+            nombreSucursal: item.nombreSucursal,
+            usuarioApertura: item.usuarioApertura,
+          },
+          idReferencia: item.id,
+          tipoReferencia: TipoReferenciaNotificacion.CAJA_SESION,
+          claveDedupe: `CAJA_SIN_CERRAR:${item.id}:${hoy}`,
+          idUsuarioAuditoria,
+        });
+        if (creado) notificaciones += 1;
+      }
+    }
+
+    this.logger.log(
+      `Caja sin cerrar: ${items.length} | destinatarios: ${destinatarios.length} | notifs: ${notificaciones}`,
+    );
+
+    return {
+      items: items.length,
+      destinatarios: destinatarios.length,
+      notificaciones,
+    };
+  }
+
   private async notificarDocumentos(params: {
     docs: DocumentoVencimientoRow[];
     codigoTipo: string;

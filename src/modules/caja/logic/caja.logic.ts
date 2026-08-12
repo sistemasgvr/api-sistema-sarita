@@ -44,6 +44,11 @@ export class CajaLogic {
     return mapListResult(result, filtros);
   }
 
+  async listarPendienteCierre(idSucursal?: number) {
+    const result = await this.cajaModel.listarPendienteCierre(idSucursal);
+    return mapListResult(result, { pagina: 1, limite: 100, offset: 0 });
+  }
+
   async crearGasto(dto: CrearCajaGastoDto) {
     const result = await this.cajaModel.crearGasto(dto);
     return mapSingleResult(result, 'No se pudo registrar el gasto');
