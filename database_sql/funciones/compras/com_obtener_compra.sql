@@ -45,6 +45,8 @@ BEGIN
         'estado_pago',               est.nombre,
         'estado',                    c.estado,
         'id_comprobante_referencia', c.id_comprobante_referencia,
+        'id_recarga_planta',         c.id_recarga_planta,
+        'numero_recarga_planta',     rp.numero,
         'tiene_movimientos_inventario', com_tiene_movimientos_inventario(c.id),
         -- Activa: se puede editar cabecera y líneas (ingresos/salidas según afecta_stock)
         'puede_modificarse_parcial', (c.estado = 1),
@@ -62,6 +64,7 @@ BEGIN
     LEFT JOIN gen_lista_opciones mon      ON mon.id = c.id_moneda
     LEFT JOIN gen_condicion_pago cp       ON cp.id = c.id_condicion_pago
     LEFT JOIN gen_lista_opciones est      ON est.id = c.id_estado
+    LEFT JOIN bal_recarga_planta rp       ON rp.id = c.id_recarga_planta
     WHERE c.id = p_id;
 
     IF v_cabecera IS NULL THEN

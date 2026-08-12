@@ -147,24 +147,6 @@ export class CreateCompraDto extends AuditoriaDto {
 
   @ApiPropertyOptional({
     example: 1,
-    description: 'ID de la orden de recarga en planta externa que origina esta compra (bal_recarga_planta)',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  idRecargaPlanta?: number;
-
-  @ApiPropertyOptional({
-    example: false,
-    description:
-      'Solo aplica junto con idRecargaPlanta. Si es true, ubica los balones de la orden en el almacén de esta compra y genera su movimiento de ingreso. Si es false u omitido, ese ingreso se registra después desde Recargas en planta.',
-  })
-  @IsOptional()
-  @IsBoolean()
-  guardarBalonesAlmacen?: boolean;
-
-  @ApiPropertyOptional({
-    example: 1,
     description: 'ID tipo de registro (COMPRA/GASTO)',
   })
   @IsOptional()
@@ -209,14 +191,13 @@ export class CreateCompraDto extends AuditoriaDto {
 
   @ApiProperty({
     type: [CreateCompraDetalleDto],
-    description:
-      'Líneas del detalle de compra (opcional; se puede registrar solo la cabecera y agregar líneas después)',
+    description: 'Líneas del detalle de compra',
   })
-  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateCompraDetalleDto)
-  detalles?: CreateCompraDetalleDto[];
+  @IsNotEmpty()
+  detalles!: CreateCompraDetalleDto[];
 }
 
 export class ActualizarCompraCabeceraDto extends AuditoriaDto {

@@ -1,37 +1,6 @@
-
-DROP FUNCTION IF EXISTS com_crear_compra(
-    INTEGER, VARCHAR, VARCHAR, DATE, INTEGER, INTEGER, JSONB,
-    INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER,
-    BOOLEAN, VARCHAR, INTEGER, INTEGER, BOOLEAN
-);
-DROP FUNCTION IF EXISTS com_crear_compra(
-    INTEGER, VARCHAR, VARCHAR, DATE, INTEGER, INTEGER, JSONB,
-    INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER,
-    BOOLEAN, VARCHAR, INTEGER, BOOLEAN
-);
-
-CREATE OR REPLACE FUNCTION com_crear_compra(
-    p_id_tipo_comprobante        INTEGER,
-    p_serie                      VARCHAR,
-    p_numero                     VARCHAR,
-    p_fecha                      DATE,
-    p_id_proveedor               INTEGER,
-    p_id_almacen                 INTEGER,
-    p_detalles                   JSONB,
-    p_id_comprobante_referencia  INTEGER DEFAULT NULL,
-    p_id_recarga_planta          INTEGER DEFAULT NULL,
-    p_id_tipo_registro           INTEGER DEFAULT NULL,
-    p_id_categoria_gasto         INTEGER DEFAULT NULL,
-    p_id_sucursal                INTEGER DEFAULT NULL,
-    p_id_moneda                  INTEGER DEFAULT NULL,
-    p_id_condicion_pago          INTEGER DEFAULT NULL,
-    p_declarar_sunat             BOOLEAN DEFAULT FALSE,
-    p_glosa                      VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria       INTEGER DEFAULT NULL,
-    p_registrar_retorno_balones  BOOLEAN DEFAULT FALSE
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION public.com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer DEFAULT NULL::integer, p_id_recarga_planta integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_declarar_sunat boolean DEFAULT false, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_registrar_retorno_balones boolean DEFAULT false)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_compra           INTEGER;
@@ -332,4 +301,4 @@ BEGIN
 
     RETURN com_obtener_compra(v_id_compra);
 END;
-$function$;
+$function$
