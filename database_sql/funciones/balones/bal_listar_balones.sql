@@ -171,6 +171,7 @@ BEGIN
             tb.nombre AS nombre_tipo_balon,
             tb.capacidad,
             tb.capacidad_lb,
+            tb.peso AS peso_tipo_balon,
             um.nombre AS nombre_unidad_medida,
             b.id_producto_gas,
             pg.nombre AS nombre_producto_gas,

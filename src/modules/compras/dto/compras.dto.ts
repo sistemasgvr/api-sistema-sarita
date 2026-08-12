@@ -147,6 +147,66 @@ export class CreateCompraDto extends AuditoriaDto {
 
   @ApiPropertyOptional({
     example: 1,
+    description: 'ID de la orden de recarga en planta externa vinculada',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idRecargaPlanta?: number;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'Si true y hay idRecargaPlanta: registra retorno de balones al almacén (genera ENTRADA_PLANTA_EXTERNA)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  guardarBalonesAlmacen?: boolean;
+
+  @ApiPropertyOptional({
+    example: '2026-08-12',
+    description: 'Fecha de llegada al almacén (retorno físico). Si viene informada, registra el ingreso.',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaLlegadaAlmacen?: string;
+
+  @ApiPropertyOptional({ example: 'LOTE-2026-01', description: 'Lote del protocolo de planta' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  lote?: string;
+
+  @ApiPropertyOptional({ example: '2027-08-12' })
+  @IsOptional()
+  @IsDateString()
+  fechaVencimientoLote?: string;
+
+  @ApiPropertyOptional({ example: '2026-08-12' })
+  @IsOptional()
+  @IsDateString()
+  fechaPruebaHidrostatica?: string;
+
+  @ApiPropertyOptional({ example: 1, description: 'GRE de retorno / ingreso' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idGuiaRetorno?: number;
+
+  @ApiPropertyOptional({ example: 'T001' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  serieGuiaIngreso?: string;
+
+  @ApiPropertyOptional({ example: '00000002' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(15)
+  numeroGuiaIngreso?: string;
+
+  @ApiPropertyOptional({
+    example: 1,
     description: 'ID tipo de registro (COMPRA/GASTO)',
   })
   @IsOptional()

@@ -7,6 +7,7 @@ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_estado_sunat VARCHAR;
+    v_orden_numero VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -26,6 +27,28 @@ BEGIN
             'error', 'No se puede eliminar una guía aceptada por SUNAT',
             'eliminado', FALSE,
             'id', p_id
+        );
+    END IF;
+
+    SELECT rp.numero
+    INTO v_orden_numero
+    FROM bal_recarga_planta rp
+    WHERE rp.estado = 1
+      AND (rp.id_guia_salida = p_id OR rp.id_guia_retorno = p_id)
+    ORDER BY rp.id
+    LIMIT 1;
+
+    IF v_orden_numero IS NOT NULL THEN
+        RETURN json_build_object(
+            'error',
+            format(
+                'No se puede eliminar: la guía está vinculada a la orden de recarga %s',
+                v_orden_numero
+            ),
+            'eliminado',
+            FALSE,
+            'id',
+            p_id
         );
     END IF;
 

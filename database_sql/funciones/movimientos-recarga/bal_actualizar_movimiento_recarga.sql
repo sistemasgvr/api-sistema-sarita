@@ -128,6 +128,7 @@ BEGIN
         UPDATE bal_balon
         SET
             id_estado_balon = v_id_estado_en_almacen,
+            id_almacen = COALESCE(v_id_almacen, id_almacen),
             id_producto_gas = COALESCE(v_id_producto, id_producto_gas),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()

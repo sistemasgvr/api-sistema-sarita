@@ -54,10 +54,14 @@ BEGIN
             dep_orig.id_pais AS id_pais_origen,
             g.id_destinatario,
             COALESCE(
+                NULLIF(TRIM(g.destinatario_nombre), ''),
                 dest.razon_social,
                 TRIM(CONCAT_WS(' ', dest.nombres, dest.apellido_paterno, dest.apellido_materno))
             ) AS nombre_destinatario,
-            dest.numero_documento AS documento_destinatario,
+            COALESCE(
+                NULLIF(TRIM(g.destinatario_documento), ''),
+                dest.numero_documento
+            ) AS documento_destinatario,
             td.descripcion AS codigo_tipo_doc_destinatario,
             td.nombre AS nombre_tipo_doc_destinatario,
             g.direccion_llegada,
@@ -139,17 +143,25 @@ BEGIN
             p.codigo AS codigo_producto,
             p.nombre AS nombre_producto,
             det.descripcion,
-            det.id_unidad_medida,
-            umd.nombre AS nombre_unidad_medida,
-            umd.descripcion AS codigo_unidad_medida,
+            COALESCE(det.id_unidad_medida, tb.id_unidad_medida) AS id_unidad_medida,
+            COALESCE(umd.nombre, umt.nombre) AS nombre_unidad_medida,
+            COALESCE(umd.descripcion, umt.descripcion) AS codigo_unidad_medida,
             det.cantidad,
             det.id_balon,
             bal.codigo_balon AS codigo_balon,
+            tb.capacidad AS capacidad_tipo_balon,
+            tb.capacidad AS capacidad,
+            eb.nombre AS nombre_estado_balon,
+            ec.nombre AS nombre_estado_contenido,
             det.glosa
         FROM gre_guia_remision_detalle det
         LEFT JOIN pro_producto p ON det.id_producto = p.id
         LEFT JOIN gen_lista_opciones umd ON det.id_unidad_medida = umd.id
         LEFT JOIN bal_balon bal ON det.id_balon = bal.id
+        LEFT JOIN bal_tipo_balon tb ON tb.id = bal.id_tipo_balon
+        LEFT JOIN gen_lista_opciones umt ON umt.id = tb.id_unidad_medida
+        LEFT JOIN gen_lista_opciones eb ON eb.id = bal.id_estado_balon
+        LEFT JOIN gen_lista_opciones ec ON ec.id = bal.id_estado_contenido
         WHERE det.id_guia_remision = p_id AND det.estado = 1
     ) d;
 

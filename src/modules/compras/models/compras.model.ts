@@ -71,6 +71,13 @@ export class ComprasModel {
       dto.glosa ?? null,
       dto.idUsuarioAuditoria ?? null,
       dto.guardarBalonesAlmacen ?? false,
+      dto.fechaLlegadaAlmacen ?? null,
+      dto.lote ?? null,
+      dto.fechaVencimientoLote ?? null,
+      dto.fechaPruebaHidrostatica ?? null,
+      dto.idGuiaRetorno ?? null,
+      dto.serieGuiaIngreso ?? null,
+      dto.numeroGuiaIngreso ?? null,
     ]);
   }
 

@@ -1,6 +1,34 @@
-CREATE OR REPLACE FUNCTION public.com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer DEFAULT NULL::integer, p_id_recarga_planta integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_declarar_sunat boolean DEFAULT false, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_registrar_retorno_balones boolean DEFAULT false)
- RETURNS json
- LANGUAGE plpgsql
+DROP FUNCTION IF EXISTS public.com_crear_compra(integer, character varying, character varying, date, integer, integer, jsonb, integer, integer, integer, integer, integer, integer, integer, boolean, character varying, integer, boolean);
+
+CREATE OR REPLACE FUNCTION public.com_crear_compra(
+    p_id_tipo_comprobante integer,
+    p_serie character varying,
+    p_numero character varying,
+    p_fecha date,
+    p_id_proveedor integer,
+    p_id_almacen integer,
+    p_detalles jsonb,
+    p_id_comprobante_referencia integer DEFAULT NULL::integer,
+    p_id_recarga_planta integer DEFAULT NULL::integer,
+    p_id_tipo_registro integer DEFAULT NULL::integer,
+    p_id_categoria_gasto integer DEFAULT NULL::integer,
+    p_id_sucursal integer DEFAULT NULL::integer,
+    p_id_moneda integer DEFAULT NULL::integer,
+    p_id_condicion_pago integer DEFAULT NULL::integer,
+    p_declarar_sunat boolean DEFAULT false,
+    p_glosa character varying DEFAULT NULL::character varying,
+    p_id_usuario_auditoria integer DEFAULT NULL::integer,
+    p_registrar_retorno_balones boolean DEFAULT false,
+    p_fecha_llegada_almacen date DEFAULT NULL::date,
+    p_lote character varying DEFAULT NULL::character varying,
+    p_fecha_vencimiento_lote date DEFAULT NULL::date,
+    p_fecha_prueba_hidrostatica date DEFAULT NULL::date,
+    p_id_guia_retorno integer DEFAULT NULL::integer,
+    p_serie_guia_ingreso character varying DEFAULT NULL::character varying,
+    p_numero_guia_ingreso character varying DEFAULT NULL::character varying
+)
+RETURNS json
+LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_compra           INTEGER;
@@ -28,6 +56,11 @@ DECLARE
     v_glosa_final         VARCHAR;
     v_recarga_id_comprobante INTEGER;
     v_recarga_estado_nombre  VARCHAR;
+    v_registrar_retorno   BOOLEAN;
+    v_fecha_llegada       DATE;
+    v_lote                VARCHAR;
+    v_fecha_venc_lote     DATE;
+    v_fecha_ph            DATE;
 BEGIN
     SET TIME ZONE 'America/Lima';
  
@@ -254,41 +287,44 @@ BEGIN
             RAISE EXCEPTION 'La orden de recarga ya tiene otra compra vinculada';
         END IF;
 
-        -- Si la compra marca retorno físico, la orden debe tener protocolo completo (lote/venc/P.H.).
-        IF COALESCE(p_registrar_retorno_balones, FALSE) THEN
-            IF EXISTS (
-                SELECT 1
-                FROM bal_recarga_planta
-                WHERE id = p_id_recarga_planta
-                  AND estado = 1
-                  AND (
-                      NULLIF(TRIM(lote), '') IS NULL
-                      OR fecha_vencimiento_lote IS NULL
-                      OR fecha_prueba_hidrostatica IS NULL
-                  )
-            ) THEN
+        -- Retorno físico: checkbox o fecha de llegada enviada desde Compras.
+        -- Protocolo (lote/venc/P.H.) puede venir en params o ya estar en la orden.
+        v_registrar_retorno := COALESCE(p_registrar_retorno_balones, FALSE)
+            OR p_fecha_llegada_almacen IS NOT NULL;
+
+        SELECT
+            COALESCE(NULLIF(TRIM(p_lote), ''), NULLIF(TRIM(rp.lote), '')),
+            COALESCE(p_fecha_vencimiento_lote, rp.fecha_vencimiento_lote),
+            COALESCE(p_fecha_prueba_hidrostatica, rp.fecha_prueba_hidrostatica)
+        INTO v_lote, v_fecha_venc_lote, v_fecha_ph
+        FROM bal_recarga_planta rp
+        WHERE rp.id = p_id_recarga_planta AND rp.estado = 1;
+
+        IF v_registrar_retorno THEN
+            v_fecha_llegada := COALESCE(p_fecha_llegada_almacen, p_fecha);
+
+            IF v_lote IS NULL OR v_fecha_venc_lote IS NULL OR v_fecha_ph IS NULL THEN
                 RAISE EXCEPTION
-                    'No se puede registrar el retorno desde Compras: la orden de recarga no tiene lote, vencimiento y P.H. Complételos primero en Recargas → Planta externa.';
+                    'Para registrar el retorno de cilindros indique lote, vencimiento y P.H. (o complételos en la orden de recarga).';
             END IF;
+        ELSE
+            v_fecha_llegada := NULL;
         END IF;
 
         v_link_planta := bal_actualizar_recarga_planta(
-            p_id_recarga_planta,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            v_id_compra,
-            p_serie,
-            p_numero,
-            CASE WHEN COALESCE(p_registrar_retorno_balones, FALSE) THEN p_fecha ELSE NULL END,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            p_id_usuario_auditoria
+            p_id                    => p_id_recarga_planta,
+            p_id_almacen            => p_id_almacen,
+            p_id_guia_retorno       => p_id_guia_retorno,
+            p_serie_guia_ingreso    => p_serie_guia_ingreso,
+            p_numero_guia_ingreso   => p_numero_guia_ingreso,
+            p_id_comprobante_compra => v_id_compra,
+            p_serie_factura         => p_serie,
+            p_numero_factura        => p_numero,
+            p_fecha_llegada_almacen => v_fecha_llegada,
+            p_lote                  => v_lote,
+            p_fecha_vencimiento_lote => v_fecha_venc_lote,
+            p_fecha_prueba_hidrostatica => v_fecha_ph,
+            p_id_usuario_auditoria  => p_id_usuario_auditoria
         );
 
         IF v_link_planta->>'error' IS NOT NULL THEN

@@ -53,12 +53,16 @@ BEGIN
         END IF;
 
         IF EXISTS (
-            SELECT 1 FROM bal_recarga_planta
-            WHERE id_guia_salida = p_id_guia_salida AND estado = 1
+            SELECT 1
+            FROM bal_recarga_planta rp
+            LEFT JOIN gen_lista_opciones est ON est.id = rp.id_estado
+            WHERE rp.id_guia_salida = p_id_guia_salida
+              AND rp.estado = 1
+              AND COALESCE(est.nombre, '') NOT IN ('ANULADO')
         ) THEN
             RETURN json_build_object(
                 'error',
-                'Ya existe una orden de recarga vinculada a esa guía de remisión',
+                'Ya existe una orden de recarga activa vinculada a esa guía de remisión',
                 'registro',
                 NULL
             );

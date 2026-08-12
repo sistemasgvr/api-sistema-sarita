@@ -81,7 +81,31 @@ BEGIN
             rp.observacion,
             rp.estado,
             rp.fecha_creacion,
-            rp.fecha_modificacion
+            rp.fecha_modificacion,
+            (
+                CASE
+                    WHEN COALESCE(est.nombre, '') IN ('RETORNADO', 'CERRADO') THEN FALSE
+                    WHEN rp.id_comprobante_compra IS NOT NULL THEN FALSE
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM com_comprobante_compra c
+                        WHERE c.id_recarga_planta = rp.id AND c.estado = 1
+                    ) THEN FALSE
+                    ELSE TRUE
+                END
+            ) AS puede_eliminar,
+            (
+                CASE
+                    WHEN rp.id_comprobante_compra IS NOT NULL
+                      OR EXISTS (
+                          SELECT 1
+                          FROM com_comprobante_compra c
+                          WHERE c.id_recarga_planta = rp.id AND c.estado = 1
+                      ) THEN 'tiene compra'
+                    WHEN COALESCE(est.nombre, '') IN ('RETORNADO', 'CERRADO') THEN 'estado no permite'
+                    ELSE NULL
+                END
+            ) AS motivo_bloqueo_eliminar
         FROM bal_recarga_planta rp
         LEFT JOIN cli_clientes prv ON prv.id = rp.id_proveedor
         LEFT JOIN gen_almacen a ON a.id = rp.id_almacen

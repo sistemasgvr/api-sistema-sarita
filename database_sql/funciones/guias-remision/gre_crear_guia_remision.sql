@@ -14,6 +14,8 @@ CREATE OR REPLACE FUNCTION gre_crear_guia_remision(
     p_direccion_origen VARCHAR DEFAULT NULL,
     p_id_distrito_origen INTEGER DEFAULT NULL,
     p_id_destinatario INTEGER DEFAULT NULL,
+    p_destinatario_nombre VARCHAR DEFAULT NULL,
+    p_destinatario_documento VARCHAR DEFAULT NULL,
     p_direccion_llegada VARCHAR DEFAULT NULL,
     p_id_distrito_llegada INTEGER DEFAULT NULL,
     p_id_modalidad_traslado INTEGER DEFAULT NULL,
@@ -43,12 +45,22 @@ DECLARE
     v_ref JSON;
     v_item INTEGER := 0;
     v_salidas JSON;
+    v_destinatario_nombre VARCHAR(255);
+    v_destinatario_documento VARCHAR(20);
+    v_id_destinatario INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
     v_serie := UPPER(TRIM(COALESCE(p_serie, '')));
     v_fecha := COALESCE(p_fecha, CURRENT_DATE);
     v_fecha_traslado := COALESCE(p_fecha_traslado, v_fecha);
+    v_destinatario_nombre := NULLIF(TRIM(p_destinatario_nombre), '');
+    v_destinatario_documento := NULLIF(TRIM(p_destinatario_documento), '');
+    -- Nombre libre tiene prioridad: no amarra FK de cliente
+    v_id_destinatario := CASE
+        WHEN v_destinatario_nombre IS NOT NULL THEN NULL
+        ELSE p_id_destinatario
+    END;
 
     IF p_id_tipo_guia_remision IS NULL THEN
         RETURN json_build_object('error', 'El tipo de guía es obligatorio', 'registro', NULL);
@@ -62,8 +74,13 @@ BEGIN
         RETURN json_build_object('error', 'Sucursal y almacén son obligatorios', 'registro', NULL);
     END IF;
 
-    IF p_id_destinatario IS NULL THEN
-        RETURN json_build_object('error', 'El destinatario es obligatorio', 'registro', NULL);
+    IF v_id_destinatario IS NULL AND (v_destinatario_nombre IS NULL OR v_destinatario_documento IS NULL) THEN
+        RETURN json_build_object(
+            'error',
+            'El destinatario es obligatorio: selecciona un cliente o ingresa nombre y documento',
+            'registro',
+            NULL
+        );
     END IF;
 
     IF p_id_motivo_traslado IS NULL OR p_id_modalidad_traslado IS NULL THEN
@@ -143,7 +160,8 @@ BEGIN
             fecha_traslado, id_motivo_traslado, id_unidad_medida,
             peso_bruto, numero_bultos,
             direccion_origen, id_distrito_origen,
-            id_destinatario, direccion_llegada, id_distrito_llegada,
+            id_destinatario, destinatario_nombre, destinatario_documento,
+            direccion_llegada, id_distrito_llegada,
             id_modalidad_traslado, id_transportista, id_chofer, id_vehiculo,
             id_responsable, observaciones, id_estado,
             id_usuario_creacion, id_usuario_modificacion
@@ -153,7 +171,8 @@ BEGIN
             v_fecha_traslado, p_id_motivo_traslado, p_id_unidad_medida,
             p_peso_bruto, COALESCE(p_numero_bultos, 1),
             NULLIF(TRIM(p_direccion_origen), ''), p_id_distrito_origen,
-            p_id_destinatario, NULLIF(TRIM(p_direccion_llegada), ''), p_id_distrito_llegada,
+            v_id_destinatario, v_destinatario_nombre, v_destinatario_documento,
+            NULLIF(TRIM(p_direccion_llegada), ''), p_id_distrito_llegada,
             p_id_modalidad_traslado, p_id_transportista, p_id_chofer, p_id_vehiculo,
             p_id_responsable, NULLIF(TRIM(p_observaciones), ''), v_id_estado,
             p_id_usuario_auditoria, p_id_usuario_auditoria

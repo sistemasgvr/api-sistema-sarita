@@ -10,7 +10,7 @@ CREATE OR REPLACE FUNCTION fin_caja_assert_abierta(
 )
 RETURNS TEXT
 LANGUAGE plpgsql
-STABLE
+VOLATILE
 AS $function$
 DECLARE
     v_estado VARCHAR;

@@ -35,6 +35,7 @@ DECLARE
     v_id_tipo_doc_recarga INTEGER;
     v_id_tipo_entrada_llenado INTEGER;
     v_id_tipo_entrada_planta INTEGER;
+    v_id_almacen_orden INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -136,7 +137,8 @@ BEGIN
             fecha_prueba_hidrostatica,
             NULLIF(TRIM(serie_factura), ''),
             NULLIF(TRIM(numero_factura), ''),
-            id_comprobante_compra
+            id_comprobante_compra,
+            id_almacen
         INTO
             v_fecha_llegada,
             v_lote,
@@ -144,7 +146,8 @@ BEGIN
             v_fecha_ph,
             v_serie_factura,
             v_numero_factura,
-            v_id_compra
+            v_id_compra,
+            v_id_almacen_orden
         FROM bal_recarga_planta
         WHERE id = p_id;
 
@@ -183,7 +186,7 @@ BEGIN
                 v_fecha_ph,
                 NULL,
                 NULL,
-                NULL,
+                COALESCE(p_id_almacen, v_id_almacen_orden),
                 COALESCE(p_id_comprobante_compra, v_id_compra),
                 p_id_usuario_auditoria
             );

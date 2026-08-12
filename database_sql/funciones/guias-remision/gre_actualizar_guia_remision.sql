@@ -12,6 +12,8 @@ CREATE OR REPLACE FUNCTION gre_actualizar_guia_remision(
     p_direccion_origen VARCHAR DEFAULT NULL,
     p_id_distrito_origen INTEGER DEFAULT NULL,
     p_id_destinatario INTEGER DEFAULT NULL,
+    p_destinatario_nombre VARCHAR DEFAULT NULL,
+    p_destinatario_documento VARCHAR DEFAULT NULL,
     p_direccion_llegada VARCHAR DEFAULT NULL,
     p_id_distrito_llegada INTEGER DEFAULT NULL,
     p_id_modalidad_traslado INTEGER DEFAULT NULL,
@@ -33,6 +35,8 @@ DECLARE
     v_id_tipo INTEGER;
     v_id_modalidad INTEGER;
     v_id_destinatario INTEGER;
+    v_destinatario_nombre VARCHAR(255);
+    v_destinatario_documento VARCHAR(20);
     v_id_distrito_origen INTEGER;
     v_id_distrito_llegada INTEGER;
     v_peso NUMERIC;
@@ -62,21 +66,45 @@ BEGIN
 
     SELECT
         COALESCE(p_id_modalidad_traslado, g.id_modalidad_traslado),
-        COALESCE(p_id_destinatario, g.id_destinatario),
+        CASE
+            WHEN p_destinatario_nombre IS NOT NULL
+                 AND NULLIF(TRIM(p_destinatario_nombre), '') IS NOT NULL THEN NULL
+            WHEN p_id_destinatario IS NOT NULL THEN p_id_destinatario
+            ELSE g.id_destinatario
+        END,
+        CASE
+            WHEN p_id_destinatario IS NOT NULL THEN NULL
+            WHEN p_destinatario_nombre IS NOT NULL THEN NULLIF(TRIM(p_destinatario_nombre), '')
+            ELSE NULLIF(TRIM(g.destinatario_nombre), '')
+        END,
+        CASE
+            WHEN p_id_destinatario IS NOT NULL THEN NULL
+            WHEN p_destinatario_documento IS NOT NULL THEN NULLIF(TRIM(p_destinatario_documento), '')
+            ELSE NULLIF(TRIM(g.destinatario_documento), '')
+        END,
         COALESCE(p_id_distrito_origen, g.id_distrito_origen),
         COALESCE(p_id_distrito_llegada, g.id_distrito_llegada),
         COALESCE(p_peso_bruto, g.peso_bruto)
     INTO
         v_id_modalidad,
         v_id_destinatario,
+        v_destinatario_nombre,
+        v_destinatario_documento,
         v_id_distrito_origen,
         v_id_distrito_llegada,
         v_peso
     FROM gre_guia_remision g
     WHERE g.id = p_id AND g.estado = 1;
 
-    IF v_id_destinatario IS NULL THEN
-        RETURN json_build_object('error', 'El destinatario es obligatorio', 'registro', NULL);
+    IF v_id_destinatario IS NULL
+       AND (v_destinatario_nombre IS NULL OR v_destinatario_documento IS NULL)
+    THEN
+        RETURN json_build_object(
+            'error',
+            'El destinatario es obligatorio: selecciona un cliente o ingresa nombre y documento',
+            'registro',
+            NULL
+        );
     END IF;
 
     IF v_id_distrito_origen IS NULL OR v_id_distrito_llegada IS NULL THEN
@@ -125,7 +153,9 @@ BEGIN
         numero_bultos = COALESCE(p_numero_bultos, numero_bultos),
         direccion_origen = COALESCE(NULLIF(TRIM(p_direccion_origen), ''), direccion_origen),
         id_distrito_origen = COALESCE(p_id_distrito_origen, id_distrito_origen),
-        id_destinatario = COALESCE(p_id_destinatario, id_destinatario),
+        id_destinatario = v_id_destinatario,
+        destinatario_nombre = v_destinatario_nombre,
+        destinatario_documento = v_destinatario_documento,
         direccion_llegada = COALESCE(NULLIF(TRIM(p_direccion_llegada), ''), direccion_llegada),
         id_distrito_llegada = COALESCE(p_id_distrito_llegada, id_distrito_llegada),
         id_modalidad_traslado = COALESCE(p_id_modalidad_traslado, id_modalidad_traslado),

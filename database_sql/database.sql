@@ -1331,8 +1331,10 @@ CREATE TABLE gre_guia_remision (
     -- Origen (la dirección se deriva de gen_sucursal; se puede sobreescribir)
     direccion_origen         varchar(255),
     id_distrito_origen        INT REFERENCES gen_distrito(id),  -- codigo_ubigeo requerido por SUNAT
-    -- Destinatario
+    -- Destinatario (cliente registrado O nombre/documento libre)
     id_destinatario          INT REFERENCES cli_clientes(id),
+    destinatario_nombre      varchar(255),
+    destinatario_documento   varchar(20),
     direccion_llegada        varchar(255),
     id_distrito_llegada       INT REFERENCES gen_distrito(id),  -- codigo_ubigeo requerido por SUNAT
     -- Transporte (chofer y vehículo de la empresa o del cliente/proveedor)
