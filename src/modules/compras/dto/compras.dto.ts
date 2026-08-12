@@ -147,6 +147,24 @@ export class CreateCompraDto extends AuditoriaDto {
 
   @ApiPropertyOptional({
     example: 1,
+    description: 'ID de la orden de recarga en planta externa vinculada',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idRecargaPlanta?: number;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'Si true y hay idRecargaPlanta: registra retorno de balones al almacén (p_registrar_retorno_balones)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  guardarBalonesAlmacen?: boolean;
+
+  @ApiPropertyOptional({
+    example: 1,
     description: 'ID tipo de registro (COMPRA/GASTO)',
   })
   @IsOptional()
