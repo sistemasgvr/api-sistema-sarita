@@ -285,6 +285,24 @@ BEGIN
             RAISE EXCEPTION 'La orden de recarga ya tiene otra compra vinculada';
         END IF;
 
+        -- Si la compra marca retorno físico, la orden debe tener protocolo completo (lote/venc/P.H.).
+        IF COALESCE(p_registrar_retorno_balones, FALSE) THEN
+            IF EXISTS (
+                SELECT 1
+                FROM bal_recarga_planta
+                WHERE id = p_id_recarga_planta
+                  AND estado = 1
+                  AND (
+                      NULLIF(TRIM(lote), '') IS NULL
+                      OR fecha_vencimiento_lote IS NULL
+                      OR fecha_prueba_hidrostatica IS NULL
+                  )
+            ) THEN
+                RAISE EXCEPTION
+                    'No se puede registrar el retorno desde Compras: la orden de recarga no tiene lote, vencimiento y P.H. Complételos primero en Recargas → Planta externa.';
+            END IF;
+        END IF;
+
         v_link_planta := bal_actualizar_recarga_planta(
             p_id_recarga_planta,
             NULL,

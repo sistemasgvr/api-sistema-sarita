@@ -79,7 +79,10 @@ BEGIN
         id_comprobante = COALESCE(p_id_comprobante, id_comprobante),
         id_comprobante_compra = COALESCE(p_id_comprobante_compra, id_comprobante_compra),
         fecha_llegada_almacen = COALESCE(p_fecha_llegada_almacen, fecha_llegada_almacen),
-        lote = COALESCE(p_lote, lote),
+        lote = CASE
+            WHEN p_lote IS NOT NULL THEN NULLIF(TRIM(p_lote), '')
+            ELSE lote
+        END,
         fecha_vencimiento_lote = COALESCE(p_fecha_vencimiento_lote, fecha_vencimiento_lote),
         fecha_prueba_hidrostatica = COALESCE(p_fecha_prueba_hidrostatica, fecha_prueba_hidrostatica),
         id_proveedor = COALESCE(p_id_proveedor, id_proveedor),
@@ -251,6 +254,9 @@ BEGIN
             END IF;
         END IF;
     END IF;
+
+    -- Idempotente: solo inserta en bal_balon_ph_historial si hay P.H. y aún no hay fila para este movimiento.
+    PERFORM bal_sync_ph_desde_recarga(p_id, p_id_usuario_auditoria);
 
     RETURN bal_obtener_movimiento_recarga(p_id);
 END;

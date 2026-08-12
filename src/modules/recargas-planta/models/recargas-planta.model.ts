@@ -28,6 +28,17 @@ export class RecargasPlantaModel {
     ]);
   }
 
+  listarProtocolo(filtros: FiltroRecargasPlantaDto) {
+    return this.db.callFunctionJson<AuthListResult>('bal_listar_protocolo_recarga_planta', [
+      filtros.buscar ?? '',
+      filtros.idProveedor ?? null,
+      filtros.idAlmacen ?? null,
+      filtros.idEstado ?? null,
+      filtros.fechaDesde ?? null,
+      filtros.fechaHasta ?? null,
+    ]);
+  }
+
   obtenerPorId(id: number) {
     return this.db.callFunctionJson<AuthSingleResult>('bal_obtener_recarga_planta', [id]);
   }
