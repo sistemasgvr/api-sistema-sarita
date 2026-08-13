@@ -16,16 +16,11 @@ DECLARE
     v_id_almacen INTEGER;
     v_fecha_devolucion DATE;
     v_id_almacen_destino INTEGER;
-    v_id_tipo_movimiento INTEGER;
-    v_id_tipo_documento_ref INTEGER;
-    v_id_estado_en_almacen INTEGER;
     v_id_estado_detalle_devuelto INTEGER;
-    v_id_estado_cerrado INTEGER;
-    v_id_estado_contenido INTEGER;
     v_obs_actual VARCHAR(500);
     v_obs_nueva VARCHAR(500);
-    v_mov_result JSON;
-    v_pendientes INTEGER;
+    v_retorno JSON;
+    v_id_producto_gas INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -64,61 +59,10 @@ BEGIN
 
     v_id_almacen_destino := COALESCE(p_id_almacen_destino, v_id_almacen);
 
-    IF v_id_balon IS NOT NULL AND v_id_almacen_destino IS NULL THEN
-        RETURN json_build_object(
-            'error', 'Debe indicar el almacén de destino de la devolución',
-            'registro', NULL
-        );
-    END IF;
-
-    IF v_id_almacen_destino IS NOT NULL AND NOT EXISTS (
-        SELECT 1 FROM gen_almacen WHERE id = v_id_almacen_destino AND estado = 1
-    ) THEN
-        RETURN json_build_object(
-            'error', 'El almacén de destino no existe o está inactivo',
-            'registro', NULL
-        );
-    END IF;
-
-    SELECT lo.id INTO v_id_estado_en_almacen
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
-    LIMIT 1;
-
-    IF v_id_balon IS NOT NULL AND v_id_estado_en_almacen IS NULL THEN
-        RETURN json_build_object(
-            'error', 'No se encontró el estado EN_ALMACEN del cilindro. Revise el catálogo EstadoBalon.',
-            'registro', NULL
-        );
-    END IF;
-
-    v_id_estado_contenido := bal_id_estado_contenido(
-        COALESCE(NULLIF(TRIM(p_nombre_estado_contenido), ''), 'VACIO')
-    );
-
-    SELECT lo.id INTO v_id_tipo_movimiento
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_DEVOLUCION' AND lo.estado = 1
-    LIMIT 1;
-
-    SELECT lo.id INTO v_id_tipo_documento_ref
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'PRESTAMO' AND lo.estado = 1
-    LIMIT 1;
-
     SELECT lo.id INTO v_id_estado_detalle_devuelto
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id
     WHERE l.nombre = 'EstadoPrestamoDetalle' AND lo.nombre = 'DEVUELTO' AND lo.estado = 1
-    LIMIT 1;
-
-    SELECT lo.id INTO v_id_estado_cerrado
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'EstadoPrestamo' AND lo.nombre = 'CERRADO' AND lo.estado = 1
     LIMIT 1;
 
     v_obs_nueva := NULLIF(TRIM(p_observacion), '');
@@ -130,69 +74,43 @@ BEGIN
         END IF;
     END IF;
 
+    IF v_id_balon IS NOT NULL THEN
+        SELECT b.id_producto_gas INTO v_id_producto_gas
+        FROM bal_balon b
+        WHERE b.id = v_id_balon AND b.estado = 1;
+
+        v_retorno := bal_prestamo_aplicar_retorno_cilindro(
+            v_id_balon,
+            v_id_prestamo,
+            v_id_cliente,
+            v_id_almacen_destino,
+            COALESCE(NULLIF(TRIM(p_nombre_estado_contenido), ''), 'VACIO'),
+            COALESCE(v_obs_nueva, 'Entrada por devolución de préstamo'),
+            p_id_usuario_auditoria,
+            TRUE
+        );
+
+        IF v_retorno->>'error' IS NOT NULL THEN
+            RETURN json_build_object('error', v_retorno->>'error', 'registro', NULL);
+        END IF;
+    END IF;
+
     UPDATE bal_prestamo_detalle
     SET
         fecha_devolucion = COALESCE(p_fecha_devolucion, CURRENT_DATE),
         id_estado = COALESCE(v_id_estado_detalle_devuelto, id_estado),
+        id_producto = COALESCE(v_id_producto_gas, id_producto),
         observacion = COALESCE(v_obs_actual, observacion),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id
       AND estado = 1;
 
-    -- Movimiento de inventario (opcional si falta el catálogo); el estado del balón
-    -- SIEMPRE se actualiza al devolver.
-    IF v_id_balon IS NOT NULL AND v_id_tipo_movimiento IS NOT NULL THEN
-        v_mov_result := bal_crear_movimiento(
-            v_id_balon,
-            v_id_tipo_movimiento,
-            v_id_prestamo,
-            v_id_tipo_documento_ref,
-            v_id_cliente,
-            NULL::INTEGER,
-            v_id_almacen_destino,
-            NOW()::TIMESTAMP,
-            'Entrada por devolución de préstamo'::VARCHAR,
-            p_id_usuario_auditoria
-        );
-
-        IF v_mov_result->>'error' IS NOT NULL THEN
-            RAISE EXCEPTION '%', v_mov_result->>'error';
-        END IF;
-    END IF;
-
-    IF v_id_balon IS NOT NULL THEN
-        UPDATE bal_balon
-        SET
-            id_cliente_ubicacion = NULL,
-            id_almacen = v_id_almacen_destino,
-            id_estado_balon = v_id_estado_en_almacen,
-            id_estado_contenido = COALESCE(v_id_estado_contenido, id_estado_contenido),
-            id_usuario_modificacion = p_id_usuario_auditoria,
-            fecha_modificacion = NOW()
-        WHERE id = v_id_balon
-          AND estado = 1;
-    END IF;
-
-    SELECT COUNT(*) INTO v_pendientes
-    FROM bal_prestamo_detalle
-    WHERE id_prestamo = v_id_prestamo
-      AND estado = 1
-      AND fecha_devolucion IS NULL;
-
-    IF v_pendientes = 0 THEN
-        UPDATE bal_prestamo
-        SET
-            fecha_retorno_real = COALESCE(
-                fecha_retorno_real,
-                COALESCE(p_fecha_devolucion, CURRENT_DATE)
-            ),
-            id_estado = COALESCE(v_id_estado_cerrado, id_estado),
-            id_usuario_modificacion = p_id_usuario_auditoria,
-            fecha_modificacion = NOW()
-        WHERE id = v_id_prestamo
-          AND estado = 1;
-    END IF;
+    PERFORM bal_prestamo_cerrar_si_completo(
+        v_id_prestamo,
+        COALESCE(p_fecha_devolucion, CURRENT_DATE),
+        p_id_usuario_auditoria
+    );
 
     RETURN bal_obtener_prestamo_detalle(p_id);
 END;

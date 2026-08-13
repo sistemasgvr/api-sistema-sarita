@@ -20,6 +20,9 @@ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_numero VARCHAR;
+    v_id_cliente_actual INTEGER;
+    v_pendientes INTEGER;
+    v_nombre_estado_nuevo VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -29,6 +32,37 @@ BEGIN
         SELECT 1 FROM bal_prestamo WHERE numero_prestamo = v_numero AND id <> p_id
     ) THEN
         RETURN json_build_object('error', 'Ya existe otro préstamo con el número ' || v_numero, 'registro', NULL);
+    END IF;
+
+    SELECT id_cliente INTO v_id_cliente_actual
+    FROM bal_prestamo
+    WHERE id = p_id AND estado = 1;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('registro', NULL);
+    END IF;
+
+    SELECT COUNT(*) INTO v_pendientes
+    FROM bal_prestamo_detalle
+    WHERE id_prestamo = p_id AND estado = 1 AND fecha_devolucion IS NULL;
+
+    IF p_id_estado IS NOT NULL THEN
+        SELECT lo.nombre INTO v_nombre_estado_nuevo
+        FROM gen_lista_opciones lo
+        WHERE lo.id = p_id_estado AND lo.estado = 1;
+    END IF;
+
+    IF COALESCE(v_pendientes, 0) > 0
+       AND (
+           UPPER(COALESCE(v_nombre_estado_nuevo, '')) = 'CERRADO'
+           OR p_fecha_retorno_real IS NOT NULL
+       )
+    THEN
+        RETURN json_build_object(
+            'error',
+            'No se puede cerrar el préstamo: aún hay cilindros pendientes de devolución',
+            'registro', NULL
+        );
     END IF;
 
     UPDATE bal_prestamo
@@ -52,6 +86,21 @@ BEGIN
 
     IF NOT FOUND THEN
         RETURN json_build_object('registro', NULL);
+    END IF;
+
+    -- Si cambia el cliente, la ubicación de los cilindros aún prestados sigue al préstamo.
+    IF p_id_cliente IS NOT NULL AND p_id_cliente IS DISTINCT FROM v_id_cliente_actual THEN
+        UPDATE bal_balon b
+        SET
+            id_cliente_ubicacion = p_id_cliente,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        FROM bal_prestamo_detalle pd
+        WHERE pd.id_prestamo = p_id
+          AND pd.estado = 1
+          AND pd.fecha_devolucion IS NULL
+          AND pd.id_balon = b.id
+          AND b.estado = 1;
     END IF;
 
     RETURN bal_obtener_prestamo(p_id);
