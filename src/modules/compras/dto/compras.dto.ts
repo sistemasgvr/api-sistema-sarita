@@ -49,7 +49,10 @@ export class FiltroComprasDto extends FiltroPaginacionDto {
 }
 
 export class CompraCuotaDto {
-  @ApiProperty({ example: '2026-08-15', description: 'Fecha de vencimiento de la cuota' })
+  @ApiProperty({
+    example: '2026-08-15',
+    description: 'Fecha de vencimiento de la cuota',
+  })
   @IsDateString()
   fechaPago!: string;
 
@@ -177,13 +180,17 @@ export class CreateCompraDto extends AuditoriaDto {
 
   @ApiPropertyOptional({
     example: '2026-08-12',
-    description: 'Fecha de llegada al almacén (retorno físico). Si viene informada, registra el ingreso.',
+    description:
+      'Fecha de llegada al almacén (retorno físico). Si viene informada, registra el ingreso.',
   })
   @IsOptional()
   @IsDateString()
   fechaLlegadaAlmacen?: string;
 
-  @ApiPropertyOptional({ example: 'LOTE-2026-01', description: 'Lote del protocolo de planta' })
+  @ApiPropertyOptional({
+    example: 'LOTE-2026-01',
+    description: 'Lote del protocolo de planta',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)
@@ -330,7 +337,8 @@ export class ActualizarCompraCabeceraDto extends AuditoriaDto {
 export class ActualizarCompraDetalleDto extends AuditoriaDto {
   @ApiPropertyOptional({
     example: 12,
-    description: 'Nueva cantidad (si baja y afecta stock, genera SALIDA diferencial)',
+    description:
+      'Nueva cantidad (si baja y afecta stock, genera SALIDA diferencial)',
   })
   @IsOptional()
   @Type(() => Number)

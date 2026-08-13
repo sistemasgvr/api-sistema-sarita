@@ -54,8 +54,8 @@ export const PermisoBanderas = {
   COMPRAS_VER: 'compras.ver',
   COMPRAS_CREAR: 'compras.crear',
   COMPRAS_EDITAR: 'compras.editar',
-  COMPRAS_ELIMINAR: 'compras_eliminar',
-  
+  COMPRAS_ELIMINAR: 'compras.eliminar',
+
   CONTACTOS_LISTAR: 'contactos.listar',
   CONTACTOS_VER: 'contactos.ver',
   CONTACTOS_CREAR: 'contactos.crear',
