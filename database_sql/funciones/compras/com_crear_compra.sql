@@ -1,4 +1,5 @@
 DROP FUNCTION IF EXISTS public.com_crear_compra(integer, character varying, character varying, date, integer, integer, jsonb, integer, integer, integer, integer, integer, integer, integer, boolean, character varying, integer, boolean);
+DROP FUNCTION IF EXISTS public.com_crear_compra(integer, character varying, character varying, date, integer, integer, jsonb, integer, integer, integer, integer, integer, integer, integer, boolean, character varying, integer, boolean, date, character varying, date, date, integer, character varying, character varying);
 
 CREATE OR REPLACE FUNCTION public.com_crear_compra(
     p_id_tipo_comprobante integer,
@@ -25,7 +26,9 @@ CREATE OR REPLACE FUNCTION public.com_crear_compra(
     p_fecha_prueba_hidrostatica date DEFAULT NULL::date,
     p_id_guia_retorno integer DEFAULT NULL::integer,
     p_serie_guia_ingreso character varying DEFAULT NULL::character varying,
-    p_numero_guia_ingreso character varying DEFAULT NULL::character varying
+    p_numero_guia_ingreso character varying DEFAULT NULL::character varying,
+    p_fecha_vencimiento_cxp date DEFAULT NULL::date,
+    p_cuotas_cxp jsonb DEFAULT NULL::jsonb
 )
 RETURNS json
 LANGUAGE plpgsql
@@ -333,7 +336,12 @@ BEGIN
     END IF;
 
     -- Crédito / cuotas: genera CxP vinculada a la compra según condición de pago.
-    PERFORM com_generar_cxp_compra(v_id_compra, p_id_usuario_auditoria);
+    PERFORM com_generar_cxp_compra(
+        v_id_compra,
+        p_id_usuario_auditoria,
+        p_fecha_vencimiento_cxp,
+        p_cuotas_cxp
+    );
 
     RETURN com_obtener_compra(v_id_compra);
 END;

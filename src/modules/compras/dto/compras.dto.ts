@@ -48,6 +48,18 @@ export class FiltroComprasDto extends FiltroPaginacionDto {
   estado?: number;
 }
 
+export class CompraCuotaDto {
+  @ApiProperty({ example: '2026-08-15', description: 'Fecha de vencimiento de la cuota' })
+  @IsDateString()
+  fechaPago!: string;
+
+  @ApiPropertyOptional({ example: 150.5 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  monto?: number;
+}
+
 export class CreateCompraDetalleDto {
   @ApiPropertyOptional({
     example: 1,
@@ -249,6 +261,24 @@ export class CreateCompraDto extends AuditoriaDto {
   @MaxLength(500)
   glosa?: string;
 
+  @ApiPropertyOptional({
+    example: '2026-10-12',
+    description: 'Vencimiento CxP si la condición es crédito (un solo pago)',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaVencimiento?: string;
+
+  @ApiPropertyOptional({
+    type: [CompraCuotaDto],
+    description: 'Plan de cuotas personalizado (fechas/montos) para la CxP',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CompraCuotaDto)
+  cuotas?: CompraCuotaDto[];
+
   @ApiProperty({
     type: [CreateCompraDetalleDto],
     description: 'Líneas del detalle de compra',
@@ -283,6 +313,18 @@ export class ActualizarCompraCabeceraDto extends AuditoriaDto {
   @IsOptional()
   @IsBoolean()
   declararSunat?: boolean;
+
+  @ApiPropertyOptional({ example: '2026-10-12' })
+  @IsOptional()
+  @IsDateString()
+  fechaVencimiento?: string;
+
+  @ApiPropertyOptional({ type: [CompraCuotaDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CompraCuotaDto)
+  cuotas?: CompraCuotaDto[];
 }
 
 export class ActualizarCompraDetalleDto extends AuditoriaDto {
