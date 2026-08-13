@@ -1,3 +1,10 @@
+DROP FUNCTION IF EXISTS gre_crear_guia_remision(
+    INTEGER, VARCHAR, VARCHAR, DATE, DATE, INTEGER, INTEGER, INTEGER,
+    INTEGER, INTEGER, NUMERIC, INTEGER, VARCHAR, INTEGER, INTEGER,
+    VARCHAR, VARCHAR, VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER,
+    INTEGER, INTEGER, VARCHAR, JSON, JSON, INTEGER
+);
+
 CREATE OR REPLACE FUNCTION gre_crear_guia_remision(
     p_id_tipo_guia_remision INTEGER,
     p_serie VARCHAR,
@@ -26,7 +33,9 @@ CREATE OR REPLACE FUNCTION gre_crear_guia_remision(
     p_observaciones VARCHAR DEFAULT NULL,
     p_detalles JSON DEFAULT '[]'::JSON,
     p_referencias JSON DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_remitente_nombre VARCHAR DEFAULT NULL,
+    p_remitente_documento VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -48,6 +57,9 @@ DECLARE
     v_destinatario_nombre VARCHAR(255);
     v_destinatario_documento VARCHAR(20);
     v_id_destinatario INTEGER;
+    v_remitente_nombre VARCHAR(255);
+    v_remitente_documento VARCHAR(20);
+    v_id_cliente INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -60,6 +72,12 @@ BEGIN
     v_id_destinatario := CASE
         WHEN v_destinatario_nombre IS NOT NULL THEN NULL
         ELSE p_id_destinatario
+    END;
+    v_remitente_nombre := NULLIF(TRIM(p_remitente_nombre), '');
+    v_remitente_documento := NULLIF(TRIM(p_remitente_documento), '');
+    v_id_cliente := CASE
+        WHEN v_remitente_nombre IS NOT NULL THEN NULL
+        ELSE p_id_cliente
     END;
 
     IF p_id_tipo_guia_remision IS NULL THEN
@@ -116,6 +134,18 @@ BEGIN
         RETURN json_build_object('error', 'La serie de GRE transportista (31) debe iniciar con V (ej. V001)', 'registro', NULL);
     END IF;
 
+    IF v_codigo_tipo = '31'
+       AND v_id_cliente IS NULL
+       AND (v_remitente_nombre IS NULL OR v_remitente_documento IS NULL)
+    THEN
+        RETURN json_build_object(
+            'error',
+            'El remitente es obligatorio en GRE transportista: selecciona un cliente o ingresa nombre y documento',
+            'registro',
+            NULL
+        );
+    END IF;
+
     SELECT lo.descripcion INTO v_codigo_modalidad
     FROM gen_lista_opciones lo
     WHERE lo.id = p_id_modalidad_traslado AND lo.estado = 1;
@@ -157,6 +187,7 @@ BEGIN
         INSERT INTO gre_guia_remision (
             id_tipo_guia_remision, serie, numero, id_estado_sunat,
             fecha, tipo_cambio, id_sucursal, id_almacen, id_cliente,
+            remitente_nombre, remitente_documento,
             fecha_traslado, id_motivo_traslado, id_unidad_medida,
             peso_bruto, numero_bultos,
             direccion_origen, id_distrito_origen,
@@ -167,7 +198,8 @@ BEGIN
             id_usuario_creacion, id_usuario_modificacion
         ) VALUES (
             p_id_tipo_guia_remision, v_serie, v_numero, v_id_estado_sunat,
-            v_fecha, 3.5, p_id_sucursal, p_id_almacen, p_id_cliente,
+            v_fecha, 3.5, p_id_sucursal, p_id_almacen, v_id_cliente,
+            v_remitente_nombre, v_remitente_documento,
             v_fecha_traslado, p_id_motivo_traslado, p_id_unidad_medida,
             p_peso_bruto, COALESCE(p_numero_bultos, 1),
             NULLIF(TRIM(p_direccion_origen), ''), p_id_distrito_origen,
@@ -187,8 +219,18 @@ BEGIN
     LOOP
         v_item := v_item + 1;
 
-        IF (v_detalle->>'idProducto') IS NULL AND (v_detalle->>'id_producto') IS NULL THEN
-            RETURN json_build_object('error', format('Ítem %s: producto obligatorio', v_item), 'registro', NULL);
+        IF (v_detalle->>'idProducto') IS NULL
+           AND (v_detalle->>'id_producto') IS NULL
+           AND (v_detalle->>'idBalon') IS NULL
+           AND (v_detalle->>'id_balon') IS NULL
+           AND NULLIF(TRIM(COALESCE(v_detalle->>'glosa', v_detalle->>'descripcion', '')), '') IS NULL
+        THEN
+            RETURN json_build_object(
+                'error',
+                format('Ítem %s: indica cilindro, producto o descripción', v_item),
+                'registro',
+                NULL
+            );
         END IF;
 
         IF COALESCE((v_detalle->>'cantidad')::NUMERIC, 0) <= 0 THEN

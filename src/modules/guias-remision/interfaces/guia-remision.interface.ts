@@ -73,7 +73,7 @@ export interface GuiaRemisionRegistro {
 export interface GuiaRemisionDetalleRegistro {
   id: number;
   item: number;
-  id_producto: number;
+  id_producto?: number | null;
   codigo_producto?: string | null;
   nombre_producto?: string | null;
   descripcion?: string | null;

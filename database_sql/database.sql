@@ -1363,7 +1363,7 @@ CREATE TABLE gre_guia_remision_detalle (
     id              SERIAL PRIMARY KEY,
     id_guia_remision  INT NOT NULL REFERENCES gre_guia_remision(id),
     item            INT NOT NULL,
-    id_producto      INT NOT NULL REFERENCES pro_producto(id),
+    id_producto      INT REFERENCES pro_producto(id),
     descripcion     varchar(300),
     id_unidad_medida  INT REFERENCES gen_lista_opciones(id),
     cantidad        NUMERIC(12,4) NOT NULL,

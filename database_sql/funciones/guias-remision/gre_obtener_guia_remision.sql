@@ -30,10 +30,14 @@ BEGIN
             alm.nombre AS nombre_almacen,
             g.id_cliente,
             COALESCE(
+                NULLIF(TRIM(g.remitente_nombre), ''),
                 cli.razon_social,
                 TRIM(CONCAT_WS(' ', cli.nombres, cli.apellido_paterno, cli.apellido_materno))
             ) AS nombre_cliente,
-            cli.numero_documento AS documento_cliente,
+            COALESCE(
+                NULLIF(TRIM(g.remitente_documento), ''),
+                cli.numero_documento
+            ) AS documento_cliente,
             cli_td.descripcion AS codigo_tipo_doc_cliente,
             cli_td.nombre AS nombre_tipo_doc_cliente,
             g.fecha_traslado,

@@ -32,7 +32,7 @@ function mapDetallesToJson(detalles: GuiaRemisionDetalleDto[]) {
   return JSON.stringify(
     detalles.map((d) => ({
       item: d.item ?? null,
-      id_producto: d.idProducto,
+      id_producto: d.idProducto ?? null,
       descripcion: d.descripcion ?? null,
       id_unidad_medida: d.idUnidadMedida ?? null,
       cantidad: d.cantidad,
@@ -123,6 +123,8 @@ export class GuiasRemisionModel {
         mapDetallesToJson(dto.detalles),
         mapReferenciasToJson(dto.referencias),
         dto.idUsuarioAuditoria ?? null,
+        dto.remitenteNombre ?? null,
+        dto.remitenteDocumento ?? null,
       ],
     );
   }
@@ -157,6 +159,8 @@ export class GuiasRemisionModel {
         dto.detalles ? mapDetallesToJson(dto.detalles) : null,
         dto.referencias ? mapReferenciasToJson(dto.referencias) : null,
         dto.idUsuarioAuditoria ?? null,
+        dto.remitenteNombre ?? null,
+        dto.remitenteDocumento ?? null,
       ],
     );
   }

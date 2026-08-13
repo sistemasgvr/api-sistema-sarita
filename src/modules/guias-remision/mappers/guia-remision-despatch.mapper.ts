@@ -169,7 +169,7 @@ export class GuiaRemisionDespatchMapper {
       const remitenteDoc = (cabecera.documento_cliente ?? '').trim();
       if (!remitenteDoc) {
         throw new BadRequestException(
-          'GRE transportista (31) requiere remitente (cliente) con documento',
+          'GRE transportista (31) requiere remitente con documento (cliente o nombre libre)',
         );
       }
       payload.remitente = {
@@ -212,12 +212,12 @@ export class GuiaRemisionDespatchMapper {
       codigo:
         detalle.codigo_balon?.trim() ||
         detalle.codigo_producto ||
-        String(detalle.id_producto),
+        (detalle.id_producto != null ? String(detalle.id_producto) : 'ZZ'),
       descripcion:
         detalle.glosa?.trim() ||
         detalle.descripcion?.trim() ||
         detalle.nombre_producto ||
-        `Producto ${detalle.id_producto}`,
+        (detalle.id_producto != null ? `Producto ${detalle.id_producto}` : 'Ítem'),
       unidad: this.mapUnidadItem(
         detalle.codigo_unidad_medida,
         detalle.nombre_unidad_medida,

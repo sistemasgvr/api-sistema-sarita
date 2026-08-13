@@ -38,6 +38,8 @@ BEGIN
           OR gen_texto_coincide(COALESCE(dest.numero_documento, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(g.destinatario_nombre, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(g.destinatario_documento, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(g.remitente_nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(g.remitente_documento, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(g.observaciones, ''), p_busqueda)
       );
 
@@ -143,6 +145,8 @@ BEGIN
               OR gen_texto_coincide(COALESCE(dest.numero_documento, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(g.destinatario_nombre, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(g.destinatario_documento, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(g.remitente_nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(g.remitente_documento, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(g.observaciones, ''), p_busqueda)
           )
         ORDER BY g.fecha DESC, g.id DESC
