@@ -16,6 +16,7 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   CreateActividadDto,
   FiltroActividadesDto,
+  FiltroActividadesProximasDto,
   UpdateActividadDto,
 } from '../dto/actividades.dto';
 import { ActividadesLogic } from '../logic/actividades.logic';
@@ -32,10 +33,17 @@ export class ActividadesController {
     return this.actividadesLogic.listar(filtros);
   }
 
+  @Get('proximas')
+  @Permisos(PermisoBanderas.ACTIVIDADES_LISTAR)
+  @ApiOperation({ summary: 'Actividades en curso o próximas (hoy, hora actual)' })
+  listarProximas(@Query() filtros: FiltroActividadesProximasDto) {
+    return this.actividadesLogic.listarProximas(filtros.minutos ?? 60);
+  }
+
   @Get(':id')
   @Permisos(PermisoBanderas.ACTIVIDADES_VER)
-  @ApiOperation({ summary: 'Obtener actividad por ID' }) 
-  @ApiOkResponse({ description: 'Actividad obtenida correctamente' }) 
+  @ApiOperation({ summary: 'Obtener actividad por ID' })
+  @ApiOkResponse({ description: 'Actividad obtenida correctamente' })
   @ApiNotFoundResponse({ description: 'La actividad solicitada no existe o fue eliminada' })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
     return this.actividadesLogic.obtenerPorId(id);
@@ -61,9 +69,9 @@ export class ActividadesController {
   }
 
   @Delete(':id')
-  @Permisos(PermisoBanderas.ACTIVIDADES_ELIMINAR) 
+  @Permisos(PermisoBanderas.ACTIVIDADES_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar actividad (baja lógica)' })
-  @ApiOkResponse({ description: 'Actividad eliminada correctamente' }) 
+  @ApiOkResponse({ description: 'Actividad eliminada correctamente' })
   @ApiNotFoundResponse({ description: 'La actividad que intenta eliminar no existe o ya fue dada de baja' })
   eliminar(
     @Param('id', ParseIntPipe) id: number,
@@ -80,5 +88,15 @@ export class ActividadesController {
     @Body() dto: AuditoriaDto,
   ) {
     return this.actividadesLogic.marcarComoRealizada(id, dto.idUsuarioAuditoria);
+  }
+
+  @Patch(':id/cancelar')
+  @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
+  @ApiOperation({ summary: 'Cancelar actividad / reparto' })
+  cancelar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.actividadesLogic.cancelar(id, dto.idUsuarioAuditoria);
   }
 }

@@ -1,17 +1,21 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsDateString,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
+  ValidateIf,
+  ValidateNested,
 } from 'class-validator';
-import { AuditoriaDto } from '../../../common/dto/auditoria.dto'; 
-import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto'; 
+import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
-export class FiltroActividadesDto extends FiltroPaginacionDto { 
+export class FiltroActividadesDto extends FiltroPaginacionDto {
   @ApiPropertyOptional({ description: 'Filtrar desde la fecha programada (YYYY-MM-DD)' })
   @IsOptional()
   @IsDateString()
@@ -27,14 +31,67 @@ export class FiltroActividadesDto extends FiltroPaginacionDto {
   @Type(() => Number)
   @IsInt()
   idEstado?: number;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idTipo?: number;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idPrioridad?: number;
 }
 
-export class CreateActividadDto extends AuditoriaDto { 
+export class FiltroActividadesProximasDto {
+  @ApiPropertyOptional({ example: 60, description: 'Minutos hacia adelante (mín. 5)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  minutos?: number;
+}
+
+export class ActividadItemDto {
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  item?: number;
+
+  @ApiPropertyOptional({ example: 12 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idProducto?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  descripcion?: string;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  cantidad?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idBalon?: number;
+}
+
+export class CreateActividadDto extends AuditoriaDto {
   @ApiProperty({ example: 'Reunión de coordinación', maxLength: 150 })
+  @ValidateIf((o: CreateActividadDto) => !o.idComprobante)
   @IsString()
   @IsNotEmpty()
   @MaxLength(150)
-  titulo!: string; 
+  titulo?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -44,7 +101,7 @@ export class CreateActividadDto extends AuditoriaDto {
   @ApiProperty({ example: '2026-07-17' })
   @IsDateString()
   @IsNotEmpty()
-  fechaProgramada!: string; 
+  fechaProgramada!: string;
 
   @ApiPropertyOptional({ example: '09:00:00' })
   @IsOptional()
@@ -59,12 +116,12 @@ export class CreateActividadDto extends AuditoriaDto {
   @ApiProperty({ example: 1 })
   @Type(() => Number)
   @IsInt()
-  idTipoActividad!: number; 
+  idTipoActividad!: number;
 
   @ApiProperty({ example: 1 })
   @Type(() => Number)
   @IsInt()
-  idPrioridad!: number; 
+  idPrioridad!: number;
 
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
@@ -78,10 +135,29 @@ export class CreateActividadDto extends AuditoriaDto {
   @IsInt()
   idUsuarioResponsable?: number;
 
+  @ApiPropertyOptional({ example: 1, description: 'Chofer / repartidor de flota propia' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idChoferResponsable?: number;
+
+  @ApiPropertyOptional({ example: 10, description: 'Comprobante de venta origen del reparto' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idComprobante?: number;
+
+  @ApiPropertyOptional({ type: [ActividadItemDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ActividadItemDto)
+  items?: ActividadItemDto[];
+
   @ApiProperty({ example: 1 })
   @Type(() => Number)
   @IsInt()
-  idEstadoActividad!: number; 
+  idEstadoActividad!: number;
 
   @ApiPropertyOptional({ maxLength: 500 })
   @IsOptional()
@@ -90,12 +166,12 @@ export class CreateActividadDto extends AuditoriaDto {
   observaciones?: string;
 }
 
-export class UpdateActividadDto extends AuditoriaDto { 
+export class UpdateActividadDto extends AuditoriaDto {
   @ApiPropertyOptional({ maxLength: 150 })
   @IsOptional()
   @IsString()
   @MaxLength(150)
-  titulo?: string; 
+  titulo?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -121,13 +197,13 @@ export class UpdateActividadDto extends AuditoriaDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idTipoActividad?: number; 
+  idTipoActividad?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idPrioridad?: number; 
+  idPrioridad?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -145,7 +221,26 @@ export class UpdateActividadDto extends AuditoriaDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idEstadoActividad?: number; 
+  idChoferResponsable?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idComprobante?: number;
+
+  @ApiPropertyOptional({ type: [ActividadItemDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ActividadItemDto)
+  items?: ActividadItemDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idEstadoActividad?: number;
 
   @ApiPropertyOptional({ maxLength: 500 })
   @IsOptional()

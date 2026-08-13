@@ -5,7 +5,10 @@ import {
   AuthSingleResult,
 } from '../../../common/interfaces/auth-db.interface';
 import { DatabaseService } from '../../../database/database.service';
-import { FiltroActividadesDto } from '../dto/actividades.dto';
+import {
+  ActividadItemDto,
+  FiltroActividadesDto,
+} from '../dto/actividades.dto';
 
 @Injectable()
 export class ActividadesModel {
@@ -13,13 +16,22 @@ export class ActividadesModel {
 
   listar(filtros: FiltroActividadesDto) {
     return this.db.callFunctionJson<AuthListResult>('age_listar_actividades', [
-      filtros.buscar ?? '', 
+      filtros.buscar ?? '',
       filtros.limite ?? 10,
       filtros.offset,
       filtros.fechaDesde ?? null,
       filtros.fechaHasta ?? null,
       filtros.idEstado ?? null,
+      filtros.idTipo ?? null,
+      filtros.idPrioridad ?? null,
     ]);
+  }
+
+  listarProximas(minutos = 60) {
+    return this.db.callFunctionJson<AuthListResult>(
+      'age_listar_actividades_proximas',
+      [minutos],
+    );
   }
 
   obtenerPorId(id: number) {
@@ -29,7 +41,7 @@ export class ActividadesModel {
   }
 
   crear(
-    titulo: string,
+    titulo: string | null,
     descripcion: string | null,
     fechaProgramada: Date | string,
     horaInicioEstimada: string | null,
@@ -40,7 +52,10 @@ export class ActividadesModel {
     idUsuarioResponsable: number | null,
     idEstadoActividad: number,
     observaciones: string | null,
-    idUsuarioAuditoria?: number, 
+    idUsuarioAuditoria?: number,
+    idChoferResponsable?: number | null,
+    idComprobante?: number | null,
+    items?: ActividadItemDto[] | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('age_crear_actividad', [
       titulo,
@@ -55,6 +70,9 @@ export class ActividadesModel {
       idEstadoActividad,
       observaciones,
       idUsuarioAuditoria ?? null,
+      idChoferResponsable ?? null,
+      idComprobante ?? null,
+      items?.length ? JSON.stringify(items) : null,
     ]);
   }
 
@@ -71,7 +89,10 @@ export class ActividadesModel {
     idUsuarioResponsable: number | null,
     idEstadoActividad: number | null,
     observaciones: string | null,
-    idUsuarioAuditoria?: number, 
+    idUsuarioAuditoria?: number,
+    idChoferResponsable?: number | null,
+    idComprobante?: number | null,
+    items?: ActividadItemDto[] | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('age_actualizar_actividad', [
       id,
@@ -80,6 +101,7 @@ export class ActividadesModel {
       fechaProgramada,
       horaInicioEstimada,
       horaFinEstimada,
+      null,
       idTipoActividad,
       idPrioridad,
       idCliente,
@@ -87,10 +109,13 @@ export class ActividadesModel {
       idEstadoActividad,
       observaciones,
       idUsuarioAuditoria ?? null,
+      idChoferResponsable ?? null,
+      idComprobante ?? null,
+      items ? JSON.stringify(items) : null,
     ]);
   }
 
-  eliminar(id: number, idUsuarioAuditoria?: number) { 
+  eliminar(id: number, idUsuarioAuditoria?: number) {
     return this.db.callFunctionJson<AuthDeleteResult>('age_eliminar_actividad', [
       id,
       idUsuarioAuditoria ?? null,
@@ -99,6 +124,13 @@ export class ActividadesModel {
 
   marcarComoRealizada(id: number, idUsuarioAuditoria?: number) {
     return this.db.callFunctionJson<AuthSingleResult>('age_cambiar_estado_actividad_realizada', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  cancelar(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('age_cancelar_actividad', [
       id,
       idUsuarioAuditoria ?? null,
     ]);

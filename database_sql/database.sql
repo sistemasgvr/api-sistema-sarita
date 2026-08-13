@@ -1777,6 +1777,8 @@ CREATE TABLE age_actividad (
     id_prioridad            INT NOT NULL REFERENCES gen_lista_opciones(id),
     id_cliente              INT REFERENCES cli_clientes(id),
     id_usuario_responsable  INT REFERENCES auth_usuarios(id),
+    id_chofer_responsable   INT REFERENCES gen_chofer(id),
+    id_comprobante          INT REFERENCES ven_comprobante(id),
     id_estado_actividad     INT NOT NULL REFERENCES gen_lista_opciones(id),
     observaciones           varchar(500),
     estado                  INT NOT NULL DEFAULT 1,
@@ -1896,6 +1898,24 @@ CREATE INDEX idx_age_actividad_estado ON age_actividad(id_estado_actividad);
 CREATE INDEX idx_age_actividad_chofer ON age_actividad(id_chofer_responsable) WHERE id_chofer_responsable IS NOT NULL;
 CREATE INDEX idx_age_actividad_usuario ON age_actividad(id_usuario_responsable) WHERE id_usuario_responsable IS NOT NULL;
 CREATE INDEX idx_age_actividad_cliente ON age_actividad(id_cliente) WHERE id_cliente IS NOT NULL;
+CREATE INDEX idx_age_actividad_comprobante ON age_actividad(id_comprobante) WHERE id_comprobante IS NOT NULL;
+
+CREATE TABLE age_actividad_item (
+    id                      SERIAL PRIMARY KEY,
+    id_actividad            INT NOT NULL REFERENCES age_actividad(id),
+    item                    INT NOT NULL,
+    id_producto             INT REFERENCES pro_producto(id),
+    descripcion             VARCHAR(300),
+    cantidad                NUMERIC(12,4) NOT NULL DEFAULT 1,
+    id_balon                INT REFERENCES bal_balon(id),
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion      TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_age_actividad_item_act ON age_actividad_item(id_actividad) WHERE estado = 1;
 
 
 -- ============================================================

@@ -1,137 +1,159 @@
--- DROP FUNCTION IF EXISTS age_actualizar_actividad;
-
--- CREATE OR REPLACE FUNCTION age_actualizar_actividad(
---     p_id INTEGER,
---     p_titulo VARCHAR DEFAULT NULL,
---     p_descripcion TEXT DEFAULT NULL,
---     p_fecha_programada DATE DEFAULT NULL,
---     p_hora_inicio_estimada TIME DEFAULT NULL,
---     p_hora_fin_estimada TIME DEFAULT NULL,
---     p_fecha_hora_cierre TIMESTAMP DEFAULT NULL,
---     p_id_tipo_actividad INTEGER DEFAULT NULL,
---     p_id_prioridad INTEGER DEFAULT NULL, 
---     p_id_cliente INTEGER DEFAULT NULL,
---     p_id_usuario_responsable INTEGER DEFAULT NULL,
---     p_id_estado_actividad INTEGER DEFAULT NULL,
---     p_observaciones VARCHAR DEFAULT NULL,
---     p_id_usuario_auditoria INTEGER DEFAULT NULL
--- )
--- RETURNS JSON
--- LANGUAGE plpgsql
--- AS $function$
--- BEGIN
---     SET TIME ZONE 'America/Lima'; 
-
---     UPDATE age_actividad
---     SET
---         titulo = COALESCE(p_titulo, titulo), 
---         descripcion = COALESCE(p_descripcion, descripcion), 
---         fecha_programada = COALESCE(p_fecha_programada, fecha_programada), 
---         hora_inicio_estimada = COALESCE(p_hora_inicio_estimada, hora_inicio_estimada), 
---         hora_fin_estimada = COALESCE(p_hora_fin_estimada, hora_fin_estimada), 
---         fecha_hora_cierre = COALESCE(p_fecha_hora_cierre, fecha_hora_cierre), 
---         id_tipo_actividad = COALESCE(p_id_tipo_actividad, id_tipo_actividad), 
---         id_prioridad = COALESCE(p_id_prioridad, id_prioridad), 
---         id_cliente = COALESCE(p_id_cliente, id_cliente), 
---         id_usuario_responsable = COALESCE(p_id_usuario_responsable, id_usuario_responsable), 
---         id_estado_actividad = COALESCE(p_id_estado_actividad, id_estado_actividad), 
---         observaciones = COALESCE(p_observaciones, observaciones), 
---         id_usuario_modificacion = p_id_usuario_auditoria, 
---         fecha_modificacion = NOW() 
---     WHERE id = p_id AND estado = 1; 
-
---     IF NOT FOUND THEN 
---         RETURN json_build_object('registro', NULL); 
---     END IF; 
-
---     RETURN age_obtener_actividad(p_id); 
--- END;
--- $function$;
-
-DROP FUNCTION IF EXISTS age_actualizar_actividad;
+DROP FUNCTION IF EXISTS age_actualizar_actividad(
+    INTEGER, VARCHAR, TEXT, DATE, TIME, TIME, TIMESTAMP, INTEGER, INTEGER,
+    INTEGER, INTEGER, INTEGER, VARCHAR, INTEGER
+);
+DROP FUNCTION IF EXISTS age_actualizar_actividad(
+    INTEGER, VARCHAR, TEXT, DATE, TIME, TIME, TIMESTAMP, INTEGER, INTEGER,
+    INTEGER, INTEGER, INTEGER, VARCHAR, INTEGER, INTEGER, INTEGER, JSON
+);
 
 CREATE OR REPLACE FUNCTION age_actualizar_actividad(
     p_id INTEGER,
-    p_titulo VARCHAR DEFAULT NULL,
-    p_descripcion TEXT DEFAULT NULL,
-    p_fecha_programada DATE DEFAULT NULL,
-    p_hora_inicio_estimada TIME DEFAULT NULL,
-    p_hora_fin_estimada TIME DEFAULT NULL,
-    p_fecha_hora_cierre TIMESTAMP DEFAULT NULL,
-    p_id_tipo_actividad INTEGER DEFAULT NULL,
-    p_id_prioridad INTEGER DEFAULT NULL, 
+    p_titulo VARCHAR,
+    p_descripcion TEXT,
+    p_fecha_programada DATE,
+    p_hora_inicio_estimada TIME,
+    p_hora_fin_estimada TIME,
+    p_fecha_hora_cierre TIMESTAMP,
+    p_id_tipo_actividad INTEGER,
+    p_id_prioridad INTEGER,
     p_id_cliente INTEGER DEFAULT NULL,
     p_id_usuario_responsable INTEGER DEFAULT NULL,
     p_id_estado_actividad INTEGER DEFAULT NULL,
     p_observaciones VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_id_chofer_responsable INTEGER DEFAULT NULL,
+    p_id_comprobante INTEGER DEFAULT NULL,
+    p_items JSON DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
 AS $function$
 DECLARE
-    v_fecha DATE;
-    v_h_inicio TIME;
-    v_h_fin TIME;
-    v_responsable INTEGER;
+    v_tipo VARCHAR;
+    v_item JSON;
+    v_n INTEGER := 0;
 BEGIN
-    SET TIME ZONE 'America/Lima'; 
+    SET TIME ZONE 'America/Lima';
 
-    SELECT fecha_programada, hora_inicio_estimada, hora_fin_estimada, id_usuario_responsable
-    INTO v_fecha, v_h_inicio, v_h_fin, v_responsable
-    FROM age_actividad WHERE id = p_id AND estado = 1;
+    IF NOT EXISTS (SELECT 1 FROM age_actividad WHERE id = p_id AND estado = 1) THEN
+        RETURN json_build_object('registro', NULL);
+    END IF;
 
-    v_fecha := COALESCE(p_fecha_programada, v_fecha);
-    v_h_inicio := COALESCE(p_hora_inicio_estimada, v_h_inicio);
-    v_h_fin := COALESCE(p_hora_fin_estimada, v_h_fin);
-    v_responsable := COALESCE(p_id_usuario_responsable, v_responsable);
-
-    IF v_h_inicio IS NOT NULL AND v_h_fin IS NOT NULL THEN
-        IF v_h_inicio >= v_h_fin THEN
+    IF p_hora_inicio_estimada IS NOT NULL AND p_hora_fin_estimada IS NOT NULL THEN
+        IF p_hora_inicio_estimada >= p_hora_fin_estimada THEN
             RAISE EXCEPTION 'La hora de inicio estimada debe ser menor a la hora de fin estimada.';
         END IF;
     END IF;
 
-    IF v_responsable IS NOT NULL AND v_h_inicio IS NOT NULL AND v_h_fin IS NOT NULL THEN
+    SELECT UPPER(TRIM(nombre)) INTO v_tipo
+    FROM gen_lista_opciones
+    WHERE id = p_id_tipo_actividad;
+
+    IF v_tipo = 'REPARTO' THEN
+        IF p_id_chofer_responsable IS NULL THEN
+            RAISE EXCEPTION 'El reparto requiere un chofer / repartidor de flota propia.';
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1 FROM gen_chofer
+            WHERE id = p_id_chofer_responsable AND estado = 1 AND id_cliente IS NULL
+        ) THEN
+            RAISE EXCEPTION 'El chofer debe ser de flota propia (repartidor).';
+        END IF;
+    END IF;
+
+    IF p_id_usuario_responsable IS NOT NULL AND p_hora_inicio_estimada IS NOT NULL AND p_hora_fin_estimada IS NOT NULL THEN
         IF EXISTS (
-            SELECT 1 
+            SELECT 1
             FROM age_actividad
-            WHERE id_usuario_responsable = v_responsable
-              AND fecha_programada = v_fecha
+            WHERE id <> p_id
+              AND id_usuario_responsable = p_id_usuario_responsable
+              AND fecha_programada = p_fecha_programada
               AND estado = 1
-              AND id <> p_id 
+              AND NOT EXISTS (
+                  SELECT 1 FROM gen_lista_opciones ea
+                  WHERE ea.id = age_actividad.id_estado_actividad
+                    AND UPPER(TRIM(ea.nombre)) IN ('CANCELADA', 'CANCELADO')
+              )
               AND (
-                  (v_h_inicio >= hora_inicio_estimada AND v_h_inicio < hora_fin_estimada)
-                  OR (v_h_fin > hora_inicio_estimada AND v_h_fin <= hora_fin_estimada)
-                  OR (v_h_inicio <= hora_inicio_estimada AND v_h_fin >= hora_fin_estimada)
+                  (p_hora_inicio_estimada >= hora_inicio_estimada AND p_hora_inicio_estimada < hora_fin_estimada)
+                  OR (p_hora_fin_estimada > hora_inicio_estimada AND p_hora_fin_estimada <= hora_fin_estimada)
+                  OR (p_hora_inicio_estimada <= hora_inicio_estimada AND p_hora_fin_estimada >= hora_fin_estimada)
               )
         ) THEN
             RAISE EXCEPTION 'El usuario responsable ya tiene otra actividad asignada que se cruza en ese horario para la fecha seleccionada.';
         END IF;
     END IF;
 
+    IF p_id_chofer_responsable IS NOT NULL AND p_hora_inicio_estimada IS NOT NULL AND p_hora_fin_estimada IS NOT NULL THEN
+        IF EXISTS (
+            SELECT 1
+            FROM age_actividad
+            WHERE id <> p_id
+              AND id_chofer_responsable = p_id_chofer_responsable
+              AND fecha_programada = p_fecha_programada
+              AND estado = 1
+              AND NOT EXISTS (
+                  SELECT 1 FROM gen_lista_opciones ea
+                  WHERE ea.id = age_actividad.id_estado_actividad
+                    AND UPPER(TRIM(ea.nombre)) IN ('CANCELADA', 'CANCELADO')
+              )
+              AND (
+                  (p_hora_inicio_estimada >= hora_inicio_estimada AND p_hora_inicio_estimada < hora_fin_estimada)
+                  OR (p_hora_fin_estimada > hora_inicio_estimada AND p_hora_fin_estimada <= hora_fin_estimada)
+                  OR (p_hora_inicio_estimada <= hora_inicio_estimada AND p_hora_fin_estimada >= hora_fin_estimada)
+              )
+        ) THEN
+            RAISE EXCEPTION 'El chofer ya tiene otra actividad asignada que se cruza en ese horario.';
+        END IF;
+    END IF;
+
     UPDATE age_actividad
     SET
-        titulo = COALESCE(p_titulo, titulo), 
-        descripcion = COALESCE(p_descripcion, descripcion), 
-        fecha_programada = v_fecha, 
-        hora_inicio_estimada = v_h_inicio, 
-        hora_fin_estimada = v_h_fin, 
-        fecha_hora_cierre = COALESCE(p_fecha_hora_cierre, fecha_hora_cierre), 
-        id_tipo_actividad = COALESCE(p_id_tipo_actividad, id_tipo_actividad), 
-        id_prioridad = COALESCE(p_id_prioridad, id_prioridad), 
-        id_cliente = COALESCE(p_id_cliente, id_cliente), 
-        id_usuario_responsable = v_responsable, 
-        id_estado_actividad = COALESCE(p_id_estado_actividad, id_estado_actividad), 
-        observaciones = COALESCE(p_observaciones, observaciones), 
-        id_usuario_modificacion = p_id_usuario_auditoria, 
-        fecha_modificacion = NOW() 
-    WHERE id = p_id AND estado = 1; 
+        titulo = p_titulo,
+        descripcion = p_descripcion,
+        fecha_programada = p_fecha_programada,
+        hora_inicio_estimada = p_hora_inicio_estimada,
+        hora_fin_estimada = p_hora_fin_estimada,
+        fecha_hora_cierre = p_fecha_hora_cierre,
+        id_tipo_actividad = p_id_tipo_actividad,
+        id_prioridad = p_id_prioridad,
+        id_cliente = p_id_cliente,
+        id_usuario_responsable = p_id_usuario_responsable,
+        id_chofer_responsable = p_id_chofer_responsable,
+        id_comprobante = p_id_comprobante,
+        id_estado_actividad = p_id_estado_actividad,
+        observaciones = p_observaciones,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id AND estado = 1;
 
-    IF NOT FOUND THEN 
-        RETURN json_build_object('registro', NULL); 
-    END IF; 
+    IF p_items IS NOT NULL AND json_typeof(p_items) = 'array' THEN
+        UPDATE age_actividad_item
+        SET estado = 0,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id_actividad = p_id AND estado = 1;
 
-    RETURN age_obtener_actividad(p_id); 
+        FOR v_item IN SELECT value FROM json_array_elements(p_items)
+        LOOP
+            v_n := v_n + 1;
+            INSERT INTO age_actividad_item (
+                id_actividad, item, id_producto, descripcion, cantidad, id_balon,
+                id_usuario_creacion, id_usuario_modificacion
+            ) VALUES (
+                p_id,
+                COALESCE((v_item->>'item')::INTEGER, v_n),
+                COALESCE((v_item->>'idProducto')::INTEGER, (v_item->>'id_producto')::INTEGER),
+                NULLIF(TRIM(COALESCE(v_item->>'descripcion', '')), ''),
+                COALESCE((v_item->>'cantidad')::NUMERIC, 1),
+                COALESCE((v_item->>'idBalon')::INTEGER, (v_item->>'id_balon')::INTEGER),
+                p_id_usuario_auditoria,
+                p_id_usuario_auditoria
+            );
+        END LOOP;
+    END IF;
+
+    RETURN age_obtener_actividad(p_id);
 END;
 $function$;

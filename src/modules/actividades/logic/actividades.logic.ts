@@ -20,6 +20,11 @@ export class ActividadesLogic {
     return mapListResult(result, filtros);
   }
 
+  async listarProximas(minutos = 60) {
+    const result = await this.actividadesModel.listarProximas(minutos);
+    return result.registros ?? [];
+  }
+
   async obtenerPorId(id: number) {
     const result = await this.actividadesModel.obtenerPorId(id);
     return mapSingleResult(result, `Actividad ${id} no encontrada`);
@@ -27,7 +32,7 @@ export class ActividadesLogic {
 
   async crear(dto: CreateActividadDto) {
     const result = await this.actividadesModel.crear(
-      dto.titulo,
+      dto.titulo?.trim() || null,
       dto.descripcion ?? null,
       dto.fechaProgramada,
       dto.horaInicioEstimada ?? null,
@@ -39,6 +44,9 @@ export class ActividadesLogic {
       dto.idEstadoActividad,
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria,
+      dto.idChoferResponsable ?? null,
+      dto.idComprobante ?? null,
+      dto.items ?? null,
     );
     return mapSingleResult(result, 'No se pudo crear la actividad');
   }
@@ -58,6 +66,9 @@ export class ActividadesLogic {
       dto.idEstadoActividad ?? null,
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria,
+      dto.idChoferResponsable ?? null,
+      dto.idComprobante ?? null,
+      dto.items ?? null,
     );
     return mapSingleResult(result, `Actividad ${id} no encontrada`);
   }
@@ -69,6 +80,11 @@ export class ActividadesLogic {
 
   async marcarComoRealizada(id: number, idUsuarioAuditoria?: number) {
     const result = await this.actividadesModel.marcarComoRealizada(id, idUsuarioAuditoria);
-    return mapSingleResult(result, `Actividad ${id} no encontrada`)
+    return mapSingleResult(result, `Actividad ${id} no encontrada`);
+  }
+
+  async cancelar(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.actividadesModel.cancelar(id, idUsuarioAuditoria);
+    return mapSingleResult(result, `Actividad ${id} no encontrada`);
   }
 }
