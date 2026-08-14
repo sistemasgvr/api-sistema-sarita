@@ -816,6 +816,11 @@ CREATE TABLE bal_movimiento (
     id_almacen_destino    INT REFERENCES gen_almacen(id),
     fecha_movimiento     TIMESTAMP NOT NULL DEFAULT NOW(),
     observacion         varchar(500),
+    -- Custodia del cilindro *después* de este movimiento (no el estado actual)
+    id_estado_balon      INT REFERENCES gen_lista_opciones(id),
+    id_estado_contenido  INT REFERENCES gen_lista_opciones(id),
+    id_almacen_ubicacion INT REFERENCES gen_almacen(id),
+    id_cliente_ubicacion INT REFERENCES cli_clientes(id),
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),
