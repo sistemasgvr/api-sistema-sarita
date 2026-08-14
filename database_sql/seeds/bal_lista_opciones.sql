@@ -241,6 +241,7 @@ SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
         ('JP', 'Marca JP'),
+        ('BTIC-JP', 'Cilindro BTIC-JP'),
         ('JD', 'Marca JD'),
         ('YA', 'Marca YA'),
         ('LD', 'Marca LD'),
