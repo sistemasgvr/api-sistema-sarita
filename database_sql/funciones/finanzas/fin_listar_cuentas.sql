@@ -67,9 +67,9 @@ BEGIN
             ) AS comprobante,
             fc.fecha_emision,
             fc.fecha_vencimiento,
-            fc.monto_pendiente,
-            COALESCE(fc.monto_abonado, 0) AS monto_abonado,
-            COALESCE(fc.monto_saldo, fc.monto_pendiente - COALESCE(fc.monto_abonado, 0)) AS saldo,
+            fin_redondear_monto(fc.monto_pendiente) AS monto_pendiente,
+            fin_redondear_monto(COALESCE(fc.monto_abonado, 0)) AS monto_abonado,
+            fin_redondear_monto(COALESCE(fc.monto_saldo, fc.monto_pendiente - COALESCE(fc.monto_abonado, 0))) AS saldo,
             fc.observacion,
             -- Indica si es cabecera de un plan de cuotas
             (fc.numero_cuotas_total IS NOT NULL) AS es_plan
@@ -88,12 +88,7 @@ BEGIN
     ),
     calculado AS (
         SELECT b.*,
-            CASE
-                WHEN b.saldo <= 0 THEN 'PAGADO'
-                WHEN b.fecha_vencimiento IS NOT NULL AND b.fecha_vencimiento < CURRENT_DATE THEN 'VENCIDO'
-                WHEN b.monto_abonado > 0 THEN 'PARCIAL'
-                ELSE 'PENDIENTE'
-            END AS estado_calculado,
+            fin_estado_cuenta_calculado(b.saldo, b.monto_abonado, b.fecha_vencimiento) AS estado_calculado,
             CASE
                 WHEN b.saldo > 0
                      AND b.fecha_vencimiento IS NOT NULL

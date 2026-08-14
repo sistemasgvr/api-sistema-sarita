@@ -22,10 +22,12 @@ RETURNS JSON
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_id_tipo  INT;
-    v_cuenta   fin_cuenta%ROWTYPE;
-    v_saldo    NUMERIC;
-    v_id_pago  INT;
+    v_id_tipo     INT;
+    v_cuenta      fin_cuenta%ROWTYPE;
+    v_saldo       NUMERIC(12,2);
+    v_monto       NUMERIC(12,2);
+    v_nuevo_saldo NUMERIC(12,2);
+    v_id_pago     INT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -51,13 +53,16 @@ BEGIN
             'Esta cuenta es un plan de cuotas: registra el pago sobre la cuota correspondiente');
     END IF;
 
-    v_saldo := COALESCE(v_cuenta.monto_saldo, v_cuenta.monto_pendiente - COALESCE(v_cuenta.monto_abonado, 0));
+    v_saldo := fin_redondear_monto(
+        COALESCE(v_cuenta.monto_saldo, v_cuenta.monto_pendiente - COALESCE(v_cuenta.monto_abonado, 0))
+    );
+    v_monto := fin_redondear_monto(p_monto);
 
-    IF p_monto IS NULL OR p_monto <= 0 THEN
+    IF v_monto IS NULL OR v_monto <= 0 THEN
         RETURN json_build_object('registro', NULL, 'error', 'El monto debe ser mayor a cero');
     END IF;
 
-    IF p_monto > v_saldo + 0.0001 THEN
+    IF v_monto > v_saldo THEN
         RETURN json_build_object('registro', NULL, 'error', 'El monto excede el saldo pendiente');
     END IF;
 
@@ -80,7 +85,7 @@ BEGIN
     ) VALUES (
         p_id_cuenta,
         COALESCE(p_fecha_pago, CURRENT_DATE),
-        p_monto,
+        v_monto,
         p_id_medio_pago,
         p_id_cuenta_bancaria,
         NULLIF(TRIM(p_numero_operacion), ''),
@@ -90,33 +95,35 @@ BEGIN
     )
     RETURNING id INTO v_id_pago;
 
-    UPDATE fin_cuenta
-       SET monto_abonado = COALESCE(monto_abonado, 0) + p_monto,
-           monto_saldo   = v_saldo - p_monto,
-           id_usuario_modificacion = p_id_usuario,
-           fecha_modificacion = NOW()
-     WHERE id = p_id_cuenta;
+    v_nuevo_saldo := fin_redondear_monto(v_saldo - v_monto);
 
-    -- Si es una cuota hija, refrescar el saldo de la cabecera del plan
-    IF v_cuenta.id_cuenta_padre IS NOT NULL THEN
-        UPDATE fin_cuenta padre
-           SET monto_abonado = sub.total_abonado,
-               monto_saldo   = padre.monto_pendiente - sub.total_abonado,
+    IF v_nuevo_saldo <= 0 THEN
+        UPDATE fin_cuenta
+           SET monto_abonado = fin_redondear_monto(monto_pendiente),
+               monto_saldo   = 0,
+               id_usuario_modificacion = p_id_usuario,
                fecha_modificacion = NOW()
-          FROM (
-              SELECT COALESCE(SUM(COALESCE(monto_abonado, 0)), 0) AS total_abonado
-              FROM fin_cuenta
-              WHERE id_cuenta_padre = v_cuenta.id_cuenta_padre AND estado = 1
-          ) sub
-         WHERE padre.id = v_cuenta.id_cuenta_padre;
+         WHERE id = p_id_cuenta;
+        v_nuevo_saldo := 0;
+    ELSE
+        UPDATE fin_cuenta
+           SET monto_abonado = fin_redondear_monto(COALESCE(monto_abonado, 0) + v_monto),
+               monto_saldo   = v_nuevo_saldo,
+               id_usuario_modificacion = p_id_usuario,
+               fecha_modificacion = NOW()
+         WHERE id = p_id_cuenta;
+    END IF;
+
+    IF v_cuenta.id_cuenta_padre IS NOT NULL THEN
+        PERFORM fin_refrescar_cabecera_plan(v_cuenta.id_cuenta_padre);
     END IF;
 
     RETURN json_build_object(
         'registro', json_build_object(
             'id', v_id_pago,
             'idCuenta', p_id_cuenta,
-            'monto', p_monto,
-            'saldoRestante', v_saldo - p_monto
+            'monto', v_monto,
+            'saldoRestante', v_nuevo_saldo
         )
     );
 END;

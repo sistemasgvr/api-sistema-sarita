@@ -26,7 +26,7 @@ BEGIN
     WITH c AS (
         SELECT
             COALESCE(fc.id_tercero::text, fc.tercero_nombre) AS tercero_key,
-            COALESCE(fc.monto_saldo, fc.monto_pendiente - COALESCE(fc.monto_abonado, 0)) AS saldo,
+            fin_redondear_monto(COALESCE(fc.monto_saldo, fc.monto_pendiente - COALESCE(fc.monto_abonado, 0))) AS saldo,
             fc.fecha_vencimiento
         FROM fin_cuenta fc
         WHERE fc.estado = 1

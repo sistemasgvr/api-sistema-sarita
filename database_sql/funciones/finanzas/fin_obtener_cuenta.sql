@@ -58,15 +58,14 @@ BEGIN
             ) AS comprobante,
             fc.fecha_emision,
             fc.fecha_vencimiento,
-            fc.monto_pendiente,
-            COALESCE(fc.monto_abonado, 0) AS monto_abonado,
-            COALESCE(fc.monto_saldo, fc.monto_pendiente - COALESCE(fc.monto_abonado, 0)) AS saldo,
-            CASE
-                WHEN COALESCE(fc.monto_saldo, fc.monto_pendiente - COALESCE(fc.monto_abonado, 0)) <= 0 THEN 'PAGADO'
-                WHEN fc.fecha_vencimiento IS NOT NULL AND fc.fecha_vencimiento < CURRENT_DATE THEN 'VENCIDO'
-                WHEN COALESCE(fc.monto_abonado, 0) > 0 THEN 'PARCIAL'
-                ELSE 'PENDIENTE'
-            END AS estado_calculado,
+            fin_redondear_monto(fc.monto_pendiente) AS monto_pendiente,
+            fin_redondear_monto(COALESCE(fc.monto_abonado, 0)) AS monto_abonado,
+            fin_redondear_monto(COALESCE(fc.monto_saldo, fc.monto_pendiente - COALESCE(fc.monto_abonado, 0))) AS saldo,
+            fin_estado_cuenta_calculado(
+                COALESCE(fc.monto_saldo, fc.monto_pendiente - COALESCE(fc.monto_abonado, 0)),
+                COALESCE(fc.monto_abonado, 0),
+                fc.fecha_vencimiento
+            ) AS estado_calculado,
             fc.observacion,
             -- Cuotas hijas (solo cuando es cabecera de plan)
             (
@@ -75,16 +74,15 @@ BEGIN
                         'id', h.id,
                         'numeroCuota', h.numero_cuota,
                         'fechaVencimiento', h.fecha_vencimiento,
-                        'montoPendiente', h.monto_pendiente,
-                        'montoAbonado', COALESCE(h.monto_abonado, 0),
-                        'saldo', COALESCE(h.monto_saldo, h.monto_pendiente - COALESCE(h.monto_abonado, 0)),
+                        'montoPendiente', fin_redondear_monto(h.monto_pendiente),
+                        'montoAbonado', fin_redondear_monto(COALESCE(h.monto_abonado, 0)),
+                        'saldo', fin_redondear_monto(COALESCE(h.monto_saldo, h.monto_pendiente - COALESCE(h.monto_abonado, 0))),
                         'estadoCalculado',
-                        CASE
-                            WHEN COALESCE(h.monto_saldo, h.monto_pendiente - COALESCE(h.monto_abonado, 0)) <= 0 THEN 'PAGADO'
-                            WHEN h.fecha_vencimiento IS NOT NULL AND h.fecha_vencimiento < CURRENT_DATE THEN 'VENCIDO'
-                            WHEN COALESCE(h.monto_abonado, 0) > 0 THEN 'PARCIAL'
-                            ELSE 'PENDIENTE'
-                        END
+                        fin_estado_cuenta_calculado(
+                            COALESCE(h.monto_saldo, h.monto_pendiente - COALESCE(h.monto_abonado, 0)),
+                            COALESCE(h.monto_abonado, 0),
+                            h.fecha_vencimiento
+                        )
                     ) ORDER BY h.numero_cuota
                 ), '[]'::json)
                 FROM fin_cuenta h

@@ -44,24 +44,16 @@ BEGIN
      WHERE id = p_id_pago;
 
     UPDATE fin_cuenta
-       SET monto_abonado = GREATEST(COALESCE(monto_abonado, 0) - v_pago.monto, 0),
-           monto_saldo   = COALESCE(monto_saldo, monto_pendiente - COALESCE(monto_abonado, 0)) + v_pago.monto,
+       SET monto_abonado = fin_redondear_monto(GREATEST(COALESCE(monto_abonado, 0) - v_pago.monto, 0)),
+           monto_saldo   = fin_redondear_monto(
+               GREATEST(monto_pendiente - GREATEST(COALESCE(monto_abonado, 0) - v_pago.monto, 0), 0)
+           ),
            id_usuario_modificacion = p_id_usuario,
            fecha_modificacion = NOW()
      WHERE id = v_pago.id_cuenta;
 
-    -- Si la cuenta era una cuota hija, refrescar la cabecera del plan
     IF v_cuenta.id_cuenta_padre IS NOT NULL THEN
-        UPDATE fin_cuenta padre
-           SET monto_abonado = sub.total_abonado,
-               monto_saldo   = padre.monto_pendiente - sub.total_abonado,
-               fecha_modificacion = NOW()
-          FROM (
-              SELECT COALESCE(SUM(COALESCE(monto_abonado, 0)), 0) AS total_abonado
-              FROM fin_cuenta
-              WHERE id_cuenta_padre = v_cuenta.id_cuenta_padre AND estado = 1
-          ) sub
-         WHERE padre.id = v_cuenta.id_cuenta_padre;
+        PERFORM fin_refrescar_cabecera_plan(v_cuenta.id_cuenta_padre);
     END IF;
 
     RETURN json_build_object('eliminado', true, 'id', p_id_pago);
