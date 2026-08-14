@@ -28,8 +28,14 @@ DECLARE
     v_monto       NUMERIC(12,2);
     v_nuevo_saldo NUMERIC(12,2);
     v_id_pago     INT;
+    v_err_caja TEXT;
 BEGIN
     SET TIME ZONE 'America/Lima';
+
+    v_err_caja := fin_caja_assert_abierta(COALESCE(p_fecha_pago, CURRENT_DATE), NULL);
+    IF v_err_caja IS NOT NULL THEN
+        RETURN json_build_object('registro', NULL, 'error', v_err_caja);
+    END IF;
 
     SELECT glo.id INTO v_id_tipo
     FROM gen_lista_opciones glo

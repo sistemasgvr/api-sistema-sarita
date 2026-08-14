@@ -164,11 +164,17 @@ BEGIN
     LIMIT 1;
 
     FOR v_orden IN
-        SELECT id, fecha_llegada_almacen
+        SELECT id, fecha_llegada_almacen, id_almacen
         FROM bal_recarga_planta
         WHERE id_comprobante_compra = p_id_comprobante
           AND estado = 1
     LOOP
+        PERFORM com_revertir_cilindros_recarga_compra(
+            v_orden.id,
+            p_id_comprobante,
+            p_id_usuario_auditoria
+        );
+
         UPDATE bal_recarga_planta
         SET
             id_comprobante_compra = NULL,

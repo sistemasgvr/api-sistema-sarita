@@ -721,6 +721,7 @@ CREATE TABLE pro_movimientos (
     fecha               DATE NOT NULL,
     id_producto          INT NOT NULL REFERENCES pro_producto(id),
     id_almacen           INT NOT NULL REFERENCES gen_almacen(id),
+    id_almacen_destino    INT REFERENCES gen_almacen(id),
     id_tipo_movimiento    INT REFERENCES gen_lista_opciones(id), -- INGRESO, SALIDA, TRASLADO...
     cantidad            NUMERIC(12,4) NOT NULL,
     stock_anterior       NUMERIC(12,4),

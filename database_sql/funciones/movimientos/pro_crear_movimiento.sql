@@ -1,3 +1,13 @@
+DROP FUNCTION IF EXISTS pro_crear_movimiento(
+    DATE, INTEGER, INTEGER, INTEGER, NUMERIC, INTEGER, INTEGER, VARCHAR, INTEGER
+);
+DROP FUNCTION IF EXISTS pro_crear_movimiento(
+    DATE, INTEGER, INTEGER, INTEGER, NUMERIC, INTEGER, INTEGER, VARCHAR, INTEGER, BOOLEAN
+);
+DROP FUNCTION IF EXISTS pro_crear_movimiento(
+    DATE, INTEGER, INTEGER, INTEGER, NUMERIC, INTEGER, INTEGER, VARCHAR, INTEGER, BOOLEAN, INTEGER
+);
+
 CREATE OR REPLACE FUNCTION pro_crear_movimiento(
     p_fecha DATE,
     p_id_producto INTEGER,
@@ -8,7 +18,8 @@ CREATE OR REPLACE FUNCTION pro_crear_movimiento(
     p_id_tipo_documento_ref INTEGER DEFAULT NULL,
     p_glosa VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_forzar_ajuste_stock BOOLEAN DEFAULT FALSE
+    p_forzar_ajuste_stock BOOLEAN DEFAULT FALSE,
+    p_id_almacen_destino INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -16,12 +27,15 @@ AS $function$
 DECLARE
     v_id INTEGER;
     v_id_stock INTEGER;
+    v_id_stock_dest INTEGER;
     v_stock_anterior NUMERIC(12,4);
     v_stock_nuevo NUMERIC(12,4);
+    v_stock_dest_ant NUMERIC(12,4);
     v_cantidad NUMERIC(12,4);
     v_afecta_stock BOOLEAN;
     v_nombre_tipo_movimiento VARCHAR;
     v_es_salida BOOLEAN;
+    v_es_traslado BOOLEAN;
     v_nombre_unidad VARCHAR;
     v_es_gas BOOLEAN;
 BEGIN
@@ -35,21 +49,15 @@ BEGIN
         RETURN json_build_object('error', 'La cantidad debe ser mayor a cero', 'registro', NULL);
     END IF;
 
-    IF NOT EXISTS (
-        SELECT 1 FROM pro_producto WHERE id = p_id_producto AND estado = 1
-    ) THEN
+    IF NOT EXISTS (SELECT 1 FROM pro_producto WHERE id = p_id_producto AND estado = 1) THEN
         RETURN json_build_object('error', 'El producto indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
-    IF NOT EXISTS (
-        SELECT 1 FROM gen_almacen WHERE id = p_id_almacen AND estado = 1
-    ) THEN
+    IF NOT EXISTS (SELECT 1 FROM gen_almacen WHERE id = p_id_almacen AND estado = 1) THEN
         RETURN json_build_object('error', 'El almacén indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
-    IF NOT EXISTS (
-        SELECT 1 FROM gen_lista_opciones WHERE id = p_id_tipo_movimiento AND estado = 1
-    ) THEN
+    IF NOT EXISTS (SELECT 1 FROM gen_lista_opciones WHERE id = p_id_tipo_movimiento AND estado = 1) THEN
         RETURN json_build_object('error', 'El tipo de movimiento indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
@@ -62,22 +70,17 @@ BEGIN
     LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
     WHERE p.id = p_id_producto;
 
-    -- Reversas históricas (p.ej. anular compra) deben ajustar stock aunque el
-    -- maestro del producto haya cambiado afecta_stock después del ingreso.
     IF COALESCE(p_forzar_ajuste_stock, FALSE) THEN
         v_afecta_stock := TRUE;
     END IF;
 
-    -- Gases (m³) pueden ser decimales aunque la U.M. esté mal catalogada como UNID.
     IF NOT COALESCE(v_es_gas, FALSE)
        AND v_nombre_unidad IN ('UNID', 'NIU', 'UND', 'UNI', 'UNIDAD', 'UNIDADES', 'PZ', 'PZA', 'PIEZA', 'PIEZAS')
        AND p_cantidad <> TRUNC(p_cantidad)
     THEN
         RETURN json_build_object(
-            'error',
-            'La cantidad debe ser entera (unidad de medida UNID)',
-            'registro',
-            NULL
+            'error', 'La cantidad debe ser entera (unidad de medida UNID)',
+            'registro', NULL
         );
     END IF;
 
@@ -86,7 +89,21 @@ BEGIN
     WHERE id = p_id_tipo_movimiento;
 
     v_cantidad := ABS(p_cantidad);
+    v_es_traslado := UPPER(COALESCE(v_nombre_tipo_movimiento, '')) = 'TRASLADO';
     v_es_salida := v_nombre_tipo_movimiento ILIKE '%SALIDA%';
+
+    IF v_es_traslado THEN
+        IF p_id_almacen_destino IS NULL THEN
+            RETURN json_build_object('error', 'El traslado requiere almacén de destino', 'registro', NULL);
+        END IF;
+        IF p_id_almacen_destino = p_id_almacen THEN
+            RETURN json_build_object('error', 'El almacén de destino debe ser distinto al de origen', 'registro', NULL);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM gen_almacen WHERE id = p_id_almacen_destino AND estado = 1) THEN
+            RETURN json_build_object('error', 'El almacén de destino no existe o está inactivo', 'registro', NULL);
+        END IF;
+        v_es_salida := TRUE;
+    END IF;
 
     v_stock_anterior := 0;
     v_stock_nuevo := 0;
@@ -101,20 +118,12 @@ BEGIN
 
         IF v_id_stock IS NULL THEN
             INSERT INTO pro_stock (
-                id_almacen,
-                id_producto,
-                stock,
-                stock_minimo,
-                id_usuario_creacion,
-                id_usuario_modificacion
+                id_almacen, id_producto, stock, stock_minimo,
+                id_usuario_creacion, id_usuario_modificacion
             )
             VALUES (
-                p_id_almacen,
-                p_id_producto,
-                0,
-                0,
-                p_id_usuario_auditoria,
-                p_id_usuario_auditoria
+                p_id_almacen, p_id_producto, 0, 0,
+                p_id_usuario_auditoria, p_id_usuario_auditoria
             )
             RETURNING id, stock INTO v_id_stock, v_stock_anterior;
         END IF;
@@ -134,35 +143,47 @@ BEGIN
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_stock;
+
+        IF v_es_traslado THEN
+            SELECT id, stock INTO v_id_stock_dest, v_stock_dest_ant
+            FROM pro_stock
+            WHERE id_almacen = p_id_almacen_destino
+              AND id_producto = p_id_producto
+              AND estado = 1
+            FOR UPDATE;
+
+            IF v_id_stock_dest IS NULL THEN
+                INSERT INTO pro_stock (
+                    id_almacen, id_producto, stock, stock_minimo,
+                    id_usuario_creacion, id_usuario_modificacion
+                )
+                VALUES (
+                    p_id_almacen_destino, p_id_producto, 0, 0,
+                    p_id_usuario_auditoria, p_id_usuario_auditoria
+                )
+                RETURNING id, stock INTO v_id_stock_dest, v_stock_dest_ant;
+            END IF;
+
+            UPDATE pro_stock
+            SET stock = COALESCE(v_stock_dest_ant, 0) + v_cantidad,
+                id_usuario_modificacion = p_id_usuario_auditoria,
+                fecha_modificacion = NOW()
+            WHERE id = v_id_stock_dest;
+        END IF;
     END IF;
 
     INSERT INTO pro_movimientos (
-        fecha,
-        id_producto,
-        id_almacen,
-        id_tipo_movimiento,
-        cantidad,
-        stock_anterior,
-        stock_nuevo,
-        id_documento_ref,
-        id_tipo_documento_ref,
-        glosa,
-        id_usuario_creacion,
-        id_usuario_modificacion
+        fecha, id_producto, id_almacen, id_tipo_movimiento, cantidad,
+        stock_anterior, stock_nuevo, id_documento_ref, id_tipo_documento_ref,
+        glosa, id_almacen_destino,
+        id_usuario_creacion, id_usuario_modificacion
     )
     VALUES (
-        p_fecha,
-        p_id_producto,
-        p_id_almacen,
-        p_id_tipo_movimiento,
-        v_cantidad,
+        p_fecha, p_id_producto, p_id_almacen, p_id_tipo_movimiento, v_cantidad,
         CASE WHEN v_afecta_stock THEN v_stock_anterior ELSE NULL END,
         CASE WHEN v_afecta_stock THEN v_stock_nuevo ELSE NULL END,
-        p_id_documento_ref,
-        p_id_tipo_documento_ref,
-        p_glosa,
-        p_id_usuario_auditoria,
-        p_id_usuario_auditoria
+        p_id_documento_ref, p_id_tipo_documento_ref, p_glosa, p_id_almacen_destino,
+        p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;
 

@@ -32,8 +32,7 @@ BEGIN
         fecha_modificacion  = NOW()
     WHERE id = p_id_comprobante;
 
-    -- Si pasan a crédito/cuotas y aún no hay CxP, la genera (no altera planes ya creados).
-    PERFORM com_generar_cxp_compra(
+    PERFORM com_sincronizar_cxp_compra(
         p_id_comprobante,
         p_id_usuario_auditoria,
         p_fecha_vencimiento_cxp,

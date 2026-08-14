@@ -327,11 +327,18 @@ export class ComprobantesModel {
     ]);
   }
 
-  eliminar(id: number, idUsuarioAuditoria?: number) {
+    eliminar(id: number, idUsuarioAuditoria?: number) {
     return this.db.callFunctionJson<AuthDeleteResult>('ven_eliminar_comprobante', [
       id,
       idUsuarioAuditoria ?? null,
     ]);
+  }
+
+  revertirEfectos(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<{ ok?: boolean; error?: string }>(
+      'ven_revertir_efectos_comprobante',
+      [id, idUsuarioAuditoria ?? null, false],
+    );
   }
 
   registrarRespuestaSunat(id: number, dto: RegistrarRespuestaSunatDto) {

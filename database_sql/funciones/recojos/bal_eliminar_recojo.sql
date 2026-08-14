@@ -8,6 +8,7 @@ AS $function$
 DECLARE
     v_estado VARCHAR;
     v_id_estado_prestado INTEGER;
+    v_id_estado_alquilado INTEGER;
     v_det RECORD;
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -36,7 +37,13 @@ BEGIN
     WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'PRESTADO_CLIENTE' AND lo.estado = 1
     LIMIT 1;
 
-    -- Si el cilindro quedó POR_RECOGER por este recojo y sigue en préstamo, restaurar PRESTADO_CLIENTE.
+    SELECT lo.id INTO v_id_estado_alquilado
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'ALQUILADO' AND lo.estado = 1
+    LIMIT 1;
+
+    -- POR_RECOGER → PRESTADO o ALQUILADO según el origen del detalle.
     IF v_id_estado_prestado IS NOT NULL THEN
         FOR v_det IN
             SELECT pd.id_balon
@@ -52,6 +59,27 @@ BEGIN
             UPDATE bal_balon
             SET
                 id_estado_balon = v_id_estado_prestado,
+                id_usuario_modificacion = p_id_usuario_auditoria,
+                fecha_modificacion = NOW()
+            WHERE id = v_det.id_balon;
+        END LOOP;
+    END IF;
+
+    IF v_id_estado_alquilado IS NOT NULL THEN
+        FOR v_det IN
+            SELECT ad.id_balon
+            FROM bal_recojo_detalle rd
+            INNER JOIN bal_alquiler_detalle ad ON ad.id = rd.id_alquiler_detalle AND ad.estado = 1
+            INNER JOIN bal_balon b ON b.id = ad.id_balon AND b.estado = 1
+            INNER JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+            WHERE rd.id_recojo = p_id
+              AND rd.estado = 1
+              AND ad.fecha_devolucion IS NULL
+              AND eb.nombre = 'POR_RECOGER'
+        LOOP
+            UPDATE bal_balon
+            SET
+                id_estado_balon = v_id_estado_alquilado,
                 id_usuario_modificacion = p_id_usuario_auditoria,
                 fecha_modificacion = NOW()
             WHERE id = v_det.id_balon;

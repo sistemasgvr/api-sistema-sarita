@@ -56,6 +56,9 @@ DECLARE
     v_ref JSON;
     v_item INTEGER := 0;
     v_salidas JSON;
+    v_ids_conservar INTEGER[] := ARRAY[]::INTEGER[];
+    v_id_balon_linea INTEGER;
+    v_rev JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -275,6 +278,14 @@ BEGIN
                 p_id_usuario_auditoria,
                 p_id_usuario_auditoria
             );
+
+            v_id_balon_linea := COALESCE(
+                (v_detalle->>'idBalon')::INTEGER,
+                (v_detalle->>'id_balon')::INTEGER
+            );
+            IF v_id_balon_linea IS NOT NULL THEN
+                v_ids_conservar := array_append(v_ids_conservar, v_id_balon_linea);
+            END IF;
         END LOOP;
     END IF;
 
@@ -300,6 +311,13 @@ BEGIN
                 p_id_usuario_auditoria
             );
         END LOOP;
+    END IF;
+
+    IF p_detalles IS NOT NULL THEN
+        v_rev := bal_revertir_salidas_guia_remision(p_id, v_ids_conservar, p_id_usuario_auditoria);
+        IF v_rev->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_rev->>'error';
+        END IF;
     END IF;
 
     -- CY1: salidas idempotentes para cilindros presentes en la guía

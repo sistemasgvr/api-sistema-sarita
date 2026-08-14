@@ -356,6 +356,16 @@ BEGIN
         id_cliente_ubicacion = p_id_cliente,
         id_almacen = NULL,
         presion_actual = NULL,
+        id_estado_balon = COALESCE(
+            (
+                SELECT lo.id
+                FROM gen_lista_opciones lo
+                INNER JOIN gen_lista l ON lo.id_lista = l.id
+                WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_PODER_CLIENTE' AND lo.estado = 1
+                LIMIT 1
+            ),
+            id_estado_balon
+        ),
         id_estado_contenido = COALESCE(bal_id_estado_contenido('DESCONOCIDO'), id_estado_contenido),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()

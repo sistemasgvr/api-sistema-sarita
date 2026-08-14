@@ -14,12 +14,18 @@ DECLARE
     v_id_tipo INT;
     v_pago    fin_pago%ROWTYPE;
     v_cuenta  fin_cuenta%ROWTYPE;
+    v_err_caja TEXT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
     SELECT * INTO v_pago FROM fin_pago WHERE id = p_id_pago AND estado = 1;
     IF NOT FOUND THEN
         RETURN json_build_object('eliminado', false, 'id', p_id_pago, 'error', 'El pago no existe o ya fue anulado');
+    END IF;
+
+    v_err_caja := fin_caja_assert_abierta(v_pago.fecha_pago, NULL);
+    IF v_err_caja IS NOT NULL THEN
+        RETURN json_build_object('eliminado', false, 'id', p_id_pago, 'error', v_err_caja);
     END IF;
 
     SELECT * INTO v_cuenta FROM fin_cuenta WHERE id = v_pago.id_cuenta;

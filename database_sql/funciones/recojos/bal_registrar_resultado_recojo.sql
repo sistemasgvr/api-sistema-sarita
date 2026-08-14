@@ -425,7 +425,9 @@ BEGIN
             SELECT lo.id INTO v_id_estado_prestado
             FROM gen_lista_opciones lo
             INNER JOIN gen_lista l ON l.id = lo.id_lista
-            WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'PRESTADO_CLIENTE' AND lo.estado = 1
+            WHERE l.nombre = 'EstadoBalon'
+              AND lo.nombre = CASE WHEN v_id_ad IS NOT NULL THEN 'ALQUILADO' ELSE 'PRESTADO_CLIENTE' END
+              AND lo.estado = 1
             LIMIT 1;
 
             IF v_id_balon IS NOT NULL AND v_id_estado_prestado IS NOT NULL THEN
