@@ -20,15 +20,23 @@ WHERE NOT EXISTS (
     SELECT 1 FROM gen_lista l WHERE l.nombre = v.nombre
 );
 
--- TipoComprobante (código en descripcion: SUNAT 01/03/07/08; VSD = venta sin documento interna)
+-- TipoComprobante (código en descripcion: SUNAT catálogo 01; VSD = venta sin documento interna)
 INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
         ('FACTURA', '01'),
+        ('RECIBO_HONORARIOS', '02'),
         ('BOLETA', '03'),
+        ('LIQUIDACION_COMPRA', '04'),
+        ('BOLETO_AEREO', '05'),
         ('NOTA_CREDITO', '07'),
         ('NOTA_DEBITO', '08'),
+        ('TICKET_MAQUINA', '12'),
+        ('DOCUMENTO_BANCARIO', '13'),
+        ('RECIBO_SERVICIOS_PUBLICOS', '14'),
+        ('BOLETO_TERRESTRE', '15'),
+        ('OTROS_SIN_DOCUMENTO', '00'),
         ('NOTA_VENTA', 'VSD')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
@@ -51,7 +59,7 @@ WHERE lo.id_lista = l.id
   );
 
 UPDATE gen_lista
-SET descripcion = 'Tipos: 01=Factura, 03=Boleta, 07=NC, 08=ND, VSD=Venta sin documento (interno)'
+SET descripcion = 'Catálogo SUNAT 01: ventas 01/03/07/08/VSD; compras también 02, 04, 05, 12, 13, 14, 15, 00'
 WHERE nombre = 'TipoComprobante';
 
 -- MotivoNotaCredito

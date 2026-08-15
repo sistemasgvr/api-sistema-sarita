@@ -54,6 +54,14 @@ export class FiltroProductosDto extends FiltroPaginacionDto {
   @IsBoolean()
   esAlquilable?: boolean;
 
+  @ApiPropertyOptional({
+    description: 'Servicio de taller (cilindro). false = solo cobro (flete, etc.)',
+  })
+  @IsOptional()
+  @Transform(({ value }) => toOptionalBoolean(value))
+  @IsBoolean()
+  esMantenimiento?: boolean;
+
   @ApiPropertyOptional()
   @IsOptional()
   @Transform(({ value }) => toOptionalBoolean(value))
@@ -202,6 +210,14 @@ export class CreateProductoDto extends AuditoriaDto {
   @IsBoolean()
   esAlquilable?: boolean;
 
+  @ApiPropertyOptional({
+    default: false,
+    description: 'Si es servicio: entra a taller. El resto de servicios solo se cobra.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  esMantenimiento?: boolean;
+
   @ApiPropertyOptional({ default: true })
   @IsOptional()
   @IsBoolean()
@@ -310,6 +326,11 @@ export class UpdateProductoDto extends AuditoriaDto {
   @IsOptional()
   @IsBoolean()
   esAlquilable?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  esMantenimiento?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()

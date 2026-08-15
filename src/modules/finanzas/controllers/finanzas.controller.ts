@@ -25,6 +25,7 @@ import {
   ReembolsarGarantiaDto,
 } from '../dto/garantia.dto';
 import { VerificarDuplicadoPagoDto } from '../dto/verificar-duplicado.dto';
+import { FiltroSaldosPorTerceroDto } from '../dto/filtro-saldos-tercero.dto';
 
 @ApiTags('Finanzas')
 @Controller('finanzas')
@@ -120,6 +121,15 @@ export class FinanzasController {
     return this.finanzasLogic.resumen('COBRAR');
   }
 
+  @Get('cuentas-por-cobrar/saldos-por-cliente')
+  @Permisos(PermisoBanderas.FINANZAS_CXC_VER)
+  @ApiOperation({
+    summary: 'Saldos CxC por cliente a la fecha (debe / abonado / saldo)',
+  })
+  saldosCobrar(@Query() filtros: FiltroSaldosPorTerceroDto) {
+    return this.finanzasLogic.listarSaldosPorTercero('COBRAR', filtros);
+  }
+
   @Get('cuentas-por-cobrar/:id')
   @Permisos(PermisoBanderas.FINANZAS_CXC_VER)
   @ApiOperation({ summary: 'Detalle de una cuenta por cobrar con sus pagos' })
@@ -195,6 +205,15 @@ export class FinanzasController {
   @ApiOperation({ summary: 'Resumen (KPIs) de cuentas por pagar' })
   resumenPagar() {
     return this.finanzasLogic.resumen('PAGAR');
+  }
+
+  @Get('cuentas-por-pagar/saldos-por-proveedor')
+  @Permisos(PermisoBanderas.FINANZAS_CXP_VER)
+  @ApiOperation({
+    summary: 'Saldos CxP por proveedor a la fecha (debe / abonado / saldo)',
+  })
+  saldosPagar(@Query() filtros: FiltroSaldosPorTerceroDto) {
+    return this.finanzasLogic.listarSaldosPorTercero('PAGAR', filtros);
   }
 
   @Get('cuentas-por-pagar/:id')

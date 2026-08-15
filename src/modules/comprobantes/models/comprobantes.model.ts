@@ -18,6 +18,7 @@ import {
   ComprobanteCuotaDto,
   ComprobanteDetalleDto,
   CreateComprobantesDto,
+  EfectosPosDto,
   FiltroComprobantesDto,
   FiltroResumenDiarioDto,
   RegistrarRespuestaSunatDto,
@@ -50,6 +51,18 @@ function mapDetallesToJson(detalles: ComprobanteDetalleDto[]) {
       id_estado_cilindro: d.idEstadoCilindro ?? null,
     })),
   );
+}
+
+function mapEfectosPosToJson(efectos?: EfectosPosDto | null) {
+  if (!efectos) return null;
+  const hasAny =
+    (efectos.recargas?.length ?? 0) > 0 ||
+    (efectos.prestamos?.length ?? 0) > 0 ||
+    (efectos.alquileres?.length ?? 0) > 0 ||
+    (efectos.mantenimientos?.length ?? 0) > 0 ||
+    (efectos.bajas?.length ?? 0) > 0;
+  if (!hasAny) return null;
+  return JSON.stringify(efectos);
 }
 
 function mapCuotasToJson(cuotas?: ComprobanteCuotaDto[]) {
@@ -295,6 +308,7 @@ export class ComprobantesModel {
       mapCuotasToJson(dto.cuotas),
       dto.idUsuarioAuditoria ?? null,
       dto.origenPos ?? null,
+      mapEfectosPosToJson(dto.efectosPos),
     ]);
   }
 
@@ -327,11 +341,18 @@ export class ComprobantesModel {
     ]);
   }
 
-  eliminar(id: number, idUsuarioAuditoria?: number) {
+    eliminar(id: number, idUsuarioAuditoria?: number) {
     return this.db.callFunctionJson<AuthDeleteResult>('ven_eliminar_comprobante', [
       id,
       idUsuarioAuditoria ?? null,
     ]);
+  }
+
+  revertirEfectos(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<{ ok?: boolean; error?: string }>(
+      'ven_revertir_efectos_comprobante',
+      [id, idUsuarioAuditoria ?? null, false],
+    );
   }
 
   registrarRespuestaSunat(id: number, dto: RegistrarRespuestaSunatDto) {

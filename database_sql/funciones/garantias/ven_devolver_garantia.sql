@@ -23,6 +23,8 @@ DECLARE
     v_nombre_estado VARCHAR;
     v_fecha DATE;
     v_obs VARCHAR(500);
+    v_id_sucursal INTEGER;
+    v_err_caja TEXT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -108,6 +110,49 @@ BEGIN
     v_fecha := COALESCE(p_fecha, CURRENT_DATE);
     v_obs := NULLIF(TRIM(COALESCE(p_observacion, '')), '');
 
+    SELECT COALESCE(
+        (
+            SELECT gm.id_sucursal
+            FROM ven_garantia_movimiento gm
+            WHERE gm.id_garantia = p_id AND gm.estado = 1 AND gm.id_sucursal IS NOT NULL
+            ORDER BY gm.id
+            LIMIT 1
+        ),
+        (
+            SELECT c.id_sucursal
+            FROM ven_garantia_movimiento gm
+            INNER JOIN ven_comprobante c ON c.id = gm.id_comprobante
+            WHERE gm.id_garantia = p_id AND gm.estado = 1 AND gm.id_comprobante IS NOT NULL
+            ORDER BY gm.id
+            LIMIT 1
+        ),
+        (
+            SELECT a.id_sucursal
+            FROM ven_garantia g
+            INNER JOIN bal_prestamo p ON p.id = g.id_prestamo
+            INNER JOIN gen_almacen a ON a.id = p.id_almacen
+            WHERE g.id = p_id
+        ),
+        (
+            SELECT a.id_sucursal
+            FROM ven_garantia g
+            INNER JOIN bal_alquiler al ON al.id = g.id_alquiler
+            INNER JOIN gen_almacen a ON a.id = al.id_almacen
+            WHERE g.id = p_id
+        )
+    ) INTO v_id_sucursal;
+
+    IF p_id_comprobante IS NOT NULL AND v_id_sucursal IS NULL THEN
+        SELECT c.id_sucursal INTO v_id_sucursal
+        FROM ven_comprobante c
+        WHERE c.id = p_id_comprobante AND c.estado = 1;
+    END IF;
+
+    v_err_caja := fin_caja_assert_abierta(v_fecha, v_id_sucursal);
+    IF v_err_caja IS NOT NULL THEN
+        RETURN json_build_object('error', v_err_caja, 'registro', NULL);
+    END IF;
+
     UPDATE ven_garantia
     SET
         monto_devuelto = v_nuevo_devuelto,
@@ -133,6 +178,8 @@ BEGIN
         fecha,
         monto,
         observacion,
+        id_sucursal,
+        id_medio_pago,
         id_usuario_creacion,
         id_usuario_modificacion
     )
@@ -143,6 +190,8 @@ BEGIN
         v_fecha,
         v_monto,
         COALESCE(v_obs, 'Devolución de garantía'),
+        v_id_sucursal,
+        COALESCE(p_id_medio_reembolso, v_garantia.id_medio_reembolso, v_garantia.id_medio_pago),
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     );

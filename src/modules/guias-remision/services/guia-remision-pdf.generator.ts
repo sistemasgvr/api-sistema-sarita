@@ -218,7 +218,7 @@ export class GuiaRemisionPdfGenerator {
           detalle.glosa?.trim() ||
           detalle.descripcion?.trim() ||
           detalle.nombre_producto ||
-          `Producto ${detalle.id_producto}`;
+          (detalle.id_producto != null ? `Producto ${detalle.id_producto}` : 'Ítem');
         const codigo =
           detalle.codigo_balon?.trim() || detalle.codigo_producto || '—';
         const rowH = Math.max(

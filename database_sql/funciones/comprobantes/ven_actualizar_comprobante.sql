@@ -210,14 +210,14 @@ BEGIN
             INNER JOIN pro_producto p ON p.id = d.id_producto
             WHERE d.id_comprobante = p_id
               AND d.estado = 1
-              AND COALESCE(p.afecta_stock, FALSE)
+              AND ven_producto_mueve_kardex_venta(p.id, d.descripcion)
         ) OR (
             p_detalles IS NOT NULL
             AND EXISTS (
                 SELECT 1
                 FROM json_array_elements(p_detalles) j
                 INNER JOIN pro_producto p ON p.id = (j.value->>'id_producto')::INTEGER
-                WHERE COALESCE(p.afecta_stock, FALSE)
+                WHERE ven_producto_mueve_kardex_venta(p.id, j.value->>'descripcion')
             )
         ) THEN
             IF v_id_almacen_nuevo IS NULL THEN
@@ -284,7 +284,7 @@ BEGIN
                         INNER JOIN pro_producto p ON p.id = d.id_producto
                         WHERE d.id_comprobante = p_id
                           AND d.estado = 1
-                          AND COALESCE(p.afecta_stock, FALSE)
+                          AND ven_producto_mueve_kardex_venta(p.id, d.descripcion)
                         GROUP BY d.id_producto
                     LOOP
                         IF v_es_nota_credito THEN
@@ -359,7 +359,7 @@ BEGIN
                     INNER JOIN pro_producto p ON p.id = d.id_producto
                     WHERE d.id_comprobante = p_id
                       AND d.estado = 1
-                      AND COALESCE(p.afecta_stock, FALSE)
+                      AND ven_producto_mueve_kardex_venta(p.id, d.descripcion)
                     GROUP BY d.id_producto
                 LOOP
                     IF v_es_nota_credito THEN
@@ -391,12 +391,7 @@ BEGIN
                     FROM json_array_elements(p_detalles)
                     GROUP BY (value->>'id_producto')::INTEGER
                 LOOP
-                    SELECT COALESCE(afecta_stock, FALSE)
-                    INTO v_afecta_stock
-                    FROM pro_producto
-                    WHERE id = v_id_producto;
-
-                    IF NOT COALESCE(v_afecta_stock, FALSE) THEN
+                    IF NOT ven_producto_mueve_kardex_venta(v_id_producto, NULL) THEN
                         CONTINUE;
                     END IF;
 
@@ -454,7 +449,7 @@ BEGIN
                         INNER JOIN pro_producto p ON p.id = d.id_producto
                         WHERE d.id_comprobante = p_id
                           AND d.estado = 1
-                          AND COALESCE(p.afecta_stock, FALSE)
+                          AND ven_producto_mueve_kardex_venta(p.id, d.descripcion)
                         GROUP BY d.id_producto
                     ) o
                     FULL OUTER JOIN (
@@ -465,7 +460,7 @@ BEGIN
                         GROUP BY (value->>'id_producto')::INTEGER
                     ) n ON n.id_producto = o.id_producto
                     INNER JOIN pro_producto p ON p.id = COALESCE(o.id_producto, n.id_producto)
-                    WHERE COALESCE(p.afecta_stock, FALSE)
+                    WHERE ven_producto_mueve_kardex_venta(p.id, NULL)
                 LOOP
                     v_delta_stock := v_qty_nueva - v_qty_antigua;
                     IF v_delta_stock = 0 THEN
@@ -661,6 +656,10 @@ BEGIN
                 );
             END LOOP;
         END IF;
+    END IF;
+
+    IF NOT v_es_nota_credito THEN
+        PERFORM ven_sincronizar_cxc_venta(p_id, p_id_usuario_auditoria);
     END IF;
 
     RETURN ven_obtener_comprobante(p_id);

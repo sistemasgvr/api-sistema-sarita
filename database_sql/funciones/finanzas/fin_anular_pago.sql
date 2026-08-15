@@ -14,12 +14,20 @@ DECLARE
     v_id_tipo INT;
     v_pago    fin_pago%ROWTYPE;
     v_cuenta  fin_cuenta%ROWTYPE;
+    v_err_caja TEXT;
+    v_id_sucursal INT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
     SELECT * INTO v_pago FROM fin_pago WHERE id = p_id_pago AND estado = 1;
     IF NOT FOUND THEN
         RETURN json_build_object('eliminado', false, 'id', p_id_pago, 'error', 'El pago no existe o ya fue anulado');
+    END IF;
+
+    v_id_sucursal := COALESCE(v_pago.id_sucursal, fin_sucursal_de_cuenta(v_pago.id_cuenta));
+    v_err_caja := fin_caja_assert_abierta(v_pago.fecha_pago, v_id_sucursal);
+    IF v_err_caja IS NOT NULL THEN
+        RETURN json_build_object('eliminado', false, 'id', p_id_pago, 'error', v_err_caja);
     END IF;
 
     SELECT * INTO v_cuenta FROM fin_cuenta WHERE id = v_pago.id_cuenta;
@@ -44,24 +52,16 @@ BEGIN
      WHERE id = p_id_pago;
 
     UPDATE fin_cuenta
-       SET monto_abonado = GREATEST(COALESCE(monto_abonado, 0) - v_pago.monto, 0),
-           monto_saldo   = COALESCE(monto_saldo, monto_pendiente - COALESCE(monto_abonado, 0)) + v_pago.monto,
+       SET monto_abonado = fin_redondear_monto(GREATEST(COALESCE(monto_abonado, 0) - v_pago.monto, 0)),
+           monto_saldo   = fin_redondear_monto(
+               GREATEST(monto_pendiente - GREATEST(COALESCE(monto_abonado, 0) - v_pago.monto, 0), 0)
+           ),
            id_usuario_modificacion = p_id_usuario,
            fecha_modificacion = NOW()
      WHERE id = v_pago.id_cuenta;
 
-    -- Si la cuenta era una cuota hija, refrescar la cabecera del plan
     IF v_cuenta.id_cuenta_padre IS NOT NULL THEN
-        UPDATE fin_cuenta padre
-           SET monto_abonado = sub.total_abonado,
-               monto_saldo   = padre.monto_pendiente - sub.total_abonado,
-               fecha_modificacion = NOW()
-          FROM (
-              SELECT COALESCE(SUM(COALESCE(monto_abonado, 0)), 0) AS total_abonado
-              FROM fin_cuenta
-              WHERE id_cuenta_padre = v_cuenta.id_cuenta_padre AND estado = 1
-          ) sub
-         WHERE padre.id = v_cuenta.id_cuenta_padre;
+        PERFORM fin_refrescar_cabecera_plan(v_cuenta.id_cuenta_padre);
     END IF;
 
     RETURN json_build_object('eliminado', true, 'id', p_id_pago);

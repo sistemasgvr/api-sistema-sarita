@@ -551,6 +551,13 @@ export class ComprobantesLogic {
       throw new BadRequestException(comprobanteActualizado.error);
     }
 
+    if (estadoSunatNombre === 'ACEPTADO') {
+      const revertido = await this.model.revertirEfectos(id, dto.idUsuarioAuditoria);
+      if (revertido?.error) {
+        throw new BadRequestException(revertido.error);
+      }
+    }
+
     return {
       comprobante: comprobanteActualizado.registro,
       sunat: {

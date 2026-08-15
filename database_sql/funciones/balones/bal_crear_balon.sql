@@ -41,6 +41,7 @@ DECLARE
     v_fecha_ultima_ph DATE;
     v_fecha_proxima_ph DATE;
     v_id_estado_contenido INTEGER;
+    v_prop_nombre VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -89,7 +90,39 @@ BEGIN
     IF p_id_planta IS NOT NULL AND NOT EXISTS (
         SELECT 1 FROM cli_clientes WHERE id = p_id_planta AND estado = 1
     ) THEN
-        RETURN json_build_object('error', 'La planta indicada no existe o está inactiva', 'registro', NULL);
+        RETURN json_build_object('error', 'La planta / proveedor indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    -- Propiedad PLANTA exige proveedor concreto (id_planta); CLIENTE exige id_cliente_propietario.
+    IF p_id_propietario IS NOT NULL THEN
+        SELECT UPPER(glo.nombre) INTO v_prop_nombre
+        FROM gen_lista_opciones glo
+        WHERE glo.id = p_id_propietario;
+
+        IF v_prop_nombre = 'PLANTA' AND p_id_planta IS NULL THEN
+            RETURN json_build_object(
+                'error', 'Si el propietario es planta, debe indicar el proveedor concreto (ej. Swiss Gas)',
+                'registro', NULL
+            );
+        END IF;
+
+        IF v_prop_nombre = 'CLIENTE' AND p_id_cliente_propietario IS NULL THEN
+            RETURN json_build_object(
+                'error', 'Si el propietario es cliente, debe indicar el cliente propietario',
+                'registro', NULL
+            );
+        END IF;
+
+        IF v_prop_nombre IS DISTINCT FROM 'PLANTA' THEN
+            p_id_planta := NULL;
+        END IF;
+
+        IF v_prop_nombre IS DISTINCT FROM 'CLIENTE' THEN
+            p_id_cliente_propietario := NULL;
+        END IF;
+    ELSIF p_id_planta IS NOT NULL THEN
+        -- Planta sin propietario PLANTA: se ignora para no dejar datos inconsistentes.
+        p_id_planta := NULL;
     END IF;
 
     v_numero_serie := COALESCE(NULLIF(TRIM(p_numero_serie), ''), TRIM(p_codigo_balon));

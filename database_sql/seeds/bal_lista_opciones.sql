@@ -27,7 +27,8 @@ FROM (
         ('EstadoRecargaPlanta', 'Estados de la orden de recarga en planta externa'),
         ('EstadoRecojo', 'Estados de visita de recojo de cilindros en préstamo'),
         ('ResultadoRecojoDetalle', 'Resultado por cilindro en una visita de recojo'),
-        ('MotivoFalloRecojo', 'Motivo de fallo / no recogido en visita de recojo')
+        ('MotivoFalloRecojo', 'Motivo de fallo / no recogido en visita de recojo'),
+        ('EstadoRutaPueblo', 'Estados de control de ruta a pueblos')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (
     SELECT 1 FROM gen_lista l WHERE l.nombre = v.nombre
@@ -42,19 +43,19 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('SALIDA_VENTA', 'Salida por venta de gas'),
-        ('SALIDA_PRESTAMO', 'Salida por préstamo a cliente'),
-        ('SALIDA_ALQUILER', 'Salida vinculada a contrato de alquiler (legado; custodia preferible vía préstamo)'),
-        ('SALIDA_MANTENIMIENTO', 'Salida a mantenimiento o taller'),
-        ('SALIDA_PLANTA_EXTERNA', 'Envío a planta externa / en recarga'),
-        ('ENTRADA_DEVOLUCION', 'Entrada por devolución de cliente'),
-        ('ENTRADA_MANTENIMIENTO', 'Entrada por recepción/finalización de mantenimiento'),
-        ('SALIDA_ENTREGA_CLIENTE', 'Entrega al cliente tras servicio de mantenimiento'),
-        ('ENTRADA_LLENADO', 'Entrada desde planta de llenado'),
-        ('ENTRADA_PLANTA_EXTERNA', 'Retorno lleno desde planta externa'),
-        ('RECARGA_CLIENTE', 'Recarga de gas al balón del cliente en planta'),
-        ('TRASLADO_LIMA', 'Traslado hacia Lima'),
-        ('RETORNO_LIMA', 'Retorno desde Lima')
+        ('SALIDA_VENTA', 'Salida venta'),
+        ('SALIDA_PRESTAMO', 'Salida préstamo'),
+        ('SALIDA_ALQUILER', 'Salida alquiler'),
+        ('SALIDA_MANTENIMIENTO', 'Salida mantenimiento'),
+        ('SALIDA_PLANTA_EXTERNA', 'Salida a planta'),
+        ('ENTRADA_DEVOLUCION', 'Entrada devolución'),
+        ('ENTRADA_MANTENIMIENTO', 'Entrada mantenimiento'),
+        ('SALIDA_ENTREGA_CLIENTE', 'Entrega a cliente'),
+        ('ENTRADA_LLENADO', 'Entrada llenado'),
+        ('ENTRADA_PLANTA_EXTERNA', 'Retorno de planta'),
+        ('RECARGA_CLIENTE', 'Recarga mostrador'),
+        ('TRASLADO_LIMA', 'Traslado Lima'),
+        ('RETORNO_LIMA', 'Retorno Lima')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'TipoMovBalon'
@@ -68,17 +69,17 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('EN_ALMACEN', 'Cilindro en almacén'),
-        ('POR_RECOGER', 'Pendiente de recoger en cliente'),
-        ('PRESTADO_CLIENTE', 'Prestado a cliente'),
-        ('EN_RUTA_LIMA', 'En tránsito o en Lima'),
-        ('EN_MANTENIMIENTO', 'En mantenimiento o prueba hidrostática'),
-        ('EN_RECARGA_EXTERNA', 'Enviado a planta externa / en recarga'),
-        ('EN_PODER_CLIENTE', 'Cilindro propio del cliente fuera de planta'),
-        ('ALQUILADO', 'Legado: cilindro bajo contrato de alquiler (preferir PRESTADO_CLIENTE)'),
-        ('DEVUELTO', 'Devuelto por cliente'),
-        ('ROBO', 'Reportado como robado o extraviado'),
-        ('DADO_DE_BAJA', 'Dado de baja definitiva')
+        ('EN_ALMACEN', 'En almacén'),
+        ('POR_RECOGER', 'Por recoger'),
+        ('PRESTADO_CLIENTE', 'Prestado'),
+        ('EN_RUTA_LIMA', 'En ruta Lima'),
+        ('EN_MANTENIMIENTO', 'En mantenimiento'),
+        ('EN_RECARGA_EXTERNA', 'En recarga'),
+        ('EN_PODER_CLIENTE', 'En cliente'),
+        ('ALQUILADO', 'Alquilado'),
+        ('DEVUELTO', 'Devuelto'),
+        ('ROBO', 'Robo'),
+        ('DADO_DE_BAJA', 'Dado de baja')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'EstadoBalon'
@@ -92,9 +93,9 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('ENVASE_EMPRESA_A_CLIENTE', 'Envase de la empresa prestado al cliente'),
-        ('CILINDRO_CLIENTE_A_EMPRESA', 'Cilindro del cliente recibido en empresa'),
-        ('CILINDRO_A_PLANTA', 'Cilindro enviado a planta proveedora')
+        ('ENVASE_EMPRESA_A_CLIENTE', 'Préstamo a cliente'),
+        ('CILINDRO_CLIENTE_A_EMPRESA', 'Recibido de cliente'),
+        ('CILINDRO_A_PLANTA', 'Enviado a planta')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'TipoPrestamo'
@@ -112,7 +113,7 @@ FROM (
         ('RECERTIFICACION', 'Recertificación del cilindro'),
         ('REPARACION', 'Reparación general'),
         ('PINTURA', 'Pintura y rotulado'),
-        ('VALVULA', 'Cambio o reparación de válvula')
+        ('VALVULA', 'Válvula')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'TipoMantenimiento'
@@ -126,10 +127,10 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('ALMACEN', 'Referencia en almacén'),
-        ('CLIENTE', 'Referencia en cliente'),
-        ('CLIENTE_EXTRAVIADA', 'Cliente con cilindro extraviado'),
-        ('ALMACEN_EXTRAVIADA', 'Almacén con cilindro extraviado')
+        ('ALMACEN', 'Almacén'),
+        ('CLIENTE', 'Cliente'),
+        ('CLIENTE_EXTRAVIADA', 'Cliente extraviada'),
+        ('ALMACEN_EXTRAVIADA', 'Almacén extraviada')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'ReferenciaCilindro'
@@ -143,10 +144,10 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('ACTIVO', 'Cilindro en préstamo activo'),
-        ('PENDIENTE', 'Pendiente de entrega'),
-        ('DEVUELTO', 'Cilindro devuelto'),
-        ('VENCIDO', 'Préstamo vencido sin devolución')
+        ('ACTIVO', 'Activo'),
+        ('PENDIENTE', 'Pendiente'),
+        ('DEVUELTO', 'Devuelto'),
+        ('VENCIDO', 'Vencido')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'EstadoPrestamoDetalle'
@@ -160,8 +161,8 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('POR_RECOGER', 'Cilindro por recoger en venta'),
-        ('DEVUELTO', 'Cilindro devuelto en venta')
+        ('POR_RECOGER', 'Por recoger'),
+        ('DEVUELTO', 'Devuelto')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'EstadoCilindroVenta'
@@ -175,10 +176,10 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('EMPRESA', 'Envase propiedad de la empresa (SARITA)'),
-        ('CLIENTE', 'Envase propiedad del cliente'),
-        ('PROPIA', 'Propiedad propia / particular'),
-        ('PLANTA', 'Envase propiedad de planta proveedora')
+        ('EMPRESA', 'Empresa'),
+        ('CLIENTE', 'Cliente'),
+        ('PROPIA', 'Propia'),
+        ('PLANTA', 'Planta')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'PropietarioBalon'
@@ -208,9 +209,9 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('ACTIVO', 'Alquiler en curso'),
-        ('FINALIZADO', 'Alquiler finalizado'),
-        ('FACTURADO', 'Alquiler facturado al cliente')
+        ('ACTIVO', 'Activo'),
+        ('FINALIZADO', 'Finalizado'),
+        ('FACTURADO', 'Facturado')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'EstadoAlquiler'
@@ -241,6 +242,7 @@ SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
         ('JP', 'Marca JP'),
+        ('BTIC-JP', 'Cilindro BTIC-JP'),
         ('JD', 'Marca JD'),
         ('YA', 'Marca YA'),
         ('LD', 'Marca LD'),
@@ -280,11 +282,11 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('VENDIDO', 'Cilindro vendido'),
-        ('PERDIDO', 'Cilindro perdido o extraviado'),
-        ('ROBO', 'Cilindro robado'),
-        ('DETERIORO', 'Cilindro deteriorado / inservible'),
-        ('OTROS', 'Otro motivo de baja')
+        ('VENDIDO', 'Vendido'),
+        ('PERDIDO', 'Perdido'),
+        ('ROBO', 'Robo'),
+        ('DETERIORO', 'Deterioro'),
+        ('OTROS', 'Otros')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'MotivoBajaBalon'
@@ -298,8 +300,8 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('CLIENTE', 'Recarga en mostrador — cliente trae su balón'),
-        ('PLANTA_EXTERNA', 'Envío del balón propio a planta externa')
+        ('CLIENTE', 'Mostrador'),
+        ('PLANTA_EXTERNA', 'Planta externa')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'TipoRecarga'
@@ -313,9 +315,9 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('LLENO', 'Cilindro con gas / recargado'),
-        ('VACIO', 'Cilindro sin contenido útil'),
-        ('DESCONOCIDO', 'Contenido no determinado (en cliente / histórico / por revisar)')
+        ('LLENO', 'Lleno'),
+        ('VACIO', 'Vacío'),
+        ('DESCONOCIDO', 'Desconocido')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'EstadoContenidoBalon'
@@ -329,10 +331,10 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('BORRADOR', 'Orden armada sin confirmar salida'),
-        ('ENVIADO', 'Cilindros enviados a planta externa'),
-        ('RETORNADO', 'Cilindros retornados a almacén'),
-        ('CERRADO', 'Orden cerrada con comprobante de compra')
+        ('BORRADOR', 'Borrador'),
+        ('ENVIADO', 'Enviado'),
+        ('RETORNADO', 'Retornado'),
+        ('CERRADO', 'Cerrado')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'EstadoRecargaPlanta'
@@ -346,12 +348,12 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('PROGRAMADO', 'Visita de recojo programada'),
-        ('EN_RUTA', 'Operario en ruta hacia el cliente'),
-        ('EXITOSO', 'Todos los cilindros fueron recogidos'),
-        ('FALLIDO', 'No se recogió ningún cilindro'),
-        ('REPROGRAMADO', 'Visita parcial; se generó nueva programación'),
-        ('CANCELADO', 'Visita cancelada')
+        ('PROGRAMADO', 'Programado'),
+        ('EN_RUTA', 'En ruta'),
+        ('EXITOSO', 'Exitoso'),
+        ('FALLIDO', 'Fallido'),
+        ('REPROGRAMADO', 'Reprogramado'),
+        ('CANCELADO', 'Cancelado')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'EstadoRecojo'
@@ -365,9 +367,9 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('RECOGIDO', 'Cilindro recogido y devuelto al almacén'),
-        ('NO_RECOGIDO', 'No se pudo recoger el cilindro en esta visita'),
-        ('EXTENDIDO', 'Se extendió la fecha de retorno pactada')
+        ('RECOGIDO', 'Recogido'),
+        ('NO_RECOGIDO', 'No recogido'),
+        ('EXTENDIDO', 'Fecha extendida')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'ResultadoRecojoDetalle'
@@ -381,14 +383,31 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('CLIENTE_AUSENTE', 'Cliente ausente en el domicilio'),
-        ('SIN_ACCESO', 'Sin acceso al local / domicilio'),
-        ('CILINDRO_NO_DISPONIBLE', 'Cilindro no disponible en el momento'),
-        ('GAS_NO_USADO', 'Gas aún no utilizado / cliente pide mantener'),
-        ('OTRO', 'Otro motivo')
+        ('CLIENTE_AUSENTE', 'Cliente ausente'),
+        ('SIN_ACCESO', 'Sin acceso'),
+        ('CILINDRO_NO_DISPONIBLE', 'No disponible'),
+        ('GAS_NO_USADO', 'Gas no usado'),
+        ('OTRO', 'Otro')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'MotivoFalloRecojo'
+  AND NOT EXISTS (
+      SELECT 1 FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
+  );
+
+-- EstadoRutaPueblo
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('ABIERTA', 'Ruta abierta (planificada)'),
+        ('EN_RUTA', 'Cilindros en tránsito a pueblos'),
+        ('CERRADA', 'Ruta cerrada (cuadre de m³)'),
+        ('CANCELADA', 'Ruta cancelada')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'EstadoRutaPueblo'
   AND NOT EXISTS (
       SELECT 1 FROM gen_lista_opciones lo
       WHERE lo.id_lista = l.id AND lo.nombre = v.nombre

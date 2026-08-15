@@ -3,8 +3,8 @@
 --
 -- Genera:
 --   - 1 fila padre en fin_cuenta con numero_cuotas_total = N y monto_pendiente = monto total.
---   - N filas hijas con numero_cuota = 1..N, monto_pendiente = monto_total / N (última cuota
---     absorbe el redondeo).
+--   - N filas hijas con numero_cuota = 1..N, monto a 2 decimales (última cuota
+--     absorbe el céntimo de redondeo, ej. 1000 / 3 = 333.33 + 333.33 + 333.34).
 --
 -- Recurrencia MENSUAL:
 --   - Cuota 1: fecha exacta que envía el usuario en p_fecha_primera_cuota.
@@ -56,8 +56,9 @@ DECLARE
     v_id_tercero      INT;
     v_nombre          VARCHAR;
     v_id_padre        INT;
-    v_monto_cuota     NUMERIC(12,4);
-    v_ultima_cuota    NUMERIC(12,4);
+    v_monto_total     NUMERIC(12,2);
+    v_monto_cuota     NUMERIC(12,2);
+    v_ultima_cuota    NUMERIC(12,2);
     v_fecha_cuota     DATE;
     v_mes_base        DATE;
     v_ultimo_dia_mes  DATE;
@@ -124,8 +125,9 @@ BEGIN
         RETURN json_build_object('registro', NULL, 'error', 'El día del mes de pago debe estar entre 1 y 31');
     END IF;
 
-    v_monto_cuota  := ROUND(p_monto_total / p_numero_cuotas, 4);
-    v_ultima_cuota := p_monto_total - (v_monto_cuota * (p_numero_cuotas - 1));
+    v_monto_total  := fin_redondear_monto(p_monto_total);
+    v_monto_cuota  := ROUND(v_monto_total / p_numero_cuotas, 2);
+    v_ultima_cuota := v_monto_total - (v_monto_cuota * (p_numero_cuotas - 1));
 
     -- Cabecera
     INSERT INTO fin_cuenta (
@@ -143,7 +145,7 @@ BEGIN
         v_id_tipo, v_id_tercero, v_nombre,
         p_id_comprobante_venta, p_id_comprobante_compra,
         p_fecha_emision, NULL,
-        p_monto_total, 0, p_monto_total,
+        v_monto_total, 0, v_monto_total,
         p_numero_cuotas,
         NULLIF(TRIM(p_descripcion), ''),
         NULLIF(TRIM(p_observacion), ''),

@@ -88,6 +88,12 @@ export class CreateMovimientoInventarioDto extends AuditoriaDto {
   @IsString()
   @MaxLength(255)
   glosa?: string;
+
+  @ApiPropertyOptional({ example: 2, description: 'Almacén destino (obligatorio si el tipo es TRASLADO)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idAlmacenDestino?: number;
 }
 
 export class UpdateMovimientoInventarioDto extends AuditoriaDto {

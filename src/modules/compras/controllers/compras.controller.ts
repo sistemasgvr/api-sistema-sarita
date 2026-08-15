@@ -26,7 +26,6 @@ import {
   FiltroComprasDto,
 } from '../dto/compras.dto';
 import { ComprasLogic } from '../logic/compras.logic';
-import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('Compras')
 @Controller('/compras')
@@ -34,16 +33,14 @@ export class ComprasController {
   constructor(private readonly comprasLogic: ComprasLogic) {}
 
   @Get()
-  @Public()
-  //@Permisos(PermisoBanderas.COMPRAS_LISTAR)
+  @Permisos(PermisoBanderas.COMPRAS_LISTAR)
   @ApiOperation({ summary: 'Listar comprobantes de compra' })
   listar(@Query() filtros: FiltroComprasDto) {
     return this.comprasLogic.listar(filtros);
   }
 
   @Get(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.COMPRAS_VER)
+  @Permisos(PermisoBanderas.COMPRAS_VER)
   @ApiOperation({ summary: 'Obtener comprobante de compra por ID' })
   @ApiOkResponse({ description: 'Comprobante obtenido correctamente' })
   @ApiNotFoundResponse({
@@ -54,16 +51,14 @@ export class ComprasController {
   }
 
   @Post()
-  @Public()
-  //@Permisos(PermisoBanderas.COMPRAS_CREAR)
+  @Permisos(PermisoBanderas.COMPRAS_CREAR)
   @ApiOperation({ summary: 'Registrar nuevo comprobante de compra' })
   crear(@Body() dto: CreateCompraDto) {
     return this.comprasLogic.crear(dto);
   }
 
   @Patch(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.COMPRAS_EDITAR)
+  @Permisos(PermisoBanderas.COMPRAS_EDITAR)
   @ApiOperation({
     summary:
       'Actualizar cabecera (glosa, condición pago, categoría gasto, declarar sunat)',
@@ -80,8 +75,7 @@ export class ComprasController {
   }
 
   @Post(':id/detalle')
-  @Public()
-  //@Permisos(PermisoBanderas.COMPRAS_EDITAR)
+  @Permisos(PermisoBanderas.COMPRAS_EDITAR)
   @ApiOperation({ summary: 'Agregar línea a una compra existente' })
   @ApiOkResponse({ description: 'Línea agregada correctamente' })
   @ApiNotFoundResponse({ description: 'La compra indicada no existe' })
@@ -93,8 +87,7 @@ export class ComprasController {
   }
 
   @Patch('detalle/:idDetalle')
-  @Public()
-  //@Permisos(PermisoBanderas.COMPRAS_EDITAR)
+  @Permisos(PermisoBanderas.COMPRAS_EDITAR)
   @ApiOperation({
     summary:
       'Actualizar cantidad/precio de una línea (ajusta stock diferencial si afecta_stock)',
@@ -109,8 +102,7 @@ export class ComprasController {
   }
 
   @Delete('detalle/:idDetalle')
-  @Public()
-  //@Permisos(PermisoBanderas.COMPRAS_EDITAR)
+  @Permisos(PermisoBanderas.COMPRAS_EDITAR)
   @ApiOperation({ summary: 'Eliminar una línea de detalle de compra' })
   @ApiOkResponse({ description: 'Línea eliminada correctamente' })
   @ApiNotFoundResponse({ description: 'El detalle indicado no existe' })
@@ -122,8 +114,7 @@ export class ComprasController {
   }
 
   @Delete(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.COMPRAS_ELIMINAR)
+  @Permisos(PermisoBanderas.COMPRAS_ELIMINAR)
   @ApiOperation({
     summary: 'Anular comprobante de compra completo (revierte stock)',
   })

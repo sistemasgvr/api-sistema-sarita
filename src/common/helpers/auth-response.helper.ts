@@ -20,12 +20,19 @@ export function mapListResult<T>(result: AuthListResult<T>, filtros: FiltroPagin
   });
 }
 
+function throwMappedSqlError(error: string): never {
+  if (/no encontrad/i.test(error)) {
+    throw new NotFoundException(error);
+  }
+  throw new BadRequestException(error);
+}
+
 export function mapSingleResult<T>(
   result: AuthSingleResult<T>,
   notFoundMessage = 'Registro no encontrado',
 ) {
   if (result.error) {
-    throw new BadRequestException(result.error);
+    throwMappedSqlError(result.error);
   }
 
   if (!result.registro) {
@@ -37,7 +44,7 @@ export function mapSingleResult<T>(
 
 export function mapDeleteResult(result: AuthDeleteResult, notFoundMessage: string) {
   if (result.error) {
-    throw new BadRequestException(result.error);
+    throwMappedSqlError(result.error);
   }
 
   if (!result.eliminado) {

@@ -34,6 +34,20 @@ export class BajasClienteModel {
     );
   }
 
+  async resolverIdTipoSolicitud(nombreOpcion: string) {
+    const result = await this.db.query<{ id: number }>(
+      `SELECT lo.id
+       FROM gen_lista_opciones lo
+       INNER JOIN gen_lista l ON lo.id_lista = l.id
+       WHERE LOWER(l.nombre) = LOWER('TipoSolicitud')
+         AND UPPER(TRIM(lo.nombre)) = UPPER($1)
+         AND lo.estado = 1
+       LIMIT 1`,
+      [nombreOpcion],
+    );
+    return result.rows[0]?.id ?? null;
+  }
+
   solicitarReactivacion(dto: SolicitarReactivacionClienteDto) {
     return this.db.callFunctionJson<AuthSingleResult<any>>(
       'cli_solicitar_reactivacion_cliente',

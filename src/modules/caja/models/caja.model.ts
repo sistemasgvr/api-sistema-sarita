@@ -77,6 +77,7 @@ export class CajaModel {
       dto.observacion ?? null,
       dto.idSesion ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idSucursal ?? null,
     ]);
   }
 
@@ -97,6 +98,7 @@ export class CajaModel {
       dto.observacion ?? null,
       dto.idSesion ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idSucursal ?? null,
     ]);
   }
 

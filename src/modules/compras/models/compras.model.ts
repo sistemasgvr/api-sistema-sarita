@@ -71,6 +71,22 @@ export class ComprasModel {
       dto.glosa ?? null,
       dto.idUsuarioAuditoria ?? null,
       dto.guardarBalonesAlmacen ?? false,
+      dto.fechaLlegadaAlmacen ?? null,
+      dto.lote ?? null,
+      dto.fechaVencimientoLote ?? null,
+      dto.fechaPruebaHidrostatica ?? null,
+      dto.idGuiaRetorno ?? null,
+      dto.serieGuiaIngreso ?? null,
+      dto.numeroGuiaIngreso ?? null,
+      dto.fechaVencimiento ?? null,
+      dto.cuotas?.length
+        ? JSON.stringify(
+            dto.cuotas.map((c) => ({
+              fechaPago: c.fechaPago,
+              monto: c.monto ?? null,
+            })),
+          )
+        : null,
     ]);
   }
 
@@ -84,6 +100,15 @@ export class ComprasModel {
         dto.idCategoriaGasto ?? null,
         dto.declararSunat ?? null,
         dto.idUsuarioAuditoria ?? null,
+        dto.fechaVencimiento ?? null,
+        dto.cuotas?.length
+          ? JSON.stringify(
+              dto.cuotas.map((c) => ({
+                fechaPago: c.fechaPago,
+                monto: c.monto ?? null,
+              })),
+            )
+          : null,
       ],
     );
   }

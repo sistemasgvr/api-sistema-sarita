@@ -18,6 +18,7 @@ import {
   FiltroBalonesDto,
   FiltroEstadoHistorialDto,
   FiltroPhHistorialDto,
+  FiltroBalonesPropietarioDto,
   FiltroStockGasDto,
   RechazarBajaBalonDto,
   RegistrarPhHistorialDto,
@@ -45,6 +46,19 @@ export class BalonesLogic {
     const result = await this.model.listarStockGas(filtros);
     const pagina = filtros.pagina ?? 1;
     const limite = filtros.limite ?? 10;
+
+    return ResponseHelper.paginated(result.registros ?? [], {
+      pagina,
+      limite,
+      total: Number(result.total ?? 0),
+      resumen: (result.resumen ?? null) as Record<string, unknown> | null,
+    });
+  }
+
+  async reportePropietario(filtros: FiltroBalonesPropietarioDto) {
+    const result = await this.model.reportePropietario(filtros);
+    const pagina = filtros.pagina ?? 1;
+    const limite = filtros.limite ?? 50;
 
     return ResponseHelper.paginated(result.registros ?? [], {
       pagina,

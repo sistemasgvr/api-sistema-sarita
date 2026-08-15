@@ -48,6 +48,21 @@ export class FiltroComprasDto extends FiltroPaginacionDto {
   estado?: number;
 }
 
+export class CompraCuotaDto {
+  @ApiProperty({
+    example: '2026-08-15',
+    description: 'Fecha de vencimiento de la cuota',
+  })
+  @IsDateString()
+  fechaPago!: string;
+
+  @ApiPropertyOptional({ example: 150.5 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  monto?: number;
+}
+
 export class CreateCompraDetalleDto {
   @ApiPropertyOptional({
     example: 1,
@@ -157,11 +172,57 @@ export class CreateCompraDto extends AuditoriaDto {
   @ApiPropertyOptional({
     example: false,
     description:
-      'Si true y hay idRecargaPlanta: registra retorno de balones al almacén (p_registrar_retorno_balones)',
+      'Si true y hay idRecargaPlanta: registra retorno de balones al almacén (genera ENTRADA_PLANTA_EXTERNA)',
   })
   @IsOptional()
   @IsBoolean()
   guardarBalonesAlmacen?: boolean;
+
+  @ApiPropertyOptional({
+    example: '2026-08-12',
+    description:
+      'Fecha de llegada al almacén (retorno físico). Si viene informada, registra el ingreso.',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaLlegadaAlmacen?: string;
+
+  @ApiPropertyOptional({
+    example: 'LOTE-2026-01',
+    description: 'Lote del protocolo de planta',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  lote?: string;
+
+  @ApiPropertyOptional({ example: '2027-08-12' })
+  @IsOptional()
+  @IsDateString()
+  fechaVencimientoLote?: string;
+
+  @ApiPropertyOptional({ example: '2026-08-12' })
+  @IsOptional()
+  @IsDateString()
+  fechaPruebaHidrostatica?: string;
+
+  @ApiPropertyOptional({ example: 1, description: 'GRE de retorno / ingreso' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idGuiaRetorno?: number;
+
+  @ApiPropertyOptional({ example: 'T001' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  serieGuiaIngreso?: string;
+
+  @ApiPropertyOptional({ example: '00000002' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(15)
+  numeroGuiaIngreso?: string;
 
   @ApiPropertyOptional({
     example: 1,
@@ -207,6 +268,24 @@ export class CreateCompraDto extends AuditoriaDto {
   @MaxLength(500)
   glosa?: string;
 
+  @ApiPropertyOptional({
+    example: '2026-10-12',
+    description: 'Vencimiento CxP si la condición es crédito (un solo pago)',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaVencimiento?: string;
+
+  @ApiPropertyOptional({
+    type: [CompraCuotaDto],
+    description: 'Plan de cuotas personalizado (fechas/montos) para la CxP',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CompraCuotaDto)
+  cuotas?: CompraCuotaDto[];
+
   @ApiProperty({
     type: [CreateCompraDetalleDto],
     description: 'Líneas del detalle de compra',
@@ -241,12 +320,25 @@ export class ActualizarCompraCabeceraDto extends AuditoriaDto {
   @IsOptional()
   @IsBoolean()
   declararSunat?: boolean;
+
+  @ApiPropertyOptional({ example: '2026-10-12' })
+  @IsOptional()
+  @IsDateString()
+  fechaVencimiento?: string;
+
+  @ApiPropertyOptional({ type: [CompraCuotaDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CompraCuotaDto)
+  cuotas?: CompraCuotaDto[];
 }
 
 export class ActualizarCompraDetalleDto extends AuditoriaDto {
   @ApiPropertyOptional({
     example: 12,
-    description: 'Nueva cantidad (si baja y afecta stock, genera SALIDA diferencial)',
+    description:
+      'Nueva cantidad (si baja y afecta stock, genera SALIDA diferencial)',
   })
   @IsOptional()
   @Type(() => Number)

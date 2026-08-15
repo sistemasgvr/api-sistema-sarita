@@ -1,4 +1,10 @@
 -- precio_unitario en detalles se asume CON IGV incluido (descompone base + impuesto).
+DROP FUNCTION IF EXISTS ven_crear_comprobante(
+    INTEGER, VARCHAR, VARCHAR, DATE, INTEGER, JSON, INTEGER, INTEGER, INTEGER,
+    INTEGER, INTEGER, DATE, NUMERIC, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER,
+    VARCHAR, VARCHAR, VARCHAR, VARCHAR, INTEGER, JSON, INTEGER, VARCHAR
+);
+
 CREATE OR REPLACE FUNCTION ven_crear_comprobante(
     p_id_tipo_comprobante INTEGER,
     p_serie VARCHAR,
@@ -25,7 +31,8 @@ CREATE OR REPLACE FUNCTION ven_crear_comprobante(
     p_id_estado INTEGER DEFAULT NULL,
     p_cuotas JSON DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_origen_pos VARCHAR DEFAULT NULL
+    p_origen_pos VARCHAR DEFAULT NULL,
+    p_efectos_pos JSON DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -88,6 +95,7 @@ DECLARE
     v_cxc_result JSON;
     v_mes_base DATE;
     v_ultimo_dia_mes DATE;
+    v_total_origen NUMERIC(12,4);
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -340,8 +348,8 @@ BEGIN
             );
         END IF;
 
-        -- Servicios no descuentan stock aunque afecta_stock quede mal marcado.
-        IF COALESCE(v_es_servicio, FALSE) THEN
+        -- Servicios, alquiler (tarifa) y garantía no descuentan stock.
+        IF NOT ven_producto_mueve_kardex_venta(v_id_producto, v_detalle->>'descripcion') THEN
             v_afecta_stock := FALSE;
         END IF;
 
@@ -451,12 +459,10 @@ BEGIN
                 v_id_producto := (v_detalle->>'id_producto')::INTEGER;
                 v_cantidad := COALESCE((v_detalle->>'cantidad')::NUMERIC, 0);
 
-                SELECT COALESCE(afecta_stock, FALSE)
-                INTO v_afecta_stock
-                FROM pro_producto
-                WHERE id = v_id_producto;
-
-                IF NOT v_afecta_stock THEN
+                IF NOT ven_producto_mueve_kardex_venta(
+                    v_id_producto,
+                    v_detalle->>'descripcion'
+                ) THEN
                     CONTINUE;
                 END IF;
 
@@ -627,7 +633,7 @@ BEGIN
                 INNER JOIN pro_producto p ON p.id = d.id_producto
                 WHERE d.id_comprobante = p_id_comprobante_origen
                   AND d.estado = 1
-                  AND COALESCE(p.afecta_stock, FALSE)
+                  AND ven_producto_mueve_kardex_venta(p.id, d.descripcion)
                 GROUP BY d.id_producto
             ) o
             FULL OUTER JOIN (
@@ -638,7 +644,7 @@ BEGIN
                 GROUP BY (value->>'id_producto')::INTEGER
             ) n ON n.id_producto = o.id_producto
             INNER JOIN pro_producto p ON p.id = COALESCE(o.id_producto, n.id_producto)
-            WHERE COALESCE(p.afecta_stock, FALSE)
+            WHERE ven_producto_mueve_kardex_venta(p.id, NULL)
         LOOP
             v_delta_stock := v_qty_nueva - v_qty_origen;
             IF v_delta_stock = 0 THEN
@@ -706,10 +712,11 @@ BEGIN
             v_id_producto := (v_detalle->>'id_producto')::INTEGER;
             v_cantidad := COALESCE((v_detalle->>'cantidad')::NUMERIC, 0);
 
-            SELECT COALESCE(afecta_stock, FALSE)
-            INTO v_afecta_stock
-            FROM pro_producto
-            WHERE id = v_id_producto;
+            SELECT ven_producto_mueve_kardex_venta(
+                v_id_producto,
+                v_detalle->>'descripcion'
+            )
+            INTO v_afecta_stock;
 
             IF NOT v_afecta_stock THEN
                 CONTINUE;
@@ -912,6 +919,41 @@ BEGIN
                 END IF;
             END IF;
         END IF;
+    END IF;
+
+    IF v_es_nota_credito
+       AND p_id_comprobante_origen IS NOT NULL
+       AND COALESCE(v_total_importe, 0) > 0
+    THEN
+        PERFORM fin_abonar_por_nota_credito(
+            p_id_comprobante_origen,
+            v_id,
+            v_total_importe,
+            p_id_usuario_auditoria
+        );
+
+        SELECT total_importe INTO v_total_origen
+        FROM ven_comprobante
+        WHERE id = p_id_comprobante_origen AND estado = 1;
+
+        IF COALESCE(v_total_importe, 0) >= COALESCE(v_total_origen, 0) - 0.05
+           OR EXISTS (
+               SELECT 1
+               FROM ven_comprobante_detalle d
+               WHERE d.id_comprobante = v_id
+                 AND d.estado = 1
+                 AND d.id_balon IS NOT NULL
+           )
+        THEN
+            PERFORM ven_cerrar_custodia_comprobante(
+                p_id_comprobante_origen,
+                p_id_usuario_auditoria
+            );
+        END IF;
+    END IF;
+
+    IF p_efectos_pos IS NOT NULL AND p_efectos_pos::TEXT NOT IN ('null', '{}', '[]') THEN
+        PERFORM ven_aplicar_efectos_pos(v_id, p_efectos_pos, p_id_usuario_auditoria);
     END IF;
 
     RETURN ven_obtener_comprobante(v_id);

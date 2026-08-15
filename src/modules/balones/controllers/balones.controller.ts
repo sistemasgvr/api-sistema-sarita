@@ -20,6 +20,7 @@ import {
   CreateBalonesDto,
   DarBajaBalonDto,
   FiltroBalonesDto,
+  FiltroBalonesPropietarioDto,
   FiltroEstadoHistorialDto,
   FiltroPhHistorialDto,
   FiltroStockGasDto,
@@ -50,6 +51,16 @@ export class BalonesController {
   })
   listarStockGas(@Query() filtros: FiltroStockGasDto) {
     return this.logic.listarStockGas(filtros);
+  }
+
+  @Get('reporte/propietario')
+  @Permisos(PermisoBanderas.BALONES_LISTAR)
+  @ApiOperation({
+    summary:
+      'Reporte de cilindros por propietario (conteos EMPRESA / PLANTA / CLIENTE + detalle)',
+  })
+  reportePropietario(@Query() filtros: FiltroBalonesPropietarioDto) {
+    return this.logic.reportePropietario(filtros);
   }
 
   @Get('bajas/pendientes')

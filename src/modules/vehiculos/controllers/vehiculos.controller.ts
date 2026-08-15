@@ -20,7 +20,6 @@ import {
   UpdateVehiculoDto,
 } from '../dto/vehiculos.dto';
 import { VehiculosLogic } from '../logic/vehiculos.logic';
-import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('Vehículos')
 @Controller('vehiculos')
@@ -28,16 +27,14 @@ export class VehiculosController {
   constructor(private readonly vehiculosLogic: VehiculosLogic) {}
 
   @Get()
-  @Public()
-  //@Permisos(PermisoBanderas.VEHICULOS_LISTAR)
+  @Permisos(PermisoBanderas.VEHICULOS_LISTAR)
   @ApiOperation({ summary: 'Listar vehículos' })
   listar(@Query() filtros: FiltroVehiculoDto) {
     return this.vehiculosLogic.listar(filtros);
   }
 
   @Get(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.VEHICULOS_VER)
+  @Permisos(PermisoBanderas.VEHICULOS_VER)
   @ApiOperation({ summary: 'Obtener vehículo por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
@@ -45,16 +42,14 @@ export class VehiculosController {
   }
 
   @Post()
-  @Public()
-  //@Permisos(PermisoBanderas.VEHICULOS_CREAR)
+  @Permisos(PermisoBanderas.VEHICULOS_CREAR)
   @ApiOperation({ summary: 'Crear vehículo' })
   crear(@Body() dto: CreateVehiculoDto) {
     return this.vehiculosLogic.crear(dto);
   }
 
   @Patch(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.VEHICULOS_EDITAR)
+  @Permisos(PermisoBanderas.VEHICULOS_EDITAR)
   @ApiOperation({ summary: 'Actualizar vehículo' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   actualizar(
@@ -65,8 +60,7 @@ export class VehiculosController {
   }
 
   @Delete(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.VEHICULOS_ELIMINAR)
+  @Permisos(PermisoBanderas.VEHICULOS_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar vehículo (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {

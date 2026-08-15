@@ -44,6 +44,10 @@ DECLARE
     v_fecha_proxima_ph DATE;
     v_id_tipo_balon INTEGER;
     v_tiene_historial_ph BOOLEAN;
+    v_id_propietario INTEGER;
+    v_prop_nombre VARCHAR;
+    v_id_planta INTEGER;
+    v_id_cliente_propietario INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -54,7 +58,7 @@ BEGIN
     IF p_id_planta IS NOT NULL AND NOT EXISTS (
         SELECT 1 FROM cli_clientes WHERE id = p_id_planta AND estado = 1
     ) THEN
-        RETURN json_build_object('error', 'La planta indicada no existe o está inactiva', 'registro', NULL);
+        RETURN json_build_object('error', 'La planta / proveedor indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
     v_codigo := NULLIF(TRIM(p_codigo_balon), '');
@@ -91,6 +95,73 @@ BEGIN
 
     IF NOT FOUND THEN
         RETURN json_build_object('registro', NULL);
+    END IF;
+
+    -- Resolver propietario final y reglas PLANTA / CLIENTE.
+    SELECT COALESCE(p_id_propietario, b.id_propietario)
+    INTO v_id_propietario
+    FROM bal_balon b
+    WHERE b.id = p_id AND b.estado = 1;
+
+    SELECT UPPER(glo.nombre) INTO v_prop_nombre
+    FROM gen_lista_opciones glo
+    WHERE glo.id = v_id_propietario;
+
+    IF v_prop_nombre = 'PLANTA' THEN
+        SELECT COALESCE(p_id_planta, b.id_planta)
+        INTO v_id_planta
+        FROM bal_balon b
+        WHERE b.id = p_id AND b.estado = 1;
+
+        -- Si el payload viene con propietario PLANTA y planta explícitamente vacía (formulario completo),
+        -- exigir planta. Detectamos "intención de actualizar planta" cuando llega p_id_propietario
+        -- o cuando p_id_planta no es null.
+        IF p_id_propietario IS NOT NULL AND p_id_planta IS NULL THEN
+            -- Cambio de propietario a PLANTA (o reenvío del form) sin planta: no heredar de otro tipo.
+            SELECT CASE
+                WHEN UPPER(COALESCE(prop.nombre, '')) = 'PLANTA' THEN b.id_planta
+                ELSE NULL
+            END
+            INTO v_id_planta
+            FROM bal_balon b
+            LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
+            WHERE b.id = p_id AND b.estado = 1;
+        END IF;
+
+        IF v_id_planta IS NULL THEN
+            RETURN json_build_object(
+                'error', 'Si el propietario es planta, debe indicar el proveedor concreto (ej. Swiss Gas)',
+                'registro', NULL
+            );
+        END IF;
+        v_id_cliente_propietario := NULL;
+    ELSIF v_prop_nombre = 'CLIENTE' THEN
+        SELECT COALESCE(p_id_cliente_propietario, b.id_cliente_propietario)
+        INTO v_id_cliente_propietario
+        FROM bal_balon b
+        WHERE b.id = p_id AND b.estado = 1;
+
+        IF p_id_propietario IS NOT NULL AND p_id_cliente_propietario IS NULL THEN
+            SELECT CASE
+                WHEN UPPER(COALESCE(prop.nombre, '')) = 'CLIENTE' THEN b.id_cliente_propietario
+                ELSE NULL
+            END
+            INTO v_id_cliente_propietario
+            FROM bal_balon b
+            LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
+            WHERE b.id = p_id AND b.estado = 1;
+        END IF;
+
+        IF v_id_cliente_propietario IS NULL THEN
+            RETURN json_build_object(
+                'error', 'Si el propietario es cliente, debe indicar el cliente propietario',
+                'registro', NULL
+            );
+        END IF;
+        v_id_planta := NULL;
+    ELSE
+        v_id_planta := NULL;
+        v_id_cliente_propietario := NULL;
     END IF;
 
     IF v_id_tipo_balon IS NULL THEN
@@ -188,7 +259,7 @@ BEGIN
         id_almacen = COALESCE(p_id_almacen, id_almacen),
         id_cliente_ubicacion = COALESCE(p_id_cliente_ubicacion, id_cliente_ubicacion),
         id_propietario = COALESCE(p_id_propietario, id_propietario),
-        id_cliente_propietario = COALESCE(p_id_cliente_propietario, id_cliente_propietario),
+        id_cliente_propietario = v_id_cliente_propietario,
         id_referencia = COALESCE(p_id_referencia, id_referencia),
         id_marca_cilindro = COALESCE(p_id_marca_cilindro, id_marca_cilindro),
         id_organo_inspector = COALESCE(p_id_organo_inspector, id_organo_inspector),
@@ -197,7 +268,7 @@ BEGIN
         id_producto_gas = COALESCE(p_id_producto_gas, id_producto_gas),
         id_estado_balon = COALESCE(p_id_estado_balon, id_estado_balon),
         id_estado_contenido = COALESCE(p_id_estado_contenido, id_estado_contenido),
-        id_planta = COALESCE(p_id_planta, id_planta),
+        id_planta = v_id_planta,
         fecha_ultima_prueba_hidrostatica = COALESCE(v_fecha_ultima_ph, fecha_ultima_prueba_hidrostatica),
         vigencia_prueba_hidrostatica_anios = COALESCE(v_vigencia_ph, vigencia_prueba_hidrostatica_anios),
         fecha_proxima_prueba_hidrostatica = COALESCE(v_fecha_proxima_ph, fecha_proxima_prueba_hidrostatica),

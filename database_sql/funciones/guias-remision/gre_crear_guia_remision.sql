@@ -1,3 +1,10 @@
+DROP FUNCTION IF EXISTS gre_crear_guia_remision(
+    INTEGER, VARCHAR, VARCHAR, DATE, DATE, INTEGER, INTEGER, INTEGER,
+    INTEGER, INTEGER, NUMERIC, INTEGER, VARCHAR, INTEGER, INTEGER,
+    VARCHAR, VARCHAR, VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER,
+    INTEGER, INTEGER, VARCHAR, JSON, JSON, INTEGER
+);
+
 CREATE OR REPLACE FUNCTION gre_crear_guia_remision(
     p_id_tipo_guia_remision INTEGER,
     p_serie VARCHAR,
@@ -14,6 +21,8 @@ CREATE OR REPLACE FUNCTION gre_crear_guia_remision(
     p_direccion_origen VARCHAR DEFAULT NULL,
     p_id_distrito_origen INTEGER DEFAULT NULL,
     p_id_destinatario INTEGER DEFAULT NULL,
+    p_destinatario_nombre VARCHAR DEFAULT NULL,
+    p_destinatario_documento VARCHAR DEFAULT NULL,
     p_direccion_llegada VARCHAR DEFAULT NULL,
     p_id_distrito_llegada INTEGER DEFAULT NULL,
     p_id_modalidad_traslado INTEGER DEFAULT NULL,
@@ -24,7 +33,9 @@ CREATE OR REPLACE FUNCTION gre_crear_guia_remision(
     p_observaciones VARCHAR DEFAULT NULL,
     p_detalles JSON DEFAULT '[]'::JSON,
     p_referencias JSON DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_remitente_nombre VARCHAR DEFAULT NULL,
+    p_remitente_documento VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -43,12 +54,31 @@ DECLARE
     v_ref JSON;
     v_item INTEGER := 0;
     v_salidas JSON;
+    v_destinatario_nombre VARCHAR(255);
+    v_destinatario_documento VARCHAR(20);
+    v_id_destinatario INTEGER;
+    v_remitente_nombre VARCHAR(255);
+    v_remitente_documento VARCHAR(20);
+    v_id_cliente INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
     v_serie := UPPER(TRIM(COALESCE(p_serie, '')));
     v_fecha := COALESCE(p_fecha, CURRENT_DATE);
     v_fecha_traslado := COALESCE(p_fecha_traslado, v_fecha);
+    v_destinatario_nombre := NULLIF(TRIM(p_destinatario_nombre), '');
+    v_destinatario_documento := NULLIF(TRIM(p_destinatario_documento), '');
+    -- Nombre libre tiene prioridad: no amarra FK de cliente
+    v_id_destinatario := CASE
+        WHEN v_destinatario_nombre IS NOT NULL THEN NULL
+        ELSE p_id_destinatario
+    END;
+    v_remitente_nombre := NULLIF(TRIM(p_remitente_nombre), '');
+    v_remitente_documento := NULLIF(TRIM(p_remitente_documento), '');
+    v_id_cliente := CASE
+        WHEN v_remitente_nombre IS NOT NULL THEN NULL
+        ELSE p_id_cliente
+    END;
 
     IF p_id_tipo_guia_remision IS NULL THEN
         RETURN json_build_object('error', 'El tipo de guía es obligatorio', 'registro', NULL);
@@ -62,8 +92,13 @@ BEGIN
         RETURN json_build_object('error', 'Sucursal y almacén son obligatorios', 'registro', NULL);
     END IF;
 
-    IF p_id_destinatario IS NULL THEN
-        RETURN json_build_object('error', 'El destinatario es obligatorio', 'registro', NULL);
+    IF v_id_destinatario IS NULL AND (v_destinatario_nombre IS NULL OR v_destinatario_documento IS NULL) THEN
+        RETURN json_build_object(
+            'error',
+            'El destinatario es obligatorio: selecciona un cliente o ingresa nombre y documento',
+            'registro',
+            NULL
+        );
     END IF;
 
     IF p_id_motivo_traslado IS NULL OR p_id_modalidad_traslado IS NULL THEN
@@ -97,6 +132,18 @@ BEGIN
 
     IF v_codigo_tipo = '31' AND LEFT(v_serie, 1) <> 'V' THEN
         RETURN json_build_object('error', 'La serie de GRE transportista (31) debe iniciar con V (ej. V001)', 'registro', NULL);
+    END IF;
+
+    IF v_codigo_tipo = '31'
+       AND v_id_cliente IS NULL
+       AND (v_remitente_nombre IS NULL OR v_remitente_documento IS NULL)
+    THEN
+        RETURN json_build_object(
+            'error',
+            'El remitente es obligatorio en GRE transportista: selecciona un cliente o ingresa nombre y documento',
+            'registro',
+            NULL
+        );
     END IF;
 
     SELECT lo.descripcion INTO v_codigo_modalidad
@@ -140,20 +187,24 @@ BEGIN
         INSERT INTO gre_guia_remision (
             id_tipo_guia_remision, serie, numero, id_estado_sunat,
             fecha, tipo_cambio, id_sucursal, id_almacen, id_cliente,
+            remitente_nombre, remitente_documento,
             fecha_traslado, id_motivo_traslado, id_unidad_medida,
             peso_bruto, numero_bultos,
             direccion_origen, id_distrito_origen,
-            id_destinatario, direccion_llegada, id_distrito_llegada,
+            id_destinatario, destinatario_nombre, destinatario_documento,
+            direccion_llegada, id_distrito_llegada,
             id_modalidad_traslado, id_transportista, id_chofer, id_vehiculo,
             id_responsable, observaciones, id_estado,
             id_usuario_creacion, id_usuario_modificacion
         ) VALUES (
             p_id_tipo_guia_remision, v_serie, v_numero, v_id_estado_sunat,
-            v_fecha, 3.5, p_id_sucursal, p_id_almacen, p_id_cliente,
+            v_fecha, 3.5, p_id_sucursal, p_id_almacen, v_id_cliente,
+            v_remitente_nombre, v_remitente_documento,
             v_fecha_traslado, p_id_motivo_traslado, p_id_unidad_medida,
             p_peso_bruto, COALESCE(p_numero_bultos, 1),
             NULLIF(TRIM(p_direccion_origen), ''), p_id_distrito_origen,
-            p_id_destinatario, NULLIF(TRIM(p_direccion_llegada), ''), p_id_distrito_llegada,
+            v_id_destinatario, v_destinatario_nombre, v_destinatario_documento,
+            NULLIF(TRIM(p_direccion_llegada), ''), p_id_distrito_llegada,
             p_id_modalidad_traslado, p_id_transportista, p_id_chofer, p_id_vehiculo,
             p_id_responsable, NULLIF(TRIM(p_observaciones), ''), v_id_estado,
             p_id_usuario_auditoria, p_id_usuario_auditoria
@@ -168,8 +219,18 @@ BEGIN
     LOOP
         v_item := v_item + 1;
 
-        IF (v_detalle->>'idProducto') IS NULL AND (v_detalle->>'id_producto') IS NULL THEN
-            RETURN json_build_object('error', format('Ítem %s: producto obligatorio', v_item), 'registro', NULL);
+        IF (v_detalle->>'idProducto') IS NULL
+           AND (v_detalle->>'id_producto') IS NULL
+           AND (v_detalle->>'idBalon') IS NULL
+           AND (v_detalle->>'id_balon') IS NULL
+           AND NULLIF(TRIM(COALESCE(v_detalle->>'glosa', v_detalle->>'descripcion', '')), '') IS NULL
+        THEN
+            RETURN json_build_object(
+                'error',
+                format('Ítem %s: indica cilindro, producto o descripción', v_item),
+                'registro',
+                NULL
+            );
         END IF;
 
         IF COALESCE((v_detalle->>'cantidad')::NUMERIC, 0) <= 0 THEN

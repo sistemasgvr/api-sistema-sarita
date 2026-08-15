@@ -644,8 +644,9 @@ CREATE TABLE pro_producto (
     presentacion    varchar(150),
     -- Flags especiales
     es_gas           BOOLEAN DEFAULT FALSE,   -- true si es un gas (Oxigeno, Nitrogeno...)
-    es_servicio      BOOLEAN DEFAULT FALSE,   -- true si es un servicio (Mantenimiento, Alquiler...)
+    es_servicio      BOOLEAN DEFAULT FALSE,   -- true si es un servicio (flete, taller, alquiler…)
     es_alquilable    BOOLEAN DEFAULT FALSE,   -- puede ser alquilado
+    es_mantenimiento BOOLEAN DEFAULT FALSE,   -- servicio de taller (P.H., válvula); el resto solo se cobra
     afecta_stock     BOOLEAN DEFAULT TRUE,    -- false para servicios puros
     precio          NUMERIC(12,4) DEFAULT 0,  -- precio de venta base (POS)
     precio_compra   NUMERIC(12,4) DEFAULT 0,  -- costo/precio de compra
@@ -721,6 +722,7 @@ CREATE TABLE pro_movimientos (
     fecha               DATE NOT NULL,
     id_producto          INT NOT NULL REFERENCES pro_producto(id),
     id_almacen           INT NOT NULL REFERENCES gen_almacen(id),
+    id_almacen_destino    INT REFERENCES gen_almacen(id),
     id_tipo_movimiento    INT REFERENCES gen_lista_opciones(id), -- INGRESO, SALIDA, TRASLADO...
     cantidad            NUMERIC(12,4) NOT NULL,
     stock_anterior       NUMERIC(12,4),
@@ -816,6 +818,11 @@ CREATE TABLE bal_movimiento (
     id_almacen_destino    INT REFERENCES gen_almacen(id),
     fecha_movimiento     TIMESTAMP NOT NULL DEFAULT NOW(),
     observacion         varchar(500),
+    -- Custodia del cilindro *después* de este movimiento (no el estado actual)
+    id_estado_balon      INT REFERENCES gen_lista_opciones(id),
+    id_estado_contenido  INT REFERENCES gen_lista_opciones(id),
+    id_almacen_ubicacion INT REFERENCES gen_almacen(id),
+    id_cliente_ubicacion INT REFERENCES cli_clientes(id),
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),
@@ -925,12 +932,17 @@ CREATE TABLE bal_recojo (
     id                       SERIAL PRIMARY KEY,
     id_cliente               INT NOT NULL REFERENCES cli_clientes(id),
     id_prestamo              INT NULL REFERENCES bal_prestamo(id), -- NULL si visita multi-préstamo
+    id_alquiler              INT NULL, -- FK a bal_alquiler (se agrega tras crear esa tabla)
     fecha_programada         DATE NOT NULL,
     hora_estimada            TIME NULL,
     fecha_visita             DATE NULL,
     id_usuario_responsable   INT NULL REFERENCES auth_usuarios(id),
     id_estado                INT REFERENCES gen_lista_opciones(id), -- EstadoRecojo
     id_motivo_fallo          INT REFERENCES gen_lista_opciones(id), -- MotivoFalloRecojo
+    id_resultado_regulador   INT REFERENCES gen_lista_opciones(id), -- ResultadoRecojoDetalle
+    id_condicion_regulador   INT REFERENCES gen_lista_opciones(id), -- CondicionRegulador
+    nueva_fecha_retorno_regulador DATE NULL,
+    observacion_regulador    VARCHAR(500),
     observacion              VARCHAR(500),
     estado                   INT NOT NULL DEFAULT 1,
     id_usuario_creacion      INT REFERENCES auth_usuarios(id),
@@ -942,9 +954,11 @@ CREATE TABLE bal_recojo (
 CREATE TABLE bal_recojo_detalle (
     id                       SERIAL PRIMARY KEY,
     id_recojo                INT NOT NULL REFERENCES bal_recojo(id),
-    id_prestamo_detalle      INT NOT NULL REFERENCES bal_prestamo_detalle(id),
+    id_prestamo_detalle      INT NULL REFERENCES bal_prestamo_detalle(id),
+    id_alquiler_detalle      INT NULL, -- FK a bal_alquiler_detalle (se agrega tras crear esa tabla)
     id_resultado             INT REFERENCES gen_lista_opciones(id), -- ResultadoRecojoDetalle
     id_estado_contenido      INT REFERENCES gen_lista_opciones(id), -- EstadoContenidoBalon encontrado
+    cantidad_restante        NUMERIC(10,4) NULL,
     nueva_fecha_retorno      DATE NULL,
     id_almacen_destino       INT NULL REFERENCES gen_almacen(id),
     observacion              VARCHAR(500),
@@ -954,6 +968,44 @@ CREATE TABLE bal_recojo_detalle (
     fecha_creacion           TIMESTAMP DEFAULT NOW(),
     fecha_modificacion       TIMESTAMP DEFAULT NOW(),
     UNIQUE (id_recojo, id_prestamo_detalle)
+);
+
+-- Control de libras ida/vuelta en rutas a pueblos
+CREATE TABLE bal_ruta_pueblo (
+    id                       SERIAL PRIMARY KEY,
+    fecha                    DATE NOT NULL DEFAULT CURRENT_DATE,
+    id_almacen               INT NOT NULL REFERENCES gen_almacen(id),
+    id_usuario_responsable   INT NULL REFERENCES auth_usuarios(id),
+    id_chofer                INT NULL REFERENCES gen_chofer(id),
+    factor_lb_m3             NUMERIC(12,6) NOT NULL,
+    tolerancia_m3            NUMERIC(12,4) NOT NULL DEFAULT 0.5000,
+    m3_reportado_ventas      NUMERIC(12,4) NULL,
+    m3_calculado             NUMERIC(12,4) NULL,
+    descuadre_m3             NUMERIC(12,4) NULL,
+    id_estado                INT REFERENCES gen_lista_opciones(id), -- EstadoRutaPueblo
+    observacion              VARCHAR(500),
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE bal_ruta_pueblo_detalle (
+    id                       SERIAL PRIMARY KEY,
+    id_ruta_pueblo           INT NOT NULL REFERENCES bal_ruta_pueblo(id),
+    id_balon                 INT NOT NULL REFERENCES bal_balon(id),
+    sellado                  BOOLEAN NOT NULL DEFAULT FALSE,
+    lb_salida                NUMERIC(12,4) NOT NULL,
+    lb_retorno               NUMERIC(12,4) NULL,
+    m3_delta                 NUMERIC(12,4) NULL,
+    capacidad_restante_m3    NUMERIC(12,4) NULL,
+    observacion              VARCHAR(500),
+    estado                   INT NOT NULL DEFAULT 1,
+    id_usuario_creacion      INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion  INT REFERENCES auth_usuarios(id),
+    fecha_creacion           TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion       TIMESTAMP DEFAULT NOW()
 );
 
 -- Alquiler de balones de la empresa al cliente
@@ -994,6 +1046,18 @@ CREATE TABLE bal_alquiler_detalle (
     fecha_creacion   TIMESTAMP DEFAULT NOW(),
     fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
+
+ALTER TABLE bal_recojo
+    ADD CONSTRAINT bal_recojo_id_alquiler_fkey
+    FOREIGN KEY (id_alquiler) REFERENCES bal_alquiler(id);
+
+ALTER TABLE bal_recojo_detalle
+    ADD CONSTRAINT bal_recojo_detalle_id_alquiler_detalle_fkey
+    FOREIGN KEY (id_alquiler_detalle) REFERENCES bal_alquiler_detalle(id);
+
+CREATE UNIQUE INDEX uq_bal_recojo_det_alquiler
+    ON bal_recojo_detalle (id_recojo, id_alquiler_detalle)
+    WHERE id_alquiler_detalle IS NOT NULL;
 
 -- Periodos / renovaciones del regulador (kit = periodo 1; renovaciones = 2+)
 CREATE TABLE bal_alquiler_periodo (
@@ -1293,6 +1357,8 @@ CREATE TABLE ven_garantia_movimiento (
     fecha               DATE NOT NULL,
     monto               NUMERIC(12,4) NOT NULL,
     observacion         varchar(500),
+    id_sucursal         INT REFERENCES gen_sucursal(id),
+    id_medio_pago       INT REFERENCES gen_lista_opciones(id),
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion       INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
@@ -1331,8 +1397,10 @@ CREATE TABLE gre_guia_remision (
     -- Origen (la dirección se deriva de gen_sucursal; se puede sobreescribir)
     direccion_origen         varchar(255),
     id_distrito_origen        INT REFERENCES gen_distrito(id),  -- codigo_ubigeo requerido por SUNAT
-    -- Destinatario
+    -- Destinatario (cliente registrado O nombre/documento libre)
     id_destinatario          INT REFERENCES cli_clientes(id),
+    destinatario_nombre      varchar(255),
+    destinatario_documento   varchar(20),
     direccion_llegada        varchar(255),
     id_distrito_llegada       INT REFERENCES gen_distrito(id),  -- codigo_ubigeo requerido por SUNAT
     -- Transporte (chofer y vehículo de la empresa o del cliente/proveedor)
@@ -1361,7 +1429,7 @@ CREATE TABLE gre_guia_remision_detalle (
     id              SERIAL PRIMARY KEY,
     id_guia_remision  INT NOT NULL REFERENCES gre_guia_remision(id),
     item            INT NOT NULL,
-    id_producto      INT NOT NULL REFERENCES pro_producto(id),
+    id_producto      INT REFERENCES pro_producto(id),
     descripcion     varchar(300),
     id_unidad_medida  INT REFERENCES gen_lista_opciones(id),
     cantidad        NUMERIC(12,4) NOT NULL,
@@ -1476,6 +1544,7 @@ CREATE TABLE fin_pago (
     numero_operacion     VARCHAR(50),                              -- N° operación / N° cheque
     referencia          varchar(100),
     observacion         varchar(255),
+    id_sucursal          INT NULL REFERENCES gen_sucursal(id),
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),
@@ -1775,6 +1844,8 @@ CREATE TABLE age_actividad (
     id_prioridad            INT NOT NULL REFERENCES gen_lista_opciones(id),
     id_cliente              INT REFERENCES cli_clientes(id),
     id_usuario_responsable  INT REFERENCES auth_usuarios(id),
+    id_chofer_responsable   INT REFERENCES gen_chofer(id),
+    id_comprobante          INT REFERENCES ven_comprobante(id),
     id_estado_actividad     INT NOT NULL REFERENCES gen_lista_opciones(id),
     observaciones           varchar(500),
     estado                  INT NOT NULL DEFAULT 1,
@@ -1831,10 +1902,20 @@ CREATE INDEX idx_bal_prestamo_detalle_venc ON bal_prestamo_detalle(fecha_vencimi
 CREATE INDEX idx_bal_prestamo_detalle_est ON bal_prestamo_detalle(id_estado);
 CREATE INDEX idx_bal_recojo_cliente ON bal_recojo(id_cliente);
 CREATE INDEX idx_bal_recojo_prestamo ON bal_recojo(id_prestamo);
+CREATE INDEX idx_bal_recojo_alquiler ON bal_recojo(id_alquiler);
 CREATE INDEX idx_bal_recojo_fecha ON bal_recojo(fecha_programada);
 CREATE INDEX idx_bal_recojo_estado ON bal_recojo(id_estado);
 CREATE INDEX idx_bal_recojo_det_cab ON bal_recojo_detalle(id_recojo);
 CREATE INDEX idx_bal_recojo_det_pd ON bal_recojo_detalle(id_prestamo_detalle);
+CREATE INDEX idx_bal_recojo_det_ad ON bal_recojo_detalle(id_alquiler_detalle);
+CREATE INDEX idx_bal_ruta_pueblo_fecha ON bal_ruta_pueblo(fecha);
+CREATE INDEX idx_bal_ruta_pueblo_almacen ON bal_ruta_pueblo(id_almacen);
+CREATE INDEX idx_bal_ruta_pueblo_estado ON bal_ruta_pueblo(id_estado);
+CREATE INDEX idx_bal_ruta_pueblo_det_cab ON bal_ruta_pueblo_detalle(id_ruta_pueblo);
+CREATE INDEX idx_bal_ruta_pueblo_det_balon ON bal_ruta_pueblo_detalle(id_balon);
+CREATE UNIQUE INDEX uq_bal_ruta_pueblo_detalle_activo
+    ON bal_ruta_pueblo_detalle (id_ruta_pueblo, id_balon)
+    WHERE estado = 1;
 CREATE INDEX idx_bal_alquiler_cliente ON bal_alquiler(id_cliente);
 
 -- Ventas
@@ -1894,6 +1975,24 @@ CREATE INDEX idx_age_actividad_estado ON age_actividad(id_estado_actividad);
 CREATE INDEX idx_age_actividad_chofer ON age_actividad(id_chofer_responsable) WHERE id_chofer_responsable IS NOT NULL;
 CREATE INDEX idx_age_actividad_usuario ON age_actividad(id_usuario_responsable) WHERE id_usuario_responsable IS NOT NULL;
 CREATE INDEX idx_age_actividad_cliente ON age_actividad(id_cliente) WHERE id_cliente IS NOT NULL;
+CREATE INDEX idx_age_actividad_comprobante ON age_actividad(id_comprobante) WHERE id_comprobante IS NOT NULL;
+
+CREATE TABLE age_actividad_item (
+    id                      SERIAL PRIMARY KEY,
+    id_actividad            INT NOT NULL REFERENCES age_actividad(id),
+    item                    INT NOT NULL,
+    id_producto             INT REFERENCES pro_producto(id),
+    descripcion             VARCHAR(300),
+    cantidad                NUMERIC(12,4) NOT NULL DEFAULT 1,
+    id_balon                INT REFERENCES bal_balon(id),
+    estado                  INT NOT NULL DEFAULT 1,
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion      TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_age_actividad_item_act ON age_actividad_item(id_actividad) WHERE estado = 1;
 
 
 -- ============================================================

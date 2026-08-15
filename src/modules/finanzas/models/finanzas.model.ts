@@ -16,6 +16,7 @@ import {
   ReembolsarGarantiaDto,
 } from '../dto/garantia.dto';
 import { VerificarDuplicadoPagoDto } from '../dto/verificar-duplicado.dto';
+import { FiltroSaldosPorTerceroDto } from '../dto/filtro-saldos-tercero.dto';
 
 export type TipoCuenta = 'COBRAR' | 'PAGAR';
 
@@ -34,6 +35,19 @@ export class FinanzasModel {
       filtros.buscar ?? null,
       filtros.idPadre ?? null,
       filtros.limite ?? 10,
+      filtros.offset,
+    ]);
+  }
+
+  listarSaldosPorTercero(tipo: TipoCuenta, filtros: FiltroSaldosPorTerceroDto) {
+    return this.db.callFunctionJson<
+      AuthListResult & { resumen?: Record<string, unknown> | null }
+    >('fin_saldos_por_tercero', [
+      tipo,
+      filtros.fechaCorte ?? null,
+      filtros.buscar ?? null,
+      filtros.soloPendientes ?? 1,
+      filtros.limite ?? 50,
       filtros.offset,
     ]);
   }
@@ -121,6 +135,7 @@ export class FinanzasModel {
       dto.referencia ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idSucursal ?? null,
     ]);
   }
 

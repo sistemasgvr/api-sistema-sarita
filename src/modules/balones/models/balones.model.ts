@@ -13,6 +13,7 @@ import {
   FiltroBalonesDto,
   FiltroEstadoHistorialDto,
   FiltroPhHistorialDto,
+  FiltroBalonesPropietarioDto,
   FiltroStockGasDto,
   RechazarBajaBalonDto,
   RegistrarPhHistorialDto,
@@ -33,6 +34,21 @@ export class BalonesModel {
       filtros.offset,
       filtros.idAlmacen ?? null,
       filtros.idProductoGas ?? null,
+    ]);
+  }
+
+  reportePropietario(filtros: FiltroBalonesPropietarioDto) {
+    return this.db.callFunctionJson<
+      AuthListResult & { resumen?: Record<string, unknown> | null }
+    >('bal_reporte_balones_propietario', [
+      filtros.buscar ?? '',
+      filtros.limite ?? 50,
+      filtros.offset,
+      filtros.tipoPropietario ?? null,
+      filtros.idPlanta ?? null,
+      filtros.idClientePropietario ?? null,
+      filtros.idAlmacen ?? null,
+      filtros.excluirBajas ?? true,
     ]);
   }
 

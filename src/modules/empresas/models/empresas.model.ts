@@ -33,6 +33,8 @@ export class EmpresasModel {
     telefono: string | null,
     email: string | null,
     idUsuarioAuditoria?: number,
+    toleranciaM3RutaPueblo?: number | null,
+    psiMinimoUtil?: number | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('gen_crear_empresa', [
       ruc,
@@ -42,6 +44,8 @@ export class EmpresasModel {
       telefono,
       email,
       idUsuarioAuditoria ?? null,
+      toleranciaM3RutaPueblo ?? null,
+      psiMinimoUtil ?? null,
     ]);
   }
 

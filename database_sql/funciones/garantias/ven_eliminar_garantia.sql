@@ -44,6 +44,21 @@ BEGIN
         );
     END IF;
 
+    IF COALESCE(v_garantia.monto_devuelto, 0) > 0 THEN
+        RETURN json_build_object(
+            'eliminado', false,
+            'id', p_id,
+            'error', 'No se puede eliminar una garantía con devoluciones. Anule primero los reembolsos.'
+        );
+    END IF;
+
+    UPDATE ven_garantia_movimiento
+    SET
+        estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_garantia = p_id AND estado = 1;
+
     UPDATE ven_garantia
     SET
         estado = 0,

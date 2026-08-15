@@ -44,8 +44,13 @@ BEGIN
             tp.nombre AS nombre_tipo_prestamo,
             pr.id_cliente,
             c.razon_social AS nombre_cliente,
+            pr.id_almacen,
+            a.nombre AS nombre_almacen,
             pd.id_producto,
-            p.nombre AS nombre_producto,
+            COALESCE(pg.nombre, p.nombre) AS nombre_producto,
+            b.id_producto_gas,
+            pg.nombre AS nombre_producto_gas,
+            eb.nombre AS nombre_estado_balon,
             pd.fecha_entregado,
             pd.fecha_prestamo,
             pd.fecha_vencimiento,
@@ -59,7 +64,10 @@ BEGIN
         LEFT JOIN bal_balon b ON pd.id_balon = b.id
         LEFT JOIN gen_lista_opciones tp ON pr.id_tipo_prestamo = tp.id
         LEFT JOIN cli_clientes c ON pr.id_cliente = c.id
+        LEFT JOIN gen_almacen a ON pr.id_almacen = a.id
         LEFT JOIN pro_producto p ON pd.id_producto = p.id
+        LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
+        LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
         LEFT JOIN gen_lista_opciones ep ON pd.id_estado = ep.id
         WHERE pd.estado = 1
           AND (p_id_prestamo IS NULL OR pd.id_prestamo = p_id_prestamo)

@@ -11,6 +11,8 @@ import {
   IsString,
   MaxLength,
   Min,
+  MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
@@ -23,11 +25,17 @@ export class GuiaRemisionDetalleDto {
   @IsInt()
   item?: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional({
+    description: 'Obligatorio salvo ítem libre (glosa/descripcion) o cilindro con idBalon',
+  })
+  @ValidateIf(
+    (o: GuiaRemisionDetalleDto) =>
+      !o.idBalon && !o.glosa?.trim() && !o.descripcion?.trim(),
+  )
   @Type(() => Number)
   @IsInt()
   @IsNotEmpty()
-  idProducto!: number;
+  idProducto?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -122,11 +130,32 @@ export class CreateGuiaRemisionDto extends AuditoriaDto {
   @IsInt()
   idAlmacen!: number;
 
-  @ApiPropertyOptional({ description: 'Cliente relacionado (opcional)' })
+  @ApiPropertyOptional({
+    description:
+      'Cliente remitente (GRE 31). Alternativa: remitenteNombre + remitenteDocumento',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   idCliente?: number;
+
+  @ApiPropertyOptional({
+    description: 'Nombre libre del remitente (GRE 31 si no está registrado como cliente)',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(255)
+  remitenteNombre?: string;
+
+  @ApiPropertyOptional({
+    description: 'Documento del remitente libre (DNI/RUC) requerido por SUNAT en GRE 31',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  @MaxLength(20)
+  remitenteDocumento?: string;
 
   @ApiProperty()
   @Type(() => Number)
@@ -163,10 +192,31 @@ export class CreateGuiaRemisionDto extends AuditoriaDto {
   @IsInt()
   idDistritoOrigen!: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional({
+    description: 'Cliente destinatario. Alternativa: destinatarioNombre + destinatarioDocumento',
+  })
+  @ValidateIf((o: CreateGuiaRemisionDto) => !o.destinatarioNombre?.trim())
   @Type(() => Number)
   @IsInt()
-  idDestinatario!: number;
+  idDestinatario?: number;
+
+  @ApiPropertyOptional({
+    description: 'Nombre libre del destinatario (si no está registrado como cliente)',
+  })
+  @ValidateIf((o: CreateGuiaRemisionDto) => o.idDestinatario == null)
+  @IsString()
+  @MinLength(2)
+  @MaxLength(255)
+  destinatarioNombre?: string;
+
+  @ApiPropertyOptional({
+    description: 'Documento del destinatario libre (DNI/RUC) requerido por SUNAT',
+  })
+  @ValidateIf((o: CreateGuiaRemisionDto) => o.idDestinatario == null)
+  @IsString()
+  @MinLength(8)
+  @MaxLength(20)
+  destinatarioDocumento?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -260,6 +310,18 @@ export class UpdateGuiaRemisionDto extends AuditoriaDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  remitenteNombre?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  remitenteDocumento?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   idMotivoTraslado?: number;
@@ -301,6 +363,18 @@ export class UpdateGuiaRemisionDto extends AuditoriaDto {
   @Type(() => Number)
   @IsInt()
   idDestinatario?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  destinatarioNombre?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  destinatarioDocumento?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

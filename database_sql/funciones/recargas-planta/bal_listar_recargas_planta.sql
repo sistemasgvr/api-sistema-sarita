@@ -31,8 +31,13 @@ BEGIN
       AND (
           p_busqueda = ''
           OR gen_texto_coincide(COALESCE(rp.numero, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(rp.lote, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(rp.serie_guia_salida, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(rp.numero_guia_salida, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(rp.serie_guia_ingreso, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(rp.numero_guia_ingreso, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(rp.serie_factura, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(rp.numero_factura, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(prv.razon_social, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(prv.nombres, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(a.nombre, ''), p_busqueda)
@@ -64,6 +69,7 @@ BEGIN
             rp.numero_factura,
             rp.fecha_llegada_almacen,
             rp.lote,
+            rp.fecha_vencimiento_lote,
             rp.id_estado,
             est.nombre AS nombre_estado,
             est.descripcion AS descripcion_estado,
@@ -75,7 +81,31 @@ BEGIN
             rp.observacion,
             rp.estado,
             rp.fecha_creacion,
-            rp.fecha_modificacion
+            rp.fecha_modificacion,
+            (
+                CASE
+                    WHEN COALESCE(est.nombre, '') IN ('RETORNADO', 'CERRADO') THEN FALSE
+                    WHEN rp.id_comprobante_compra IS NOT NULL THEN FALSE
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM com_comprobante_compra c
+                        WHERE c.id_recarga_planta = rp.id AND c.estado = 1
+                    ) THEN FALSE
+                    ELSE TRUE
+                END
+            ) AS puede_eliminar,
+            (
+                CASE
+                    WHEN rp.id_comprobante_compra IS NOT NULL
+                      OR EXISTS (
+                          SELECT 1
+                          FROM com_comprobante_compra c
+                          WHERE c.id_recarga_planta = rp.id AND c.estado = 1
+                      ) THEN 'tiene compra'
+                    WHEN COALESCE(est.nombre, '') IN ('RETORNADO', 'CERRADO') THEN 'estado no permite'
+                    ELSE NULL
+                END
+            ) AS motivo_bloqueo_eliminar
         FROM bal_recarga_planta rp
         LEFT JOIN cli_clientes prv ON prv.id = rp.id_proveedor
         LEFT JOIN gen_almacen a ON a.id = rp.id_almacen
@@ -89,8 +119,13 @@ BEGIN
           AND (
               p_busqueda = ''
               OR gen_texto_coincide(COALESCE(rp.numero, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(rp.lote, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(rp.serie_guia_salida, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(rp.numero_guia_salida, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(rp.serie_guia_ingreso, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(rp.numero_guia_ingreso, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(rp.serie_factura, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(rp.numero_factura, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(prv.razon_social, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(prv.nombres, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(a.nombre, ''), p_busqueda)

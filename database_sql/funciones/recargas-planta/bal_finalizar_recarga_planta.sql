@@ -53,6 +53,7 @@ BEGIN
         RETURN json_build_object('error', 'La orden de recarga en planta externa no existe o está inactiva', 'registro', NULL);
     END IF;
 
+    -- Si p_fecha_llegada_almacen viene, bal_actualizar exige lote + vencimiento + P.H. en la orden.
     v_resultado := bal_actualizar_recarga_planta(
         p_id                    => p_id_recarga_planta,
         p_id_proveedor          => p_id_proveedor,

@@ -1,4 +1,5 @@
-DROP FUNCTION IF EXISTS age_listar_actividades;
+DROP FUNCTION IF EXISTS age_listar_actividades(VARCHAR, INTEGER, INTEGER, DATE, DATE, INTEGER);
+DROP FUNCTION IF EXISTS age_listar_actividades(VARCHAR, INTEGER, INTEGER, DATE, DATE, INTEGER, INTEGER, INTEGER);
 
 CREATE OR REPLACE FUNCTION age_listar_actividades(
     p_busqueda VARCHAR DEFAULT '',
@@ -6,7 +7,9 @@ CREATE OR REPLACE FUNCTION age_listar_actividades(
     p_offset INTEGER DEFAULT 0,
     p_fecha_desde DATE DEFAULT NULL,
     p_fecha_hasta DATE DEFAULT NULL,
-    p_id_estado INTEGER DEFAULT NULL 
+    p_id_estado INTEGER DEFAULT NULL,
+    p_id_tipo INTEGER DEFAULT NULL,
+    p_id_prioridad INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -24,10 +27,12 @@ BEGIN
       AND (p_fecha_desde IS NULL OR act.fecha_programada >= p_fecha_desde)
       AND (p_fecha_hasta IS NULL OR act.fecha_programada <= p_fecha_hasta)
       AND (p_id_estado IS NULL OR act.id_estado_actividad = p_id_estado)
+      AND (p_id_tipo IS NULL OR act.id_tipo_actividad = p_id_tipo)
+      AND (p_id_prioridad IS NULL OR act.id_prioridad = p_id_prioridad)
       AND (
           p_busqueda = ''
           OR gen_texto_coincide(act.titulo, p_busqueda)
-          OR gen_texto_coincide(COALESCE(act.observaciones, ''), p_busqueda) 
+          OR gen_texto_coincide(COALESCE(act.observaciones, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
       );
 
@@ -43,10 +48,17 @@ BEGIN
             act.fecha_hora_cierre,
             act.id_tipo_actividad,
             ta.nombre AS nombre_tipo_actividad,
-            act.id_prioridad, 
-            pr.nombre AS nombre_prioridad, 
+            act.id_prioridad,
+            pr.nombre AS nombre_prioridad,
             act.id_cliente,
             c.razon_social AS razon_social_cliente,
+            act.id_usuario_responsable,
+            u.nombre AS nombre_usuario_responsable,
+            act.id_chofer_responsable,
+            TRIM(CONCAT_WS(' ', ch.nombres, ch.apellido_paterno, ch.apellido_materno)) AS nombre_chofer_responsable,
+            act.id_comprobante,
+            vc.serie AS serie_comprobante,
+            vc.numero AS numero_comprobante,
             act.id_estado_actividad,
             ea.nombre AS nombre_estado_actividad,
             act.observaciones,
@@ -58,22 +70,36 @@ BEGIN
             um.nombre AS nombre_usuario_modificacion
         FROM age_actividad act
         LEFT JOIN gen_lista_opciones ta ON act.id_tipo_actividad = ta.id
-        LEFT JOIN gen_lista_opciones pr ON act.id_prioridad = pr.id 
+        LEFT JOIN gen_lista_opciones pr ON act.id_prioridad = pr.id
         LEFT JOIN gen_lista_opciones ea ON act.id_estado_actividad = ea.id
         LEFT JOIN cli_clientes c ON act.id_cliente = c.id
+        LEFT JOIN auth_usuarios u ON act.id_usuario_responsable = u.id
+        LEFT JOIN gen_chofer ch ON act.id_chofer_responsable = ch.id
+        LEFT JOIN ven_comprobante vc ON act.id_comprobante = vc.id
         LEFT JOIN auth_usuarios uc ON act.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON act.id_usuario_modificacion = um.id
         WHERE act.estado = 1
           AND (p_fecha_desde IS NULL OR act.fecha_programada >= p_fecha_desde)
           AND (p_fecha_hasta IS NULL OR act.fecha_programada <= p_fecha_hasta)
           AND (p_id_estado IS NULL OR act.id_estado_actividad = p_id_estado)
+          AND (p_id_tipo IS NULL OR act.id_tipo_actividad = p_id_tipo)
+          AND (p_id_prioridad IS NULL OR act.id_prioridad = p_id_prioridad)
           AND (
               p_busqueda = ''
               OR gen_texto_coincide(act.titulo, p_busqueda)
-              OR gen_texto_coincide(COALESCE(act.observaciones, ''), p_busqueda) 
+              OR gen_texto_coincide(COALESCE(act.observaciones, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
           )
-        ORDER BY act.fecha_programada ASC, act.hora_inicio_estimada ASC
+        ORDER BY
+            CASE
+                WHEN UPPER(TRIM(COALESCE(ea.nombre, ''))) IN ('PENDIENTE', 'PROGRAMADA') THEN 0
+                WHEN UPPER(TRIM(COALESCE(ea.nombre, ''))) IN ('CANCELADA', 'CANCELADO') THEN 2
+                WHEN UPPER(TRIM(COALESCE(ea.nombre, ''))) = 'REALIZADA' THEN 3
+                ELSE 1
+            END ASC,
+            act.fecha_programada DESC,
+            act.hora_inicio_estimada DESC NULLS LAST,
+            act.id DESC
         LIMIT p_limite
         OFFSET p_offset
     ) t;

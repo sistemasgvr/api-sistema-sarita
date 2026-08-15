@@ -4,6 +4,7 @@ import {
   mapListResult,
   mapSingleResult,
 } from '../../../common/helpers/auth-response.helper';
+import { ResponseHelper } from '../../../common/helpers/response.helper';
 import {
   CreateRecargaPlantaDto,
   FiltroRecargasPlantaDto,
@@ -18,6 +19,16 @@ export class RecargasPlantaLogic {
   async listar(filtros: FiltroRecargasPlantaDto) {
     const result = await this.model.listar(filtros);
     return mapListResult(result, filtros);
+  }
+
+  async listarProtocolo(filtros: FiltroRecargasPlantaDto) {
+    const result = await this.model.listarProtocolo(filtros);
+    const total = Number(result.total ?? 0);
+    return ResponseHelper.success(result.registros ?? [], 'Protocolo de recarga planta', {
+      pagina: 1,
+      limite: total || (result.registros?.length ?? 0),
+      total,
+    });
   }
 
   async obtenerPorId(id: number) {

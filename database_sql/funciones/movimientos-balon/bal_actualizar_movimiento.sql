@@ -34,6 +34,8 @@ BEGIN
         RETURN json_build_object('registro', NULL);
     END IF;
 
+    PERFORM bal_aplicar_custodia_tipo_movimiento(p_id, FALSE, p_id_usuario_auditoria);
+
     RETURN bal_obtener_movimiento(p_id);
 END;
 $function$;

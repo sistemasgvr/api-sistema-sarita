@@ -38,6 +38,7 @@ export class MovimientosInventarioModel {
     idTipoDocumentoRef: number | null,
     glosa: string | null,
     idUsuarioAuditoria?: number,
+    idAlmacenDestino?: number | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('pro_crear_movimiento', [
       fecha,
@@ -49,6 +50,8 @@ export class MovimientosInventarioModel {
       idTipoDocumentoRef,
       glosa,
       idUsuarioAuditoria ?? null,
+      false,
+      idAlmacenDestino ?? null,
     ]);
   }
 

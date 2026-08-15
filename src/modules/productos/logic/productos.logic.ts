@@ -130,6 +130,7 @@ export class ProductosLogic {
       dto.precioGarantia ?? 0,
       dto.factorKgM3 ?? null,
       dto.factorLbM3 ?? null,
+      dto.esMantenimiento ?? false,
     );
     return mapSingleResult(result, 'No se pudo crear el producto');
   }
@@ -157,6 +158,7 @@ export class ProductosLogic {
       dto.precioGarantia ?? null,
       dto.factorKgM3 ?? null,
       dto.factorLbM3 ?? null,
+      dto.esMantenimiento ?? null,
     );
     return mapSingleResult(result, `Producto ${id} no encontrado`);
   }

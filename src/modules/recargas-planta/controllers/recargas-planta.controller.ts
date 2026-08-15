@@ -35,6 +35,17 @@ export class RecargasPlantaController {
     return this.logic.listar(filtros);
   }
 
+  @Get('protocolo')
+  @Public()
+  //@Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_LISTAR)
+  @ApiOperation({
+    summary:
+      'Protocolo operativo planta: ida, GRE, factura, retorno, lote y cilindros (export Excel oficina)',
+  })
+  listarProtocolo(@Query() filtros: FiltroRecargasPlantaDto) {
+    return this.logic.listarProtocolo(filtros);
+  }
+
   @Get(':id')
   @Public()
   //@Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_VER)

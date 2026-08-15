@@ -101,7 +101,7 @@ BEGIN
     ) VALUES (
         v_id_tipo, v_id_tercero, v_nombre,
         p_fecha_emision, p_fecha_vencimiento,
-        p_monto, 0, p_monto,
+        fin_redondear_monto(p_monto), 0, fin_redondear_monto(p_monto),
         NULLIF(TRIM(p_descripcion), ''),
         NULLIF(TRIM(p_observacion), ''),
         p_id_banco, p_tasa_interes,

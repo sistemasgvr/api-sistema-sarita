@@ -1,4 +1,5 @@
 DROP FUNCTION IF EXISTS pro_listar_productos(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN);
+DROP FUNCTION IF EXISTS pro_listar_productos(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, INTEGER, INTEGER);
 
 CREATE OR REPLACE FUNCTION pro_listar_productos(
     p_busqueda VARCHAR DEFAULT '',
@@ -11,7 +12,8 @@ CREATE OR REPLACE FUNCTION pro_listar_productos(
     p_es_alquilable BOOLEAN DEFAULT NULL,
     p_afecta_stock BOOLEAN DEFAULT NULL,
     p_solo_activos INTEGER DEFAULT 1,
-    p_id_almacen INTEGER DEFAULT NULL
+    p_id_almacen INTEGER DEFAULT NULL,
+    p_es_mantenimiento BOOLEAN DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -45,6 +47,7 @@ BEGIN
       AND (p_es_servicio IS NULL OR p.es_servicio = p_es_servicio)
       AND (p_es_alquilable IS NULL OR p.es_alquilable = p_es_alquilable)
       AND (p_afecta_stock IS NULL OR p.afecta_stock = p_afecta_stock)
+      AND (p_es_mantenimiento IS NULL OR p.es_mantenimiento = p_es_mantenimiento)
       AND (
           p_busqueda = ''
           OR gen_texto_coincide(p.codigo, p_busqueda)
@@ -76,6 +79,7 @@ BEGIN
             p.es_gas,
             p.es_servicio,
             p.es_alquilable,
+            p.es_mantenimiento,
             p.afecta_stock,
             p.precio,
             p.precio_compra,
@@ -134,6 +138,7 @@ BEGIN
           AND (p_es_servicio IS NULL OR p.es_servicio = p_es_servicio)
           AND (p_es_alquilable IS NULL OR p.es_alquilable = p_es_alquilable)
           AND (p_afecta_stock IS NULL OR p.afecta_stock = p_afecta_stock)
+          AND (p_es_mantenimiento IS NULL OR p.es_mantenimiento = p_es_mantenimiento)
           AND (
               p_busqueda = ''
               OR gen_texto_coincide(p.codigo, p_busqueda)

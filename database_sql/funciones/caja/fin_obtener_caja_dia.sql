@@ -39,8 +39,10 @@ BEGIN
         'cajaEsperada',
             COALESCE((v_totales->>'ventasMediosCaja')::NUMERIC, 0)
             + COALESCE((v_totales->>'cobranzasMediosCaja')::NUMERIC, 0)
+            + COALESCE((v_totales->>'garantiasCobroMediosCaja')::NUMERIC, 0)
             - COALESCE((v_totales->>'depositos')::NUMERIC, 0)
             - COALESCE((v_totales->>'gastosCaja')::NUMERIC, 0)
+            - COALESCE((v_totales->>'garantiasDevolucionMediosCaja')::NUMERIC, 0)
     ) INTO v_registro;
 
     RETURN json_build_object('registro', v_registro);

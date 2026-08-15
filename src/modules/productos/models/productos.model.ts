@@ -24,6 +24,7 @@ export class ProductosModel {
       filtros.afectaStock ?? null,
       filtros.soloActivos === undefined ? 1 : filtros.soloActivos,
       filtros.idAlmacen ?? null,
+      filtros.esMantenimiento ?? null,
     ]);
   }
 
@@ -57,6 +58,7 @@ export class ProductosModel {
     precioGarantia?: number,
     factorKgM3?: number | null,
     factorLbM3?: number | null,
+    esMantenimiento?: boolean,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('pro_crear_producto', [
       codigo,
@@ -77,6 +79,7 @@ export class ProductosModel {
       precioGarantia ?? 0,
       factorKgM3 ?? null,
       factorLbM3 ?? null,
+      esMantenimiento ?? false,
     ]);
   }
 
@@ -100,6 +103,7 @@ export class ProductosModel {
     precioGarantia?: number | null,
     factorKgM3?: number | null,
     factorLbM3?: number | null,
+    esMantenimiento?: boolean | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('pro_actualizar_producto', [
       id,
@@ -121,6 +125,7 @@ export class ProductosModel {
       precioGarantia ?? null,
       factorKgM3 ?? null,
       factorLbM3 ?? null,
+      esMantenimiento ?? null,
     ]);
   }
 

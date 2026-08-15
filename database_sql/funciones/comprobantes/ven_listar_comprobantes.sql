@@ -88,6 +88,11 @@ BEGIN
             c.total_importe,
             c.id_moneda,
             mo.nombre AS nombre_moneda,
+            act.id AS id_actividad,
+            act.titulo AS titulo_actividad,
+            act.nombre_tipo_actividad,
+            act.nombre_estado_actividad,
+            (act.id IS NOT NULL) AS tiene_actividad,
             c.estado,
             c.fecha_creacion,
             (
@@ -112,6 +117,21 @@ BEGIN
         LEFT JOIN gen_lista_opciones ed ON c.id_estado = ed.id
         LEFT JOIN gen_lista_opciones es ON c.id_estado_sunat = es.id
         LEFT JOIN gen_lista_opciones mo ON c.id_moneda = mo.id
+        LEFT JOIN LATERAL (
+            SELECT
+                a.id,
+                a.titulo,
+                ta.nombre AS nombre_tipo_actividad,
+                ea.nombre AS nombre_estado_actividad
+            FROM age_actividad a
+            LEFT JOIN gen_lista_opciones ta ON ta.id = a.id_tipo_actividad
+            LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
+            WHERE a.id_comprobante = c.id
+              AND a.estado = 1
+              AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO')
+            ORDER BY a.id DESC
+            LIMIT 1
+        ) act ON TRUE
         WHERE c.estado = 1
           AND (p_id_tipo_comprobante IS NULL OR c.id_tipo_comprobante = p_id_tipo_comprobante)
           AND (p_id_cliente IS NULL OR c.id_cliente = p_id_cliente)

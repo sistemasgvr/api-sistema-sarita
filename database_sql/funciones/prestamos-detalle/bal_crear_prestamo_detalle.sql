@@ -21,41 +21,27 @@ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
-    v_id_cliente INTEGER;
-    v_id_estado_prestado INTEGER;
-    v_id_almacen_origen INTEGER;
-    v_id_comprobante INTEGER;
-    v_codigo_tipo_comp VARCHAR;
-    v_id_documento_ref INTEGER;
-    v_codigo_tipo_doc_ref VARCHAR;
-    v_mov JSON;
+    v_id_producto INTEGER;
+    v_id_estado_detalle INTEGER;
+    v_salida JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT id_cliente, id_comprobante_venta
-    INTO v_id_cliente, v_id_comprobante
-    FROM bal_prestamo
-    WHERE id = p_id_prestamo AND estado = 1;
-
-    IF v_id_cliente IS NULL AND NOT EXISTS (
+    IF NOT EXISTS (
         SELECT 1 FROM bal_prestamo WHERE id = p_id_prestamo AND estado = 1
     ) THEN
         RETURN json_build_object('error', 'El préstamo indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
-    SELECT lo.id INTO v_id_estado_prestado
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'PRESTADO_CLIENTE' AND lo.estado = 1
-    LIMIT 1;
+    v_id_producto := p_id_producto;
+    v_id_estado_detalle := p_id_estado;
 
-    IF p_id_balon IS NOT NULL AND v_id_estado_prestado IS NULL THEN
-        RETURN json_build_object(
-            'error',
-            'No se encontró el estado PRESTADO_CLIENTE del cilindro. Revise el catálogo EstadoBalon.',
-            'registro',
-            NULL
-        );
+    IF v_id_estado_detalle IS NULL AND p_fecha_devolucion IS NULL THEN
+        SELECT lo.id INTO v_id_estado_detalle
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON lo.id_lista = l.id
+        WHERE l.nombre = 'EstadoPrestamoDetalle' AND lo.nombre = 'ACTIVO' AND lo.estado = 1
+        LIMIT 1;
     END IF;
 
     IF p_id_balon IS NOT NULL THEN
@@ -65,20 +51,9 @@ BEGIN
             RETURN json_build_object('error', 'El cilindro indicado no existe o está inactivo', 'registro', NULL);
         END IF;
 
-        IF EXISTS (
-            SELECT 1
-            FROM bal_balon b
-            LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
-            WHERE b.id = p_id_balon
-              AND COALESCE(eb.nombre, '') IN ('DADO_DE_BAJA', 'ROBO')
-        ) THEN
-            RETURN json_build_object(
-                'error',
-                'No se puede prestar un cilindro dado de baja o reportado como robo',
-                'registro',
-                NULL
-            );
-        END IF;
+        SELECT COALESCE(b.id_producto_gas, v_id_producto) INTO v_id_producto
+        FROM bal_balon b
+        WHERE b.id = p_id_balon AND b.estado = 1;
 
         IF EXISTS (
             SELECT 1
@@ -89,10 +64,8 @@ BEGIN
               AND ad.fecha_devolucion IS NULL
         ) THEN
             RETURN json_build_object(
-                'error',
-                'El cilindro está alquilado actualmente; no se puede prestar',
-                'registro',
-                NULL
+                'error', 'El cilindro está alquilado actualmente; no se puede prestar',
+                'registro', NULL
             );
         END IF;
 
@@ -105,10 +78,8 @@ BEGIN
               AND pd.fecha_devolucion IS NULL
         ) THEN
             RETURN json_build_object(
-                'error',
-                'El cilindro ya tiene un préstamo activo sin devolver',
-                'registro',
-                NULL
+                'error', 'El cilindro ya tiene un préstamo activo sin devolver',
+                'registro', NULL
             );
         END IF;
     END IF;
@@ -121,72 +92,26 @@ BEGIN
         id_usuario_creacion, id_usuario_modificacion
     )
     VALUES (
-        p_id_prestamo, p_id_balon, p_id_producto, p_motivo_especifico,
+        p_id_prestamo, p_id_balon, v_id_producto, p_motivo_especifico,
         p_fecha_entregado, p_fecha_prestamo, COALESCE(p_dias_prestamo, 30), p_fecha_vencimiento, p_fecha_devolucion,
         p_serie_guia_entrega, p_numero_guia_entrega, p_serie_guia_devolucion, p_numero_guia_devolucion,
-        p_id_estado, p_observacion,
+        v_id_estado_detalle, p_observacion,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;
 
-    IF p_id_balon IS NOT NULL AND v_id_cliente IS NOT NULL THEN
-        SELECT id_almacen INTO v_id_almacen_origen
-        FROM bal_balon
-        WHERE id = p_id_balon AND estado = 1;
-
-        IF v_id_comprobante IS NOT NULL THEN
-            SELECT lo.descripcion INTO v_codigo_tipo_comp
-            FROM ven_comprobante c
-            INNER JOIN gen_lista_opciones lo ON lo.id = c.id_tipo_comprobante
-            WHERE c.id = v_id_comprobante AND c.estado = 1;
-
-            v_id_documento_ref := v_id_comprobante;
-            v_codigo_tipo_doc_ref := CASE
-                WHEN v_codigo_tipo_comp = '01' THEN 'FACTURA'
-                WHEN v_codigo_tipo_comp = '03' THEN 'BOLETA'
-                WHEN v_codigo_tipo_comp IN ('NV', 'VSD') THEN 'NOTA_VENTA'
-                ELSE 'FACTURA'
-            END;
-        ELSE
-            v_id_documento_ref := p_id_prestamo;
-            v_codigo_tipo_doc_ref := 'PRESTAMO';
-        END IF;
-
-        -- Libro + custodia (idempotente). Contenido desconocido al salir a cliente.
-        v_mov := bal_registrar_salida_documento(
+    -- Histórico ya devuelto: no mueve custodia. Activo: sale del almacén.
+    IF p_id_balon IS NOT NULL AND p_fecha_devolucion IS NULL THEN
+        v_salida := bal_prestamo_aplicar_salida_cilindro(
+            p_id_prestamo,
             p_id_balon,
-            'SALIDA_PRESTAMO',
-            v_id_documento_ref,
-            v_codigo_tipo_doc_ref,
-            v_id_cliente,
-            v_id_almacen_origen,
-            'PRESTADO_CLIENTE',
-            TRUE,
-            NULL,
-            COALESCE(NULLIF(TRIM(p_observacion), ''), 'Salida automática por préstamo'),
+            p_observacion,
             p_id_usuario_auditoria
         );
 
-        IF v_mov->>'error' IS NOT NULL THEN
-            RAISE EXCEPTION '%', v_mov->>'error';
+        IF v_salida->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_salida->>'error';
         END IF;
-
-        UPDATE bal_balon
-        SET
-            id_estado_contenido = COALESCE(bal_id_estado_contenido('DESCONOCIDO'), id_estado_contenido),
-            id_usuario_modificacion = p_id_usuario_auditoria,
-            fecha_modificacion = NOW()
-        WHERE id = p_id_balon AND estado = 1;
-
-        PERFORM bal_sync_capacidad_restante(
-            p_id_balon,
-            NULL,
-            NULL,
-            NULL,
-            'CLEAR',
-            NULL,
-            p_id_usuario_auditoria
-        );
     END IF;
 
     RETURN bal_obtener_prestamo_detalle(v_id);

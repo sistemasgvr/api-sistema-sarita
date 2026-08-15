@@ -6,7 +6,7 @@ CREATE OR REPLACE FUNCTION fin_listar_caja_pendiente_cierre(
 )
 RETURNS JSON
 LANGUAGE plpgsql
-STABLE
+VOLATILE
 AS $function$
 DECLARE
     v_registros JSON;

@@ -15,8 +15,13 @@ BEGIN
             pr.numero_prestamo,
             pd.id_balon,
             b.codigo_balon,
+            pr.id_cliente,
+            pr.id_almacen,
             pd.id_producto,
-            p.nombre AS nombre_producto,
+            COALESCE(pg.nombre, p.nombre) AS nombre_producto,
+            b.id_producto_gas,
+            pg.nombre AS nombre_producto_gas,
+            eb.nombre AS nombre_estado_balon,
             pd.motivo_especifico,
             pd.fecha_entregado,
             pd.fecha_prestamo,
@@ -41,6 +46,8 @@ BEGIN
         INNER JOIN bal_prestamo pr ON pd.id_prestamo = pr.id
         LEFT JOIN bal_balon b ON pd.id_balon = b.id
         LEFT JOIN pro_producto p ON pd.id_producto = p.id
+        LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
+        LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
         LEFT JOIN gen_lista_opciones ep ON pd.id_estado = ep.id
         LEFT JOIN auth_usuarios uc ON pd.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON pd.id_usuario_modificacion = um.id

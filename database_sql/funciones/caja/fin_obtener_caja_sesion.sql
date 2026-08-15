@@ -83,8 +83,10 @@ BEGIN
                 COALESCE(s.monto_inicial, 0)
                 + COALESCE((v_totales->>'ventasMediosCaja')::NUMERIC, 0)
                 + COALESCE((v_totales->>'cobranzasMediosCaja')::NUMERIC, 0)
+                + COALESCE((v_totales->>'garantiasCobroMediosCaja')::NUMERIC, 0)
                 - COALESCE((v_totales->>'depositos')::NUMERIC, 0)
                 - COALESCE((v_totales->>'gastosCaja')::NUMERIC, 0)
+                - COALESCE((v_totales->>'garantiasDevolucionMediosCaja')::NUMERIC, 0)
             ) AS "cajaEsperada"
         FROM fin_caja_sesion s
         LEFT JOIN gen_sucursal suc ON suc.id = s.id_sucursal

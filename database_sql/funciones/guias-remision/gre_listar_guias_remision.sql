@@ -36,6 +36,10 @@ BEGIN
           OR gen_texto_coincide(g.numero, p_busqueda)
           OR gen_texto_coincide(COALESCE(dest.razon_social, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(dest.numero_documento, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(g.destinatario_nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(g.destinatario_documento, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(g.remitente_nombre, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(g.remitente_documento, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(g.observaciones, ''), p_busqueda)
       );
 
@@ -52,10 +56,14 @@ BEGIN
             g.fecha_traslado,
             g.id_destinatario,
             COALESCE(
+                NULLIF(TRIM(g.destinatario_nombre), ''),
                 dest.razon_social,
                 TRIM(CONCAT_WS(' ', dest.nombres, dest.apellido_paterno, dest.apellido_materno))
             ) AS nombre_destinatario,
-            dest.numero_documento AS documento_destinatario,
+            COALESCE(
+                NULLIF(TRIM(g.destinatario_documento), ''),
+                dest.numero_documento
+            ) AS documento_destinatario,
             g.id_motivo_traslado,
             mt.nombre AS nombre_motivo_traslado,
             mt.descripcion AS codigo_motivo_traslado,
@@ -75,7 +83,45 @@ BEGIN
                 SELECT COUNT(*)::INTEGER
                 FROM gre_guia_remision_detalle d
                 WHERE d.id_guia_remision = g.id AND d.estado = 1
-            ) AS total_detalles
+            ) AS total_detalles,
+            (
+                EXISTS (
+                    SELECT 1
+                    FROM bal_recarga_planta rp
+                    WHERE rp.estado = 1
+                      AND (rp.id_guia_salida = g.id OR rp.id_guia_retorno = g.id)
+                )
+            ) AS vinculada_recarga_planta,
+            (
+                CASE
+                    WHEN COALESCE(es.nombre, '') = 'ACEPTADO' THEN FALSE
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM bal_recarga_planta rp
+                        WHERE rp.estado = 1
+                          AND (rp.id_guia_salida = g.id OR rp.id_guia_retorno = g.id)
+                    ) THEN FALSE
+                    ELSE TRUE
+                END
+            ) AS puede_eliminar,
+            (
+                CASE
+                    WHEN COALESCE(es.nombre, '') = 'ACEPTADO' THEN 'aceptada SUNAT'
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM bal_recarga_planta rp
+                        WHERE rp.estado = 1
+                          AND rp.id_guia_salida = g.id
+                    ) THEN 'vinculada a orden de recarga'
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM bal_recarga_planta rp
+                        WHERE rp.estado = 1
+                          AND rp.id_guia_retorno = g.id
+                    ) THEN 'vinculada a retorno de recarga'
+                    ELSE NULL
+                END
+            ) AS motivo_bloqueo_eliminar
         FROM gre_guia_remision g
         LEFT JOIN gen_lista_opciones tg ON g.id_tipo_guia_remision = tg.id
         LEFT JOIN gen_lista_opciones mt ON g.id_motivo_traslado = mt.id
@@ -97,6 +143,10 @@ BEGIN
               OR gen_texto_coincide(g.numero, p_busqueda)
               OR gen_texto_coincide(COALESCE(dest.razon_social, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(dest.numero_documento, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(g.destinatario_nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(g.destinatario_documento, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(g.remitente_nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(g.remitente_documento, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(g.observaciones, ''), p_busqueda)
           )
         ORDER BY g.fecha DESC, g.id DESC

@@ -1,7 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
-  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -11,7 +10,15 @@ import {
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
-export class SolicitarBajaClienteDto extends AuditoriaDto {
+export class SolicitarBajaClienteDto extends OmitType(AuditoriaDto, [
+  'idUsuarioAuditoria',
+] as const) {
+  @ApiProperty({ example: 1, description: 'ID del usuario que solicita la baja' })
+  @Type(() => Number)
+  @IsInt()
+  @IsNotEmpty()
+  idUsuarioAuditoria!: number;
+
   @ApiProperty({ example: 1 })
   @Type(() => Number)
   @IsInt()
@@ -45,7 +52,18 @@ export class AprobarRechazarBajaDto extends AuditoriaDto {
   idBaja!: number;
 }
 
-export class SolicitarReactivacionClienteDto extends AuditoriaDto {
+export class SolicitarReactivacionClienteDto extends OmitType(AuditoriaDto, [
+  'idUsuarioAuditoria',
+] as const) {
+  @ApiProperty({
+    example: 1,
+    description: 'ID del usuario que solicita la reactivación',
+  })
+  @Type(() => Number)
+  @IsInt()
+  @IsNotEmpty()
+  idUsuarioAuditoria!: number;
+
   @ApiProperty({ example: 1 })
   @Type(() => Number)
   @IsInt()

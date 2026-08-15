@@ -37,6 +37,8 @@ BEGIN
         );
     END IF;
 
+    PERFORM bal_aplicar_custodia_tipo_movimiento(p_id, TRUE, p_id_usuario_auditoria);
+
     UPDATE bal_movimiento
     SET estado = 0,
         id_usuario_modificacion = p_id_usuario_auditoria,

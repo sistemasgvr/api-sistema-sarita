@@ -37,8 +37,8 @@ BEGIN
         RETURN json_build_object('error', 'El tipo de préstamo indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
-    -- Préstamos a/desde cliente requieren cliente activo
-    IF v_nombre_tipo IN ('ENVASE_EMPRESA_A_CLIENTE', 'CILINDRO_CLIENTE_A_EMPRESA') THEN
+    -- Contraparte cliente: el código del tipo en TipoPrestamo incluye CLIENTE
+    IF v_nombre_tipo ILIKE '%CLIENTE%' THEN
         IF p_id_cliente IS NULL THEN
             RETURN json_build_object('error', 'El cliente es obligatorio para este tipo de préstamo', 'registro', NULL);
         END IF;

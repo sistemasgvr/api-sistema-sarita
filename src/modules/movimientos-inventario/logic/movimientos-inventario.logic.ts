@@ -36,6 +36,7 @@ export class MovimientosInventarioLogic {
       dto.idTipoDocumentoRef ?? null,
       dto.glosa ?? null,
       dto.idUsuarioAuditoria,
+      dto.idAlmacenDestino ?? null,
     );
     return mapSingleResult(result, 'No se pudo registrar el movimiento');
   }

@@ -44,6 +44,8 @@ BEGIN
     )
     RETURNING id INTO v_id;
 
+    PERFORM bal_aplicar_custodia_tipo_movimiento(v_id, FALSE, p_id_usuario_auditoria);
+
     RETURN bal_obtener_movimiento(v_id);
 END;
 $function$;
