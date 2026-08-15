@@ -15,6 +15,7 @@ DECLARE
     v_pago    fin_pago%ROWTYPE;
     v_cuenta  fin_cuenta%ROWTYPE;
     v_err_caja TEXT;
+    v_id_sucursal INT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -23,7 +24,8 @@ BEGIN
         RETURN json_build_object('eliminado', false, 'id', p_id_pago, 'error', 'El pago no existe o ya fue anulado');
     END IF;
 
-    v_err_caja := fin_caja_assert_abierta(v_pago.fecha_pago, NULL);
+    v_id_sucursal := COALESCE(v_pago.id_sucursal, fin_sucursal_de_cuenta(v_pago.id_cuenta));
+    v_err_caja := fin_caja_assert_abierta(v_pago.fecha_pago, v_id_sucursal);
     IF v_err_caja IS NOT NULL THEN
         RETURN json_build_object('eliminado', false, 'id', p_id_pago, 'error', v_err_caja);
     END IF;

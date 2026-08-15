@@ -70,4 +70,13 @@ export class RegistrarPagoDto extends AuditoriaDto {
   @IsOptional()
   @IsBoolean()
   forzarDuplicado?: boolean;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Sucursal de la cobranza (si se omite, se toma del comprobante de la cuenta)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idSucursal?: number;
 }

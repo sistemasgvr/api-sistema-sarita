@@ -5,6 +5,7 @@
 
 DROP FUNCTION IF EXISTS fin_registrar_pago(INT, VARCHAR, DATE, NUMERIC, INT, VARCHAR, VARCHAR, INT);
 DROP FUNCTION IF EXISTS fin_registrar_pago(INT, VARCHAR, DATE, NUMERIC, INT, INT, VARCHAR, VARCHAR, VARCHAR, INT);
+DROP FUNCTION IF EXISTS fin_registrar_pago(INT, VARCHAR, DATE, NUMERIC, INT, INT, VARCHAR, VARCHAR, VARCHAR, INT, INT);
 
 CREATE OR REPLACE FUNCTION fin_registrar_pago(
     p_id_cuenta          INT,
@@ -16,7 +17,8 @@ CREATE OR REPLACE FUNCTION fin_registrar_pago(
     p_numero_operacion   VARCHAR DEFAULT NULL,
     p_referencia         VARCHAR DEFAULT NULL,
     p_observacion        VARCHAR DEFAULT NULL,
-    p_id_usuario         INT     DEFAULT NULL
+    p_id_usuario         INT     DEFAULT NULL,
+    p_id_sucursal        INT     DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -29,10 +31,13 @@ DECLARE
     v_nuevo_saldo NUMERIC(12,2);
     v_id_pago     INT;
     v_err_caja TEXT;
+    v_id_sucursal INT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    v_err_caja := fin_caja_assert_abierta(COALESCE(p_fecha_pago, CURRENT_DATE), NULL);
+    v_id_sucursal := COALESCE(p_id_sucursal, fin_sucursal_de_cuenta(p_id_cuenta));
+
+    v_err_caja := fin_caja_assert_abierta(COALESCE(p_fecha_pago, CURRENT_DATE), v_id_sucursal);
     IF v_err_caja IS NOT NULL THEN
         RETURN json_build_object('registro', NULL, 'error', v_err_caja);
     END IF;
@@ -87,7 +92,7 @@ BEGIN
     INSERT INTO fin_pago (
         id_cuenta, fecha_pago, monto,
         id_medio_pago, id_cuenta_bancaria, numero_operacion,
-        referencia, observacion, id_usuario_creacion
+        referencia, observacion, id_sucursal, id_usuario_creacion
     ) VALUES (
         p_id_cuenta,
         COALESCE(p_fecha_pago, CURRENT_DATE),
@@ -97,6 +102,7 @@ BEGIN
         NULLIF(TRIM(p_numero_operacion), ''),
         NULLIF(TRIM(p_referencia), ''),
         NULLIF(TRIM(p_observacion), ''),
+        v_id_sucursal,
         p_id_usuario
     )
     RETURNING id INTO v_id_pago;

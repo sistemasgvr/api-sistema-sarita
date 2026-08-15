@@ -135,6 +135,7 @@ export class FinanzasModel {
       dto.referencia ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idSucursal ?? null,
     ]);
   }
 

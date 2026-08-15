@@ -55,13 +55,14 @@ BEGIN
         v_aplicar := LEAST(v_restante, v_hijo.saldo);
 
         INSERT INTO fin_pago (
-            id_cuenta, fecha_pago, monto, referencia, observacion, id_usuario_creacion
+            id_cuenta, fecha_pago, monto, referencia, observacion, id_sucursal, id_usuario_creacion
         ) VALUES (
             v_hijo.id,
             CURRENT_DATE,
             v_aplicar,
             format('NC %s-%s', COALESCE(v_serie, ''), COALESCE(v_numero, '')),
             format('Abono automático por nota de crédito #%s', p_id_nota_credito),
+            fin_sucursal_de_cuenta(v_hijo.id),
             p_id_usuario
         );
 

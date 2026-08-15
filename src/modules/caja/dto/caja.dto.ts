@@ -148,6 +148,12 @@ export class CrearCajaGastoDto extends AuditoriaDto {
   @Type(() => Number)
   @IsInt()
   idSesion?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idSucursal?: number;
 }
 
 export class CrearCajaDepositoDto extends AuditoriaDto {
@@ -190,6 +196,12 @@ export class CrearCajaDepositoDto extends AuditoriaDto {
   @Type(() => Number)
   @IsInt()
   idSesion?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idSucursal?: number;
 }
 
 export class CrearCajaObservacionDto extends AuditoriaDto {

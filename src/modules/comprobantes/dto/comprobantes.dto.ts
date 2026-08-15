@@ -3,11 +3,14 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   MaxLength,
   ValidateNested,
@@ -187,6 +190,345 @@ export class ComprobanteCuotaDto {
   idEstado?: number;
 }
 
+export class EfectoPosGarantiaDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  @IsPositive()
+  monto!: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idProducto?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  cantidadVenta?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idUnidadMedida?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaRegistro?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idMedioPago?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+}
+
+export class EfectoPosRecargaDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  idBalon!: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  idProducto!: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  capacidad?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idAlmacen?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idBalonOrigen?: number;
+}
+
+export class EfectoPosPrestamoDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  idTipoPrestamo!: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idAlmacen?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaSalida?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaRetornoPactada?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  titulo?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idEstado?: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  idBalon!: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idProducto?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaEntregado?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaPrestamo?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaVencimiento?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  observacionDetalle?: string;
+
+  @ApiPropertyOptional({ type: EfectoPosGarantiaDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EfectoPosGarantiaDto)
+  garantia?: EfectoPosGarantiaDto;
+}
+
+export class EfectoPosAlquilerPeriodoDto {
+  @ApiProperty()
+  @IsDateString()
+  fechaInicio!: string;
+
+  @ApiProperty()
+  @IsDateString()
+  fechaFin!: string;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  monto!: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idProducto?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+}
+
+export class EfectoPosAlquilerDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  idAlmacen!: number;
+
+  @ApiProperty()
+  @IsDateString()
+  fechaInicio!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaFinPactada?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  tarifaDiaria?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  totalCobrado?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idProductoRegulador?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idProductoStock?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+
+  @ApiPropertyOptional({ type: EfectoPosAlquilerPeriodoDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EfectoPosAlquilerPeriodoDto)
+  periodo?: EfectoPosAlquilerPeriodoDto;
+
+  @ApiPropertyOptional({ type: EfectoPosGarantiaDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EfectoPosGarantiaDto)
+  garantia?: EfectoPosGarantiaDto;
+}
+
+export class EfectoPosMantenimientoDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  idBalon!: number;
+
+  @ApiProperty()
+  @IsDateString()
+  fechaIngreso!: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idTipoMantenimiento?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  descripcion?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  costo?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+}
+
+export class EfectoPosBajaDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  idBalon!: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  idMotivoBaja!: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  montoVenta?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaBaja?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  aprobar?: boolean;
+}
+
+export class EfectosPosDto {
+  @ApiPropertyOptional({ type: [EfectoPosRecargaDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EfectoPosRecargaDto)
+  recargas?: EfectoPosRecargaDto[];
+
+  @ApiPropertyOptional({ type: [EfectoPosPrestamoDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EfectoPosPrestamoDto)
+  prestamos?: EfectoPosPrestamoDto[];
+
+  @ApiPropertyOptional({ type: [EfectoPosAlquilerDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EfectoPosAlquilerDto)
+  alquileres?: EfectoPosAlquilerDto[];
+
+  @ApiPropertyOptional({ type: [EfectoPosMantenimientoDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EfectoPosMantenimientoDto)
+  mantenimientos?: EfectoPosMantenimientoDto[];
+
+  @ApiPropertyOptional({ type: [EfectoPosBajaDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EfectoPosBajaDto)
+  bajas?: EfectoPosBajaDto[];
+}
+
 export class CreateComprobantesDto extends AuditoriaDto {
   @ApiProperty()
   @Type(() => Number)
@@ -328,6 +670,16 @@ export class CreateComprobantesDto extends AuditoriaDto {
   @IsOptional()
   @IsString()
   origenPos?: string;
+
+  @ApiPropertyOptional({
+    type: EfectosPosDto,
+    description:
+      'Efectos POS (recarga, préstamo, alquiler, garantía, mantenimiento, baja) en la misma transacción del CPE',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EfectosPosDto)
+  efectosPos?: EfectosPosDto;
 
   @ApiPropertyOptional()
   @Type(() => Number)

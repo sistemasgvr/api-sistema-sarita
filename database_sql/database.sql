@@ -1299,6 +1299,8 @@ CREATE TABLE ven_garantia_movimiento (
     fecha               DATE NOT NULL,
     monto               NUMERIC(12,4) NOT NULL,
     observacion         varchar(500),
+    id_sucursal         INT REFERENCES gen_sucursal(id),
+    id_medio_pago       INT REFERENCES gen_lista_opciones(id),
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion       INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
@@ -1484,6 +1486,7 @@ CREATE TABLE fin_pago (
     numero_operacion     VARCHAR(50),                              -- N° operación / N° cheque
     referencia          varchar(100),
     observacion         varchar(255),
+    id_sucursal          INT NULL REFERENCES gen_sucursal(id),
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion    INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),

@@ -45,8 +45,10 @@ BEGIN
     v_esperado := COALESCE(v_sesion.monto_inicial, 0)
         + COALESCE((v_totales->>'ventasMediosCaja')::NUMERIC, 0)
         + COALESCE((v_totales->>'cobranzasMediosCaja')::NUMERIC, 0)
+        + COALESCE((v_totales->>'garantiasCobroMediosCaja')::NUMERIC, 0)
         - COALESCE((v_totales->>'depositos')::NUMERIC, 0)
-        - COALESCE((v_totales->>'gastosCaja')::NUMERIC, 0);
+        - COALESCE((v_totales->>'gastosCaja')::NUMERIC, 0)
+        - COALESCE((v_totales->>'garantiasDevolucionMediosCaja')::NUMERIC, 0);
     v_diferencia := COALESCE(p_monto_efectivo_contado, 0) - v_esperado;
 
     UPDATE fin_caja_sesion

@@ -1,4 +1,10 @@
 -- precio_unitario en detalles se asume CON IGV incluido (descompone base + impuesto).
+DROP FUNCTION IF EXISTS ven_crear_comprobante(
+    INTEGER, VARCHAR, VARCHAR, DATE, INTEGER, JSON, INTEGER, INTEGER, INTEGER,
+    INTEGER, INTEGER, DATE, NUMERIC, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER,
+    VARCHAR, VARCHAR, VARCHAR, VARCHAR, INTEGER, JSON, INTEGER, VARCHAR
+);
+
 CREATE OR REPLACE FUNCTION ven_crear_comprobante(
     p_id_tipo_comprobante INTEGER,
     p_serie VARCHAR,
@@ -25,7 +31,8 @@ CREATE OR REPLACE FUNCTION ven_crear_comprobante(
     p_id_estado INTEGER DEFAULT NULL,
     p_cuotas JSON DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_origen_pos VARCHAR DEFAULT NULL
+    p_origen_pos VARCHAR DEFAULT NULL,
+    p_efectos_pos JSON DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -88,6 +95,7 @@ DECLARE
     v_cxc_result JSON;
     v_mes_base DATE;
     v_ultimo_dia_mes DATE;
+    v_total_origen NUMERIC(12,4);
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -923,6 +931,29 @@ BEGIN
             v_total_importe,
             p_id_usuario_auditoria
         );
+
+        SELECT total_importe INTO v_total_origen
+        FROM ven_comprobante
+        WHERE id = p_id_comprobante_origen AND estado = 1;
+
+        IF COALESCE(v_total_importe, 0) >= COALESCE(v_total_origen, 0) - 0.05
+           OR EXISTS (
+               SELECT 1
+               FROM ven_comprobante_detalle d
+               WHERE d.id_comprobante = v_id
+                 AND d.estado = 1
+                 AND d.id_balon IS NOT NULL
+           )
+        THEN
+            PERFORM ven_cerrar_custodia_comprobante(
+                p_id_comprobante_origen,
+                p_id_usuario_auditoria
+            );
+        END IF;
+    END IF;
+
+    IF p_efectos_pos IS NOT NULL AND p_efectos_pos::TEXT NOT IN ('null', '{}', '[]') THEN
+        PERFORM ven_aplicar_efectos_pos(v_id, p_efectos_pos, p_id_usuario_auditoria);
     END IF;
 
     RETURN ven_obtener_comprobante(v_id);

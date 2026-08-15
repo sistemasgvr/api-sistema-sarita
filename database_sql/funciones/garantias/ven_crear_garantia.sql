@@ -25,6 +25,8 @@ DECLARE
     v_id_tipo_cobro INTEGER;
     v_monto NUMERIC(12,4);
     v_fecha DATE;
+    v_id_sucursal INTEGER;
+    v_err_caja TEXT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -93,6 +95,31 @@ BEGIN
 
     v_fecha := COALESCE(p_fecha_registro, CURRENT_DATE);
 
+    IF p_id_comprobante IS NOT NULL THEN
+        SELECT c.id_sucursal INTO v_id_sucursal
+        FROM ven_comprobante c
+        WHERE c.id = p_id_comprobante AND c.estado = 1;
+    END IF;
+
+    IF v_id_sucursal IS NULL AND p_id_prestamo IS NOT NULL THEN
+        SELECT a.id_sucursal INTO v_id_sucursal
+        FROM bal_prestamo p
+        INNER JOIN gen_almacen a ON a.id = p.id_almacen
+        WHERE p.id = p_id_prestamo AND p.estado = 1;
+    END IF;
+
+    IF v_id_sucursal IS NULL AND p_id_alquiler IS NOT NULL THEN
+        SELECT a.id_sucursal INTO v_id_sucursal
+        FROM bal_alquiler al
+        INNER JOIN gen_almacen a ON a.id = al.id_almacen
+        WHERE al.id = p_id_alquiler AND al.estado = 1;
+    END IF;
+
+    v_err_caja := fin_caja_assert_abierta(v_fecha, v_id_sucursal);
+    IF v_err_caja IS NOT NULL THEN
+        RETURN json_build_object('error', v_err_caja, 'registro', NULL);
+    END IF;
+
     INSERT INTO ven_garantia (
         id_cliente,
         id_prestamo,
@@ -138,6 +165,8 @@ BEGIN
         fecha,
         monto,
         observacion,
+        id_sucursal,
+        id_medio_pago,
         id_usuario_creacion,
         id_usuario_modificacion
     )
@@ -148,6 +177,8 @@ BEGIN
         v_fecha,
         v_monto,
         'Cobro inicial de garantía',
+        v_id_sucursal,
+        p_id_medio_pago,
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     );

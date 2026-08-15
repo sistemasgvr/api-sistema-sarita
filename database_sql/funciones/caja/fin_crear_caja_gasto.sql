@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS fin_crear_caja_gasto(DATE, VARCHAR, NUMERIC, INT, INT, VARCHAR, VARCHAR, INT, INT);
+
 CREATE OR REPLACE FUNCTION fin_crear_caja_gasto(
     p_fecha DATE,
     p_concepto VARCHAR,
@@ -7,7 +9,8 @@ CREATE OR REPLACE FUNCTION fin_crear_caja_gasto(
     p_numero_operacion VARCHAR DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
     p_id_sesion INT DEFAULT NULL,
-    p_id_usuario INT DEFAULT NULL
+    p_id_usuario INT DEFAULT NULL,
+    p_id_sucursal INT DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -16,6 +19,7 @@ DECLARE
     v_id INT;
     v_registro JSON;
     v_sesion_id INT;
+    v_sucursal INT;
     v_err_caja TEXT;
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -24,25 +28,31 @@ BEGIN
         RETURN json_build_object('error', 'Fecha, concepto y monto (> 0) son obligatorios', 'registro', NULL);
     END IF;
 
-    v_err_caja := fin_caja_assert_abierta(p_fecha, NULL);
-    IF v_err_caja IS NOT NULL THEN
-        RETURN json_build_object('error', v_err_caja, 'registro', NULL);
-    END IF;
-
+    v_sucursal := p_id_sucursal;
     v_sesion_id := p_id_sesion;
-    IF v_sesion_id IS NULL THEN
-        SELECT s.id INTO v_sesion_id
+
+    IF v_sesion_id IS NOT NULL THEN
+        SELECT s.id_sucursal INTO v_sucursal
+        FROM fin_caja_sesion s
+        INNER JOIN gen_lista_opciones est ON est.id = s.id_estado
+        WHERE s.id = v_sesion_id AND s.estado = 1 AND UPPER(est.nombre) = 'ABIERTA';
+
+        IF NOT FOUND THEN
+            RETURN json_build_object('error', 'La sesión de caja indicada no está abierta', 'registro', NULL);
+        END IF;
+    ELSE
+        SELECT s.id, s.id_sucursal INTO v_sesion_id, v_sucursal
         FROM fin_caja_sesion s
         INNER JOIN gen_lista_opciones est ON est.id = s.id_estado
         WHERE s.estado = 1 AND s.fecha = p_fecha AND UPPER(est.nombre) = 'ABIERTA'
-        ORDER BY s.id DESC LIMIT 1;
-    ELSIF NOT EXISTS (
-        SELECT 1
-        FROM fin_caja_sesion s
-        INNER JOIN gen_lista_opciones est ON est.id = s.id_estado
-        WHERE s.id = v_sesion_id AND s.estado = 1 AND UPPER(est.nombre) = 'ABIERTA'
-    ) THEN
-        RETURN json_build_object('error', 'La sesión de caja indicada no está abierta', 'registro', NULL);
+          AND COALESCE(s.id_sucursal, 0) = COALESCE(p_id_sucursal, 0)
+        ORDER BY s.id DESC
+        LIMIT 1;
+    END IF;
+
+    v_err_caja := fin_caja_assert_abierta(p_fecha, v_sucursal);
+    IF v_err_caja IS NOT NULL THEN
+        RETURN json_build_object('error', v_err_caja, 'registro', NULL);
     END IF;
 
     INSERT INTO fin_caja_gasto (
