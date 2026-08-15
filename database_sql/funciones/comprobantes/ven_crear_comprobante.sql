@@ -494,6 +494,77 @@ BEGIN
         END IF;
     END IF;
 
+    -- Gas: capacidad de cilindros EMPRESA en almacén (no pro_stock).
+    IF NOT v_es_nota_credito AND NOT v_es_conversion_vsd AND v_codigo_tipo <> '08' THEN
+        FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
+        LOOP
+            v_id_producto := (v_detalle->>'id_producto')::INTEGER;
+            v_cantidad := COALESCE((v_detalle->>'cantidad')::NUMERIC, 0);
+
+            IF v_detalle->>'descripcion' IS NOT NULL
+               AND BTRIM(v_detalle->>'descripcion') ~* 'garant[ií]a'
+            THEN
+                CONTINUE;
+            END IF;
+
+            SELECT COALESCE(p.es_gas, FALSE)
+            INTO v_es_gas
+            FROM pro_producto p
+            WHERE p.id = v_id_producto;
+
+            IF NOT COALESCE(v_es_gas, FALSE) THEN
+                CONTINUE;
+            END IF;
+
+            IF p_id_almacen IS NULL THEN
+                RETURN json_build_object(
+                    'error',
+                    'Debe indicar el almacén para verificar el stock de gas',
+                    'registro',
+                    NULL
+                );
+            END IF;
+
+            SELECT COALESCE(SUM(capacidad), 0)
+            INTO v_stock_disponible
+            FROM (
+                SELECT
+                    CASE
+                        WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'VACIO' THEN 0::NUMERIC
+                        WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'LLENO'
+                            THEN COALESCE(b.capacidad_restante, tb.capacidad, 0)::NUMERIC
+                        ELSE COALESCE(b.capacidad_restante, 0)::NUMERIC
+                    END AS capacidad
+                FROM bal_balon b
+                LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+                LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
+                LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+                LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
+                WHERE b.estado = 1
+                  AND COALESCE(prop.nombre, '') = 'EMPRESA'
+                  AND COALESCE(eb.nombre, '') NOT IN ('DADO_DE_BAJA', 'ROBO')
+                  AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
+                  AND b.id_producto_gas = v_id_producto
+                  AND b.id_almacen = p_id_almacen
+            ) t
+            WHERE t.capacidad > 0;
+
+            IF COALESCE(v_stock_disponible, 0) < v_cantidad THEN
+                RETURN json_build_object(
+                    'error',
+                    format(
+                        'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
+                        COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
+                        COALESCE(v_stock_disponible, 0),
+                        v_cantidad
+                    ),
+                    'registro',
+                    NULL
+                );
+            END IF;
+        END LOOP;
+    END IF;
+
     INSERT INTO ven_comprobante (
         id_tipo_comprobante, serie, numero,
         id_estado_sunat, id_tipo_operacion_sunat,
