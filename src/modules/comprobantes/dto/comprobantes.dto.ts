@@ -527,6 +527,14 @@ export class EfectosPosDto {
   @ValidateNested({ each: true })
   @Type(() => EfectoPosBajaDto)
   bajas?: EfectoPosBajaDto[];
+
+  @ApiPropertyOptional({
+    description:
+      'Si es true y hay préstamo de cilindro, intenta generar GRE remitente. Por defecto no se genera.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  generarGre?: boolean;
 }
 
 export class CreateComprobantesDto extends AuditoriaDto {

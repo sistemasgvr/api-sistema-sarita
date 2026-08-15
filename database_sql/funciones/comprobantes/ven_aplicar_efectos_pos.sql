@@ -120,7 +120,14 @@ BEGIN
         END IF;
     END LOOP;
 
-    PERFORM ven_pos_crear_guia_remision(p_id_comprobante, p_id_usuario);
+    -- GRE solo si el usuario lo pidió (opt-in). Sin flag no se emite.
+    IF COALESCE(
+        NULLIF(p_efectos->>'generarGre', '')::BOOLEAN,
+        NULLIF(p_efectos->>'generar_gre', '')::BOOLEAN,
+        FALSE
+    ) THEN
+        PERFORM ven_pos_crear_guia_remision(p_id_comprobante, p_id_usuario);
+    END IF;
 
     -- Alquiler de regulador/accesorio (+ periodo + garantía)
     v_arr := CASE WHEN json_typeof(p_efectos->'alquileres') = 'array' THEN p_efectos->'alquileres' ELSE '[]'::JSON END;
