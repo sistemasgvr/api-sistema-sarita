@@ -20,7 +20,6 @@ import {
   UpdateCuentaBancariaDto,
 } from '../dto/cuentas-bancarias.dto';
 import { CuentasBancariasLogic } from '../logic/cuentas-bancarias.logic';
-import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('Cuentas Bancarias')
 @Controller('cuentas-bancarias')
@@ -28,14 +27,14 @@ export class CuentasBancariasController {
   constructor(private readonly cuentasBancariasLogic: CuentasBancariasLogic) {}
 
   @Get()
-  @Public()
+  @Permisos(PermisoBanderas.CUENTAS_BANCARIAS_LISTAR)
   @ApiOperation({ summary: 'Listar cuentas bancarias' })
   listar(@Query() filtros: FiltroCuentaBancariaDto) {
     return this.cuentasBancariasLogic.listar(filtros);
   }
 
   @Get(':id')
-  @Public()
+  @Permisos(PermisoBanderas.CUENTAS_BANCARIAS_VER)
   @ApiOperation({ summary: 'Obtener cuenta bancaria por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
@@ -43,14 +42,14 @@ export class CuentasBancariasController {
   }
 
   @Post()
-  @Public()
+  @Permisos(PermisoBanderas.CUENTAS_BANCARIAS_CREAR)
   @ApiOperation({ summary: 'Crear cuenta bancaria' })
   crear(@Body() dto: CreateCuentaBancariaDto) {
     return this.cuentasBancariasLogic.crear(dto);
   }
 
   @Patch(':id')
-  @Public()
+  @Permisos(PermisoBanderas.CUENTAS_BANCARIAS_EDITAR)
   @ApiOperation({ summary: 'Actualizar cuenta bancaria' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   actualizar(
@@ -61,7 +60,7 @@ export class CuentasBancariasController {
   }
 
   @Delete(':id')
-  @Public()
+  @Permisos(PermisoBanderas.CUENTAS_BANCARIAS_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar cuenta bancaria (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {

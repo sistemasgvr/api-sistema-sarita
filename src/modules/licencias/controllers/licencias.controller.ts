@@ -20,7 +20,6 @@ import {
   UpdateLicenciaDto,
 } from '../dto/licencias.dto';
 import { LicenciasLogic } from '../logic/licencias.logic';
-import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('Licencias')
 @Controller('licencias')
@@ -28,16 +27,14 @@ export class LicenciasController {
   constructor(private readonly licenciasLogic: LicenciasLogic) {}
 
   @Get()
-  @Public()
-  //@Permisos(PermisoBanderas.LICENCIAS_LISTAR)
+  @Permisos(PermisoBanderas.LICENCIAS_LISTAR)
   @ApiOperation({ summary: 'Listar licencias de choferes' })
   listar(@Query() filtros: FiltroLicenciaDto) {
     return this.licenciasLogic.listar(filtros);
   }
 
   @Get(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.LICENCIAS_VER)
+  @Permisos(PermisoBanderas.LICENCIAS_VER)
   @ApiOperation({ summary: 'Obtener licencia por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
@@ -45,16 +42,14 @@ export class LicenciasController {
   }
 
   @Post()
-  @Public()
-  //@Permisos(PermisoBanderas.LICENCIAS_CREAR)
+  @Permisos(PermisoBanderas.LICENCIAS_CREAR)
   @ApiOperation({ summary: 'Crear licencia para un chofer' })
   crear(@Body() dto: CreateLicenciaDto) {
     return this.licenciasLogic.crear(dto);
   }
 
   @Patch(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.LICENCIAS_EDITAR)
+  @Permisos(PermisoBanderas.LICENCIAS_EDITAR)
   @ApiOperation({ summary: 'Actualizar licencia' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   actualizar(
@@ -65,8 +60,7 @@ export class LicenciasController {
   }
 
   @Delete(':id')
-  @Public()
-  //@Permisos(PermisoBanderas.LICENCIAS_ELIMINAR)
+  @Permisos(PermisoBanderas.LICENCIAS_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar licencia (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {

@@ -20,7 +20,6 @@ import {
   UpdateDocumentoVencimientoDto,
 } from '../dto/documentos-vencimiento.dto';
 import { DocumentosVencimientoLogic } from '../logic/documentos-vencimiento.logic';
-import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('Documentos de Vencimiento')
 @Controller('documentos-vencimiento')
@@ -28,14 +27,14 @@ export class DocumentosVencimientoController {
   constructor(private readonly documentosVencimientoLogic: DocumentosVencimientoLogic) {}
 
   @Get()
-  @Public()
+  @Permisos(PermisoBanderas.DOCUMENTOS_VENCIMIENTO_LISTAR)
   @ApiOperation({ summary: 'Listar documentos de vencimiento' })
   listar(@Query() filtros: FiltroDocumentoVencimientoDto) {
     return this.documentosVencimientoLogic.listar(filtros);
   }
 
   @Get(':id')
-  @Public()
+  @Permisos(PermisoBanderas.DOCUMENTOS_VENCIMIENTO_VER)
   @ApiOperation({ summary: 'Obtener documento de vencimiento por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
@@ -43,14 +42,14 @@ export class DocumentosVencimientoController {
   }
 
   @Post()
-  @Public()
+  @Permisos(PermisoBanderas.DOCUMENTOS_VENCIMIENTO_CREAR)
   @ApiOperation({ summary: 'Crear documento de vencimiento' })
   crear(@Body() dto: CreateDocumentoVencimientoDto) {
     return this.documentosVencimientoLogic.crear(dto);
   }
 
   @Patch(':id')
-  @Public()
+  @Permisos(PermisoBanderas.DOCUMENTOS_VENCIMIENTO_EDITAR)
   @ApiOperation({ summary: 'Actualizar documento de vencimiento' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   actualizar(
@@ -61,7 +60,7 @@ export class DocumentosVencimientoController {
   }
 
   @Delete(':id')
-  @Public()
+  @Permisos(PermisoBanderas.DOCUMENTOS_VENCIMIENTO_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar documento de vencimiento (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {

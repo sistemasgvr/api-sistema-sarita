@@ -144,7 +144,8 @@ BEGIN
     )
     RETURNING id INTO v_id;
 
-    IF p_id_producto_stock IS NOT NULL AND COALESCE(v_prod.afecta_stock, FALSE) THEN
+    IF p_id_producto_stock IS NOT NULL THEN
+    IF COALESCE(v_prod.afecta_stock, FALSE) THEN
         SELECT lo.id INTO v_id_tipo_salida
         FROM gen_lista_opciones lo
         INNER JOIN gen_lista l ON l.id = lo.id_lista
@@ -177,7 +178,11 @@ BEGIN
             RAISE EXCEPTION '%', v_mov->>'error';
         END IF;
     END IF;
+    END IF;
 
     RETURN bal_obtener_alquiler(v_id);
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN json_build_object('error', SQLERRM, 'registro', NULL);
 END;
 $function$;

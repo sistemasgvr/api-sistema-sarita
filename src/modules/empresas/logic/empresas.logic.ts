@@ -31,6 +31,8 @@ export class EmpresasLogic {
       dto.telefono ?? null,
       dto.email ?? null,
       dto.idUsuarioAuditoria,
+      dto.toleranciaM3RutaPueblo ?? null,
+      dto.psiMinimoUtil ?? null,
     );
     return mapSingleResult(result, 'No se pudo crear la empresa');
   }

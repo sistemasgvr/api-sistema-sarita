@@ -48,9 +48,29 @@ export class BajasClienteLogic {
     }
   }
 
+  private async resolverTipoSolicitudReactivacion(
+    idTipoSolicitud?: number,
+  ): Promise<number> {
+    if (idTipoSolicitud != null) {
+      return idTipoSolicitud;
+    }
+    const id = await this.bajasClienteModel.resolverIdTipoSolicitud('REACTIVACION');
+    if (id == null) {
+      throw new BadRequestException(
+        'No se encontró el tipo de solicitud REACTIVACION en el catálogo',
+      );
+    }
+    return id;
+  }
+
   async solicitarReactivacion(dto: SolicitarReactivacionClienteDto) {
     await this.assertNoEsClientesVarios(dto.idCliente);
-    const result = await this.bajasClienteModel.solicitarReactivacion(dto);
+    const result = await this.bajasClienteModel.solicitarReactivacion({
+      ...dto,
+      idTipoSolicitud: await this.resolverTipoSolicitudReactivacion(
+        dto.idTipoSolicitud,
+      ),
+    });
     const registro = mapSingleResult(
       result,
       'No se pudo crear la solicitud de reactivación',

@@ -46,19 +46,29 @@ BEGIN
         END IF;
     END IF;
 
-    SELECT UPPER(TRIM(nombre)) INTO v_tipo
-    FROM gen_lista_opciones
-    WHERE id = p_id_tipo_actividad;
+    IF p_id_tipo_actividad IS NOT NULL THEN
+        SELECT UPPER(TRIM(nombre)) INTO v_tipo
+        FROM gen_lista_opciones
+        WHERE id = p_id_tipo_actividad;
 
-    IF v_tipo = 'REPARTO' THEN
-        IF p_id_chofer_responsable IS NULL THEN
-            RAISE EXCEPTION 'El reparto requiere un chofer / repartidor de flota propia.';
-        END IF;
-        IF NOT EXISTS (
-            SELECT 1 FROM gen_chofer
-            WHERE id = p_id_chofer_responsable AND estado = 1 AND id_cliente IS NULL
-        ) THEN
-            RAISE EXCEPTION 'El chofer debe ser de flota propia (repartidor).';
+        IF v_tipo = 'REPARTO' THEN
+            IF COALESCE(
+                p_id_chofer_responsable,
+                (SELECT a.id_chofer_responsable FROM age_actividad a WHERE a.id = p_id)
+            ) IS NULL THEN
+                RAISE EXCEPTION 'El reparto requiere un chofer / repartidor de flota propia.';
+            END IF;
+            IF NOT EXISTS (
+                SELECT 1 FROM gen_chofer
+                WHERE id = COALESCE(
+                    p_id_chofer_responsable,
+                    (SELECT a.id_chofer_responsable FROM age_actividad a WHERE a.id = p_id)
+                )
+                  AND estado = 1
+                  AND id_cliente IS NULL
+            ) THEN
+                RAISE EXCEPTION 'El chofer debe ser de flota propia (repartidor).';
+            END IF;
         END IF;
     END IF;
 
@@ -110,20 +120,20 @@ BEGIN
 
     UPDATE age_actividad
     SET
-        titulo = p_titulo,
-        descripcion = p_descripcion,
-        fecha_programada = p_fecha_programada,
-        hora_inicio_estimada = p_hora_inicio_estimada,
-        hora_fin_estimada = p_hora_fin_estimada,
-        fecha_hora_cierre = p_fecha_hora_cierre,
-        id_tipo_actividad = p_id_tipo_actividad,
-        id_prioridad = p_id_prioridad,
-        id_cliente = p_id_cliente,
-        id_usuario_responsable = p_id_usuario_responsable,
-        id_chofer_responsable = p_id_chofer_responsable,
-        id_comprobante = p_id_comprobante,
-        id_estado_actividad = p_id_estado_actividad,
-        observaciones = p_observaciones,
+        titulo = COALESCE(p_titulo, titulo),
+        descripcion = COALESCE(p_descripcion, descripcion),
+        fecha_programada = COALESCE(p_fecha_programada, fecha_programada),
+        hora_inicio_estimada = COALESCE(p_hora_inicio_estimada, hora_inicio_estimada),
+        hora_fin_estimada = COALESCE(p_hora_fin_estimada, hora_fin_estimada),
+        fecha_hora_cierre = COALESCE(p_fecha_hora_cierre, fecha_hora_cierre),
+        id_tipo_actividad = COALESCE(p_id_tipo_actividad, id_tipo_actividad),
+        id_prioridad = COALESCE(p_id_prioridad, id_prioridad),
+        id_cliente = COALESCE(p_id_cliente, id_cliente),
+        id_usuario_responsable = COALESCE(p_id_usuario_responsable, id_usuario_responsable),
+        id_chofer_responsable = COALESCE(p_id_chofer_responsable, id_chofer_responsable),
+        id_comprobante = COALESCE(p_id_comprobante, id_comprobante),
+        id_estado_actividad = COALESCE(p_id_estado_actividad, id_estado_actividad),
+        observaciones = COALESCE(p_observaciones, observaciones),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;
