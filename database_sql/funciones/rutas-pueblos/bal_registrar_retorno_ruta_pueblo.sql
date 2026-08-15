@@ -16,6 +16,7 @@ DECLARE
     v_lb_retorno NUMERIC;
     v_id_det INTEGER;
     v_lb_salida NUMERIC;
+    v_lb_retorno_existente NUMERIC;
     v_m3_delta NUMERIC;
     v_restante_m3 NUMERIC;
     v_mov JSON;
@@ -68,8 +69,8 @@ BEGIN
             RAISE EXCEPTION 'Cada ítem requiere idBalon y lbRetorno ≥ 0';
         END IF;
 
-        SELECT d.id, d.lb_salida
-        INTO v_id_det, v_lb_salida
+        SELECT d.id, d.lb_salida, d.lb_retorno
+        INTO v_id_det, v_lb_salida, v_lb_retorno_existente
         FROM bal_ruta_pueblo_detalle d
         WHERE d.id_ruta_pueblo = p_id
           AND d.id_balon = v_id_balon
@@ -77,6 +78,11 @@ BEGIN
 
         IF v_id_det IS NULL THEN
             RAISE EXCEPTION 'Cilindro % no pertenece a esta ruta', v_id_balon;
+        END IF;
+
+        -- Idempotente: no reprocesar cilindros ya retornados
+        IF v_lb_retorno_existente IS NOT NULL THEN
+            CONTINUE;
         END IF;
 
         IF v_lb_retorno > v_lb_salida THEN

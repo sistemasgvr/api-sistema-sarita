@@ -59,7 +59,12 @@ FROM (
         ('recojos_balon.ver', 'Ver detalle de visita de recojo'),
         ('recojos_balon.crear', 'Programar visitas de recojo'),
         ('recojos_balon.editar', 'Editar / registrar resultado de recojo'),
-        ('recojos_balon.eliminar', 'Eliminar visitas de recojo')
+        ('recojos_balon.eliminar', 'Eliminar visitas de recojo'),
+        ('rutas_pueblos.listar', 'Listar controles de ruta a pueblos'),
+        ('rutas_pueblos.ver', 'Ver detalle de ruta a pueblos'),
+        ('rutas_pueblos.crear', 'Crear rutas a pueblos'),
+        ('rutas_pueblos.editar', 'Editar / iniciar / retornar / cerrar rutas a pueblos'),
+        ('rutas_pueblos.eliminar', 'Eliminar rutas a pueblos')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (
     SELECT 1 FROM auth_permisos p WHERE p.nombre = v.nombre
@@ -84,6 +89,7 @@ WHERE r.nombre = 'Administrador'
       OR p.nombre LIKE 'mantenimientos_balon.%'
       OR p.nombre LIKE 'bajas_balon.%'
       OR p.nombre LIKE 'recojos_balon.%'
+      OR p.nombre LIKE 'rutas_pueblos.%'
   )
   AND NOT EXISTS (
       SELECT 1

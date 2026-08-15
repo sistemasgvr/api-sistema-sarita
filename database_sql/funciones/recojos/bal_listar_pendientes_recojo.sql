@@ -56,41 +56,6 @@ BEGIN
 
         UNION ALL
 
-        SELECT
-            'ALQUILER'::VARCHAR,
-            a.id,
-            a.numero_alquiler,
-            ad.id,
-            'CILINDRO'::VARCHAR,
-            a.id_cliente,
-            COALESCE(
-                NULLIF(TRIM(c.razon_social), ''),
-                NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno)), ''),
-                c.numero_documento
-            ),
-            ad.id_balon,
-            b.codigo_balon,
-            a.fecha_fin_pactada,
-            CURRENT_DATE - a.fecha_fin_pactada,
-            EXISTS (
-                SELECT 1
-                FROM bal_recojo_detalle rd
-                JOIN bal_recojo r ON r.id = rd.id_recojo AND r.estado = 1
-                JOIN gen_lista_opciones e ON e.id = r.id_estado
-                WHERE rd.id_alquiler_detalle = ad.id
-                  AND rd.estado = 1
-                  AND e.nombre IN ('PROGRAMADO', 'EN_RUTA')
-            )
-        FROM bal_alquiler_detalle ad
-        JOIN bal_alquiler a ON a.id = ad.id_alquiler AND a.estado = 1
-        JOIN gen_lista_opciones ea ON ea.id = a.id_estado AND ea.nombre = 'ACTIVO'
-        LEFT JOIN cli_clientes c ON c.id = a.id_cliente
-        LEFT JOIN bal_balon b ON b.id = ad.id_balon
-        WHERE ad.estado = 1
-          AND ad.fecha_devolucion IS NULL
-
-        UNION ALL
-
         -- Alquiler activo con regulador/accesorio pendiente (con o sin cilindros)
         SELECT
             'ALQUILER'::VARCHAR,
@@ -122,6 +87,16 @@ BEGIN
                 WHERE r.id_alquiler = a.id
                   AND r.estado = 1
                   AND e.nombre IN ('PROGRAMADO', 'EN_RUTA')
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM bal_recojo_detalle rd
+                      WHERE rd.id_recojo = r.id
+                        AND rd.estado = 1
+                        AND (
+                            rd.id_prestamo_detalle IS NOT NULL
+                            OR rd.id_alquiler_detalle IS NOT NULL
+                        )
+                  )
             )
         FROM bal_alquiler a
         JOIN gen_lista_opciones ea ON ea.id = a.id_estado AND ea.nombre = 'ACTIVO'

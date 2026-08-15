@@ -27,7 +27,8 @@ FROM (
         ('EstadoRecargaPlanta', 'Estados de la orden de recarga en planta externa'),
         ('EstadoRecojo', 'Estados de visita de recojo de cilindros en préstamo'),
         ('ResultadoRecojoDetalle', 'Resultado por cilindro en una visita de recojo'),
-        ('MotivoFalloRecojo', 'Motivo de fallo / no recogido en visita de recojo')
+        ('MotivoFalloRecojo', 'Motivo de fallo / no recogido en visita de recojo'),
+        ('EstadoRutaPueblo', 'Estados de control de ruta a pueblos')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (
     SELECT 1 FROM gen_lista l WHERE l.nombre = v.nombre
@@ -390,6 +391,23 @@ FROM (
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'MotivoFalloRecojo'
+  AND NOT EXISTS (
+      SELECT 1 FROM gen_lista_opciones lo
+      WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
+  );
+
+-- EstadoRutaPueblo
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
+SELECT l.id, v.nombre, v.descripcion
+FROM (
+    VALUES
+        ('ABIERTA', 'Ruta abierta (planificada)'),
+        ('EN_RUTA', 'Cilindros en tránsito a pueblos'),
+        ('CERRADA', 'Ruta cerrada (cuadre de m³)'),
+        ('CANCELADA', 'Ruta cancelada')
+) AS v(nombre, descripcion)
+CROSS JOIN gen_lista l
+WHERE l.nombre = 'EstadoRutaPueblo'
   AND NOT EXISTS (
       SELECT 1 FROM gen_lista_opciones lo
       WHERE lo.id_lista = l.id AND lo.nombre = v.nombre

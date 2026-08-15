@@ -84,6 +84,23 @@ BEGIN
                 FROM bal_recojo_detalle rd
                 WHERE rd.id_recojo = r.id AND rd.estado = 1
             ) AS total_detalles,
+            CASE
+                WHEN r.id_alquiler IS NOT NULL
+                     AND COALESCE(al.id_producto_regulador, al.id_producto_stock) IS NOT NULL
+                THEN TRUE
+                ELSE FALSE
+            END AS tiene_regulador,
+            CASE
+                WHEN r.id_alquiler IS NOT NULL
+                     AND COALESCE(al.id_producto_regulador, al.id_producto_stock) IS NOT NULL
+                     AND NOT EXISTS (
+                         SELECT 1
+                         FROM bal_recojo_detalle rd0
+                         WHERE rd0.id_recojo = r.id AND rd0.estado = 1
+                     )
+                THEN TRUE
+                ELSE FALSE
+            END AS es_solo_regulador,
             r.observacion,
             r.estado,
             r.fecha_creacion,
