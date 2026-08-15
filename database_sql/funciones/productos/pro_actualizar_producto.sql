@@ -1,4 +1,5 @@
 DROP FUNCTION IF EXISTS pro_actualizar_producto(INTEGER, VARCHAR, VARCHAR, VARCHAR, INTEGER, INTEGER, VARCHAR, VARCHAR, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, NUMERIC, VARCHAR, INTEGER, NUMERIC, NUMERIC);
+DROP FUNCTION IF EXISTS pro_actualizar_producto(INTEGER, VARCHAR, VARCHAR, VARCHAR, INTEGER, INTEGER, VARCHAR, VARCHAR, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, NUMERIC, VARCHAR, INTEGER, NUMERIC, NUMERIC, NUMERIC, NUMERIC);
 
 CREATE OR REPLACE FUNCTION pro_actualizar_producto(
     p_id INTEGER,
@@ -19,7 +20,8 @@ CREATE OR REPLACE FUNCTION pro_actualizar_producto(
     p_precio_compra NUMERIC DEFAULT NULL,
     p_precio_garantia NUMERIC DEFAULT NULL,
     p_factor_kg_m3 NUMERIC DEFAULT NULL,
-    p_factor_lb_m3 NUMERIC DEFAULT NULL
+    p_factor_lb_m3 NUMERIC DEFAULT NULL,
+    p_es_mantenimiento BOOLEAN DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -105,6 +107,13 @@ BEGIN
         es_gas = COALESCE(p_es_gas, es_gas),
         es_servicio = COALESCE(p_es_servicio, es_servicio),
         es_alquilable = v_es_alquilable,
+        es_mantenimiento = CASE
+            WHEN COALESCE(p_es_servicio, es_servicio)
+                 AND NOT COALESCE(p_es_gas, es_gas)
+                 AND NOT v_es_alquilable
+            THEN COALESCE(p_es_mantenimiento, es_mantenimiento)
+            ELSE FALSE
+        END,
         afecta_stock = CASE
             WHEN COALESCE(p_es_gas, es_gas) OR COALESCE(p_es_servicio, es_servicio) THEN FALSE
             ELSE COALESCE(p_afecta_stock, afecta_stock)

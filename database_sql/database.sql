@@ -644,8 +644,9 @@ CREATE TABLE pro_producto (
     presentacion    varchar(150),
     -- Flags especiales
     es_gas           BOOLEAN DEFAULT FALSE,   -- true si es un gas (Oxigeno, Nitrogeno...)
-    es_servicio      BOOLEAN DEFAULT FALSE,   -- true si es un servicio (Mantenimiento, Alquiler...)
+    es_servicio      BOOLEAN DEFAULT FALSE,   -- true si es un servicio (flete, taller, alquiler…)
     es_alquilable    BOOLEAN DEFAULT FALSE,   -- puede ser alquilado
+    es_mantenimiento BOOLEAN DEFAULT FALSE,   -- servicio de taller (P.H., válvula); el resto solo se cobra
     afecta_stock     BOOLEAN DEFAULT TRUE,    -- false para servicios puros
     precio          NUMERIC(12,4) DEFAULT 0,  -- precio de venta base (POS)
     precio_compra   NUMERIC(12,4) DEFAULT 0,  -- costo/precio de compra

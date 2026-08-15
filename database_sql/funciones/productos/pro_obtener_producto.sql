@@ -26,6 +26,7 @@ BEGIN
             p.es_gas,
             p.es_servicio,
             p.es_alquilable,
+            p.es_mantenimiento,
             p.afecta_stock,
             p.precio,
             p.precio_compra,
