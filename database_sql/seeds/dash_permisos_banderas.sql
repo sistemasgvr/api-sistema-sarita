@@ -5,7 +5,11 @@ SELECT v.nombre, v.descripcion
 FROM (
     VALUES
         ('dashboard.ver_clientes', 'Ver dashboard del módulo Clientes'),
-        ('dashboard.ver_balones', 'Ver dashboard del módulo Balones')
+        ('dashboard.ver_balones', 'Ver dashboard del módulo Balones'),
+        ('dashboard.ver_ventas', 'Ver dashboard de ventas netas'),
+        ('dashboard.ver_compras', 'Ver dashboard de compras netas'),
+        ('dashboard.ver_productos', 'Ver dashboard del módulo Productos'),
+        ('dashboard.ver_garantias', 'Ver dashboard de garantías por alquiler')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (
     SELECT 1 FROM auth_permisos p WHERE p.nombre = v.nombre

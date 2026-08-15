@@ -288,6 +288,10 @@ export const PermisoBanderas = {
 
   DASHBOARD_VER_CLIENTES: 'dashboard.ver_clientes',
   DASHBOARD_VER_BALONES: 'dashboard.ver_balones',
+  DASHBOARD_VER_VENTAS: 'dashboard.ver_ventas',
+  DASHBOARD_VER_COMPRAS: 'dashboard.ver_compras',
+  DASHBOARD_VER_PRODUCTOS: 'dashboard.ver_productos',
+  DASHBOARD_VER_GARANTIAS: 'dashboard.ver_garantias',
 
   FINANZAS_CXC_VER: 'finanzas.cxc.ver',
   FINANZAS_CXC_CREAR: 'finanzas.cxc.crear',

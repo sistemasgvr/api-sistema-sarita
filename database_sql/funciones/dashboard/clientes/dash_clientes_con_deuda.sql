@@ -44,6 +44,11 @@ BEGIN
           'fechaEmision', fc.fecha_emision,
           'fechaVencimiento', fc.fecha_vencimiento,
           'montoSaldo', fc.monto_saldo,
+          'diasRetraso', GREATEST(CURRENT_DATE - fc.fecha_vencimiento, 0),
+          'estadoPago', CASE
+            WHEN fc.fecha_vencimiento IS NOT NULL AND fc.fecha_vencimiento < CURRENT_DATE THEN 'VENCIDO'
+            ELSE 'CORRIENTE'
+          END,
           'productos', (
             SELECT COALESCE(json_agg(
               json_build_object(
@@ -71,6 +76,7 @@ BEGIN
       AND (p_fecha_desde IS NULL OR fc.fecha_emision >= p_fecha_desde)
       AND (p_fecha_hasta IS NULL OR fc.fecha_emision <= p_fecha_hasta)
     GROUP BY c.id, c.razon_social, c.nombres, c.numero_documento
+    ORDER BY SUM(fc.monto_saldo) DESC
   ) cliente_deuda;
 
   RETURN v_result;
