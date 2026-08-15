@@ -8,7 +8,7 @@ CREATE OR REPLACE FUNCTION bal_asignar_origenes_recarga(
 )
 RETURNS JSON
 LANGUAGE plpgsql
-STABLE
+VOLATILE
 AS $function$
 DECLARE
     v_requerida NUMERIC;
