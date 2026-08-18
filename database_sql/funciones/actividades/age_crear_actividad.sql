@@ -73,6 +73,39 @@ BEGIN
         RAISE EXCEPTION 'El título es obligatorio.';
     END IF;
 
+    IF NOT EXISTS (
+        SELECT 1
+        FROM gen_lista_opciones o
+        INNER JOIN gen_lista l ON l.id = o.id_lista
+        WHERE o.id = p_id_tipo_actividad
+          AND o.estado = 1
+          AND (l.nombre = 'TipoActividad' OR l.id = 48)
+    ) THEN
+        RAISE EXCEPTION 'El tipo de actividad indicado no es válido.';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM gen_lista_opciones o
+        INNER JOIN gen_lista l ON l.id = o.id_lista
+        WHERE o.id = p_id_prioridad
+          AND o.estado = 1
+          AND (l.nombre = 'PrioridadActividad' OR l.id = 50)
+    ) THEN
+        RAISE EXCEPTION 'La prioridad indicada no es válida.';
+    END IF;
+
+    IF p_id_estado_actividad IS NOT NULL AND NOT EXISTS (
+        SELECT 1
+        FROM gen_lista_opciones o
+        INNER JOIN gen_lista l ON l.id = o.id_lista
+        WHERE o.id = p_id_estado_actividad
+          AND o.estado = 1
+          AND (l.nombre = 'EstadoActividad' OR l.id = 49)
+    ) THEN
+        RAISE EXCEPTION 'El estado de actividad indicado no es válido.';
+    END IF;
+
     IF p_hora_inicio_estimada IS NOT NULL AND p_hora_fin_estimada IS NOT NULL THEN
         IF p_hora_inicio_estimada >= p_hora_fin_estimada THEN
             RAISE EXCEPTION 'La hora de inicio estimada debe ser menor a la hora de fin estimada.';

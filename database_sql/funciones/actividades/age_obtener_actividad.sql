@@ -67,9 +67,15 @@ BEGIN
             act.fecha_modificacion,
             v_items AS items
         FROM age_actividad act
-        LEFT JOIN gen_lista_opciones ta ON act.id_tipo_actividad = ta.id
-        LEFT JOIN gen_lista_opciones pr ON act.id_prioridad = pr.id
-        LEFT JOIN gen_lista_opciones ea ON act.id_estado_actividad = ea.id
+        LEFT JOIN gen_lista_opciones ta
+            ON ta.id = act.id_tipo_actividad
+           AND ta.id_lista IN (SELECT gl.id FROM gen_lista gl WHERE gl.nombre = 'TipoActividad' OR gl.id = 48)
+        LEFT JOIN gen_lista_opciones pr
+            ON pr.id = act.id_prioridad
+           AND pr.id_lista IN (SELECT gl.id FROM gen_lista gl WHERE gl.nombre = 'PrioridadActividad' OR gl.id = 50)
+        LEFT JOIN gen_lista_opciones ea
+            ON ea.id = act.id_estado_actividad
+           AND ea.id_lista IN (SELECT gl.id FROM gen_lista gl WHERE gl.nombre = 'EstadoActividad' OR gl.id = 49)
         LEFT JOIN cli_clientes c ON act.id_cliente = c.id
         LEFT JOIN LATERAL (
             SELECT cd.latitud, cd.longitud

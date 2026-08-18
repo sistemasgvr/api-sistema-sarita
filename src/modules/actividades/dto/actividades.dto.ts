@@ -9,11 +9,43 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Validate,
   ValidateIf,
   ValidateNested,
+  ValidationArguments,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
 } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
+
+function horaAMinutos(value?: string | null): number | null {
+  if (!value) return null;
+  const match = String(value).trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
+@ValidatorConstraint({ name: 'horaFinPosteriorInicio', async: false })
+class HoraFinPosteriorInicioConstraint implements ValidatorConstraintInterface {
+  validate(_: unknown, args: ValidationArguments) {
+    const dto = args.object as {
+      horaInicioEstimada?: string;
+      horaFinEstimada?: string;
+    };
+    const inicio = horaAMinutos(dto.horaInicioEstimada);
+    const fin = horaAMinutos(dto.horaFinEstimada);
+    if (inicio == null || fin == null) return true;
+    return fin > inicio;
+  }
+
+  defaultMessage() {
+    return 'La hora de fin debe ser posterior a la hora de inicio';
+  }
+}
 
 export class FiltroActividadesDto extends FiltroPaginacionDto {
   @ApiPropertyOptional({ description: 'Filtrar desde la fecha programada (YYYY-MM-DD)' })
@@ -86,14 +118,14 @@ export class ActividadItemDto {
 }
 
 export class CreateActividadDto extends AuditoriaDto {
-  @ApiProperty({ example: 'Reunión de coordinación', maxLength: 150 })
+  @ApiProperty({ example: 'Visita de seguimiento', maxLength: 150 })
   @ValidateIf((o: CreateActividadDto) => !o.idComprobante)
   @IsString()
   @IsNotEmpty()
   @MaxLength(150)
   titulo?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: 'Coordinar entrega y recambio de cilindros' })
   @IsOptional()
   @IsString()
   descripcion?: string;
@@ -111,14 +143,15 @@ export class CreateActividadDto extends AuditoriaDto {
   @ApiPropertyOptional({ example: '10:30:00' })
   @IsOptional()
   @IsString()
+  @Validate(HoraFinPosteriorInicioConstraint)
   horaFinEstimada?: string;
 
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ example: 221, description: 'Id de opción en TipoActividad' })
   @Type(() => Number)
   @IsInt()
   idTipoActividad!: number;
 
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ example: 230, description: 'Id de opción en PrioridadActividad' })
   @Type(() => Number)
   @IsInt()
   idPrioridad!: number;
@@ -154,12 +187,12 @@ export class CreateActividadDto extends AuditoriaDto {
   @Type(() => ActividadItemDto)
   items?: ActividadItemDto[];
 
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ example: 227, description: 'Id de opción en EstadoActividad' })
   @Type(() => Number)
   @IsInt()
   idEstadoActividad!: number;
 
-  @ApiPropertyOptional({ maxLength: 500 })
+  @ApiPropertyOptional({ example: 'Confirmar asistencia con el cliente', maxLength: 500 })
   @IsOptional()
   @IsString()
   @MaxLength(500)
@@ -191,6 +224,7 @@ export class UpdateActividadDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @Validate(HoraFinPosteriorInicioConstraint)
   horaFinEstimada?: string;
 
   @ApiPropertyOptional()
