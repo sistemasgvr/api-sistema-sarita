@@ -26,6 +26,7 @@ export class CajaModel {
       dto.idSucursal ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idSesion ?? null,
     ]);
   }
 

@@ -34,6 +34,14 @@ export class AbrirCajaDto extends AuditoriaDto {
   @IsString()
   @MaxLength(500)
   observacion?: string;
+
+  @ApiPropertyOptional({
+    description: 'ID de sesión CERRADA a reabrir (flujo Reabrir caja)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idSesion?: number;
 }
 
 export class CerrarCajaDto extends AuditoriaDto {
