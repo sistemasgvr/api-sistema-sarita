@@ -214,12 +214,39 @@ export class ComprobantesModel {
            OR (tc.descripcion IN ('07', '08') AND UPPER(c.serie) LIKE 'B%')
          )
          AND COALESCE(es.nombre, 'PENDIENTE') IN ('PENDIENTE', 'ACEPTADO')
+         AND NOT EXISTS (
+           SELECT 1
+           FROM ven_resumen_diario_detalle rd
+           INNER JOIN ven_resumen_diario r ON rd.id_resumen = r.id
+           LEFT JOIN gen_lista_opciones re ON r.id_estado_sunat = re.id
+           WHERE rd.id_comprobante = c.id
+             AND rd.estado = 1
+             AND r.estado = 1
+             AND r.fecha = $1::date
+             AND COALESCE(re.nombre, 'PENDIENTE') IN ('PENDIENTE', 'ACEPTADO')
+         )
          ${idsFilter}
        ORDER BY c.serie, c.numero`,
       params,
     );
 
     return result.rows;
+  }
+
+  async existeResumenDiarioInformado(fecha: string): Promise<boolean> {
+    const result = await this.db.query<{ existe: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1
+         FROM ven_resumen_diario r
+         LEFT JOIN gen_lista_opciones es ON r.id_estado_sunat = es.id
+         WHERE r.estado = 1
+           AND r.fecha = $1::date
+           AND COALESCE(es.nombre, 'PENDIENTE') IN ('PENDIENTE', 'ACEPTADO')
+       ) as existe`,
+      [fecha],
+    );
+
+    return result.rows[0]?.existe ?? false;
   }
 
   async resolverIdEstadoSunat(nombreEstado: string) {

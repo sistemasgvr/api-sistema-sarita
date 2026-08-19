@@ -113,6 +113,7 @@ export class ComprobantesLogic {
 
   async previewResumenDiario(fecha: string) {
     const items = await this.model.listarParaResumenDiario(fecha);
+    const yaInformados = await this.model.existeResumenDiarioInformado(fecha);
     const total = items.reduce(
       (acc, item) => acc + Number(item.total_importe ?? 0),
       0,
@@ -123,6 +124,7 @@ export class ComprobantesLogic {
       cantidad: items.length,
       total,
       items,
+      yaInformados,
     };
   }
 

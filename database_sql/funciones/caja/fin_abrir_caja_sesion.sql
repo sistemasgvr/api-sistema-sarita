@@ -36,7 +36,9 @@ BEGIN
         RETURN json_build_object('error', 'El monto inicial no puede ser negativo', 'registro', NULL);
     END IF;
 
-    -- Una sola sesión por fecha + sucursal (abierta o cerrada).
+    -- Una sola sesión por fecha + sucursal.
+    --   - ABIERTA: no se puede reabrir.
+    --   - CERRADA: se permite reabrir (actualizando la misma fila).
     SELECT s.* INTO v_existente
     FROM fin_caja_sesion s
     WHERE s.estado = 1
@@ -45,54 +47,107 @@ BEGIN
     LIMIT 1;
 
     IF FOUND THEN
-        v_hora_txt := to_char(v_existente.fecha_apertura AT TIME ZONE 'America/Lima', 'DD/MM/YYYY HH24:MI');
-        RETURN json_build_object(
-            'error', format(
-                'Ya existe una sesión de caja para esa fecha (abierta el %s). No se puede repetir la misma fecha.',
-                COALESCE(v_hora_txt, to_char(p_fecha, 'DD/MM/YYYY'))
-            ),
-            'registro', NULL
-        );
-    END IF;
-
-    -- No abrir otra si ya hay una caja ABIERTA en la misma sucursal (otra fecha).
-    SELECT s.* INTO v_abierta
-    FROM fin_caja_sesion s
-    WHERE s.estado = 1
-      AND s.id_estado = v_estado_abierta
-      AND COALESCE(s.id_sucursal, 0) = COALESCE(p_id_sucursal, 0)
-    LIMIT 1;
-
-    IF FOUND THEN
-        v_hora_txt := to_char(v_abierta.fecha_apertura AT TIME ZONE 'America/Lima', 'DD/MM/YYYY HH24:MI');
-        RETURN json_build_object(
-            'error', format(
-                'Ya hay una caja ABIERTA del %s (apertura %s). Ciérrala antes de abrir otra.',
-                to_char(v_abierta.fecha, 'DD/MM/YYYY'),
-                COALESCE(v_hora_txt, '—')
-            ),
-            'registro', NULL
-        );
-    END IF;
-
-    BEGIN
-        INSERT INTO fin_caja_sesion (
-            fecha, id_sucursal, id_estado, monto_inicial,
-            observacion_apertura, fecha_apertura, id_usuario_apertura,
-            id_usuario_creacion
-        ) VALUES (
-            p_fecha, p_id_sucursal, v_estado_abierta, COALESCE(p_monto_inicial, 0),
-            NULLIF(TRIM(p_observacion), ''), NOW(), p_id_usuario,
-            p_id_usuario
-        )
-        RETURNING id INTO v_id;
-    EXCEPTION
-        WHEN unique_violation THEN
+        -- Si está ABIERTA, mantener el error (no reabrir).
+        IF v_existente.id_estado = v_estado_abierta THEN
+            v_hora_txt := to_char(
+                v_existente.fecha_apertura AT TIME ZONE 'America/Lima',
+                'DD/MM/YYYY HH24:MI'
+            );
             RETURN json_build_object(
-                'error', 'Ya existe una sesión de caja para esa fecha / sucursal. No se puede repetir.',
+                'error', format(
+                    'Ya hay una caja ABIERTA del %s (apertura %s). Ciérrala antes de abrir otra.',
+                    to_char(v_existente.fecha, 'DD/MM/YYYY'),
+                    COALESCE(v_hora_txt, '—')
+                ),
                 'registro', NULL
             );
-    END;
+        END IF;
+
+        -- No reabrir si ya hay otra caja ABIERTA en la misma sucursal (otra fecha).
+        SELECT s.* INTO v_abierta
+        FROM fin_caja_sesion s
+        WHERE s.estado = 1
+          AND s.id_estado = v_estado_abierta
+          AND COALESCE(s.id_sucursal, 0) = COALESCE(p_id_sucursal, 0)
+        LIMIT 1;
+
+        IF FOUND THEN
+            v_hora_txt := to_char(
+                v_abierta.fecha_apertura AT TIME ZONE 'America/Lima',
+                'DD/MM/YYYY HH24:MI'
+            );
+            RETURN json_build_object(
+                'error', format(
+                    'Ya hay una caja ABIERTA del %s (apertura %s). Ciérrala antes de abrir otra.',
+                    to_char(v_abierta.fecha, 'DD/MM/YYYY'),
+                    COALESCE(v_hora_txt, '—')
+                ),
+                'registro', NULL
+            );
+        END IF;
+
+        -- Reabrir: pasar de CERRADA -> ABIERTA reiniciando campos de cierre.
+        UPDATE fin_caja_sesion
+        SET id_estado = v_estado_abierta,
+            fecha_apertura = NOW(),
+            id_usuario_apertura = p_id_usuario,
+            observacion_apertura = NULLIF(TRIM(p_observacion), ''),
+            monto_inicial = COALESCE(p_monto_inicial, 0),
+            -- Campos de cierre (reset):
+            fecha_cierre = NULL,
+            id_usuario_cierre = NULL,
+            monto_efectivo_contado = NULL,
+            monto_esperado = NULL,
+            diferencia = NULL,
+            observacion_cierre = NULL,
+            -- Auditoría:
+            id_usuario_modificacion = p_id_usuario,
+            fecha_modificacion = NOW()
+        WHERE id = v_existente.id
+        RETURNING id INTO v_id;
+    ELSE
+        -- No abrir otra si ya hay una caja ABIERTA en la misma sucursal (otra fecha).
+        SELECT s.* INTO v_abierta
+        FROM fin_caja_sesion s
+        WHERE s.estado = 1
+          AND s.id_estado = v_estado_abierta
+          AND COALESCE(s.id_sucursal, 0) = COALESCE(p_id_sucursal, 0)
+        LIMIT 1;
+
+        IF FOUND THEN
+            v_hora_txt := to_char(
+                v_abierta.fecha_apertura AT TIME ZONE 'America/Lima',
+                'DD/MM/YYYY HH24:MI'
+            );
+            RETURN json_build_object(
+                'error', format(
+                    'Ya hay una caja ABIERTA del %s (apertura %s). Ciérrala antes de abrir otra.',
+                    to_char(v_abierta.fecha, 'DD/MM/YYYY'),
+                    COALESCE(v_hora_txt, '—')
+                ),
+                'registro', NULL
+            );
+        END IF;
+
+        BEGIN
+            INSERT INTO fin_caja_sesion (
+                fecha, id_sucursal, id_estado, monto_inicial,
+                observacion_apertura, fecha_apertura, id_usuario_apertura,
+                id_usuario_creacion
+            ) VALUES (
+                p_fecha, p_id_sucursal, v_estado_abierta, COALESCE(p_monto_inicial, 0),
+                NULLIF(TRIM(p_observacion), ''), NOW(), p_id_usuario,
+                p_id_usuario
+            )
+            RETURNING id INTO v_id;
+        EXCEPTION
+            WHEN unique_violation THEN
+                RETURN json_build_object(
+                    'error', 'Ya existe una sesión de caja para esa fecha / sucursal. No se puede repetir.',
+                    'registro', NULL
+                );
+        END;
+    END IF;
 
     SELECT row_to_json(t) INTO v_registro
     FROM (

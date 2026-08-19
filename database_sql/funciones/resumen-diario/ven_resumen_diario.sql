@@ -139,7 +139,7 @@ BEGIN
             ) AS nombre_cliente,
             cl.numero_documento AS documento_cliente
         FROM ven_resumen_diario_detalle d
-        INNER JOIN ven_comprobante c ON d.id_comprobante = c.id
+        LEFT JOIN ven_comprobante c ON d.id_comprobante = c.id
         LEFT JOIN gen_lista_opciones tc ON c.id_tipo_comprobante = tc.id
         LEFT JOIN gen_lista_opciones es ON c.id_estado_sunat = es.id
         LEFT JOIN cli_clientes cl ON c.id_cliente = cl.id
