@@ -12,6 +12,7 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
+import { MONEY_NUMBER_OPTIONS } from '../../../common/constants/money';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 
 /**
@@ -51,7 +52,7 @@ export class CrearCuentaDto extends AuditoriaDto {
 
   @ApiProperty({ example: 1500.5, description: 'Monto total pendiente inicial' })
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber(MONEY_NUMBER_OPTIONS)
   @IsPositive()
   monto: number;
 
@@ -85,7 +86,7 @@ export class CrearCuentaDto extends AuditoriaDto {
   @ApiPropertyOptional({ example: 15.5, description: 'Tasa de interés % anual (opcional)' })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber(MONEY_NUMBER_OPTIONS)
   @Min(0)
   tasaInteres?: number;
 
@@ -125,7 +126,7 @@ export class CrearCuentaCuotasDto extends AuditoriaDto {
 
   @ApiProperty({ example: 12000, description: 'Monto total del plan (se distribuye entre las cuotas)' })
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber(MONEY_NUMBER_OPTIONS)
   @IsPositive()
   montoTotal: number;
 
@@ -172,7 +173,7 @@ export class CrearCuentaCuotasDto extends AuditoriaDto {
   @ApiPropertyOptional({ example: 18.0, description: 'Tasa de interés % anual' })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber(MONEY_NUMBER_OPTIONS)
   @Min(0)
   tasaInteres?: number;
 

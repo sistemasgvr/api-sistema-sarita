@@ -7,7 +7,9 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Min,
 } from 'class-validator';
+import { MONEY_NUMBER_OPTIONS } from '../../../common/constants/money';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
@@ -102,13 +104,15 @@ export class CreateAlquileresBalonDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   tarifaDiaria?: number;
 
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   totalCobrado?: number;
 
   @ApiPropertyOptional()
@@ -189,13 +193,15 @@ export class UpdateAlquileresBalonDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   tarifaDiaria?: number;
 
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   totalCobrado?: number;
 
   @ApiPropertyOptional()
@@ -251,7 +257,8 @@ export class RegistrarAlquilerPeriodoDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   monto?: number;
 
   @ApiPropertyOptional()
@@ -282,7 +289,8 @@ export class RenovarAlquilerDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   monto?: number;
 
   @ApiPropertyOptional()

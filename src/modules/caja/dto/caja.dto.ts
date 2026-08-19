@@ -19,7 +19,7 @@ export class AbrirCajaDto extends AuditoriaDto {
 
   @ApiProperty({ example: 100 })
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   montoInicial!: number;
 
@@ -39,7 +39,7 @@ export class AbrirCajaDto extends AuditoriaDto {
 export class CerrarCajaDto extends AuditoriaDto {
   @ApiProperty({ example: 450.5, description: 'Efectivo físico contado en el arqueo' })
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   montoEfectivoContado!: number;
 
@@ -115,7 +115,7 @@ export class CrearCajaGastoDto extends AuditoriaDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
   monto!: number;
 
@@ -163,7 +163,7 @@ export class CrearCajaDepositoDto extends AuditoriaDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
   monto!: number;
 

@@ -9,6 +9,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { MONEY_NUMBER_OPTIONS } from '../../../common/constants/money';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
@@ -107,14 +108,14 @@ export class CreateCatalogoPrecioDto extends AuditoriaDto {
   @ApiPropertyOptional({ default: 0 })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
   @Min(0)
   costoProducto?: number;
 
   @ApiPropertyOptional({ default: 0 })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
   @Min(0)
   costoFlete?: number;
 
@@ -127,13 +128,15 @@ export class CreateCatalogoPrecioDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   precioFinal?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   precioGarantia?: number;
 }
 
@@ -207,13 +210,15 @@ export class UpdateCatalogoPrecioDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   costoProducto?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   costoFlete?: number;
 
   @ApiPropertyOptional()
@@ -225,12 +230,14 @@ export class UpdateCatalogoPrecioDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   precioFinal?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   precioGarantia?: number;
 }

@@ -10,11 +10,13 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  Min,
   IsPositive,
   IsString,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
+import { MONEY_NUMBER_OPTIONS } from '../../../common/constants/money';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
@@ -100,14 +102,16 @@ export class ComprobanteDetalleDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   @IsNotEmpty()
   precioUnitario!: number;
 
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   descuento?: number;
 
   @ApiPropertyOptional({ default: 18 })
@@ -173,14 +177,16 @@ export class ComprobanteCuotaDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   @IsNotEmpty()
   monto!: number;
 
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   montoPagado?: number;
 
   @ApiPropertyOptional()
@@ -193,7 +199,8 @@ export class ComprobanteCuotaDto {
 export class EfectoPosGarantiaDto {
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   @IsPositive()
   monto!: number;
 
@@ -354,7 +361,8 @@ export class EfectoPosAlquilerPeriodoDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   monto!: number;
 
   @ApiPropertyOptional()
@@ -387,13 +395,15 @@ export class EfectoPosAlquilerDto {
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   tarifaDiaria?: number;
 
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   totalCobrado?: number;
 
   @ApiPropertyOptional()
@@ -450,7 +460,8 @@ export class EfectoPosMantenimientoDto {
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   costo?: number;
 
   @ApiPropertyOptional()
@@ -473,7 +484,8 @@ export class EfectoPosBajaDto {
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   montoVenta?: number;
 
   @ApiPropertyOptional()

@@ -11,6 +11,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { MONEY_NUMBER_OPTIONS } from '../../../common/constants/money';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
@@ -36,7 +37,7 @@ export class CrearGarantiaDto extends AuditoriaDto {
 
   @ApiProperty({ example: 50.0, description: 'Importe de la garantía' })
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber(MONEY_NUMBER_OPTIONS)
   @IsPositive()
   importe: number;
 
@@ -93,7 +94,7 @@ export class ActualizarGarantiaDto extends AuditoriaDto {
   @ApiPropertyOptional({ example: 50.0 })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber(MONEY_NUMBER_OPTIONS)
   @IsPositive()
   importe?: number;
 
@@ -107,7 +108,7 @@ export class ActualizarGarantiaDto extends AuditoriaDto {
 export class ReembolsarGarantiaDto extends AuditoriaDto {
   @ApiProperty({ example: 50, description: 'Monto a devolver (parcial o total del saldo)' })
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber(MONEY_NUMBER_OPTIONS)
   @Min(0.01)
   monto: number;
 

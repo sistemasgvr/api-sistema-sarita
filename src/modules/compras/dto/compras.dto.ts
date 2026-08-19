@@ -10,8 +10,10 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
+import { MONEY_NUMBER_OPTIONS } from '../../../common/constants/money';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
@@ -59,7 +61,8 @@ export class CompraCuotaDto {
   @ApiPropertyOptional({ example: 150.5 })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   monto?: number;
 }
 
@@ -99,7 +102,8 @@ export class CreateCompraDetalleDto {
   @ApiPropertyOptional({ example: 45.5 })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   precioUnitario?: number;
 
   @ApiPropertyOptional({
@@ -348,7 +352,8 @@ export class ActualizarCompraDetalleDto extends AuditoriaDto {
   @ApiPropertyOptional({ example: 45.5 })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   precioUnitario?: number;
 }
 
@@ -367,7 +372,8 @@ export class CreateCompraDetalleLineaDto extends AuditoriaDto {
   @ApiPropertyOptional({ example: 45.5 })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   precioUnitario?: number;
 
   @ApiPropertyOptional({

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsNumber, IsOptional, IsPositive, IsString, Matches, MaxLength } from 'class-validator';
+import { MONEY_NUMBER_OPTIONS } from '../../../common/constants/money';
 
 export class VerificarDuplicadoPagoDto {
   @ApiProperty({ example: 12 })
@@ -15,7 +16,7 @@ export class VerificarDuplicadoPagoDto {
 
   @ApiProperty({ example: 150.5 })
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber(MONEY_NUMBER_OPTIONS)
   @IsPositive()
   monto: number;
 

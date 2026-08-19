@@ -8,7 +8,9 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Min,
 } from 'class-validator';
+import { MONEY_NUMBER_OPTIONS } from '../../../common/constants/money';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
@@ -74,7 +76,8 @@ export class CreateMantenimientosBalonDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   costo?: number;
 
   @ApiPropertyOptional()
@@ -162,7 +165,8 @@ export class UpdateMantenimientosBalonDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @Min(0)
   costo?: number;
 
   @ApiPropertyOptional()

@@ -8,6 +8,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { MONEY_NUMBER_OPTIONS } from '../../../common/constants/money';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
@@ -45,7 +46,7 @@ export class CreateGarantiaDto extends AuditoriaDto {
 
   @ApiProperty({ description: 'Monto cobrado (queda como saldo inicial)' })
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
   @Min(0.01)
   monto!: number;
 
@@ -114,7 +115,7 @@ export class CreateGarantiaDto extends AuditoriaDto {
 export class DevolverGarantiaDto extends AuditoriaDto {
   @ApiProperty({ description: 'Monto a devolver (parcial o total del saldo)' })
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber(MONEY_NUMBER_OPTIONS)
   @Min(0.01)
   monto!: number;
 

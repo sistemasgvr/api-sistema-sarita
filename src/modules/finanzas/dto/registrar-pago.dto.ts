@@ -10,6 +10,7 @@ import {
   Matches,
   MaxLength,
 } from 'class-validator';
+import { MONEY_NUMBER_OPTIONS } from '../../../common/constants/money';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 
 export class RegistrarPagoDto extends AuditoriaDto {
@@ -20,7 +21,7 @@ export class RegistrarPagoDto extends AuditoriaDto {
 
   @ApiProperty({ example: 150.5, description: 'Monto del pago/cobranza' })
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 4 })
+  @IsNumber(MONEY_NUMBER_OPTIONS)
   @IsPositive()
   monto: number;
 
