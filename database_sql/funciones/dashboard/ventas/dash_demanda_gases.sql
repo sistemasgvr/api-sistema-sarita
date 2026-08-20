@@ -8,11 +8,14 @@ RETURNS JSON
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_total  NUMERIC(14,4);
     v_result JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
+    -- Antes: dos sentencias SELECT separadas reutilizaban el mismo WITH ("detalle_gas"),
+    -- pero un CTE solo existe dentro de la sentencia que lo declara; la segunda sentencia
+    -- fallaba en tiempo de ejecución con "relation detalle_gas does not exist" y la
+    -- función nunca llegó a devolver datos. Se une todo en una sola sentencia.
     WITH detalle_gas AS (
         SELECT
             p.id AS id_producto,
@@ -28,23 +31,25 @@ BEGIN
           AND (p_fecha_desde IS NULL OR vc.fecha >= p_fecha_desde)
           AND (p_fecha_hasta IS NULL OR vc.fecha <= p_fecha_hasta)
         GROUP BY p.id, p.nombre
+    ),
+    totales AS (
+        SELECT COALESCE(SUM(cantidad), 0) AS total FROM detalle_gas
     )
-    SELECT COALESCE(SUM(cantidad), 0) INTO v_total FROM detalle_gas;
-
     SELECT json_build_object(
-        'totalCantidad', v_total,
+        'totalCantidad', (SELECT total FROM totales),
         'detalle', COALESCE(json_agg(
             json_build_object(
-                'idProducto', id_producto,
-                'producto', nombre,
-                'cantidad', cantidad,
-                'porcentaje', CASE WHEN v_total > 0 THEN ROUND(cantidad / v_total * 100, 2) ELSE 0 END
+                'idProducto', d.id_producto,
+                'producto', d.nombre,
+                'cantidad', d.cantidad,
+                'porcentaje', CASE WHEN t.total > 0 THEN ROUND(d.cantidad / t.total * 100, 2) ELSE 0 END
             )
-            ORDER BY cantidad DESC
+            ORDER BY d.cantidad DESC
         ), '[]'::json)
     )
     INTO v_result
-    FROM detalle_gas;
+    FROM detalle_gas d
+    CROSS JOIN totales t;
 
     RETURN v_result;
 END;

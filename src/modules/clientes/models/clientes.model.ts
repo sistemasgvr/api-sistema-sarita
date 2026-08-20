@@ -10,6 +10,13 @@ import {
 } from '../../../common/interfaces/auth-db.interface';
 import { CreateClienteDto, UpdateClienteDto } from '../dto/crear-cliente.dto';
 
+export interface ExportarRelacionadosResult {
+  direcciones: unknown[];
+  vehiculos: unknown[];
+  choferes: unknown[];
+  cuentas_bancarias: unknown[];
+}
+
 @Injectable()
 export class ClientesModel {
   constructor(private readonly db: DatabaseService) { }
@@ -53,6 +60,19 @@ export class ClientesModel {
       id,
       idUsuarioAuditoria ?? null,
     ]);
+  }
+
+  /**
+   * Direcciones + vehículos + choferes + cuentas bancarias de un lote de clientes en
+   * una sola llamada (usado por la exportación a Excel). Reemplaza el patrón anterior
+   * de 4 llamadas HTTP por cliente (N+1) que hacía la exportación completa lenta con
+   * catálogos grandes. Ver cli_exportar_relacionados.sql.
+   */
+  exportarRelacionados(idsCliente: number[]) {
+    return this.db.callFunctionJson<ExportarRelacionadosResult>(
+      'cli_exportar_relacionados',
+      [idsCliente],
+    );
   }
 
   validarDocumento(numeroDocumento: string, idExcluir?: number) {

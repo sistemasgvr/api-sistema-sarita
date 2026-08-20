@@ -7,11 +7,13 @@ RETURNS JSON
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_valor_total NUMERIC(14,2);
-    v_result      JSON;
+    v_result JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
+    -- Mismo bug que dash_demanda_gases: dos sentencias separadas reutilizaban el CTE
+    -- "valorizado", pero un WITH solo existe dentro de la sentencia que lo declara.
+    -- La segunda sentencia fallaba con "relation valorizado does not exist".
     WITH valorizado AS (
         SELECT
             c.id AS id_categoria,
@@ -25,23 +27,25 @@ BEGIN
           AND p.estado = 1
           AND (p_id_almacen IS NULL OR s.id_almacen = p_id_almacen)
         GROUP BY c.id, c.nombre
+    ),
+    totales AS (
+        SELECT COALESCE(SUM(valor), 0) AS valor_total FROM valorizado
     )
-    SELECT COALESCE(SUM(valor), 0) INTO v_valor_total FROM valorizado;
-
     SELECT json_build_object(
-        'valorTotal', v_valor_total,
+        'valorTotal', (SELECT valor_total FROM totales),
         'detalle', COALESCE(json_agg(
             json_build_object(
-                'idCategoria', id_categoria,
-                'categoria', categoria,
-                'valor', valor,
-                'porcentaje', CASE WHEN v_valor_total > 0 THEN ROUND(valor / v_valor_total * 100, 2) ELSE 0 END
+                'idCategoria', v.id_categoria,
+                'categoria', v.categoria,
+                'valor', v.valor,
+                'porcentaje', CASE WHEN t.valor_total > 0 THEN ROUND(v.valor / t.valor_total * 100, 2) ELSE 0 END
             )
-            ORDER BY valor DESC
+            ORDER BY v.valor DESC
         ), '[]'::json)
     )
     INTO v_result
-    FROM valorizado;
+    FROM valorizado v
+    CROSS JOIN totales t;
 
     RETURN v_result;
 END;

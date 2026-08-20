@@ -19,6 +19,7 @@ import { FiltroClienteMapaDto } from '../dto/filtros-cliente-mapa.dto';
 import { ClientesLogic } from '../logic/clientes.logic';
 import { ValidarDocumentoClienteDto } from '../dto/validar-documento.dto';
 import { CreateClienteDto, UpdateClienteDto } from '../dto/crear-cliente.dto';
+import { ExportarRelacionadosClienteDto } from '../dto/exportar-relacionados-cliente.dto';
 
 @ApiTags('Clientes')
 @Controller('clientes')
@@ -49,6 +50,16 @@ export class ClientesController {
   @ApiOperation({ summary: 'Listar clientes' })
   listar(@Query() filtros: FiltroClienteDto) {
     return this.clientesLogic.listar(filtros);
+  }
+
+  @Post('exportar-relacionados')
+  @Permisos(PermisoBanderas.CLIENTES_LISTAR)
+  @ApiOperation({
+    summary:
+      'Direcciones, vehículos, choferes y cuentas bancarias de un lote de clientes en una sola consulta agregada (uso: exportación a Excel)',
+  })
+  exportarRelacionados(@Body() dto: ExportarRelacionadosClienteDto) {
+    return this.clientesLogic.exportarRelacionados(dto);
   }
 
   @Get(':id')
