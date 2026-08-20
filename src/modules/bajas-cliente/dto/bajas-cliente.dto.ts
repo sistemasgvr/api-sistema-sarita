@@ -25,11 +25,11 @@ export class SolicitarBajaClienteDto extends OmitType(AuditoriaDto, [
   @IsNotEmpty()
   idCliente!: number;
 
-  @ApiPropertyOptional({ example: 1, description: 'ID de motivo de baja (MotivoBajaCliente)' })
-  @IsOptional()
+  @ApiProperty({ example: 1, description: 'ID de motivo de baja (MotivoBajaCliente)' })
   @Type(() => Number)
   @IsInt()
-  idMotivoBaja?: number;
+  @IsNotEmpty({ message: 'El motivo de baja es obligatorio' })
+  idMotivoBaja!: number;
 
   @ApiPropertyOptional({ example: 'Cliente solicitó la baja voluntariamente' })
   @IsOptional()

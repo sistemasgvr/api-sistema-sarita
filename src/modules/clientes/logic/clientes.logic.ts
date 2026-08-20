@@ -9,6 +9,7 @@ import { FiltroClienteMapaDto } from '../dto/filtros-cliente-mapa.dto';
 import { ClientesModel } from '../models/clientes.model';
 import { ValidarDocumentoClienteDto } from '../dto/validar-documento.dto';
 import { CreateClienteDto, UpdateClienteDto } from '../dto/crear-cliente.dto';
+import { ExportarRelacionadosClienteDto } from '../dto/exportar-relacionados-cliente.dto';
 import { esClientesVarios } from '../constants/clientes-varios';
 
 @Injectable()
@@ -53,6 +54,16 @@ export class ClientesLogic {
 
   async validarDocumento(dto: ValidarDocumentoClienteDto) {
     return this.clientesModel.validarDocumento(dto.numeroDocumento, dto.idExcluir);
+  }
+
+  async exportarRelacionados(dto: ExportarRelacionadosClienteDto) {
+    const result = await this.clientesModel.exportarRelacionados(dto.ids);
+    return {
+      direcciones: result?.direcciones ?? [],
+      vehiculos: result?.vehiculos ?? [],
+      choferes: result?.choferes ?? [],
+      cuentasBancarias: result?.cuentas_bancarias ?? [],
+    };
   }
 
   async crear(dto: CreateClienteDto) {
