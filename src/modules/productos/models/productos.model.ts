@@ -39,6 +39,13 @@ export class ProductosModel {
     );
   }
 
+  generarCodigoProducto(prefijo?: string | null) {
+    return this.db.callFunctionJson<AuthSingleResult<{ codigo: string }>>(
+      'pro_generar_codigo_producto',
+      [prefijo?.trim() || 'PRO'],
+    );
+  }
+
   crear(
     codigo: string,
     nombre: string,

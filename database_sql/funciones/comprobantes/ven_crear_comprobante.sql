@@ -113,6 +113,15 @@ BEGIN
         RETURN json_build_object('error', 'La fecha del comprobante es obligatoria', 'registro', NULL);
     END IF;
 
+    -- Si no viene sucursal, se toma del almacén (caja es por fecha + sucursal).
+    IF p_id_sucursal IS NULL AND p_id_almacen IS NOT NULL THEN
+        SELECT a.id_sucursal INTO p_id_sucursal
+        FROM gen_almacen a
+        WHERE a.id = p_id_almacen
+          AND a.estado = 1
+        LIMIT 1;
+    END IF;
+
     -- Operación del día: requiere caja ABIERTA (arqueo / control operativo)
     v_err_caja := fin_caja_assert_abierta(p_fecha, p_id_sucursal);
     IF v_err_caja IS NOT NULL THEN
