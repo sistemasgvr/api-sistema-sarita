@@ -1,4 +1,4 @@
-DROP FUNCTION IF EXISTS gen_actualizar_documento_vencimiento(INTEGER, INTEGER, VARCHAR, INTEGER, DATE, DATE, VARCHAR, VARCHAR, INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS gen_actualizar_documento_vencimiento(INTEGER, INTEGER, VARCHAR, INTEGER, DATE, DATE, VARCHAR, VARCHAR, INTEGER, INTEGER, INTEGER);
 
 CREATE OR REPLACE FUNCTION gen_actualizar_documento_vencimiento(
     p_id INTEGER,
@@ -10,7 +10,9 @@ CREATE OR REPLACE FUNCTION gen_actualizar_documento_vencimiento(
     p_numero_documento VARCHAR DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
     p_id_estado INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_id_sucursal INTEGER DEFAULT NULL,
+    p_reemplazar_alcance BOOLEAN DEFAULT TRUE
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -22,7 +24,8 @@ BEGIN
     SET
         id_categoria = COALESCE(p_id_categoria, id_categoria),
         descripcion = COALESCE(p_descripcion, descripcion),
-        id_vehiculo = COALESCE(p_id_vehiculo, id_vehiculo),
+        id_vehiculo = CASE WHEN p_reemplazar_alcance THEN p_id_vehiculo ELSE COALESCE(p_id_vehiculo, id_vehiculo) END,
+        id_sucursal = CASE WHEN p_reemplazar_alcance THEN p_id_sucursal ELSE COALESCE(p_id_sucursal, id_sucursal) END,
         fecha_vencimiento = COALESCE(p_fecha_vencimiento, fecha_vencimiento),
         fecha_renovacion = COALESCE(p_fecha_renovacion, fecha_renovacion),
         numero_documento = COALESCE(p_numero_documento, numero_documento),

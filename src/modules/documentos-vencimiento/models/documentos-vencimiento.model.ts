@@ -23,6 +23,9 @@ export class DocumentosVencimientoModel {
       filtros.offset ?? 0,
       filtros.idCategoria ?? null,
       filtros.idVehiculo ?? null,
+      filtros.idSucursal ?? null,
+      filtros.estado ?? null,
+      filtros.diasAlerta ?? 30,
     ]);
   }
 
@@ -46,6 +49,7 @@ export class DocumentosVencimientoModel {
         dto.observacion ?? null,
         dto.idEstado ?? null,
         dto.idUsuarioAuditoria ?? null,
+        dto.idSucursal ?? null,
       ],
     );
   }
@@ -64,6 +68,9 @@ export class DocumentosVencimientoModel {
         dto.observacion ?? null,
         dto.idEstado ?? null,
         dto.idUsuarioAuditoria ?? null,
+        dto.idSucursal ?? null,
+        // p_reemplazar_alcance: se deja el DEFAULT TRUE de la función — el formulario
+        // siempre manda el trío de alcance (vehículo/sucursal) completo.
       ],
     );
   }

@@ -1,4 +1,4 @@
-DROP FUNCTION IF EXISTS gen_crear_documento_vencimiento(INTEGER, VARCHAR, INTEGER, DATE, DATE, VARCHAR, VARCHAR, INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS gen_crear_documento_vencimiento(INTEGER, VARCHAR, INTEGER, DATE, DATE, VARCHAR, VARCHAR, INTEGER, INTEGER, INTEGER);
 
 CREATE OR REPLACE FUNCTION gen_crear_documento_vencimiento(
     p_id_categoria INTEGER DEFAULT NULL,
@@ -9,7 +9,8 @@ CREATE OR REPLACE FUNCTION gen_crear_documento_vencimiento(
     p_numero_documento VARCHAR DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
     p_id_estado INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_id_sucursal INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -23,6 +24,7 @@ BEGIN
         id_categoria,
         descripcion,
         id_vehiculo,
+        id_sucursal,
         fecha_vencimiento,
         fecha_renovacion,
         numero_documento,
@@ -35,6 +37,7 @@ BEGIN
         p_id_categoria,
         p_descripcion,
         p_id_vehiculo,
+        p_id_sucursal,
         p_fecha_vencimiento,
         p_fecha_renovacion,
         p_numero_documento,

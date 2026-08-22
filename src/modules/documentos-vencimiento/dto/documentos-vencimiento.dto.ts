@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsDateString,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -11,31 +12,52 @@ import {
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
+export const ESTADOS_VENCIMIENTO = ['VIGENTE', 'POR_VENCER', 'VENCIDO'] as const;
+export type EstadoVencimiento = (typeof ESTADOS_VENCIMIENTO)[number];
+
 export class CreateDocumentoVencimientoDto extends AuditoriaDto {
-  @ApiPropertyOptional({ example: 1, description: 'ID de opción de lista: categoría (VEHICULO, CERTIFICADO, SEGURIDAD...)' })
+  @ApiPropertyOptional({
+    example: 1,
+    description:
+      'ID de opción de lista: categoría (BPA, SALUBRIDAD, DEFENSA_CIVIL, SANEAMIENTO_AMBIENTAL, EXTINTORES, SOAT, INSPECCION, MUNICIPAL, SEGURIDAD, CERTIFICADO, OTRO...)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   idCategoria?: number;
 
-  @ApiProperty({ example: 'SOAT 2025' })
+  @ApiProperty({ example: 'BPA - Planta principal' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
   descripcion!: string;
 
-  @ApiPropertyOptional({ example: 1, description: 'ID del vehículo asociado' })
+  @ApiPropertyOptional({
+    example: 1,
+    description:
+      'Alcance del documento: ID del vehículo (excluyente con idSucursal). Ninguno de los dos = alcance empresa.',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   idVehiculo?: number;
 
-  @ApiProperty({ example: '2025-12-31' })
+  @ApiPropertyOptional({
+    example: 1,
+    description:
+      'Alcance del documento: ID de la sucursal/local (excluyente con idVehiculo). Ninguno de los dos = alcance empresa.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idSucursal?: number;
+
+  @ApiProperty({ example: '2026-12-31' })
   @IsDateString()
   @IsNotEmpty()
   fechaVencimiento!: string;
 
-  @ApiPropertyOptional({ example: '2025-01-15' })
+  @ApiPropertyOptional({ example: '2026-01-15', description: 'Fecha de la última renovación/emisión' })
   @IsOptional()
   @IsDateString()
   fechaRenovacion?: string;
@@ -52,7 +74,12 @@ export class CreateDocumentoVencimientoDto extends AuditoriaDto {
   @MaxLength(255)
   observacion?: string;
 
-  @ApiPropertyOptional({ example: 1, description: 'ID de opción de lista: estado (VIGENTE, POR_VENCER, VENCIDO)' })
+  @ApiPropertyOptional({
+    example: 1,
+    description:
+      'Override manual del estado (ID de opción de lista). No se usa para mostrar el estado: ' +
+      'el listado siempre calcula VIGENTE/POR_VENCER/VENCIDO a partir de fechaVencimiento.',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -79,4 +106,27 @@ export class FiltroDocumentoVencimientoDto extends FiltroPaginacionDto {
   @Type(() => Number)
   @IsInt()
   idVehiculo?: number;
+
+  @ApiPropertyOptional({ example: 1, description: 'Filtrar por sucursal/local' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idSucursal?: number;
+
+  @ApiPropertyOptional({
+    enum: ESTADOS_VENCIMIENTO,
+    description: 'Filtrar por estado calculado (VIGENTE / POR_VENCER / VENCIDO)',
+  })
+  @IsOptional()
+  @IsIn(ESTADOS_VENCIMIENTO)
+  estado?: EstadoVencimiento;
+
+  @ApiPropertyOptional({
+    example: 30,
+    description: 'Días de anticipación para considerar "POR_VENCER" (por defecto 30)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  diasAlerta?: number;
 }
