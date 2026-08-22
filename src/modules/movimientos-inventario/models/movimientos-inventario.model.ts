@@ -39,6 +39,7 @@ export class MovimientosInventarioModel {
     glosa: string | null,
     idUsuarioAuditoria?: number,
     idAlmacenDestino?: number | null,
+    sentidoAjuste?: 'MAS' | 'MENOS' | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('pro_crear_movimiento', [
       fecha,
@@ -52,6 +53,35 @@ export class MovimientosInventarioModel {
       idUsuarioAuditoria ?? null,
       false,
       idAlmacenDestino ?? null,
+      sentidoAjuste ?? null,
+    ]);
+  }
+
+  crearTrasladoLote(
+    fecha: string,
+    idAlmacen: number,
+    idAlmacenDestino: number,
+    idTipoMovimiento: number,
+    detalles: Array<{ idProducto: number; cantidad: number }>,
+    glosa: string | null,
+    idUsuarioAuditoria?: number,
+    idDocumentoRef?: number | null,
+    idTipoDocumentoRef?: number | null,
+  ) {
+    return this.db.callFunctionJson<{
+      error?: string | null;
+      registros: unknown[] | null;
+      total?: number;
+    }>('pro_crear_traslado_lote', [
+      fecha,
+      idAlmacen,
+      idAlmacenDestino,
+      idTipoMovimiento,
+      JSON.stringify(detalles),
+      glosa,
+      idUsuarioAuditoria ?? null,
+      idDocumentoRef ?? null,
+      idTipoDocumentoRef ?? null,
     ]);
   }
 
