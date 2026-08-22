@@ -215,6 +215,36 @@ CREATE TABLE gen_distrito (
     fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
+
+CREATE TABLE tra_trabajadores (
+    id                      SERIAL PRIMARY KEY,
+    nombres                 VARCHAR(150) NOT NULL,
+    apellido_paterno        VARCHAR(100),
+    apellido_materno        VARCHAR(100),
+    id_tipo_documento       INT REFERENCES gen_lista_opciones(id),   -- catálogo TipoDocumento (DNI/CE/Pasaporte)
+    numero_documento        VARCHAR(20),
+    direccion               VARCHAR(255),
+    referencia              VARCHAR(255),
+    latitud                 NUMERIC(10,8),
+    longitud                NUMERIC(11,8),
+    id_pais                 INT REFERENCES gen_pais(id),
+    id_departamento         INT REFERENCES gen_departamento(id),
+    id_provincia            INT REFERENCES gen_provincia(id),
+    id_distrito             INT REFERENCES gen_distrito(id),
+    fecha_nacimiento        DATE,
+    fecha_inicio            DATE,
+    fecha_cese              DATE,
+    id_area                 INT REFERENCES gen_lista_opciones(id),   -- catálogo AREAS_TRABAJADOR
+    id_cargo                INT REFERENCES gen_lista_opciones(id),   -- catálogo CARGOS_TRABAJADOR
+    id_usuario              INT REFERENCES auth_usuarios(id),        -- vínculo opcional a usuario de acceso
+    id_chofer               INT REFERENCES gen_chofer(id),          -- vínculo opcional a chofer
+    estado                  INT NOT NULL DEFAULT 1,                  -- 1 activo / 0 cesado (baja lógica)
+    id_usuario_creacion     INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
+    fecha_creacion          TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion      TIMESTAMP DEFAULT NOW()
+);
+
 -- Lista maestra de opciones (equivalente a tablas de tipo/estado)
 -- Ejemplos de uso: TipoDocumento, TipoPersona, TipoCuenta, TipoMovimiento, etc.
 CREATE TABLE gen_lista (
@@ -2115,6 +2145,42 @@ INSERT INTO gen_lista (nombre, descripcion) VALUES
 -- ('CERTIFICADO DE INSPECCION TECNICA - MUNICIPALIDAD', '2026-09-03'),
 -- ('BPA', '2026-10-06'),
 -- ('EXTINTOR', '2025-12-01');
+-- ============================================================
+-- MÓDULO ACTIVOS (Inventario de activos fijos de la empresa)
+-- ============================================================
+
+CREATE TABLE act_activos (
+    id                        SERIAL PRIMARY KEY,
+    id_tipo                   INT REFERENCES gen_lista_opciones(id),   -- catálogo ACTIVOS_TIPO
+    descripcion               VARCHAR(255),
+    fecha_compra              DATE,
+    importe                   NUMERIC(12,2),
+    id_sucursal               INT REFERENCES gen_sucursal(id),
+    marca                     VARCHAR(120),
+    modelo                    VARCHAR(120),
+    numero_serie              VARCHAR(120),
+    id_trabajador_responsable INT REFERENCES tra_trabajadores(id),
+    imagen_principal_ruta     VARCHAR(500),
+    estado                    INT NOT NULL DEFAULT 1,                   -- 1 activo / 0 inactivo-baja (baja lógica)
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion            TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion        TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE act_activo_imagen (
+    id                        SERIAL PRIMARY KEY,
+    id_activo                 INT NOT NULL REFERENCES act_activos(id),
+    id_archivo                INT NOT NULL REFERENCES gen_archivo(id),
+    orden                     INT NOT NULL DEFAULT 0,
+    es_principal              BOOLEAN NOT NULL DEFAULT FALSE,
+    estado                    INT NOT NULL DEFAULT 1,
+    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
+    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
+    fecha_creacion            TIMESTAMP DEFAULT NOW(),
+    fecha_modificacion        TIMESTAMP DEFAULT NOW()
+);
+
 -- ============================================================
 -- FIN DEL SCRIPT
 -- ============================================================
