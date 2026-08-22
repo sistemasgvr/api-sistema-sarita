@@ -172,6 +172,20 @@ export class FiltroBalonesDto extends FiltroPaginacionDto {
   @IsOptional()
   @IsBoolean()
   soloLlenosFuera?: boolean;
+
+  @ApiPropertyOptional({ description: 'Filtra por planta / proveedor del cilindro' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idPlanta?: number;
+
+  @ApiPropertyOptional({
+    description: 'Filtra por tipo de válvula (contiene, case-insensitive)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  tipoValvula?: string;
 }
 
 export class CreateBalonesDto extends AuditoriaDto {
@@ -333,6 +347,26 @@ export class CreateBalonesDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   idPlanta?: number;
+
+  @ApiPropertyOptional({ description: 'Tipo de válvula (texto libre)' })
+  @MaxLength(100)
+  @IsOptional()
+  @IsString()
+  tipoValvula?: string;
+
+  @ApiPropertyOptional({
+    description: 'Peso aproximado kg (guías); si se omite usa peso del tipo',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  pesoAproximadoKg?: number;
+
+  @ApiPropertyOptional({ description: 'Marca/símbolo del sello de inspección' })
+  @MaxLength(100)
+  @IsOptional()
+  @IsString()
+  selloInspeccion?: string;
 }
 
 export class UpdateBalonesDto extends AuditoriaDto {
@@ -494,6 +528,26 @@ export class UpdateBalonesDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   idPlanta?: number;
+
+  @ApiPropertyOptional({ description: 'Tipo de válvula (texto libre)' })
+  @MaxLength(100)
+  @IsOptional()
+  @IsString()
+  tipoValvula?: string;
+
+  @ApiPropertyOptional({
+    description: 'Peso aproximado kg (guías); si se omite usa peso del tipo',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  pesoAproximadoKg?: number;
+
+  @ApiPropertyOptional({ description: 'Marca/símbolo del sello de inspección' })
+  @MaxLength(100)
+  @IsOptional()
+  @IsString()
+  selloInspeccion?: string;
 }
 
 export class FiltroPhHistorialDto extends FiltroPaginacionDto {}

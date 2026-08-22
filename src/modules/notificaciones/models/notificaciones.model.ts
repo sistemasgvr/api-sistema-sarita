@@ -198,4 +198,11 @@ export class NotificacionesModel {
       [null],
     );
   }
+
+  listarPhPorVencer(dias = 60) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'bal_listar_ph_por_vencer',
+      [dias],
+    );
+  }
 }

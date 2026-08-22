@@ -797,6 +797,9 @@ CREATE TABLE bal_balon (
     presion_actual       NUMERIC(8,2),
     capacidad_restante   NUMERIC(10,4),               -- residual de gas (recarga CLIENTE / origen)
     observacion         varchar(500),
+    tipo_valvula        varchar(100),                 -- tipo de válvula (texto libre en ficha)
+    peso_aproximado_kg  NUMERIC(10,4),                -- peso guía (kg); si NULL usa peso del tipo
+    sello_inspeccion    varchar(100),                 -- marca/símbolo del sello de inspección
     estado              INT NOT NULL DEFAULT 1,
     id_usuario_creacion       INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion   INT REFERENCES auth_usuarios(id),

@@ -4,6 +4,8 @@ DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, I
 DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER, INTEGER);
 DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER, INTEGER, INTEGER);
 DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER, INTEGER, INTEGER, BOOLEAN);
+DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER);
+DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, VARCHAR);
 
 CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_busqueda VARCHAR DEFAULT '',
@@ -22,7 +24,9 @@ CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_id_propietario INTEGER DEFAULT NULL,
     p_id_estado_contenido INTEGER DEFAULT NULL,
     p_id_producto_gas INTEGER DEFAULT NULL,
-    p_solo_llenos_fuera BOOLEAN DEFAULT NULL
+    p_solo_llenos_fuera BOOLEAN DEFAULT NULL,
+    p_id_planta INTEGER DEFAULT NULL,
+    p_tipo_valvula VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -124,6 +128,11 @@ BEGIN
           OR gen_texto_coincide(COALESCE(pg.nombre, ''), v_familia_gas)
           OR gen_texto_coincide(COALESCE(pg.codigo, ''), v_familia_gas)
       )
+      AND (p_id_planta IS NULL OR b.id_planta = p_id_planta)
+      AND (
+          p_tipo_valvula IS NULL
+          OR b.tipo_valvula ILIKE '%' || TRIM(p_tipo_valvula) || '%'
+      )
       AND (
           p_busqueda = ''
           OR gen_texto_coincide(b.codigo_balon, p_busqueda)
@@ -172,6 +181,9 @@ BEGIN
             tb.capacidad,
             tb.capacidad_lb,
             tb.peso AS peso_tipo_balon,
+            b.peso_aproximado_kg,
+            COALESCE(b.peso_aproximado_kg, tb.peso) AS peso_guia_kg,
+            b.sello_inspeccion,
             um.nombre AS nombre_unidad_medida,
             b.id_producto_gas,
             pg.nombre AS nombre_producto_gas,
@@ -198,6 +210,7 @@ BEGIN
             b.presion_actual,
             b.capacidad_restante,
             b.capacidad_restante_lb,
+            b.tipo_valvula,
             EXISTS (
                 SELECT 1
                 FROM bal_baja_balon bb
@@ -311,6 +324,11 @@ BEGIN
               OR gen_texto_coincide(COALESCE(tb.nombre, ''), v_familia_gas)
               OR gen_texto_coincide(COALESCE(pg.nombre, ''), v_familia_gas)
               OR gen_texto_coincide(COALESCE(pg.codigo, ''), v_familia_gas)
+          )
+          AND (p_id_planta IS NULL OR b.id_planta = p_id_planta)
+          AND (
+              p_tipo_valvula IS NULL
+              OR b.tipo_valvula ILIKE '%' || TRIM(p_tipo_valvula) || '%'
           )
           AND (
               p_busqueda = ''

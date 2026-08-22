@@ -26,6 +26,9 @@ CREATE OR REPLACE FUNCTION bal_crear_balon(
     p_mes_fabricacion SMALLINT DEFAULT NULL,
     p_id_planta INTEGER DEFAULT NULL,
     p_id_estado_contenido INTEGER DEFAULT NULL,
+    p_tipo_valvula VARCHAR DEFAULT NULL,
+    p_peso_aproximado_kg NUMERIC DEFAULT NULL,
+    p_sello_inspeccion VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -198,7 +201,8 @@ BEGIN
         id_tipo_balon, id_producto_gas, id_estado_balon, id_estado_contenido, id_planta,
         fecha_ultima_prueba_hidrostatica, vigencia_prueba_hidrostatica_anios,
         fecha_proxima_prueba_hidrostatica, fecha_fabricacion, anio_fabricacion, mes_fabricacion,
-        numero_recepcion, presion_actual, observacion,
+        numero_recepcion, presion_actual, observacion, tipo_valvula,
+        peso_aproximado_kg, sello_inspeccion,
         id_usuario_creacion, id_usuario_modificacion
     )
     VALUES (
@@ -211,6 +215,9 @@ BEGIN
         v_fecha_ultima_ph, v_vigencia_ph,
         v_fecha_proxima_ph, v_fecha_fabricacion, v_anio_fabricacion, v_mes_fabricacion,
         p_numero_recepcion, p_presion_actual, p_observacion,
+        NULLIF(TRIM(p_tipo_valvula), ''),
+        p_peso_aproximado_kg,
+        NULLIF(TRIM(p_sello_inspeccion), ''),
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;

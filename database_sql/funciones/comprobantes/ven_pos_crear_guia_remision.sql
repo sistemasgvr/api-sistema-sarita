@@ -155,7 +155,7 @@ BEGIN
       AND pd.estado = 1
       AND pd.id_balon IS NOT NULL;
 
-    SELECT COALESCE(SUM(COALESCE(tb.peso, 10)), 10)
+    SELECT COALESCE(SUM(COALESCE(b.peso_aproximado_kg, tb.peso, 10)), 10)
     INTO v_peso
     FROM bal_prestamo_detalle pd
     INNER JOIN bal_prestamo p ON p.id = pd.id_prestamo AND p.estado = 1
