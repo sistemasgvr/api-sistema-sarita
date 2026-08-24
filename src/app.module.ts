@@ -35,6 +35,7 @@ import { ContactosModule } from './modules/contactos/contactos.module';
 import { DireccionesModule } from './modules/direcciones/direcciones.module';
 import { ChoferesModule } from './modules/choferes/choferes.module';
 import { TrabajadoresModule } from './modules/trabajadores/trabajadores.module';
+import { ActivosModule } from './modules/activos/activos.module';
 import { VehiculosModule } from './modules/vehiculos/vehiculos.module';
 import { LicenciasModule } from './modules/licencias/licencias.module'
 import { CategoriasProductoModule } from './modules/categorias-producto/categorias-producto.module';
@@ -111,6 +112,7 @@ import { CajaModule } from './modules/caja/caja.module';
     DireccionesModule,
     ChoferesModule,
     TrabajadoresModule,
+    ActivosModule,
     VehiculosModule,
     LicenciasModule,
     CategoriasProductoModule,

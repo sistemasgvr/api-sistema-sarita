@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsDateString,
   IsInt,
   IsNotEmpty,
@@ -117,6 +118,17 @@ export class CreateTrabajadorDto extends AuditoriaDto {
   @Type(() => Number)
   @IsInt()
   idUsuarioVinculo?: number;
+
+  @ApiPropertyOptional({ description: 'Correo para las credenciales del usuario de acceso' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  correo?: string;
+
+  @ApiPropertyOptional({ description: 'Crear usuario de acceso (correo + n° documento como contraseña)' })
+  @IsOptional()
+  @IsBoolean()
+  crearUsuario?: boolean;
 
   @ApiPropertyOptional({ example: 1, description: 'Vínculo opcional a gen_chofer' })
   @IsOptional()

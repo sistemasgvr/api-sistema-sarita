@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsDateString,
@@ -19,9 +19,22 @@ import {
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
+type BooleanLike = string | boolean | null | undefined;
+
+function parseBooleanLike(value: BooleanLike): boolean | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value === 'boolean') return value;
+  const v = String(value).toLowerCase().trim();
+  if (v === 'true' || v === '1' || v === 'si' || v === 's') return true;
+  if (v === 'false' || v === '0' || v === 'no' || v === 'n') return false;
+  return undefined;
+}
+
 function horaAMinutos(value?: string | null): number | null {
   if (!value) return null;
-  const match = String(value).trim().match(/^(\d{1,2}):(\d{2})/);
+  const match = String(value)
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})/);
   if (!match) return null;
   const hours = Number(match[1]);
   const minutes = Number(match[2]);
@@ -48,12 +61,16 @@ class HoraFinPosteriorInicioConstraint implements ValidatorConstraintInterface {
 }
 
 export class FiltroActividadesDto extends FiltroPaginacionDto {
-  @ApiPropertyOptional({ description: 'Filtrar desde la fecha programada (YYYY-MM-DD)' })
+  @ApiPropertyOptional({
+    description: 'Filtrar desde la fecha programada (YYYY-MM-DD)',
+  })
   @IsOptional()
   @IsDateString()
   fechaDesde?: string;
 
-  @ApiPropertyOptional({ description: 'Filtrar hasta la fecha programada (YYYY-MM-DD)' })
+  @ApiPropertyOptional({
+    description: 'Filtrar hasta la fecha programada (YYYY-MM-DD)',
+  })
   @IsOptional()
   @IsDateString()
   fechaHasta?: string;
@@ -75,10 +92,23 @@ export class FiltroActividadesDto extends FiltroPaginacionDto {
   @Type(() => Number)
   @IsInt()
   idPrioridad?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Filtrar por asignación: true = sin responsable (usuario y chofer nulos), false = con responsable, undefined = todas',
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    parseBooleanLike(value as BooleanLike),
+  )
+  sinResponsable?: boolean;
 }
 
 export class FiltroActividadesProximasDto {
-  @ApiPropertyOptional({ example: 60, description: 'Minutos hacia adelante (mín. 5)' })
+  @ApiPropertyOptional({
+    example: 60,
+    description: 'Minutos hacia adelante (mín. 5)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -151,7 +181,10 @@ export class CreateActividadDto extends AuditoriaDto {
   @IsInt()
   idTipoActividad!: number;
 
-  @ApiProperty({ example: 230, description: 'Id de opción en PrioridadActividad' })
+  @ApiProperty({
+    example: 230,
+    description: 'Id de opción en PrioridadActividad',
+  })
   @Type(() => Number)
   @IsInt()
   idPrioridad!: number;
@@ -168,17 +201,32 @@ export class CreateActividadDto extends AuditoriaDto {
   @IsInt()
   idUsuarioResponsable?: number;
 
-  @ApiPropertyOptional({ example: 1, description: 'Chofer / repartidor de flota propia' })
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Chofer / repartidor de flota propia',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   idChoferResponsable?: number;
 
-  @ApiPropertyOptional({ example: 10, description: 'Comprobante de venta origen del reparto' })
+  @ApiPropertyOptional({
+    example: 10,
+    description: 'Comprobante de venta origen del reparto',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   idComprobante?: number;
+
+  @ApiPropertyOptional({
+    example: 5,
+    description: 'Guía de remisión origen del reparto',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idGuiaRemision?: number;
 
   @ApiPropertyOptional({ type: [ActividadItemDto] })
   @IsOptional()
@@ -192,7 +240,10 @@ export class CreateActividadDto extends AuditoriaDto {
   @IsInt()
   idEstadoActividad!: number;
 
-  @ApiPropertyOptional({ example: 'Confirmar asistencia con el cliente', maxLength: 500 })
+  @ApiPropertyOptional({
+    example: 'Confirmar asistencia con el cliente',
+    maxLength: 500,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)
@@ -263,6 +314,12 @@ export class UpdateActividadDto extends AuditoriaDto {
   @IsInt()
   idComprobante?: number;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idGuiaRemision?: number;
+
   @ApiPropertyOptional({ type: [ActividadItemDto] })
   @IsOptional()
   @IsArray()
@@ -281,4 +338,24 @@ export class UpdateActividadDto extends AuditoriaDto {
   @IsString()
   @MaxLength(500)
   observaciones?: string;
+}
+
+export class AsignarResponsableActividadDto extends AuditoriaDto {
+  @ApiPropertyOptional({
+    example: 12,
+    description: 'Usuario responsable (auth_usuarios). null lo libera.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idUsuarioResponsable?: number | null;
+
+  @ApiPropertyOptional({
+    example: 3,
+    description: 'Chofer / repartidor (gen_chofer). null lo libera.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idChoferResponsable?: number | null;
 }

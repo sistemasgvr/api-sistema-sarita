@@ -19,7 +19,8 @@ DROP FUNCTION IF EXISTS tra_crear_trabajador(
     INTEGER,
     INTEGER,
     INTEGER,
-    INTEGER
+    INTEGER,
+    VARCHAR
 );
 
 CREATE OR REPLACE FUNCTION tra_crear_trabajador(
@@ -43,7 +44,8 @@ CREATE OR REPLACE FUNCTION tra_crear_trabajador(
     p_id_cargo              INTEGER DEFAULT NULL,
     p_id_usuario_vinculo    INTEGER DEFAULT NULL,
     p_id_chofer             INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria  INTEGER DEFAULT NULL
+    p_id_usuario_auditoria  INTEGER DEFAULT NULL,
+    p_correo                VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -62,8 +64,8 @@ BEGIN
     BEGIN
         INSERT INTO tra_trabajadores (
             nombres, apellido_paterno, apellido_materno,
-            id_tipo_documento, numero_documento,
-            direccion, referencia, latitud, longitud,
+        id_tipo_documento, numero_documento, correo,
+        direccion, referencia, latitud, longitud,
             id_pais, id_departamento, id_provincia, id_distrito,
             fecha_nacimiento, fecha_inicio, fecha_cese,
             id_area, id_cargo, id_usuario, id_chofer,
@@ -71,8 +73,8 @@ BEGIN
         )
         VALUES (
             p_nombres, p_apellido_paterno, p_apellido_materno,
-            p_id_tipo_documento, p_numero_documento,
-            p_direccion, p_referencia, p_latitud, p_longitud,
+        p_id_tipo_documento, p_numero_documento, p_correo,
+        p_direccion, p_referencia, p_latitud, p_longitud,
             p_id_pais, p_id_departamento, p_id_provincia, p_id_distrito,
             p_fecha_nacimiento, p_fecha_inicio, p_fecha_cese,
             p_id_area, p_id_cargo, p_id_usuario_vinculo, p_id_chofer,

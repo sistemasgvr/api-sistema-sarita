@@ -20,7 +20,8 @@ DROP FUNCTION IF EXISTS tra_actualizar_trabajador(
     INTEGER,
     INTEGER,
     INTEGER,
-    INTEGER
+    INTEGER,
+    VARCHAR
 );
 
 CREATE OR REPLACE FUNCTION tra_actualizar_trabajador(
@@ -45,7 +46,8 @@ CREATE OR REPLACE FUNCTION tra_actualizar_trabajador(
     p_id_cargo              INTEGER DEFAULT NULL,
     p_id_usuario_vinculo    INTEGER DEFAULT NULL,
     p_id_chofer             INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria  INTEGER DEFAULT NULL
+    p_id_usuario_auditoria  INTEGER DEFAULT NULL,
+    p_correo                VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -74,7 +76,8 @@ BEGIN
             apellido_paterno      = COALESCE(p_apellido_paterno, apellido_paterno),
             apellido_materno      = COALESCE(p_apellido_materno, apellido_materno),
             id_tipo_documento     = COALESCE(p_id_tipo_documento, id_tipo_documento),
-            numero_documento      = COALESCE(p_numero_documento, numero_documento),
+        numero_documento          = COALESCE(p_numero_documento, numero_documento),
+        correo                    = COALESCE(p_correo, correo),
             direccion             = COALESCE(p_direccion, direccion),
             referencia            = COALESCE(p_referencia, referencia),
             latitud               = COALESCE(p_latitud, latitud),

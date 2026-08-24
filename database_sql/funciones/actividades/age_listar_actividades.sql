@@ -1,5 +1,4 @@
-DROP FUNCTION IF EXISTS age_listar_actividades(VARCHAR, INTEGER, INTEGER, DATE, DATE, INTEGER);
-DROP FUNCTION IF EXISTS age_listar_actividades(VARCHAR, INTEGER, INTEGER, DATE, DATE, INTEGER, INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS age_listar_actividades(VARCHAR, INTEGER, INTEGER, DATE, DATE, INTEGER, INTEGER, INTEGER, BOOLEAN);
 
 CREATE OR REPLACE FUNCTION age_listar_actividades(
     p_busqueda VARCHAR DEFAULT '',
@@ -9,7 +8,8 @@ CREATE OR REPLACE FUNCTION age_listar_actividades(
     p_fecha_hasta DATE DEFAULT NULL,
     p_id_estado INTEGER DEFAULT NULL,
     p_id_tipo INTEGER DEFAULT NULL,
-    p_id_prioridad INTEGER DEFAULT NULL
+    p_id_prioridad INTEGER DEFAULT NULL,
+    p_sin_responsable BOOLEAN DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -29,6 +29,10 @@ BEGIN
       AND (p_id_estado IS NULL OR act.id_estado_actividad = p_id_estado)
       AND (p_id_tipo IS NULL OR act.id_tipo_actividad = p_id_tipo)
       AND (p_id_prioridad IS NULL OR act.id_prioridad = p_id_prioridad)
+      AND (p_sin_responsable IS NULL OR (
+          (p_sin_responsable AND act.id_usuario_responsable IS NULL AND act.id_chofer_responsable IS NULL)
+          OR (NOT p_sin_responsable AND (act.id_usuario_responsable IS NOT NULL OR act.id_chofer_responsable IS NOT NULL))
+      ))
       AND (
           p_busqueda = ''
           OR gen_texto_coincide(act.titulo, p_busqueda)
@@ -59,6 +63,9 @@ BEGIN
             act.id_comprobante,
             vc.serie AS serie_comprobante,
             vc.numero AS numero_comprobante,
+            act.id_guia_remision,
+            gr.serie AS serie_guia_remision,
+            gr.numero AS numero_guia_remision,
             act.id_estado_actividad,
             ea.nombre AS nombre_estado_actividad,
             act.observaciones,
@@ -82,6 +89,7 @@ BEGIN
         LEFT JOIN auth_usuarios u ON act.id_usuario_responsable = u.id
         LEFT JOIN gen_chofer ch ON act.id_chofer_responsable = ch.id
         LEFT JOIN ven_comprobante vc ON act.id_comprobante = vc.id
+        LEFT JOIN gre_guia_remision gr ON act.id_guia_remision = gr.id
         LEFT JOIN auth_usuarios uc ON act.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON act.id_usuario_modificacion = um.id
         WHERE act.estado = 1
@@ -90,6 +98,10 @@ BEGIN
           AND (p_id_estado IS NULL OR act.id_estado_actividad = p_id_estado)
           AND (p_id_tipo IS NULL OR act.id_tipo_actividad = p_id_tipo)
           AND (p_id_prioridad IS NULL OR act.id_prioridad = p_id_prioridad)
+          AND (p_sin_responsable IS NULL OR (
+              (p_sin_responsable AND act.id_usuario_responsable IS NULL AND act.id_chofer_responsable IS NULL)
+              OR (NOT p_sin_responsable AND (act.id_usuario_responsable IS NOT NULL OR act.id_chofer_responsable IS NOT NULL))
+          ))
           AND (
               p_busqueda = ''
               OR gen_texto_coincide(act.titulo, p_busqueda)

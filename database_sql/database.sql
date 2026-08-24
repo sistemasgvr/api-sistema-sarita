@@ -223,6 +223,7 @@ CREATE TABLE tra_trabajadores (
     apellido_materno        VARCHAR(100),
     id_tipo_documento       INT REFERENCES gen_lista_opciones(id),   -- catálogo TipoDocumento (DNI/CE/Pasaporte)
     numero_documento        VARCHAR(20),
+    correo                  VARCHAR(150),                            -- correo para credenciales de usuario de acceso
     direccion               VARCHAR(255),
     referencia              VARCHAR(255),
     latitud                 NUMERIC(10,8),
@@ -1879,6 +1880,7 @@ CREATE TABLE age_actividad (
     id_usuario_responsable  INT REFERENCES auth_usuarios(id),
     id_chofer_responsable   INT REFERENCES gen_chofer(id),
     id_comprobante          INT REFERENCES ven_comprobante(id),
+    id_guia_remision        INT REFERENCES gre_guia_remision(id),
     id_estado_actividad     INT NOT NULL REFERENCES gen_lista_opciones(id),
     observaciones           varchar(500),
     estado                  INT NOT NULL DEFAULT 1,
@@ -2148,9 +2150,6 @@ INSERT INTO gen_lista (nombre, descripcion) VALUES
 -- ('CERTIFICADO DE INSPECCION TECNICA - MUNICIPALIDAD', '2026-09-03'),
 -- ('BPA', '2026-10-06'),
 -- ('EXTINTOR', '2025-12-01');
--- ============================================================
--- MÓDULO ACTIVOS (Inventario de activos fijos de la empresa)
--- ============================================================
 
 CREATE TABLE act_activos (
     id                        SERIAL PRIMARY KEY,
@@ -2165,19 +2164,6 @@ CREATE TABLE act_activos (
     id_trabajador_responsable INT REFERENCES tra_trabajadores(id),
     imagen_principal_ruta     VARCHAR(500),
     estado                    INT NOT NULL DEFAULT 1,                   -- 1 activo / 0 inactivo-baja (baja lógica)
-    id_usuario_creacion       INT REFERENCES auth_usuarios(id),
-    id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
-    fecha_creacion            TIMESTAMP DEFAULT NOW(),
-    fecha_modificacion        TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE act_activo_imagen (
-    id                        SERIAL PRIMARY KEY,
-    id_activo                 INT NOT NULL REFERENCES act_activos(id),
-    id_archivo                INT NOT NULL REFERENCES gen_archivo(id),
-    orden                     INT NOT NULL DEFAULT 0,
-    es_principal              BOOLEAN NOT NULL DEFAULT FALSE,
-    estado                    INT NOT NULL DEFAULT 1,
     id_usuario_creacion       INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
     fecha_creacion            TIMESTAMP DEFAULT NOW(),

@@ -1,14 +1,3 @@
-INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
-SELECT l.id, 'CANCELADA', 'Actividad cancelada / no se realizará'
-FROM gen_lista l
-WHERE (l.nombre = 'EstadoActividad' OR l.id = 49)
-  AND NOT EXISTS (
-    SELECT 1
-    FROM gen_lista_opciones o
-    WHERE o.id_lista = l.id
-      AND UPPER(TRIM(o.nombre)) = 'CANCELADA'
-  );
-
 DROP FUNCTION IF EXISTS age_cancelar_actividad(INTEGER, INTEGER);
 
 CREATE OR REPLACE FUNCTION age_cancelar_actividad(
@@ -33,7 +22,7 @@ BEGIN
     LIMIT 1;
 
     IF v_id_estado_cancelada IS NULL THEN
-        RAISE EXCEPTION 'No se encontró el estado CANCELADA en EstadoActividad.';
+        RETURN json_build_object('registro', NULL, 'error', 'No se encontró el estado CANCELADA en EstadoActividad.');
     END IF;
 
     SELECT a.id_estado_actividad, UPPER(TRIM(ea.nombre))
@@ -47,7 +36,7 @@ BEGIN
     END IF;
 
     IF v_nombre_estado_actual = 'CANCELADA' THEN
-        RAISE EXCEPTION 'La actividad ya se encuentra cancelada.';
+        RETURN json_build_object('registro', NULL, 'error', 'La actividad ya se encuentra cancelada.');
     END IF;
 
     UPDATE age_actividad

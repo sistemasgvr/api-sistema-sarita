@@ -18,7 +18,7 @@ BEGIN
     WHERE LOWER(nombre) = 'realizada';
 
     IF v_id_estado_realizada IS NULL THEN
-        RAISE EXCEPTION 'No se encontró el estado REALIZADA en la lista de opciones (gen_lista_opciones).';
+        RETURN json_build_object('registro', NULL, 'error', 'No se encontró el estado REALIZADA en la lista de opciones (gen_lista_opciones).');
     END IF;
 
     SELECT id_estado_actividad INTO v_id_estado_actual
@@ -30,7 +30,7 @@ BEGIN
     END IF;
 
     IF v_id_estado_actual = v_id_estado_realizada THEN
-        RAISE EXCEPTION 'La actividad ya se encuentra marcada como realizada.';
+        RETURN json_build_object('registro', NULL, 'error', 'La actividad ya se encuentra marcada como realizada.');
     END IF;
 
     UPDATE age_actividad

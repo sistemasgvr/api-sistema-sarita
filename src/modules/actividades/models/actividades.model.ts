@@ -5,10 +5,7 @@ import {
   AuthSingleResult,
 } from '../../../common/interfaces/auth-db.interface';
 import { DatabaseService } from '../../../database/database.service';
-import {
-  ActividadItemDto,
-  FiltroActividadesDto,
-} from '../dto/actividades.dto';
+import { ActividadItemDto, FiltroActividadesDto } from '../dto/actividades.dto';
 
 @Injectable()
 export class ActividadesModel {
@@ -24,6 +21,7 @@ export class ActividadesModel {
       filtros.idEstado ?? null,
       filtros.idTipo ?? null,
       filtros.idPrioridad ?? null,
+      filtros.sinResponsable ?? null,
     ]);
   }
 
@@ -55,6 +53,7 @@ export class ActividadesModel {
     idUsuarioAuditoria?: number,
     idChoferResponsable?: number | null,
     idComprobante?: number | null,
+    idGuiaRemision?: number | null,
     items?: ActividadItemDto[] | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('age_crear_actividad', [
@@ -72,6 +71,7 @@ export class ActividadesModel {
       idUsuarioAuditoria ?? null,
       idChoferResponsable ?? null,
       idComprobante ?? null,
+      idGuiaRemision ?? null,
       items?.length ? JSON.stringify(items) : null,
     ]);
   }
@@ -94,45 +94,65 @@ export class ActividadesModel {
     idComprobante?: number | null,
     items?: ActividadItemDto[] | null,
   ) {
-    return this.db.callFunctionJson<AuthSingleResult>('age_actualizar_actividad', [
-      id,
-      titulo,
-      descripcion,
-      fechaProgramada,
-      horaInicioEstimada,
-      horaFinEstimada,
-      null,
-      idTipoActividad,
-      idPrioridad,
-      idCliente,
-      idUsuarioResponsable,
-      idEstadoActividad,
-      observaciones,
-      idUsuarioAuditoria ?? null,
-      idChoferResponsable ?? null,
-      idComprobante ?? null,
-      items ? JSON.stringify(items) : null,
-    ]);
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'age_actualizar_actividad',
+      [
+        id,
+        titulo,
+        descripcion,
+        fechaProgramada,
+        horaInicioEstimada,
+        horaFinEstimada,
+        null,
+        idTipoActividad,
+        idPrioridad,
+        idCliente,
+        idUsuarioResponsable,
+        idEstadoActividad,
+        observaciones,
+        idUsuarioAuditoria ?? null,
+        idChoferResponsable ?? null,
+        idComprobante ?? null,
+        items ? JSON.stringify(items) : null,
+      ],
+    );
   }
 
   eliminar(id: number, idUsuarioAuditoria?: number) {
-    return this.db.callFunctionJson<AuthDeleteResult>('age_eliminar_actividad', [
-      id,
-      idUsuarioAuditoria ?? null,
-    ]);
+    return this.db.callFunctionJson<AuthDeleteResult>(
+      'age_eliminar_actividad',
+      [id, idUsuarioAuditoria ?? null],
+    );
   }
 
   marcarComoRealizada(id: number, idUsuarioAuditoria?: number) {
-    return this.db.callFunctionJson<AuthSingleResult>('age_cambiar_estado_actividad_realizada', [
-      id,
-      idUsuarioAuditoria ?? null,
-    ]);
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'age_cambiar_estado_actividad_realizada',
+      [id, idUsuarioAuditoria ?? null],
+    );
   }
 
   cancelar(id: number, idUsuarioAuditoria?: number) {
-    return this.db.callFunctionJson<AuthSingleResult>('age_cancelar_actividad', [
-      id,
-      idUsuarioAuditoria ?? null,
-    ]);
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'age_cancelar_actividad',
+      [id, idUsuarioAuditoria ?? null],
+    );
+  }
+
+  asignarResponsable(
+    id: number,
+    idUsuarioAuditoria?: number,
+    idUsuarioResponsable?: number | null,
+    idChoferResponsable?: number | null,
+  ) {
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'age_asignar_responsable_actividad',
+      [
+        id,
+        idUsuarioAuditoria ?? null,
+        idUsuarioResponsable ?? null,
+        idChoferResponsable ?? null,
+      ],
+    );
   }
 }

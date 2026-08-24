@@ -58,6 +58,7 @@ export class TrabajadoresModel {
         dto.idUsuarioVinculo ?? null,
         dto.idChofer ?? null,
         dto.idUsuarioAuditoria ?? null,
+        dto.correo ?? null,
       ],
     );
   }
@@ -88,6 +89,7 @@ export class TrabajadoresModel {
         dto.idUsuarioVinculo ?? null,
         dto.idChofer ?? null,
         dto.idUsuarioAuditoria ?? null,
+        dto.correo ?? null,
       ],
     );
   }

@@ -22,7 +22,7 @@ BEGIN
             a.modelo,
             a.numero_serie,
             a.id_trabajador_responsable,
-            tr.nombres  AS nombre_trabajador_responsable,
+            CONCAT_WS(' ',tr.nombres,tr.apellido_paterno,tr.apellido_materno) AS nombre_trabajador_responsable,
             a.imagen_principal_ruta,
             a.estado,
             a.fecha_creacion,

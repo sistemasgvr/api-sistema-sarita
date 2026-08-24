@@ -55,6 +55,9 @@ BEGIN
             act.id_comprobante,
             vc.serie AS serie_comprobante,
             vc.numero AS numero_comprobante,
+            act.id_guia_remision,
+            gr.serie AS serie_guia_remision,
+            gr.numero AS numero_guia_remision,
             act.id_estado_actividad,
             ea.nombre AS nombre_estado_actividad,
             act.observaciones,
@@ -88,6 +91,7 @@ BEGIN
         LEFT JOIN auth_usuarios u ON act.id_usuario_responsable = u.id
         LEFT JOIN gen_chofer ch ON act.id_chofer_responsable = ch.id
         LEFT JOIN ven_comprobante vc ON act.id_comprobante = vc.id
+        LEFT JOIN gre_guia_remision gr ON act.id_guia_remision = gr.id
         LEFT JOIN auth_usuarios uc ON act.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON act.id_usuario_modificacion = um.id
         WHERE act.id = p_id AND act.estado = 1

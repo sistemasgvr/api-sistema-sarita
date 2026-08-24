@@ -18,6 +18,13 @@ BEGIN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id);
     END IF;
 
+    -- Borrado lógico del usuario de acceso vinculado (si existe)
+    UPDATE auth_usuarios
+    SET estado = FALSE,
+        fecha_modificacion = NOW()
+    WHERE id = (SELECT id_usuario FROM tra_trabajadores WHERE id = p_id)
+      AND estado = TRUE;
+
     RETURN json_build_object('eliminado', TRUE, 'id', p_id);
 END;
 $function$;

@@ -9,11 +9,17 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
+  AsignarResponsableActividadDto,
   CreateActividadDto,
   FiltroActividadesDto,
   FiltroActividadesProximasDto,
@@ -35,7 +41,9 @@ export class ActividadesController {
 
   @Get('proximas')
   @Permisos(PermisoBanderas.ACTIVIDADES_LISTAR)
-  @ApiOperation({ summary: 'Actividades en curso o próximas (hoy, hora actual)' })
+  @ApiOperation({
+    summary: 'Actividades en curso o próximas (hoy, hora actual)',
+  })
   listarProximas(@Query() filtros: FiltroActividadesProximasDto) {
     return this.actividadesLogic.listarProximas(filtros.minutos ?? 60);
   }
@@ -44,7 +52,9 @@ export class ActividadesController {
   @Permisos(PermisoBanderas.ACTIVIDADES_VER)
   @ApiOperation({ summary: 'Obtener actividad por ID' })
   @ApiOkResponse({ description: 'Actividad obtenida correctamente' })
-  @ApiNotFoundResponse({ description: 'La actividad solicitada no existe o fue eliminada' })
+  @ApiNotFoundResponse({
+    description: 'La actividad solicitada no existe o fue eliminada',
+  })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
     return this.actividadesLogic.obtenerPorId(id);
   }
@@ -60,7 +70,9 @@ export class ActividadesController {
   @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
   @ApiOperation({ summary: 'Actualizar actividad' })
   @ApiOkResponse({ description: 'Actividad actualizada correctamente' })
-  @ApiNotFoundResponse({ description: 'La actividad que intenta actualizar no existe' })
+  @ApiNotFoundResponse({
+    description: 'La actividad que intenta actualizar no existe',
+  })
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateActividadDto,
@@ -72,11 +84,11 @@ export class ActividadesController {
   @Permisos(PermisoBanderas.ACTIVIDADES_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar actividad (baja lógica)' })
   @ApiOkResponse({ description: 'Actividad eliminada correctamente' })
-  @ApiNotFoundResponse({ description: 'La actividad que intenta eliminar no existe o ya fue dada de baja' })
-  eliminar(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: AuditoriaDto,
-  ) {
+  @ApiNotFoundResponse({
+    description:
+      'La actividad que intenta eliminar no existe o ya fue dada de baja',
+  })
+  eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
     return this.actividadesLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 
@@ -87,16 +99,34 @@ export class ActividadesController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
   ) {
-    return this.actividadesLogic.marcarComoRealizada(id, dto.idUsuarioAuditoria);
+    return this.actividadesLogic.marcarComoRealizada(
+      id,
+      dto.idUsuarioAuditoria,
+    );
   }
 
   @Patch(':id/cancelar')
   @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
   @ApiOperation({ summary: 'Cancelar actividad / reparto' })
-  cancelar(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: AuditoriaDto,
-  ) {
+  cancelar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
     return this.actividadesLogic.cancelar(id, dto.idUsuarioAuditoria);
+  }
+
+  @Patch(':id/responsable')
+  @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
+  @ApiOperation({
+    summary:
+      'Asignar o liberar el responsable de la actividad (tomar / liberar)',
+  })
+  asignarResponsable(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AsignarResponsableActividadDto,
+  ) {
+    return this.actividadesLogic.asignarResponsable(
+      id,
+      dto.idUsuarioAuditoria,
+      dto.idUsuarioResponsable ?? null,
+      dto.idChoferResponsable ?? null,
+    );
   }
 }

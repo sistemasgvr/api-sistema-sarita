@@ -1,9 +1,5 @@
 DROP FUNCTION IF EXISTS age_actualizar_actividad(
     INTEGER, VARCHAR, TEXT, DATE, TIME, TIME, TIMESTAMP, INTEGER, INTEGER,
-    INTEGER, INTEGER, INTEGER, VARCHAR, INTEGER
-);
-DROP FUNCTION IF EXISTS age_actualizar_actividad(
-    INTEGER, VARCHAR, TEXT, DATE, TIME, TIME, TIMESTAMP, INTEGER, INTEGER,
     INTEGER, INTEGER, INTEGER, VARCHAR, INTEGER, INTEGER, INTEGER, JSON
 );
 
@@ -51,7 +47,7 @@ BEGIN
 
     IF v_hora_inicio IS NOT NULL AND v_hora_fin IS NOT NULL THEN
         IF v_hora_inicio >= v_hora_fin THEN
-            RAISE EXCEPTION 'La hora de inicio estimada debe ser menor a la hora de fin estimada.';
+            RETURN json_build_object('registro', NULL, 'error', 'La hora de inicio estimada debe ser menor a la hora de fin estimada.');
         END IF;
     END IF;
 
@@ -63,7 +59,7 @@ BEGIN
           AND o.estado = 1
           AND (l.nombre = 'TipoActividad' OR l.id = 48)
     ) THEN
-        RAISE EXCEPTION 'El tipo de actividad indicado no es válido.';
+        RETURN json_build_object('registro', NULL, 'error', 'El tipo de actividad indicado no es válido.');
     END IF;
 
     IF p_id_prioridad IS NOT NULL AND NOT EXISTS (
@@ -74,7 +70,7 @@ BEGIN
           AND o.estado = 1
           AND (l.nombre = 'PrioridadActividad' OR l.id = 50)
     ) THEN
-        RAISE EXCEPTION 'La prioridad indicada no es válida.';
+        RETURN json_build_object('registro', NULL, 'error', 'La prioridad indicada no es válida.');
     END IF;
 
     IF p_id_estado_actividad IS NOT NULL AND NOT EXISTS (
@@ -85,7 +81,7 @@ BEGIN
           AND o.estado = 1
           AND (l.nombre = 'EstadoActividad' OR l.id = 49)
     ) THEN
-        RAISE EXCEPTION 'El estado de actividad indicado no es válido.';
+        RETURN json_build_object('registro', NULL, 'error', 'El estado de actividad indicado no es válido.');
     END IF;
 
     IF p_id_tipo_actividad IS NOT NULL THEN
@@ -94,22 +90,13 @@ BEGIN
         WHERE id = p_id_tipo_actividad;
 
         IF v_tipo = 'REPARTO' THEN
-            IF COALESCE(
-                p_id_chofer_responsable,
-                (SELECT a.id_chofer_responsable FROM age_actividad a WHERE a.id = p_id)
-            ) IS NULL THEN
-                RAISE EXCEPTION 'El reparto requiere un chofer / repartidor de flota propia.';
-            END IF;
-            IF NOT EXISTS (
-                SELECT 1 FROM gen_chofer
-                WHERE id = COALESCE(
-                    p_id_chofer_responsable,
-                    (SELECT a.id_chofer_responsable FROM age_actividad a WHERE a.id = p_id)
-                )
-                  AND estado = 1
-                  AND id_cliente IS NULL
-            ) THEN
-                RAISE EXCEPTION 'El chofer debe ser de flota propia (repartidor).';
+            IF p_id_chofer_responsable IS NOT NULL THEN
+                IF NOT EXISTS (
+                    SELECT 1 FROM gen_chofer
+                    WHERE id = p_id_chofer_responsable AND estado = 1 AND id_cliente IS NULL
+                ) THEN
+                    RETURN json_build_object('registro', NULL, 'error', 'El chofer debe ser de flota propia (repartidor).');
+                END IF;
             END IF;
         END IF;
     END IF;
@@ -133,7 +120,7 @@ BEGIN
                   OR (p_hora_inicio_estimada <= hora_inicio_estimada AND p_hora_fin_estimada >= hora_fin_estimada)
               )
         ) THEN
-            RAISE EXCEPTION 'El usuario responsable ya tiene otra actividad asignada que se cruza en ese horario para la fecha seleccionada.';
+            RETURN json_build_object('registro', NULL, 'error', 'El usuario responsable ya tiene otra actividad asignada que se cruza en ese horario para la fecha seleccionada.');
         END IF;
     END IF;
 
@@ -156,7 +143,7 @@ BEGIN
                   OR (p_hora_inicio_estimada <= hora_inicio_estimada AND p_hora_fin_estimada >= hora_fin_estimada)
               )
         ) THEN
-            RAISE EXCEPTION 'El chofer ya tiene otra actividad asignada que se cruza en ese horario.';
+            RETURN json_build_object('registro', NULL, 'error', 'El chofer ya tiene otra actividad asignada que se cruza en ese horario.');
         END IF;
     END IF;
 

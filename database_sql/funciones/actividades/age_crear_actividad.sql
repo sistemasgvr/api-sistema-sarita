@@ -1,10 +1,20 @@
-DROP FUNCTION IF EXISTS age_crear_actividad(
-    VARCHAR, TEXT, DATE, TIME, TIME, INTEGER, INTEGER, INTEGER,
-    INTEGER, INTEGER, VARCHAR, INTEGER
-);
-DROP FUNCTION IF EXISTS age_crear_actividad(
-    VARCHAR, TEXT, DATE, TIME, TIME, INTEGER, INTEGER, INTEGER,
-    INTEGER, INTEGER, VARCHAR, INTEGER, INTEGER, INTEGER, JSON
+DROP FUNCTION IF EXISTS age_crear_actividad (
+    VARCHAR,
+    TEXT,
+    DATE,
+    TIME,
+    TIME,
+    INTEGER,
+    INTEGER,
+    INTEGER,
+    INTEGER,
+    INTEGER,
+    VARCHAR,
+    INTEGER,
+    INTEGER,
+    INTEGER,
+    INTEGER,
+    JSON
 );
 
 CREATE OR REPLACE FUNCTION age_crear_actividad(
@@ -22,6 +32,7 @@ CREATE OR REPLACE FUNCTION age_crear_actividad(
     p_id_usuario_auditoria INTEGER DEFAULT NULL,
     p_id_chofer_responsable INTEGER DEFAULT NULL,
     p_id_comprobante INTEGER DEFAULT NULL,
+    p_id_guia_remision INTEGER DEFAULT NULL,
     p_items JSON DEFAULT NULL
 )
 RETURNS JSON
@@ -31,6 +42,7 @@ DECLARE
     v_id INTEGER;
     v_tipo VARCHAR;
     v_cliente INTEGER;
+    v_destinatario INTEGER;
     v_titulo VARCHAR;
     v_serie VARCHAR;
     v_numero VARCHAR;
@@ -49,7 +61,7 @@ BEGIN
         WHERE vc.id = p_id_comprobante AND vc.estado = 1;
 
         IF NOT FOUND THEN
-            RAISE EXCEPTION 'El comprobante indicado no existe.';
+            RETURN json_build_object('registro', NULL, 'error', 'El comprobante indicado no existe.');
         END IF;
 
         v_cliente := COALESCE(p_id_cliente, v_cliente);
@@ -65,12 +77,39 @@ BEGIN
               AND a.estado = 1
               AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO')
         ) THEN
-            RAISE EXCEPTION 'Este comprobante ya tiene un reparto / actividad vigente.';
+            RETURN json_build_object('registro', NULL, 'error', 'Este comprobante ya tiene un reparto / actividad vigente.');
+        END IF;
+    END IF;
+
+    IF p_id_guia_remision IS NOT NULL THEN
+        SELECT gr.id_cliente, gr.id_destinatario, gr.serie, gr.numero
+        INTO v_cliente, v_destinatario, v_serie, v_numero
+        FROM gre_guia_remision gr
+        WHERE gr.id = p_id_guia_remision AND gr.estado = 1;
+
+        IF NOT FOUND THEN
+            RETURN json_build_object('registro', NULL, 'error', 'La guía de remisión indicada no existe.');
+        END IF;
+
+        v_cliente := COALESCE(p_id_cliente, v_cliente, v_destinatario);
+        IF v_titulo IS NULL THEN
+            v_titulo := TRIM(CONCAT('Reparto GRE ', COALESCE(v_serie, ''), '-', COALESCE(v_numero, '')));
+        END IF;
+
+        IF EXISTS (
+            SELECT 1
+            FROM age_actividad a
+            LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
+            WHERE a.id_guia_remision = p_id_guia_remision
+              AND a.estado = 1
+              AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO')
+        ) THEN
+            RETURN json_build_object('registro', NULL, 'error', 'Esta guía de remisión ya tiene un reparto / actividad vigente.');
         END IF;
     END IF;
 
     IF v_titulo IS NULL THEN
-        RAISE EXCEPTION 'El título es obligatorio.';
+        RETURN json_build_object('registro', NULL, 'error', 'El título es obligatorio.');
     END IF;
 
     IF NOT EXISTS (
@@ -81,7 +120,7 @@ BEGIN
           AND o.estado = 1
           AND (l.nombre = 'TipoActividad' OR l.id = 48)
     ) THEN
-        RAISE EXCEPTION 'El tipo de actividad indicado no es válido.';
+        RETURN json_build_object('registro', NULL, 'error', 'El tipo de actividad indicado no es válido.');
     END IF;
 
     IF NOT EXISTS (
@@ -92,7 +131,7 @@ BEGIN
           AND o.estado = 1
           AND (l.nombre = 'PrioridadActividad' OR l.id = 50)
     ) THEN
-        RAISE EXCEPTION 'La prioridad indicada no es válida.';
+        RETURN json_build_object('registro', NULL, 'error', 'La prioridad indicada no es válida.');
     END IF;
 
     IF p_id_estado_actividad IS NOT NULL AND NOT EXISTS (
@@ -103,12 +142,12 @@ BEGIN
           AND o.estado = 1
           AND (l.nombre = 'EstadoActividad' OR l.id = 49)
     ) THEN
-        RAISE EXCEPTION 'El estado de actividad indicado no es válido.';
+        RETURN json_build_object('registro', NULL, 'error', 'El estado de actividad indicado no es válido.');
     END IF;
 
     IF p_hora_inicio_estimada IS NOT NULL AND p_hora_fin_estimada IS NOT NULL THEN
         IF p_hora_inicio_estimada >= p_hora_fin_estimada THEN
-            RAISE EXCEPTION 'La hora de inicio estimada debe ser menor a la hora de fin estimada.';
+            RETURN json_build_object('registro', NULL, 'error', 'La hora de inicio estimada debe ser menor a la hora de fin estimada.');
         END IF;
     END IF;
 
@@ -117,14 +156,13 @@ BEGIN
     WHERE id = p_id_tipo_actividad;
 
     IF v_tipo = 'REPARTO' THEN
-        IF p_id_chofer_responsable IS NULL THEN
-            RAISE EXCEPTION 'El reparto requiere un chofer / repartidor de flota propia.';
-        END IF;
-        IF NOT EXISTS (
-            SELECT 1 FROM gen_chofer
-            WHERE id = p_id_chofer_responsable AND estado = 1 AND id_cliente IS NULL
-        ) THEN
-            RAISE EXCEPTION 'El chofer debe ser de flota propia (repartidor).';
+        IF p_id_chofer_responsable IS NOT NULL THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM gen_chofer
+                WHERE id = p_id_chofer_responsable AND estado = 1 AND id_cliente IS NULL
+            ) THEN
+                RETURN json_build_object('registro', NULL, 'error', 'El chofer debe ser de flota propia (repartidor).');
+            END IF;
         END IF;
     END IF;
 
@@ -146,7 +184,7 @@ BEGIN
                   OR (p_hora_inicio_estimada <= hora_inicio_estimada AND p_hora_fin_estimada >= hora_fin_estimada)
               )
         ) THEN
-            RAISE EXCEPTION 'El usuario responsable ya tiene otra actividad asignada que se cruza en ese horario para la fecha seleccionada.';
+            RETURN json_build_object('registro', NULL, 'error', 'El usuario responsable ya tiene otra actividad asignada que se cruza en ese horario para la fecha seleccionada.');
         END IF;
     END IF;
 
@@ -168,7 +206,7 @@ BEGIN
                   OR (p_hora_inicio_estimada <= hora_inicio_estimada AND p_hora_fin_estimada >= hora_fin_estimada)
               )
         ) THEN
-            RAISE EXCEPTION 'El chofer ya tiene otra actividad asignada que se cruza en ese horario.';
+            RETURN json_build_object('registro', NULL, 'error', 'El chofer ya tiene otra actividad asignada que se cruza en ese horario.');
         END IF;
     END IF;
 
@@ -177,6 +215,7 @@ BEGIN
         hora_inicio_estimada, hora_fin_estimada,
         id_tipo_actividad, id_prioridad, id_cliente,
         id_usuario_responsable, id_chofer_responsable, id_comprobante,
+        id_guia_remision,
         id_estado_actividad, observaciones,
         id_usuario_creacion, id_usuario_modificacion
     )
@@ -185,6 +224,7 @@ BEGIN
         p_hora_inicio_estimada, p_hora_fin_estimada,
         p_id_tipo_actividad, p_id_prioridad, v_cliente,
         p_id_usuario_responsable, p_id_chofer_responsable, p_id_comprobante,
+        p_id_guia_remision,
         p_id_estado_actividad, p_observaciones,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
@@ -225,6 +265,24 @@ BEGIN
         FROM ven_comprobante_detalle d
         LEFT JOIN pro_producto p ON p.id = d.id_producto
         WHERE d.id_comprobante = p_id_comprobante AND d.estado = 1
+        ORDER BY d.item;
+    ELSIF p_id_guia_remision IS NOT NULL THEN
+        INSERT INTO age_actividad_item (
+            id_actividad, item, id_producto, descripcion, cantidad, id_balon,
+            id_usuario_creacion, id_usuario_modificacion
+        )
+        SELECT
+            v_id,
+            d.item,
+            d.id_producto,
+            NULLIF(TRIM(COALESCE(d.descripcion, d.glosa, p.nombre, '')), ''),
+            d.cantidad,
+            d.id_balon,
+            p_id_usuario_auditoria,
+            p_id_usuario_auditoria
+        FROM gre_guia_remision_detalle d
+        LEFT JOIN pro_producto p ON p.id = d.id_producto
+        WHERE d.id_guia_remision = p_id_guia_remision AND d.estado = 1
         ORDER BY d.item;
     END IF;
 

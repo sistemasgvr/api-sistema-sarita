@@ -46,6 +46,7 @@ export class ActividadesLogic {
       dto.idUsuarioAuditoria,
       dto.idChoferResponsable ?? null,
       dto.idComprobante ?? null,
+      dto.idGuiaRemision ?? null,
       dto.items ?? null,
     );
     return mapSingleResult(result, 'No se pudo crear la actividad');
@@ -79,12 +80,30 @@ export class ActividadesLogic {
   }
 
   async marcarComoRealizada(id: number, idUsuarioAuditoria?: number) {
-    const result = await this.actividadesModel.marcarComoRealizada(id, idUsuarioAuditoria);
+    const result = await this.actividadesModel.marcarComoRealizada(
+      id,
+      idUsuarioAuditoria,
+    );
     return mapSingleResult(result, `Actividad ${id} no encontrada`);
   }
 
   async cancelar(id: number, idUsuarioAuditoria?: number) {
     const result = await this.actividadesModel.cancelar(id, idUsuarioAuditoria);
+    return mapSingleResult(result, `Actividad ${id} no encontrada`);
+  }
+
+  async asignarResponsable(
+    id: number,
+    idUsuarioAuditoria?: number,
+    idUsuarioResponsable?: number | null,
+    idChoferResponsable?: number | null,
+  ) {
+    const result = await this.actividadesModel.asignarResponsable(
+      id,
+      idUsuarioAuditoria,
+      idUsuarioResponsable,
+      idChoferResponsable,
+    );
     return mapSingleResult(result, `Actividad ${id} no encontrada`);
   }
 }

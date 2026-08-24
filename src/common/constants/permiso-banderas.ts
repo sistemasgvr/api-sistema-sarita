@@ -116,6 +116,12 @@ export const PermisoBanderas = {
   TRABAJADOR_EDITAR: 'trabajador.editar',
   TRABAJADOR_ELIMINAR: 'trabajador.eliminar',
 
+  ACTIVO_LISTAR: 'activo.listar',
+  ACTIVO_VER: 'activo.ver',
+  ACTIVO_CREAR: 'activo.crear',
+  ACTIVO_EDITAR: 'activo.editar',
+  ACTIVO_ELIMINAR: 'activo.eliminar',
+
   VEHICULOS_LISTAR: 'vehiculos.listar',
   VEHICULOS_VER: 'vehiculos.ver',
   VEHICULOS_CREAR: 'vehiculos.crear',
