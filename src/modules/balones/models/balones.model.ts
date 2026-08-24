@@ -73,6 +73,8 @@ export class BalonesModel {
       filtros.idEstadoContenido ?? null,
       filtros.idProductoGas ?? null,
       filtros.soloLlenosFuera ?? null,
+      filtros.idPlanta ?? null,
+      filtros.tipoValvula ?? null,
     ]);
   }
 
@@ -109,6 +111,9 @@ export class BalonesModel {
       dto.mesFabricacion ?? null,
       dto.idPlanta ?? null,
       dto.idEstadoContenido ?? null,
+      dto.tipoValvula ?? null,
+      dto.pesoAproximadoKg ?? null,
+      dto.selloInspeccion ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }
@@ -143,6 +148,9 @@ export class BalonesModel {
       dto.mesFabricacion ?? null,
       dto.idPlanta ?? null,
       dto.idEstadoContenido ?? null,
+      dto.tipoValvula ?? null,
+      dto.pesoAproximadoKg ?? null,
+      dto.selloInspeccion ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }

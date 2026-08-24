@@ -1,11 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   mapDeleteResult,
   mapListResult,
   mapSingleResult,
 } from '../../../common/helpers/auth-response.helper';
+import { ResponseHelper } from '../../../common/helpers/response.helper';
 import {
   CreateMovimientoInventarioDto,
+  CreateTrasladoLoteDto,
   FiltroMovimientosInventarioDto,
   UpdateMovimientoInventarioDto,
 } from '../dto/movimientos-inventario.dto';
@@ -37,8 +39,38 @@ export class MovimientosInventarioLogic {
       dto.glosa ?? null,
       dto.idUsuarioAuditoria,
       dto.idAlmacenDestino ?? null,
+      dto.sentidoAjuste ?? null,
     );
     return mapSingleResult(result, 'No se pudo registrar el movimiento');
+  }
+
+  async crearTrasladoLote(dto: CreateTrasladoLoteDto) {
+    const result = await this.movimientosInventarioModel.crearTrasladoLote(
+      dto.fecha,
+      dto.idAlmacen,
+      dto.idAlmacenDestino,
+      dto.idTipoMovimiento,
+      dto.detalles.map((d) => ({
+        idProducto: d.idProducto,
+        cantidad: d.cantidad,
+      })),
+      dto.glosa ?? null,
+      dto.idUsuarioAuditoria,
+      dto.idDocumentoRef ?? null,
+      dto.idTipoDocumentoRef ?? null,
+    );
+
+    if (result.error) {
+      throw new BadRequestException(result.error);
+    }
+
+    return ResponseHelper.success(
+      {
+        registros: result.registros ?? [],
+        total: Number(result.total ?? 0),
+      },
+      'Traslado lote registrado',
+    );
   }
 
   async actualizar(id: number, dto: UpdateMovimientoInventarioDto) {

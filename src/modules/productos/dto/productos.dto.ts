@@ -143,6 +143,34 @@ export class GenerarCodigoUbicacionDto {
   idProducto?: number;
 }
 
+export class GenerarCodigoProductoDto {
+  @ApiPropertyOptional({
+    example: 'PRO',
+    description: 'Prefijo del código (PRO, SER, GAS). Por defecto PRO.',
+    maxLength: 10,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  prefijo?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Si es true, usa prefijo SER (salvo que envíe prefijo explícito).',
+  })
+  @IsOptional()
+  @IsBoolean()
+  esServicio?: boolean;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Si es true, usa prefijo GAS (salvo que envíe prefijo explícito).',
+  })
+  @IsOptional()
+  @IsBoolean()
+  esGas?: boolean;
+}
+
 export class CreateProductoDto extends AuditoriaDto {
   @ApiProperty({ example: 'GAS-OX-001', maxLength: 30 })
   @IsString()

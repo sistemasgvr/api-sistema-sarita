@@ -184,4 +184,13 @@ export class NotificacionesController {
   ejecutarCajaSinCerrar() {
     return this.logic.detectarYNotificarCajaSinCerrar();
   }
+
+  @Post('jobs/ph-cilindro-por-vencer')
+  @NotificacionesJobsAuth()
+  @ApiOperation({
+    summary: 'Detectar cilindros con PH por vencer en los próximos 60 días',
+  })
+  ejecutarPhCilindroPorVencer() {
+    return this.logic.detectarYNotificarPhCilindroPorVencer();
+  }
 }

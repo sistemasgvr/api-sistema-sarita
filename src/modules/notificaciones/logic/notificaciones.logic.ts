@@ -86,6 +86,13 @@ interface LicenciaRow {
   id_chofer?: number | null;
 }
 
+interface PhCilindroRow {
+  id: number;
+  codigo_balon?: string | null;
+  fecha_proxima?: string;
+  dias_restantes?: number;
+}
+
 interface ComprobantePendienteRow {
   id: number;
   serie?: string | null;
@@ -633,6 +640,65 @@ export class NotificacionesLogic {
 
     return {
       items: items.length,
+      destinatarios: destinatarios.length,
+      notificaciones,
+    };
+  }
+
+  async detectarYNotificarPhCilindroPorVencer(
+    idUsuarioAuditoria?: number,
+    dias = 60,
+  ) {
+    const raw = await this.model.listarPhPorVencer(dias);
+    const cilindros = (raw.registros ?? []) as PhCilindroRow[];
+    const destinatarios = this.normalizeIds(
+      (await this.model.listarIdsPorPermiso(PermisoBanderas.BALONES_LISTAR)).ids,
+    );
+
+    if (destinatarios.length === 0) {
+      return {
+        cilindros: cilindros.length,
+        destinatarios: 0,
+        notificaciones: 0,
+      };
+    }
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    let notificaciones = 0;
+
+    for (const cilindro of cilindros) {
+      const codigo = cilindro.codigo_balon?.trim() || `Cilindro #${cilindro.id}`;
+      const diasRestantes = Number(cilindro.dias_restantes ?? 0);
+      const fecha = cilindro.fecha_proxima ?? '';
+      const mensaje = `${codigo} tiene PH por vencer en ${diasRestantes} día(s) (${fecha}).`;
+
+      for (const idUsuario of destinatarios) {
+        const creado = await this.crearYEmitir({
+          idUsuario,
+          codigoTipo: TipoNotificacion.PH_CILINDRO_POR_VENCER,
+          titulo: 'PH de cilindro por vencer',
+          mensaje,
+          payload: {
+            idBalon: cilindro.id,
+            codigoBalon: cilindro.codigo_balon,
+            fechaProxima: cilindro.fecha_proxima,
+            diasRestantes: cilindro.dias_restantes,
+          },
+          idReferencia: cilindro.id,
+          tipoReferencia: TipoReferenciaNotificacion.BALON,
+          claveDedupe: `PH_CILINDRO_POR_VENCER:${cilindro.id}:${hoy}`,
+          idUsuarioAuditoria,
+        });
+        if (creado) notificaciones += 1;
+      }
+    }
+
+    this.logger.log(
+      `PH_CILINDRO_POR_VENCER: ${cilindros.length} | dest: ${destinatarios.length} | notifs: ${notificaciones}`,
+    );
+
+    return {
+      cilindros: cilindros.length,
       destinatarios: destinatarios.length,
       notificaciones,
     };

@@ -33,6 +33,10 @@ export class AlquileresVencidosJob {
         () => this.notificacionesLogic.detectarYNotificarGuiasPendientesSunat(),
       ],
       ['cajaSinCerrar', () => this.notificacionesLogic.detectarYNotificarCajaSinCerrar()],
+      [
+        'phCilindroPorVencer',
+        () => this.notificacionesLogic.detectarYNotificarPhCilindroPorVencer(),
+      ],
     ] as const) {
       try {
         resultados[clave] = await fn();

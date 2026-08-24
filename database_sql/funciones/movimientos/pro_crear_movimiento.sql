@@ -7,6 +7,9 @@ DROP FUNCTION IF EXISTS pro_crear_movimiento(
 DROP FUNCTION IF EXISTS pro_crear_movimiento(
     DATE, INTEGER, INTEGER, INTEGER, NUMERIC, INTEGER, INTEGER, VARCHAR, INTEGER, BOOLEAN, INTEGER
 );
+DROP FUNCTION IF EXISTS pro_crear_movimiento(
+    DATE, INTEGER, INTEGER, INTEGER, NUMERIC, INTEGER, INTEGER, VARCHAR, INTEGER, BOOLEAN, INTEGER, VARCHAR
+);
 
 CREATE OR REPLACE FUNCTION pro_crear_movimiento(
     p_fecha DATE,
@@ -19,7 +22,8 @@ CREATE OR REPLACE FUNCTION pro_crear_movimiento(
     p_glosa VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL,
     p_forzar_ajuste_stock BOOLEAN DEFAULT FALSE,
-    p_id_almacen_destino INTEGER DEFAULT NULL
+    p_id_almacen_destino INTEGER DEFAULT NULL,
+    p_sentido_ajuste VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -91,6 +95,12 @@ BEGIN
     v_cantidad := ABS(p_cantidad);
     v_es_traslado := UPPER(COALESCE(v_nombre_tipo_movimiento, '')) = 'TRASLADO';
     v_es_salida := v_nombre_tipo_movimiento ILIKE '%SALIDA%';
+
+    IF UPPER(COALESCE(v_nombre_tipo_movimiento, '')) = 'AJUSTE'
+       AND UPPER(TRIM(COALESCE(p_sentido_ajuste, ''))) = 'MENOS'
+    THEN
+        v_es_salida := TRUE;
+    END IF;
 
     IF v_es_traslado THEN
         IF p_id_almacen_destino IS NULL THEN

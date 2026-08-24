@@ -16,6 +16,7 @@ import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   CreateMovimientoInventarioDto,
+  CreateTrasladoLoteDto,
   FiltroMovimientosInventarioDto,
   UpdateMovimientoInventarioDto,
 } from '../dto/movimientos-inventario.dto';
@@ -33,19 +34,26 @@ export class MovimientosInventarioController {
     return this.movimientosInventarioLogic.listar(filtros);
   }
 
+  @Post()
+  @Permisos(PermisoBanderas.MOVIMIENTOS_CREAR)
+  @ApiOperation({ summary: 'Registrar movimiento de inventario' })
+  crear(@Body() dto: CreateMovimientoInventarioDto) {
+    return this.movimientosInventarioLogic.crear(dto);
+  }
+
+  @Post('traslado-lote')
+  @Permisos(PermisoBanderas.MOVIMIENTOS_CREAR)
+  @ApiOperation({ summary: 'Registrar traslado multi-línea (atómico)' })
+  crearTrasladoLote(@Body() dto: CreateTrasladoLoteDto) {
+    return this.movimientosInventarioLogic.crearTrasladoLote(dto);
+  }
+
   @Get(':id')
   @Permisos(PermisoBanderas.MOVIMIENTOS_VER)
   @ApiOperation({ summary: 'Obtener movimiento por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
     return this.movimientosInventarioLogic.obtenerPorId(id);
-  }
-
-  @Post()
-  @Permisos(PermisoBanderas.MOVIMIENTOS_CREAR)
-  @ApiOperation({ summary: 'Registrar movimiento de inventario' })
-  crear(@Body() dto: CreateMovimientoInventarioDto) {
-    return this.movimientosInventarioLogic.crear(dto);
   }
 
   @Patch(':id')

@@ -28,6 +28,9 @@ CREATE OR REPLACE FUNCTION bal_actualizar_balon(
     p_mes_fabricacion SMALLINT DEFAULT NULL,
     p_id_planta INTEGER DEFAULT NULL,
     p_id_estado_contenido INTEGER DEFAULT NULL,
+    p_tipo_valvula VARCHAR DEFAULT NULL,
+    p_peso_aproximado_kg NUMERIC DEFAULT NULL,
+    p_sello_inspeccion VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -278,6 +281,15 @@ BEGIN
         numero_recepcion = COALESCE(p_numero_recepcion, numero_recepcion),
         presion_actual = COALESCE(p_presion_actual, presion_actual),
         observacion = COALESCE(p_observacion, observacion),
+        tipo_valvula = CASE
+            WHEN p_tipo_valvula IS NULL THEN tipo_valvula
+            ELSE NULLIF(TRIM(p_tipo_valvula), '')
+        END,
+        peso_aproximado_kg = COALESCE(p_peso_aproximado_kg, peso_aproximado_kg),
+        sello_inspeccion = CASE
+            WHEN p_sello_inspeccion IS NULL THEN sello_inspeccion
+            ELSE NULLIF(TRIM(p_sello_inspeccion), '')
+        END,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;

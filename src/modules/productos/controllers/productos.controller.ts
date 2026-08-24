@@ -24,6 +24,7 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   CreateProductoDto,
   FiltroProductosDto,
+  GenerarCodigoProductoDto,
   GenerarCodigoUbicacionDto,
   ImprimirUbicacionesProductoDto,
   UpdateProductoDto,
@@ -40,6 +41,16 @@ export class ProductosController {
   @ApiOperation({ summary: 'Listar productos' })
   listar(@Query() filtros: FiltroProductosDto) {
     return this.productosLogic.listar(filtros);
+  }
+
+  @Post('codigo/generar')
+  @Permisos(PermisoBanderas.PRODUCTOS_LISTAR)
+  @ApiOperation({
+    summary:
+      'Generar siguiente código de producto (PRO-001, SER-001, GAS-001 según tipo).',
+  })
+  generarCodigoProducto(@Body() dto: GenerarCodigoProductoDto) {
+    return this.productosLogic.generarCodigoProducto(dto);
   }
 
   @Post('codigo-ubicacion/generar')

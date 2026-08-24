@@ -8,6 +8,7 @@ import { StorageLogic } from '../../storage/logic/storage.logic';
 import {
   CreateProductoDto,
   FiltroProductosDto,
+  GenerarCodigoProductoDto,
   GenerarCodigoUbicacionDto,
   ImprimirUbicacionesProductoDto,
   UpdateProductoDto,
@@ -18,6 +19,14 @@ import {
   ProductoUbicacionPdfGenerator,
 } from '../services/producto-ubicacion-pdf.generator';
 import { buildCodigoUbicacionPrefijo } from '../utils/codigo-ubicacion.util';
+
+function resolverPrefijoCodigoProducto(dto: GenerarCodigoProductoDto): string {
+  const explicito = dto.prefijo?.trim();
+  if (explicito) return explicito.toUpperCase();
+  if (dto.esServicio) return 'SER';
+  if (dto.esGas) return 'GAS';
+  return 'PRO';
+}
 
 type ProductoUbicacionRegistro = {
   id?: number;
@@ -107,6 +116,12 @@ export class ProductosLogic {
       dto.idProducto ?? null,
     );
     return mapSingleResult(result, 'No se pudo generar el código de ubicación');
+  }
+
+  async generarCodigoProducto(dto: GenerarCodigoProductoDto) {
+    const prefijo = resolverPrefijoCodigoProducto(dto);
+    const result = await this.productosModel.generarCodigoProducto(prefijo);
+    return mapSingleResult(result, 'No se pudo generar el código de producto');
   }
 
   async crear(dto: CreateProductoDto) {

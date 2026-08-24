@@ -46,7 +46,11 @@ BEGIN
         FROM gen_lista_opciones
         WHERE id = v_movimiento.id_tipo_movimiento;
 
-        v_es_salida := v_nombre_tipo_movimiento ILIKE '%SALIDA%';
+        v_es_salida := (
+            v_movimiento.stock_nuevo IS NOT NULL
+            AND v_movimiento.stock_anterior IS NOT NULL
+            AND v_movimiento.stock_nuevo < v_movimiento.stock_anterior
+        ) OR (v_nombre_tipo_movimiento ILIKE '%SALIDA%');
         v_es_traslado := UPPER(COALESCE(v_nombre_tipo_movimiento, '')) = 'TRASLADO';
         IF v_es_traslado THEN
             v_es_salida := TRUE;
