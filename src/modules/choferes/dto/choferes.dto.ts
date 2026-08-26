@@ -19,6 +19,16 @@ export class CreateChoferDto extends AuditoriaDto {
   @IsInt()
   idCliente?: number;
 
+  @ApiPropertyOptional({
+    example: 1,
+    description:
+      'Trabajador de la empresa (obligatorio cuando idCliente es nulo = flota propia)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idTrabajador?: number;
+
   @ApiProperty({ example: 'Carlos' })
   @IsString()
   @MaxLength(150)

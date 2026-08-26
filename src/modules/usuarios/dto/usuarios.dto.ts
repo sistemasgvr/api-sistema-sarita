@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsEmail,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -26,6 +28,24 @@ export class CreateUsuarioDto extends AuditoriaDto {
   @MinLength(6)
   @MaxLength(100)
   contrasena!: string;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Trabajador de la empresa al que pertenece este usuario de acceso',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idTrabajador?: number;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Rol a asignar al crear el usuario',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idRol?: number;
 }
 
 export class UpdateUsuarioDto extends AuditoriaDto {
@@ -47,4 +67,13 @@ export class UpdateUsuarioDto extends AuditoriaDto {
   @MinLength(6)
   @MaxLength(100)
   contrasena?: string;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Trabajador de la empresa al que pertenece este usuario de acceso',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idTrabajador?: number;
 }

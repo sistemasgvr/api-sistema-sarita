@@ -38,6 +38,7 @@ export class ChoferesModel {
       [
         dto.nombres,
         dto.idCliente ?? null,
+        dto.idTrabajador ?? null,
         dto.apellidoPaterno ?? null,
         dto.apellidoMaterno ?? null,
         dto.idTipoDocumento ?? null,
@@ -59,6 +60,7 @@ export class ChoferesModel {
       [
         id,
         dto.idCliente ?? null,
+        dto.idTrabajador ?? null,
         dto.apellidoPaterno ?? null,
         dto.apellidoMaterno ?? null,
         dto.nombres ?? null,

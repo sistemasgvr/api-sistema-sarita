@@ -195,20 +195,14 @@ export class CreateActividadDto extends AuditoriaDto {
   @IsInt()
   idCliente?: number;
 
-  @ApiPropertyOptional({ example: 1 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  idUsuarioResponsable?: number;
-
   @ApiPropertyOptional({
     example: 1,
-    description: 'Chofer / repartidor de flota propia',
+    description: 'Trabajador responsable (tra_trabajadores)',
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idChoferResponsable?: number;
+  idTrabajadorResponsable?: number;
 
   @ApiPropertyOptional({
     example: 10,
@@ -300,13 +294,7 @@ export class UpdateActividadDto extends AuditoriaDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idUsuarioResponsable?: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  idChoferResponsable?: number;
+  idTrabajadorResponsable?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -343,19 +331,10 @@ export class UpdateActividadDto extends AuditoriaDto {
 export class AsignarResponsableActividadDto extends AuditoriaDto {
   @ApiPropertyOptional({
     example: 12,
-    description: 'Usuario responsable (auth_usuarios). null lo libera.',
+    description: 'Trabajador responsable (tra_trabajadores). null lo libera.',
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idUsuarioResponsable?: number | null;
-
-  @ApiPropertyOptional({
-    example: 3,
-    description: 'Chofer / repartidor (gen_chofer). null lo libera.',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  idChoferResponsable?: number | null;
+  idTrabajadorResponsable?: number | null;
 }

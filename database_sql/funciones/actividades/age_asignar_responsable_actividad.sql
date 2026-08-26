@@ -1,10 +1,9 @@
-DROP FUNCTION IF EXISTS age_asignar_responsable_actividad(INTEGER, INTEGER, INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS age_asignar_responsable_actividad(INTEGER, INTEGER, INTEGER);
 
 CREATE OR REPLACE FUNCTION age_asignar_responsable_actividad(
     p_id INTEGER,
     p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_id_usuario_responsable INTEGER DEFAULT NULL,
-    p_id_chofer_responsable INTEGER DEFAULT NULL
+    p_id_trabajador_responsable INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -18,8 +17,7 @@ BEGIN
 
     UPDATE age_actividad
     SET
-        id_usuario_responsable = p_id_usuario_responsable,
-        id_chofer_responsable = p_id_chofer_responsable,
+        id_trabajador_responsable = p_id_trabajador_responsable,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;

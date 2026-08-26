@@ -4,7 +4,8 @@ DROP FUNCTION IF EXISTS tra_listar_trabajadores(
     INTEGER,
     INTEGER,
     INTEGER,
-    INTEGER
+    INTEGER,
+    BOOLEAN
 );
 
 CREATE OR REPLACE FUNCTION tra_listar_trabajadores(
@@ -13,7 +14,8 @@ CREATE OR REPLACE FUNCTION tra_listar_trabajadores(
     p_id_area       INTEGER DEFAULT NULL,
     p_id_cargo      INTEGER DEFAULT NULL,
     p_limite        INTEGER DEFAULT 10,
-    p_offset        INTEGER DEFAULT 0
+    p_offset        INTEGER DEFAULT 0,
+    p_solo_sin_usuario BOOLEAN DEFAULT FALSE
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -26,9 +28,11 @@ BEGIN
 
     SELECT COUNT(*) INTO v_total
     FROM tra_trabajadores t
+    LEFT JOIN auth_usuarios au ON au.id_trabajador = t.id AND au.estado = TRUE
     WHERE (p_estado IS NULL OR t.estado = p_estado)
       AND (p_id_area IS NULL OR t.id_area = p_id_area)
       AND (p_id_cargo IS NULL OR t.id_cargo = p_id_cargo)
+      AND (NOT p_solo_sin_usuario OR au.id IS NULL)
       AND (
           p_buscar = ''
           OR gen_texto_coincide(t.nombres, p_buscar)
@@ -67,8 +71,12 @@ BEGIN
             a.nombre   AS nombre_area,
             t.id_cargo,
             c.nombre   AS nombre_cargo,
-            t.id_usuario,
-            t.id_chofer,
+            au.id      AS id_usuario,
+            au.nombre  AS nombre_usuario_vinculo,
+            (au.id IS NOT NULL) AS es_usuario,
+            ch.id      AS id_chofer,
+            TRIM(CONCAT_WS(' ', ch.nombres, ch.apellido_paterno, ch.apellido_materno)) AS nombre_chofer,
+            (ch.id IS NOT NULL) AS es_chofer,
             t.estado,
             t.fecha_creacion,
             t.fecha_modificacion
@@ -76,9 +84,12 @@ BEGIN
         LEFT JOIN gen_lista_opciones td ON t.id_tipo_documento = td.id
         LEFT JOIN gen_lista_opciones a  ON t.id_area = a.id
         LEFT JOIN gen_lista_opciones c  ON t.id_cargo = c.id
+        LEFT JOIN auth_usuarios au      ON au.id_trabajador = t.id AND au.estado = TRUE
+        LEFT JOIN gen_chofer ch         ON ch.id_trabajador = t.id AND ch.estado = 1
         WHERE (p_estado IS NULL OR t.estado = p_estado)
           AND (p_id_area IS NULL OR t.id_area = p_id_area)
           AND (p_id_cargo IS NULL OR t.id_cargo = p_id_cargo)
+          AND (NOT p_solo_sin_usuario OR au.id IS NULL)
           AND (
               p_buscar = ''
               OR gen_texto_coincide(t.nombres, p_buscar)

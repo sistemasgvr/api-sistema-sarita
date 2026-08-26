@@ -1,8 +1,9 @@
-DROP FUNCTION IF EXISTS gen_actualizar_chofer(INTEGER, INTEGER, VARCHAR, VARCHAR, VARCHAR, INTEGER, VARCHAR, VARCHAR, INTEGER);
+DROP FUNCTION IF EXISTS gen_actualizar_chofer(INTEGER, INTEGER, VARCHAR, VARCHAR, VARCHAR, INTEGER, VARCHAR, VARCHAR, VARCHAR, DATE, DATE, INTEGER, INTEGER, INTEGER);
 
 CREATE OR REPLACE FUNCTION gen_actualizar_chofer(
     p_id                    INTEGER,
     p_id_cliente            INTEGER DEFAULT NULL,
+    p_id_trabajador         INTEGER DEFAULT NULL,
     p_apellido_paterno      VARCHAR DEFAULT NULL,
     p_apellido_materno      VARCHAR DEFAULT NULL,
     p_nombres               VARCHAR DEFAULT NULL,
@@ -21,11 +22,30 @@ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_licencia INTEGER;
+    v_id_cliente_actual INTEGER;
+    v_id_trabajador_actual INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    IF NOT EXISTS (SELECT 1 FROM gen_chofer WHERE id = p_id AND estado = 1) THEN
+    SELECT id_cliente, id_trabajador INTO v_id_cliente_actual, v_id_trabajador_actual
+    FROM gen_chofer WHERE id = p_id AND estado = 1;
+
+    IF v_id_cliente_actual IS NULL THEN
         RETURN json_build_object('registro', NULL, 'error', 'No existe un chofer con id ' || p_id);
+    END IF;
+
+    IF p_id_trabajador IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM tra_trabajadores WHERE id = p_id_trabajador AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El trabajador indicado no existe.', 'registro', NULL);
+    END IF;
+
+    IF (COALESCE(p_id_cliente, v_id_cliente_actual) IS NULL) AND (p_id_trabajador IS NULL) AND v_id_trabajador_actual IS NULL THEN
+        RETURN json_build_object('error', 'El chofer de flota propia debe vincularse a un trabajador.', 'registro', NULL);
+    END IF;
+
+    IF (COALESCE(p_id_cliente, v_id_cliente_actual) IS NOT NULL) AND (COALESCE(p_id_trabajador, v_id_trabajador_actual) IS NOT NULL) THEN
+        RETURN json_build_object('error', 'Un chofer de cliente no puede vincularse a un trabajador de la empresa.', 'registro', NULL);
     END IF;
 
     IF p_numero_documento IS NOT NULL AND EXISTS (
@@ -38,6 +58,7 @@ BEGIN
         UPDATE gen_chofer
         SET
             id_cliente = COALESCE(p_id_cliente, id_cliente),
+            id_trabajador = COALESCE(p_id_trabajador, id_trabajador),
             apellido_paterno = COALESCE(p_apellido_paterno, apellido_paterno),
             apellido_materno = COALESCE(p_apellido_materno, apellido_materno),
             nombres = COALESCE(p_nombres, nombres),

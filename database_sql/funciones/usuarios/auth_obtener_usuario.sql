@@ -14,6 +14,7 @@ BEGIN
             u.nombre,
             u.correo,
             u.estado,
+            u.id_trabajador,
             u.fecha_creacion,
             u.fecha_modificacion,
             (

@@ -6,5 +6,6 @@ import { ChoferesModel } from './models/choferes.model';
 @Module({
   controllers: [ChoferesController],
   providers: [ChoferesLogic, ChoferesModel],
+  exports: [ChoferesLogic],
 })
 export class ChoferesModule {}

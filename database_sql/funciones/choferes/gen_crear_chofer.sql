@@ -1,8 +1,9 @@
-DROP FUNCTION IF EXISTS gen_crear_chofer(VARCHAR, INTEGER, VARCHAR, VARCHAR, INTEGER, VARCHAR, VARCHAR, INTEGER);
+DROP FUNCTION IF EXISTS gen_crear_chofer(VARCHAR, INTEGER, VARCHAR, VARCHAR, INTEGER, VARCHAR, VARCHAR, VARCHAR, DATE, DATE, INTEGER, INTEGER, INTEGER);
 
 CREATE OR REPLACE FUNCTION gen_crear_chofer(
     p_nombres               VARCHAR,
     p_id_cliente            INTEGER DEFAULT NULL,
+    p_id_trabajador         INTEGER DEFAULT NULL,
     p_apellido_paterno      VARCHAR DEFAULT NULL,
     p_apellido_materno      VARCHAR DEFAULT NULL,
     p_id_tipo_documento     INTEGER DEFAULT NULL,
@@ -24,6 +25,24 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
+    IF p_id_cliente IS NULL AND p_id_trabajador IS NULL THEN
+        RETURN json_build_object('error', 'El chofer de flota propia debe vincularse a un trabajador.', 'registro', NULL);
+    END IF;
+
+    IF p_id_cliente IS NOT NULL AND p_id_trabajador IS NOT NULL THEN
+        RETURN json_build_object('error', 'Un chofer de cliente no puede vincularse a un trabajador de la empresa.', 'registro', NULL);
+    END IF;
+
+    IF p_id_cliente IS NOT NULL AND p_nombres IS NULL THEN
+        RETURN json_build_object('error', 'El nombre es obligatorio para choferes de cliente.', 'registro', NULL);
+    END IF;
+
+    IF p_id_trabajador IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM tra_trabajadores WHERE id = p_id_trabajador AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El trabajador indicado no existe.', 'registro', NULL);
+    END IF;
+
     IF p_numero_documento IS NOT NULL AND EXISTS (
         SELECT 1 FROM gen_chofer WHERE numero_documento = p_numero_documento AND estado = 1
     ) THEN
@@ -32,12 +51,12 @@ BEGIN
 
     BEGIN
         INSERT INTO gen_chofer (
-            id_cliente, apellido_paterno, apellido_materno, nombres,
+            id_cliente, id_trabajador, apellido_paterno, apellido_materno, nombres,
             id_tipo_documento, numero_documento, telefono,
             id_usuario_creacion, id_usuario_modificacion
         )
         VALUES (
-            p_id_cliente, p_apellido_paterno, p_apellido_materno, p_nombres,
+            p_id_cliente, p_id_trabajador, p_apellido_paterno, p_apellido_materno, p_nombres,
             p_id_tipo_documento, p_numero_documento, p_telefono,
             p_id_usuario_auditoria, p_id_usuario_auditoria
         )

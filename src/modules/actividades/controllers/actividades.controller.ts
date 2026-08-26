@@ -125,8 +125,7 @@ export class ActividadesController {
     return this.actividadesLogic.asignarResponsable(
       id,
       dto.idUsuarioAuditoria,
-      dto.idUsuarioResponsable ?? null,
-      dto.idChoferResponsable ?? null,
+      dto.idTrabajadorResponsable ?? null,
     );
   }
 }

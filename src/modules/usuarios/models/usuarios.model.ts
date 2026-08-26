@@ -36,12 +36,14 @@ export class UsuariosModel {
     nombre: string,
     correo: string,
     contrasenaHash: string,
+    idTrabajador?: number | null,
     idUsuarioAuditoria?: number,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('auth_crear_usuario', [
       nombre,
       correo,
       contrasenaHash,
+      idTrabajador ?? null,
       idUsuarioAuditoria ?? null,
     ]);
   }
@@ -51,6 +53,7 @@ export class UsuariosModel {
     nombre: string | null,
     correo: string | null,
     contrasenaHash: string | null,
+    idTrabajador?: number | null,
     idUsuarioAuditoria?: number,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('auth_actualizar_usuario', [
@@ -58,6 +61,7 @@ export class UsuariosModel {
       nombre,
       correo,
       contrasenaHash,
+      idTrabajador ?? null,
       idUsuarioAuditoria ?? null,
     ]);
   }

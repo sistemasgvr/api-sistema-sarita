@@ -3,6 +3,7 @@ CREATE OR REPLACE FUNCTION auth_actualizar_usuario(
     p_nombre VARCHAR DEFAULT NULL,
     p_correo VARCHAR DEFAULT NULL,
     p_contrasena VARCHAR DEFAULT NULL,
+    p_id_trabajador INTEGER DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -18,11 +19,19 @@ BEGIN
         RETURN json_build_object('error', 'El correo ya está registrado', 'registro', NULL);
     END IF;
 
+    IF p_id_trabajador IS NOT NULL AND EXISTS (
+        SELECT 1 FROM auth_usuarios
+        WHERE id_trabajador = p_id_trabajador AND id <> p_id AND estado = TRUE
+    ) THEN
+        RETURN json_build_object('error', 'El trabajador ya tiene otro usuario de acceso.', 'registro', NULL);
+    END IF;
+
     UPDATE auth_usuarios
     SET
         nombre = COALESCE(p_nombre, nombre),
         correo = COALESCE(LOWER(p_correo), correo),
         contrasena = COALESCE(p_contrasena, contrasena),
+        id_trabajador = COALESCE(p_id_trabajador, id_trabajador),
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = TRUE;
 

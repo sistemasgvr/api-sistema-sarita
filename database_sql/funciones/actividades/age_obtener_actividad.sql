@@ -48,8 +48,10 @@ BEGIN
             c.razon_social AS razon_social_cliente,
             dir.latitud AS latitud_cliente,
             dir.longitud AS longitud_cliente,
+            act.id_trabajador_responsable,
+            TRIM(CONCAT_WS(' ', tr.nombres, tr.apellido_paterno, tr.apellido_materno)) AS nombre_trabajador_responsable,
             act.id_usuario_responsable,
-            u.nombre AS nombre_usuario_responsable,
+            au.nombre AS nombre_usuario_responsable,
             act.id_chofer_responsable,
             TRIM(CONCAT_WS(' ', ch.nombres, ch.apellido_paterno, ch.apellido_materno)) AS nombre_chofer_responsable,
             act.id_comprobante,
@@ -88,8 +90,9 @@ BEGIN
             ORDER BY cd.es_principal DESC NULLS LAST, cd.id DESC
             LIMIT 1
         ) dir ON TRUE
-        LEFT JOIN auth_usuarios u ON act.id_usuario_responsable = u.id
-        LEFT JOIN gen_chofer ch ON act.id_chofer_responsable = ch.id
+        LEFT JOIN tra_trabajadores tr ON tr.id = act.id_trabajador_responsable
+        LEFT JOIN auth_usuarios au ON au.id_trabajador = tr.id AND au.estado = TRUE
+        LEFT JOIN gen_chofer ch ON ch.id_trabajador = tr.id AND ch.estado = 1
         LEFT JOIN ven_comprobante vc ON act.id_comprobante = vc.id
         LEFT JOIN gre_guia_remision gr ON act.id_guia_remision = gr.id
         LEFT JOIN auth_usuarios uc ON act.id_usuario_creacion = uc.id

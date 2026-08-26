@@ -15,6 +15,7 @@ BEGIN
             u.correo,
             u.contrasena,
             u.estado,
+            u.id_trabajador,
             (
                 SELECT COALESCE(json_agg(json_build_object(
                     'id', r.id,

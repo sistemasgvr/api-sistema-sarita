@@ -8,9 +8,46 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
+
+export class ChoferEmpresaDto {
+  @ApiPropertyOptional({ example: '987654321' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  telefono?: string;
+
+  @ApiPropertyOptional({ example: 'Q12345678' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  codigoLicencia?: string;
+
+  @ApiPropertyOptional({ example: '2024-01-15' })
+  @ValidateIf((o) => !!o.codigoLicencia)
+  @IsDateString()
+  fechaEmision?: string;
+
+  @ApiPropertyOptional({ example: '2029-01-15' })
+  @ValidateIf((o) => !!o.codigoLicencia)
+  @IsDateString()
+  fechaVencimiento?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idTipoLicencia?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCategoriaLicencia?: number;
+}
 
 export class CreateTrabajadorDto extends AuditoriaDto {
   @ApiProperty({ example: 'Juan' })
@@ -113,12 +150,6 @@ export class CreateTrabajadorDto extends AuditoriaDto {
   @IsInt()
   idCargo?: number;
 
-  @ApiPropertyOptional({ example: 1, description: 'Vínculo opcional a auth_usuarios' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  idUsuarioVinculo?: number;
-
   @ApiPropertyOptional({ description: 'Correo para las credenciales del usuario de acceso' })
   @IsOptional()
   @IsString()
@@ -130,11 +161,20 @@ export class CreateTrabajadorDto extends AuditoriaDto {
   @IsBoolean()
   crearUsuario?: boolean;
 
-  @ApiPropertyOptional({ example: 1, description: 'Vínculo opcional a gen_chofer' })
+  @ApiPropertyOptional({ example: 1, description: 'Rol a asignar si se crea el usuario de acceso' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idChofer?: number;
+  idRol?: number;
+
+  @ApiPropertyOptional({ description: 'El trabajador es chofer de flota propia de la empresa' })
+  @IsOptional()
+  @IsBoolean()
+  esChofer?: boolean;
+
+  @ApiPropertyOptional({ type: () => ChoferEmpresaDto })
+  @IsOptional()
+  datosChofer?: ChoferEmpresaDto;
 }
 
 export class UpdateTrabajadorDto extends PartialType(CreateTrabajadorDto) {}
@@ -157,4 +197,10 @@ export class FiltroTrabajadorDto extends FiltroPaginacionDto {
   @Type(() => Number)
   @IsInt()
   idCargo?: number;
+
+  @ApiPropertyOptional({ description: 'Solo trabajadores sin usuario de acceso vinculado' })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  soloSinUsuario?: boolean;
 }

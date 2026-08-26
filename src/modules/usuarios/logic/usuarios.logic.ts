@@ -8,10 +8,14 @@ import {
 import { CreateUsuarioDto, UpdateUsuarioDto } from '../dto/usuarios.dto';
 import { FiltroUsuarioDto } from '../dto/filtros-usuario.dto';
 import { UsuariosModel } from '../models/usuarios.model';
+import { UsuariosRolesLogic } from '../../usuarios-roles/logic/usuarios-roles.logic';
 
 @Injectable()
 export class UsuariosLogic {
-  constructor(private readonly usuariosModel: UsuariosModel) {}
+  constructor(
+    private readonly usuariosModel: UsuariosModel,
+    private readonly usuariosRolesLogic: UsuariosRolesLogic,
+  ) {}
 
   async listar(filtros: FiltroUsuarioDto) {
     const result = await this.usuariosModel.listar(filtros);
@@ -29,9 +33,19 @@ export class UsuariosLogic {
       dto.nombre,
       dto.correo,
       hash,
+      dto.idTrabajador ?? null,
       dto.idUsuarioAuditoria,
     );
-    return mapSingleResult(result, 'No se pudo crear el usuario');
+    const usuario = mapSingleResult(result, 'No se pudo crear el usuario');
+    if (dto.idRol) {
+      await this.usuariosRolesLogic.asignar({
+        idUsuario: (usuario as { id: number }).id,
+        idRol: dto.idRol,
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      });
+    }
+
+    return usuario;
   }
 
   async actualizar(id: number, dto: UpdateUsuarioDto) {
@@ -44,6 +58,7 @@ export class UsuariosLogic {
       dto.nombre ?? null,
       dto.correo ?? null,
       hash,
+      dto.idTrabajador ?? null,
       dto.idUsuarioAuditoria,
     );
     return mapSingleResult(result, `Usuario ${id} no encontrado`);

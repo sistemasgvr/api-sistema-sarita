@@ -102,6 +102,7 @@ CREATE TABLE auth_usuarios (
     nombre          varchar(150) NOT NULL,
     correo          varchar(150) NOT NULL UNIQUE,
     contrasena      varchar(255) NOT NULL,
+    id_trabajador  INT REFERENCES tra_trabajadores(id);
     estado          BOOLEAN NOT NULL DEFAULT TRUE,
     fecha_creacion   TIMESTAMP DEFAULT NOW(),
     fecha_modificacion TIMESTAMP DEFAULT NOW()
@@ -237,8 +238,6 @@ CREATE TABLE tra_trabajadores (
     fecha_cese              DATE,
     id_area                 INT REFERENCES gen_lista_opciones(id),   -- catálogo AREAS_TRABAJADOR
     id_cargo                INT REFERENCES gen_lista_opciones(id),   -- catálogo CARGOS_TRABAJADOR
-    id_usuario              INT REFERENCES auth_usuarios(id),        -- vínculo opcional a usuario de acceso
-    id_chofer               INT REFERENCES gen_chofer(id),          -- vínculo opcional a chofer
     estado                  INT NOT NULL DEFAULT 1,                  -- 1 activo / 0 cesado (baja lógica)
     id_usuario_creacion     INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion INT REFERENCES auth_usuarios(id),
@@ -528,6 +527,7 @@ CREATE TABLE gen_chofer (
     --brevete             varchar(30),
     telefono            varchar(20),
     estado              INT NOT NULL DEFAULT 1,
+    id_trabajador INT REFERENCES tra_trabajadores(id),
     id_usuario_creacion       INT REFERENCES auth_usuarios(id),
     id_usuario_modificacion   INT REFERENCES auth_usuarios(id),
     fecha_creacion       TIMESTAMP DEFAULT NOW(),
@@ -1877,8 +1877,7 @@ CREATE TABLE age_actividad (
     id_tipo_actividad       INT NOT NULL REFERENCES gen_lista_opciones(id),
     id_prioridad            INT NOT NULL REFERENCES gen_lista_opciones(id),
     id_cliente              INT REFERENCES cli_clientes(id),
-    id_usuario_responsable  INT REFERENCES auth_usuarios(id),
-    id_chofer_responsable   INT REFERENCES gen_chofer(id),
+    id_trabajador INT REFERENCES tra_trabajadores(id),
     id_comprobante          INT REFERENCES ven_comprobante(id),
     id_guia_remision        INT REFERENCES gre_guia_remision(id),
     id_estado_actividad     INT NOT NULL REFERENCES gen_lista_opciones(id),

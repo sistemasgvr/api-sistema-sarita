@@ -41,10 +41,12 @@ BEGIN
             a.nombre   AS nombre_area,
             t.id_cargo,
             c.nombre   AS nombre_cargo,
-            t.id_usuario,
-            u.nombre   AS nombre_usuario_vinculo,
-            t.id_chofer,
-            ch.nombres AS nombre_chofer,
+            au.id      AS id_usuario,
+            au.nombre  AS nombre_usuario_vinculo,
+            (au.id IS NOT NULL) AS es_usuario,
+            ch.id      AS id_chofer,
+            TRIM(CONCAT_WS(' ', ch.nombres, ch.apellido_paterno, ch.apellido_materno)) AS nombre_chofer,
+            (ch.id IS NOT NULL) AS es_chofer,
             t.estado,
             t.fecha_creacion,
             t.fecha_modificacion,
@@ -60,8 +62,8 @@ BEGIN
         LEFT JOIN gen_distrito dis      ON t.id_distrito = dis.id
         LEFT JOIN gen_lista_opciones a  ON t.id_area = a.id
         LEFT JOIN gen_lista_opciones c  ON t.id_cargo = c.id
-        LEFT JOIN auth_usuarios u       ON t.id_usuario = u.id
-        LEFT JOIN gen_chofer ch         ON t.id_chofer = ch.id
+        LEFT JOIN auth_usuarios au      ON au.id_trabajador = t.id AND au.estado = TRUE
+        LEFT JOIN gen_chofer ch         ON ch.id_trabajador = t.id AND ch.estado = 1
         LEFT JOIN auth_usuarios uc      ON t.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um      ON t.id_usuario_modificacion = um.id
         WHERE t.id = p_id AND t.estado IN (0, 1)

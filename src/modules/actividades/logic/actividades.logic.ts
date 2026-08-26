@@ -40,11 +40,10 @@ export class ActividadesLogic {
       dto.idTipoActividad,
       dto.idPrioridad,
       dto.idCliente ?? null,
-      dto.idUsuarioResponsable ?? null,
+      dto.idTrabajadorResponsable ?? null,
       dto.idEstadoActividad,
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria,
-      dto.idChoferResponsable ?? null,
       dto.idComprobante ?? null,
       dto.idGuiaRemision ?? null,
       dto.items ?? null,
@@ -63,11 +62,10 @@ export class ActividadesLogic {
       dto.idTipoActividad ?? null,
       dto.idPrioridad ?? null,
       dto.idCliente ?? null,
-      dto.idUsuarioResponsable ?? null,
+      dto.idTrabajadorResponsable ?? null,
       dto.idEstadoActividad ?? null,
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria,
-      dto.idChoferResponsable ?? null,
       dto.idComprobante ?? null,
       dto.items ?? null,
     );
@@ -95,14 +93,12 @@ export class ActividadesLogic {
   async asignarResponsable(
     id: number,
     idUsuarioAuditoria?: number,
-    idUsuarioResponsable?: number | null,
-    idChoferResponsable?: number | null,
+    idTrabajadorResponsable?: number | null,
   ) {
     const result = await this.actividadesModel.asignarResponsable(
       id,
       idUsuarioAuditoria,
-      idUsuarioResponsable,
-      idChoferResponsable,
+      idTrabajadorResponsable,
     );
     return mapSingleResult(result, `Actividad ${id} no encontrada`);
   }

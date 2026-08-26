@@ -17,12 +17,14 @@ BEGIN
             c.apellido_paterno AS cliente_apellido_paterno,
             c.apellido_materno AS cliente_apellido_materno,
             c.numero_documento AS cliente_numero_documento,
-            ch.apellido_paterno,
-            ch.apellido_materno,
-            ch.nombres,
-            ch.id_tipo_documento,
+            ch.id_trabajador,
+            (ch.id_trabajador IS NOT NULL) AS es_chofer_empresa,
+            COALESCE(tr.apellido_paterno, ch.apellido_paterno) AS apellido_paterno,
+            COALESCE(tr.apellido_materno, ch.apellido_materno) AS apellido_materno,
+            COALESCE(tr.nombres, ch.nombres) AS nombres,
+            COALESCE(tr.id_tipo_documento, ch.id_tipo_documento) AS id_tipo_documento,
             td.nombre AS nombre_tipo_documento,
-            ch.numero_documento,
+            COALESCE(tr.numero_documento, ch.numero_documento) AS numero_documento,
             ch.telefono,
 
             -- Licencia vigente (la más reciente activa)
@@ -44,7 +46,8 @@ BEGIN
             um.nombre AS nombre_usuario_modificacion
         FROM gen_chofer ch
         LEFT JOIN cli_clientes c ON ch.id_cliente = c.id
-        LEFT JOIN gen_lista_opciones td ON ch.id_tipo_documento = td.id
+        LEFT JOIN tra_trabajadores tr ON tr.id = ch.id_trabajador
+        LEFT JOIN gen_lista_opciones td ON COALESCE(tr.id_tipo_documento, ch.id_tipo_documento) = td.id
         LEFT JOIN auth_usuarios uc ON ch.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON ch.id_usuario_modificacion = um.id
 

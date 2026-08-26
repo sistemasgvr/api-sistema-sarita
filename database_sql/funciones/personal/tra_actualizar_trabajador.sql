@@ -19,8 +19,6 @@ DROP FUNCTION IF EXISTS tra_actualizar_trabajador(
     INTEGER,
     INTEGER,
     INTEGER,
-    INTEGER,
-    INTEGER,
     VARCHAR
 );
 
@@ -44,8 +42,6 @@ CREATE OR REPLACE FUNCTION tra_actualizar_trabajador(
     p_fecha_cese            DATE    DEFAULT NULL,
     p_id_area               INTEGER DEFAULT NULL,
     p_id_cargo              INTEGER DEFAULT NULL,
-    p_id_usuario_vinculo    INTEGER DEFAULT NULL,
-    p_id_chofer             INTEGER DEFAULT NULL,
     p_id_usuario_auditoria  INTEGER DEFAULT NULL,
     p_correo                VARCHAR DEFAULT NULL
 )
@@ -91,8 +87,6 @@ BEGIN
             fecha_cese            = COALESCE(p_fecha_cese, fecha_cese),
             id_area               = COALESCE(p_id_area, id_area),
             id_cargo              = COALESCE(p_id_cargo, id_cargo),
-            id_usuario            = COALESCE(p_id_usuario_vinculo, id_usuario),
-            id_chofer             = COALESCE(p_id_chofer, id_chofer),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion    = NOW()
         WHERE id = p_id AND estado IN (0, 1);
@@ -101,7 +95,7 @@ BEGIN
         WHEN unique_violation THEN
             RETURN json_build_object('error', 'Ya existe un registro con datos duplicados', 'registro', NULL);
         WHEN foreign_key_violation THEN
-            RETURN json_build_object('error', 'Uno de los datos de catálogo, ubicación, usuario o chofer no es válido', 'registro', NULL);
+            RETURN json_build_object('error', 'Uno de los datos de catálogo o ubicación no es válido', 'registro', NULL);
         WHEN OTHERS THEN
             RETURN json_build_object('error', 'No se pudo actualizar el trabajador: ' || SQLERRM, 'registro', NULL);
     END;

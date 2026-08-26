@@ -23,6 +23,7 @@ export class TrabajadoresModel {
       filtros.idCargo ?? null,
       filtros.limite ?? 10,
       filtros.offset ?? 0,
+      filtros.soloSinUsuario ?? false,
     ]);
   }
 
@@ -55,8 +56,6 @@ export class TrabajadoresModel {
         dto.fechaCese ?? null,
         dto.idArea ?? null,
         dto.idCargo ?? null,
-        dto.idUsuarioVinculo ?? null,
-        dto.idChofer ?? null,
         dto.idUsuarioAuditoria ?? null,
         dto.correo ?? null,
       ],
@@ -86,8 +85,6 @@ export class TrabajadoresModel {
         dto.fechaCese ?? null,
         dto.idArea ?? null,
         dto.idCargo ?? null,
-        dto.idUsuarioVinculo ?? null,
-        dto.idChofer ?? null,
         dto.idUsuarioAuditoria ?? null,
         dto.correo ?? null,
       ],

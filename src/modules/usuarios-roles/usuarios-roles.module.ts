@@ -6,5 +6,6 @@ import { UsuariosRolesModel } from './models/usuarios-roles.model';
 @Module({
   controllers: [UsuariosRolesController],
   providers: [UsuariosRolesLogic, UsuariosRolesModel],
+  exports: [UsuariosRolesLogic],
 })
 export class UsuariosRolesModule {}

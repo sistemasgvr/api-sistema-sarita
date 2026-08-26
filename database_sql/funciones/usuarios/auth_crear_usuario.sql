@@ -2,6 +2,7 @@ CREATE OR REPLACE FUNCTION auth_crear_usuario(
     p_nombre VARCHAR,
     p_correo VARCHAR,
     p_contrasena VARCHAR,
+    p_id_trabajador INTEGER DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL
 )
 RETURNS JSON
@@ -12,12 +13,24 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
+    IF p_id_trabajador IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM tra_trabajadores WHERE id = p_id_trabajador AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El trabajador indicado no existe.', 'registro', NULL);
+    END IF;
+
     IF EXISTS (SELECT 1 FROM auth_usuarios WHERE LOWER(correo) = LOWER(p_correo) AND estado = TRUE) THEN
         RETURN json_build_object('error', 'El correo ya está registrado', 'registro', NULL);
     END IF;
 
-    INSERT INTO auth_usuarios (nombre, correo, contrasena)
-    VALUES (p_nombre, LOWER(p_correo), p_contrasena)
+    IF p_id_trabajador IS NOT NULL AND EXISTS (
+        SELECT 1 FROM auth_usuarios WHERE id_trabajador = p_id_trabajador AND estado = TRUE
+    ) THEN
+        RETURN json_build_object('error', 'El trabajador ya tiene un usuario de acceso.', 'registro', NULL);
+    END IF;
+
+    INSERT INTO auth_usuarios (nombre, correo, contrasena, id_trabajador)
+    VALUES (p_nombre, LOWER(p_correo), p_contrasena, p_id_trabajador)
     RETURNING id INTO v_id;
 
     RETURN auth_obtener_usuario(v_id);

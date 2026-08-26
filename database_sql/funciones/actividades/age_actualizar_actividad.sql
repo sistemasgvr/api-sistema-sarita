@@ -1,6 +1,6 @@
 DROP FUNCTION IF EXISTS age_actualizar_actividad(
     INTEGER, VARCHAR, TEXT, DATE, TIME, TIME, TIMESTAMP, INTEGER, INTEGER,
-    INTEGER, INTEGER, INTEGER, VARCHAR, INTEGER, INTEGER, INTEGER, JSON
+    INTEGER, INTEGER, INTEGER, VARCHAR, INTEGER, INTEGER, JSON
 );
 
 CREATE OR REPLACE FUNCTION age_actualizar_actividad(
@@ -14,11 +14,10 @@ CREATE OR REPLACE FUNCTION age_actualizar_actividad(
     p_id_tipo_actividad INTEGER,
     p_id_prioridad INTEGER,
     p_id_cliente INTEGER DEFAULT NULL,
-    p_id_usuario_responsable INTEGER DEFAULT NULL,
+    p_id_trabajador_responsable INTEGER DEFAULT NULL,
     p_id_estado_actividad INTEGER DEFAULT NULL,
     p_observaciones VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_id_chofer_responsable INTEGER DEFAULT NULL,
     p_id_comprobante INTEGER DEFAULT NULL,
     p_items JSON DEFAULT NULL
 )
@@ -90,23 +89,24 @@ BEGIN
         WHERE id = p_id_tipo_actividad;
 
         IF v_tipo = 'REPARTO' THEN
-            IF p_id_chofer_responsable IS NOT NULL THEN
+            IF p_id_trabajador_responsable IS NOT NULL THEN
                 IF NOT EXISTS (
-                    SELECT 1 FROM gen_chofer
-                    WHERE id = p_id_chofer_responsable AND estado = 1 AND id_cliente IS NULL
+                    SELECT 1 FROM tra_trabajadores t
+                    INNER JOIN gen_chofer c ON c.id_trabajador = t.id
+                    WHERE t.id = p_id_trabajador_responsable AND t.estado = 1 AND c.estado = 1 AND c.id_cliente IS NULL
                 ) THEN
-                    RETURN json_build_object('registro', NULL, 'error', 'El chofer debe ser de flota propia (repartidor).');
+                    RETURN json_build_object('registro', NULL, 'error', 'El responsable debe ser un trabajador chofer de flota propia (repartidor).');
                 END IF;
             END IF;
         END IF;
     END IF;
 
-    IF p_id_usuario_responsable IS NOT NULL AND p_hora_inicio_estimada IS NOT NULL AND p_hora_fin_estimada IS NOT NULL THEN
+    IF p_id_trabajador_responsable IS NOT NULL AND p_hora_inicio_estimada IS NOT NULL AND p_hora_fin_estimada IS NOT NULL THEN
         IF EXISTS (
             SELECT 1
             FROM age_actividad
             WHERE id <> p_id
-              AND id_usuario_responsable = p_id_usuario_responsable
+              AND id_trabajador_responsable = p_id_trabajador_responsable
               AND fecha_programada = p_fecha_programada
               AND estado = 1
               AND NOT EXISTS (
@@ -120,30 +120,7 @@ BEGIN
                   OR (p_hora_inicio_estimada <= hora_inicio_estimada AND p_hora_fin_estimada >= hora_fin_estimada)
               )
         ) THEN
-            RETURN json_build_object('registro', NULL, 'error', 'El usuario responsable ya tiene otra actividad asignada que se cruza en ese horario para la fecha seleccionada.');
-        END IF;
-    END IF;
-
-    IF p_id_chofer_responsable IS NOT NULL AND p_hora_inicio_estimada IS NOT NULL AND p_hora_fin_estimada IS NOT NULL THEN
-        IF EXISTS (
-            SELECT 1
-            FROM age_actividad
-            WHERE id <> p_id
-              AND id_chofer_responsable = p_id_chofer_responsable
-              AND fecha_programada = p_fecha_programada
-              AND estado = 1
-              AND NOT EXISTS (
-                  SELECT 1 FROM gen_lista_opciones ea
-                  WHERE ea.id = age_actividad.id_estado_actividad
-                    AND UPPER(TRIM(ea.nombre)) IN ('CANCELADA', 'CANCELADO')
-              )
-              AND (
-                  (p_hora_inicio_estimada >= hora_inicio_estimada AND p_hora_inicio_estimada < hora_fin_estimada)
-                  OR (p_hora_fin_estimada > hora_inicio_estimada AND p_hora_fin_estimada <= hora_fin_estimada)
-                  OR (p_hora_inicio_estimada <= hora_inicio_estimada AND p_hora_fin_estimada >= hora_fin_estimada)
-              )
-        ) THEN
-            RETURN json_build_object('registro', NULL, 'error', 'El chofer ya tiene otra actividad asignada que se cruza en ese horario.');
+            RETURN json_build_object('registro', NULL, 'error', 'El responsable (trabajador) ya tiene otra actividad asignada que se cruza en ese horario para la fecha seleccionada.');
         END IF;
     END IF;
 
@@ -158,8 +135,7 @@ BEGIN
         id_tipo_actividad = COALESCE(p_id_tipo_actividad, id_tipo_actividad),
         id_prioridad = COALESCE(p_id_prioridad, id_prioridad),
         id_cliente = COALESCE(p_id_cliente, id_cliente),
-        id_usuario_responsable = COALESCE(p_id_usuario_responsable, id_usuario_responsable),
-        id_chofer_responsable = COALESCE(p_id_chofer_responsable, id_chofer_responsable),
+        id_trabajador_responsable = COALESCE(p_id_trabajador_responsable, id_trabajador_responsable),
         id_comprobante = COALESCE(p_id_comprobante, id_comprobante),
         id_estado_actividad = COALESCE(p_id_estado_actividad, id_estado_actividad),
         observaciones = COALESCE(p_observaciones, observaciones),

@@ -29,10 +29,10 @@ BEGIN
       AND (p_id_estado IS NULL OR act.id_estado_actividad = p_id_estado)
       AND (p_id_tipo IS NULL OR act.id_tipo_actividad = p_id_tipo)
       AND (p_id_prioridad IS NULL OR act.id_prioridad = p_id_prioridad)
-      AND (p_sin_responsable IS NULL OR (
-          (p_sin_responsable AND act.id_usuario_responsable IS NULL AND act.id_chofer_responsable IS NULL)
-          OR (NOT p_sin_responsable AND (act.id_usuario_responsable IS NOT NULL OR act.id_chofer_responsable IS NOT NULL))
-      ))
+       AND (p_sin_responsable IS NULL OR (
+           (p_sin_responsable AND act.id_trabajador_responsable IS NULL)
+           OR (NOT p_sin_responsable AND act.id_trabajador_responsable IS NOT NULL)
+       ))
       AND (
           p_busqueda = ''
           OR gen_texto_coincide(act.titulo, p_busqueda)
@@ -56,8 +56,10 @@ BEGIN
             pr.nombre AS nombre_prioridad,
             act.id_cliente,
             c.razon_social AS razon_social_cliente,
+            act.id_trabajador_responsable,
+            TRIM(CONCAT_WS(' ', tr.nombres, tr.apellido_paterno, tr.apellido_materno)) AS nombre_trabajador_responsable,
             act.id_usuario_responsable,
-            u.nombre AS nombre_usuario_responsable,
+            au.nombre AS nombre_usuario_responsable,
             act.id_chofer_responsable,
             TRIM(CONCAT_WS(' ', ch.nombres, ch.apellido_paterno, ch.apellido_materno)) AS nombre_chofer_responsable,
             act.id_comprobante,
@@ -86,8 +88,9 @@ BEGIN
             ON ea.id = act.id_estado_actividad
            AND ea.id_lista IN (SELECT gl.id FROM gen_lista gl WHERE gl.nombre = 'EstadoActividad' OR gl.id = 49)
         LEFT JOIN cli_clientes c ON act.id_cliente = c.id
-        LEFT JOIN auth_usuarios u ON act.id_usuario_responsable = u.id
-        LEFT JOIN gen_chofer ch ON act.id_chofer_responsable = ch.id
+        LEFT JOIN tra_trabajadores tr ON tr.id = act.id_trabajador_responsable
+        LEFT JOIN auth_usuarios au ON au.id_trabajador = tr.id AND au.estado = TRUE
+        LEFT JOIN gen_chofer ch ON ch.id_trabajador = tr.id AND ch.estado = 1
         LEFT JOIN ven_comprobante vc ON act.id_comprobante = vc.id
         LEFT JOIN gre_guia_remision gr ON act.id_guia_remision = gr.id
         LEFT JOIN auth_usuarios uc ON act.id_usuario_creacion = uc.id

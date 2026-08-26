@@ -22,7 +22,7 @@ BEGIN
     UPDATE auth_usuarios
     SET estado = FALSE,
         fecha_modificacion = NOW()
-    WHERE id = (SELECT id_usuario FROM tra_trabajadores WHERE id = p_id)
+    WHERE id_trabajador = p_id
       AND estado = TRUE;
 
     RETURN json_build_object('eliminado', TRUE, 'id', p_id);
