@@ -48,6 +48,18 @@ export class FiltroComprasDto extends FiltroPaginacionDto {
   @Type(() => Number)
   @IsInt()
   estado?: number;
+
+  @ApiPropertyOptional({ description: 'ID de gen_lista_opciones (lista TipoRegistroCompra)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idTipoRegistro?: number;
+
+  @ApiPropertyOptional({ description: 'ID de gen_lista_opciones (lista CategoriaGasto)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCategoriaGasto?: number;
 }
 
 export class CompraCuotaDto {

@@ -7,10 +7,12 @@ import {
 import { CajaModel } from '../models/caja.model';
 import {
   AbrirCajaDto,
+  ActualizarCajaGastoDto,
   CerrarCajaDto,
   CrearCajaDepositoDto,
   CrearCajaGastoDto,
   CrearCajaObservacionDto,
+  FiltroCajaGastosDto,
   FiltroCajaSesionesDto,
   FiltroLibroDiarioDto,
 } from '../dto/caja.dto';
@@ -52,6 +54,21 @@ export class CajaLogic {
   async crearGasto(dto: CrearCajaGastoDto) {
     const result = await this.cajaModel.crearGasto(dto);
     return mapSingleResult(result, 'No se pudo registrar el gasto');
+  }
+
+  async listarGastos(filtros: FiltroCajaGastosDto) {
+    const result = await this.cajaModel.listarGastos(filtros);
+    return mapListResult(result, filtros);
+  }
+
+  async obtenerGasto(id: number) {
+    const result = await this.cajaModel.obtenerGasto(id);
+    return mapSingleResult(result, `Gasto ${id} no encontrado`);
+  }
+
+  async actualizarGasto(id: number, dto: ActualizarCajaGastoDto) {
+    const result = await this.cajaModel.actualizarGasto(id, dto);
+    return mapSingleResult(result, `Gasto ${id} no encontrado`);
   }
 
   async eliminarGasto(id: number, idUsuarioAuditoria?: number) {

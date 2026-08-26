@@ -1,3 +1,5 @@
+DROP FUNCTION IF EXISTS com_listar_compras(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, DATE, DATE, INTEGER);
+
 CREATE OR REPLACE FUNCTION com_listar_compras(
     p_busqueda        VARCHAR DEFAULT '',
     p_limite          INTEGER DEFAULT 10,
@@ -6,7 +8,9 @@ CREATE OR REPLACE FUNCTION com_listar_compras(
     p_id_almacen      INTEGER DEFAULT NULL,
     p_fecha_desde     DATE DEFAULT NULL,
     p_fecha_hasta     DATE DEFAULT NULL,
-    p_estado          INTEGER DEFAULT NULL
+    p_estado          INTEGER DEFAULT NULL,
+    p_id_tipo_registro    INTEGER DEFAULT NULL,
+    p_id_categoria_gasto  INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -25,6 +29,8 @@ BEGIN
       AND (p_fecha_desde IS NULL OR c.fecha >= p_fecha_desde)
       AND (p_fecha_hasta IS NULL OR c.fecha <= p_fecha_hasta)
       AND (p_estado IS NULL OR c.estado = p_estado)
+      AND (p_id_tipo_registro IS NULL OR c.id_tipo_registro = p_id_tipo_registro)
+      AND (p_id_categoria_gasto IS NULL OR c.id_categoria_gasto = p_id_categoria_gasto)
       AND (
           p_busqueda = ''
           OR LOWER(COALESCE(c.serie, '')) LIKE LOWER('%' || p_busqueda || '%')
@@ -47,6 +53,8 @@ BEGIN
                 pr.numero_documento
             ) AS nombre_proveedor,
             c.id_almacen, alm.nombre AS almacen,
+            c.id_tipo_registro, tr.nombre AS tipo_registro,
+            c.id_categoria_gasto, cat.nombre AS categoria_gasto,
             c.sub_total, c.total_importe,
             c.estado,
             com_tiene_movimientos_inventario(c.id) AS tiene_movimientos_inventario,
@@ -54,11 +62,15 @@ BEGIN
         FROM com_comprobante_compra c
         LEFT JOIN cli_clientes pr ON pr.id = c.id_proveedor
         LEFT JOIN gen_almacen alm ON alm.id = c.id_almacen
+        LEFT JOIN gen_lista_opciones tr ON tr.id = c.id_tipo_registro
+        LEFT JOIN gen_lista_opciones cat ON cat.id = c.id_categoria_gasto
         WHERE (p_id_proveedor IS NULL OR c.id_proveedor = p_id_proveedor)
           AND (p_id_almacen IS NULL OR c.id_almacen = p_id_almacen)
           AND (p_fecha_desde IS NULL OR c.fecha >= p_fecha_desde)
           AND (p_fecha_hasta IS NULL OR c.fecha <= p_fecha_hasta)
           AND (p_estado IS NULL OR c.estado = p_estado)
+          AND (p_id_tipo_registro IS NULL OR c.id_tipo_registro = p_id_tipo_registro)
+          AND (p_id_categoria_gasto IS NULL OR c.id_categoria_gasto = p_id_categoria_gasto)
           AND (
               p_busqueda = ''
               OR LOWER(COALESCE(c.serie, '')) LIKE LOWER('%' || p_busqueda || '%')

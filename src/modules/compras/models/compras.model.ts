@@ -42,6 +42,8 @@ export class ComprasModel {
       filtros.fechaDesde ?? null,
       filtros.fechaHasta ?? null,
       filtros.estado ?? null,
+      filtros.idTipoRegistro ?? null,
+      filtros.idCategoriaGasto ?? null,
     ]);
   }
 

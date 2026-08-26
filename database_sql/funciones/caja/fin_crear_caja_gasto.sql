@@ -71,11 +71,13 @@ BEGIN
             g.id_medio_pago AS "idMedioPago",
             mp.nombre AS "medioPago",
             g.id_categoria_gasto AS "idCategoriaGasto",
+            cat.nombre AS "categoriaGasto",
             g.numero_operacion AS "numeroOperacion",
             g.observacion,
             g.id_sesion AS "idSesion"
         FROM fin_caja_gasto g
         LEFT JOIN gen_lista_opciones mp ON mp.id = g.id_medio_pago
+        LEFT JOIN gen_lista_opciones cat ON cat.id = g.id_categoria_gasto
         WHERE g.id = v_id
     ) t;
 

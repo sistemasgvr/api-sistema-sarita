@@ -7,10 +7,12 @@ import {
 } from '../../../common/interfaces/auth-db.interface';
 import {
   AbrirCajaDto,
+  ActualizarCajaGastoDto,
   CerrarCajaDto,
   CrearCajaDepositoDto,
   CrearCajaGastoDto,
   CrearCajaObservacionDto,
+  FiltroCajaGastosDto,
   FiltroCajaSesionesDto,
   FiltroLibroDiarioDto,
 } from '../dto/caja.dto';
@@ -79,6 +81,36 @@ export class CajaModel {
       dto.idSesion ?? null,
       dto.idUsuarioAuditoria ?? null,
       dto.idSucursal ?? null,
+    ]);
+  }
+
+  listarGastos(filtros: FiltroCajaGastosDto) {
+    return this.db.callFunctionJson<AuthListResult>('fin_listar_caja_gastos', [
+      filtros.buscar ?? '',
+      filtros.limite ?? 10,
+      filtros.offset,
+      filtros.fechaDesde ?? null,
+      filtros.fechaHasta ?? null,
+      filtros.idCategoriaGasto ?? null,
+      filtros.idSesion ?? null,
+      filtros.estado ?? 1,
+    ]);
+  }
+
+  obtenerGasto(id: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('fin_obtener_caja_gasto', [id]);
+  }
+
+  actualizarGasto(id: number, dto: ActualizarCajaGastoDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('fin_actualizar_caja_gasto', [
+      id,
+      dto.concepto,
+      dto.monto,
+      dto.idMedioPago ?? null,
+      dto.idCategoriaGasto ?? null,
+      dto.numeroOperacion ?? null,
+      dto.observacion ?? null,
+      dto.idUsuarioAuditoria ?? null,
     ]);
   }
 

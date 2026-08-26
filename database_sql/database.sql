@@ -1625,7 +1625,7 @@ CREATE TABLE fin_caja_gasto (
     concepto                 VARCHAR(200) NOT NULL,
     monto                    NUMERIC(12,4) NOT NULL CHECK (monto > 0),
     id_medio_pago            INT NULL REFERENCES gen_lista_opciones(id),
-    id_categoria_gasto       INT NULL REFERENCES gen_clasificacion_gasto(id),
+    id_categoria_gasto       INT NULL REFERENCES gen_lista_opciones(id),
     numero_operacion         VARCHAR(80),
     observacion              VARCHAR(500),
     estado                   INT NOT NULL DEFAULT 1,

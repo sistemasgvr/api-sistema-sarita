@@ -11,6 +11,7 @@ import {
   Min,
 } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
 export class AbrirCajaDto extends AuditoriaDto {
   @ApiProperty({ example: '2026-08-11' })
@@ -221,6 +222,73 @@ export class CrearCajaObservacionDto extends AuditoriaDto {
   @IsString()
   @MaxLength(1000)
   texto!: string;
+}
+
+export class ActualizarCajaGastoDto extends AuditoriaDto {
+  @ApiProperty({ example: 'Combustible' })
+  @IsString()
+  @MaxLength(200)
+  concepto!: string;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  monto!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idMedioPago?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCategoriaGasto?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  numeroOperacion?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observacion?: string;
+}
+
+export class FiltroCajaGastosDto extends FiltroPaginacionDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaDesde?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaHasta?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCategoriaGasto?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idSesion?: number;
+
+  @ApiPropertyOptional({ default: 1, description: '1 = activos (default), NULL/omitir vía query no soportado; usar 0 para ver de baja' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  estado?: number;
 }
 
 export class FiltroLibroDiarioDto {

@@ -16,11 +16,13 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { CajaLogic } from '../logic/caja.logic';
 import {
   AbrirCajaDto,
+  ActualizarCajaGastoDto,
   CerrarCajaDto,
   CrearCajaDepositoDto,
   CrearCajaGastoDto,
   CrearCajaObservacionDto,
   FiltroCajaDiaDto,
+  FiltroCajaGastosDto,
   FiltroCajaSesionesDto,
   FiltroLibroDiarioDto,
 } from '../dto/caja.dto';
@@ -78,11 +80,32 @@ export class CajaController {
     return this.cajaLogic.cerrarSesion(id, dto);
   }
 
+  @Get('gastos')
+  @Permisos(PermisoBanderas.CAJA_VER)
+  @ApiOperation({ summary: 'Listar gastos de caja (filtrable por categoría, fecha, sesión)' })
+  listarGastos(@Query() filtros: FiltroCajaGastosDto) {
+    return this.cajaLogic.listarGastos(filtros);
+  }
+
+  @Get('gastos/:id')
+  @Permisos(PermisoBanderas.CAJA_VER)
+  @ApiOperation({ summary: 'Obtener un gasto de caja por id' })
+  obtenerGasto(@Param('id', ParseIntPipe) id: number) {
+    return this.cajaLogic.obtenerGasto(id);
+  }
+
   @Post('gastos')
   @Permisos(PermisoBanderas.CAJA_REGISTRAR_GASTO)
   @ApiOperation({ summary: 'Registrar gasto menudo de caja' })
   crearGasto(@Body() dto: CrearCajaGastoDto) {
     return this.cajaLogic.crearGasto(dto);
+  }
+
+  @Patch('gastos/:id')
+  @Permisos(PermisoBanderas.CAJA_REGISTRAR_GASTO)
+  @ApiOperation({ summary: 'Editar gasto de caja (solo mientras la caja esté abierta)' })
+  actualizarGasto(@Param('id', ParseIntPipe) id: number, @Body() dto: ActualizarCajaGastoDto) {
+    return this.cajaLogic.actualizarGasto(id, dto);
   }
 
   @Delete('gastos/:id')
