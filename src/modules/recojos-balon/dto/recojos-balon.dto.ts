@@ -29,12 +29,17 @@ class ExactlyOneRecojoDetalleConstraint implements ValidatorConstraintInterface 
     const value = args.object as {
       idPrestamoDetalle?: number;
       idAlquilerDetalle?: number;
+      idBalon?: number;
     };
-    return Boolean(value.idPrestamoDetalle) !== Boolean(value.idAlquilerDetalle);
+    const count =
+      (Boolean(value.idPrestamoDetalle) ? 1 : 0) +
+      (Boolean(value.idAlquilerDetalle) ? 1 : 0) +
+      (Boolean(value.idBalon) ? 1 : 0);
+    return count === 1;
   }
 
   defaultMessage() {
-    return 'Debe indicar exactamente un detalle de préstamo o alquiler';
+    return 'Debe indicar exactamente un origen: préstamo, alquiler o balón';
   }
 }
 
@@ -45,12 +50,17 @@ class AtMostOneRecojoDetalleConstraint implements ValidatorConstraintInterface {
     const value = args.object as {
       idPrestamoDetalle?: number;
       idAlquilerDetalle?: number;
+      idBalon?: number;
     };
-    return !(Boolean(value.idPrestamoDetalle) && Boolean(value.idAlquilerDetalle));
+    const count =
+      (Boolean(value.idPrestamoDetalle) ? 1 : 0) +
+      (Boolean(value.idAlquilerDetalle) ? 1 : 0) +
+      (Boolean(value.idBalon) ? 1 : 0);
+    return count <= 1;
   }
 
   defaultMessage() {
-    return 'No puede indicar detalle de préstamo y alquiler a la vez';
+    return 'No puede indicar más de un origen (préstamo, alquiler o balón) a la vez';
   }
 }
 
@@ -125,6 +135,12 @@ export class RecojoDetalleCreateDto {
   @IsNumber()
   idAlquilerDetalle?: number;
 
+  @ApiPropertyOptional({ description: 'ID de bal_balon (origen recarga en planta externa)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idBalon?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -151,6 +167,12 @@ export class CreateRecojosBalonDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   idAlquiler?: number;
+
+  @ApiPropertyOptional({ description: 'Orden de recarga en planta externa (origen COMPRA/RECARGAR_PLANTA)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idRecargaPlanta?: number;
 
   @ApiProperty()
   @IsDateString()
@@ -245,13 +267,19 @@ export class RecojoDetalleResultadoDto {
   @IsNumber()
   idAlquilerDetalle?: number;
 
+  @ApiPropertyOptional({ description: 'ID de bal_balon (origen recarga en planta externa)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idBalon?: number;
+
   @ApiProperty({ enum: RESULTADOS_RECOJO })
   @IsString()
   @IsIn([...RESULTADOS_RECOJO])
   resultado!: (typeof RESULTADOS_RECOJO)[number];
 
   @ApiPropertyOptional({
-    description: 'EstadoContenidoBalon: VACIO | LLENO | DESCONOCIDO',
+    description: 'EstadoContenidoBalon: VACIO | LLENO | SEMILLLENO | DESCONOCIDO',
   })
   @IsOptional()
   @IsString()

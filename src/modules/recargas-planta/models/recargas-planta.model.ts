@@ -8,6 +8,7 @@ import { DatabaseService } from '../../../database/database.service';
 import {
   CreateRecargaPlantaDto,
   FiltroRecargasPlantaDto,
+  GenerarRecojoRecargaPlantaDto,
   UpdateRecargaPlantaDto,
 } from '../dto/recargas-planta.dto';
 
@@ -84,5 +85,18 @@ export class RecargasPlantaModel {
       id,
       idUsuarioAuditoria ?? null,
     ]);
+  }
+
+  generarRecojo(id: number, dto: GenerarRecojoRecargaPlantaDto) {
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'bal_generar_recojo_recarga_planta',
+      [
+        id,
+        dto.fechaProgramada ?? null,
+        dto.idUsuarioResponsable ?? null,
+        dto.observacion ?? null,
+        dto.idUsuarioAuditoria ?? null,
+      ],
+    );
   }
 }

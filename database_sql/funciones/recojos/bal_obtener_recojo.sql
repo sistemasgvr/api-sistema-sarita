@@ -55,10 +55,14 @@ BEGIN
             r.nueva_fecha_retorno_regulador,
             r.observacion_regulador,
             CASE
+                WHEN r.id_recarga_planta IS NOT NULL THEN 'RECARGAR_PLANTA'
                 WHEN r.id_prestamo IS NOT NULL AND r.id_alquiler IS NOT NULL THEN 'MIXTO'
                 WHEN r.id_alquiler IS NOT NULL THEN 'ALQUILER'
                 ELSE 'PRESTAMO'
             END AS tipo_origen,
+            r.id_recarga_planta,
+            rp.numero AS numero_recarga_planta,
+            r.id_compra,
             r.fecha_programada,
             r.hora_estimada,
             r.fecha_visita,
@@ -82,6 +86,7 @@ BEGIN
         LEFT JOIN cli_clientes c ON c.id = r.id_cliente
         LEFT JOIN bal_prestamo pr ON pr.id = r.id_prestamo
         LEFT JOIN bal_alquiler al ON al.id = r.id_alquiler
+        LEFT JOIN bal_recarga_planta rp ON rp.id = r.id_recarga_planta
         LEFT JOIN pro_producto pr_alq ON pr_alq.id = al.id_producto_regulador
         LEFT JOIN pro_producto ps_alq ON ps_alq.id = al.id_producto_stock
         LEFT JOIN auth_usuarios ur ON ur.id = r.id_usuario_responsable
@@ -115,13 +120,15 @@ BEGIN
             rd.id_recojo,
             rd.id_prestamo_detalle,
             rd.id_alquiler_detalle,
+            rd.id_balon,
             CASE
+                WHEN rd.id_balon IS NOT NULL THEN 'RECARGAR_PLANTA'
                 WHEN rd.id_alquiler_detalle IS NOT NULL THEN 'ALQUILER'
                 ELSE 'PRESTAMO'
             END AS origen,
-            COALESCE(pd.id_prestamo, ad.id_alquiler) AS id_origen,
-            COALESCE(pr.numero_prestamo, al.numero_alquiler) AS numero_origen,
-            COALESCE(pd.id_balon, ad.id_balon) AS id_balon,
+            COALESCE(pd.id_prestamo, ad.id_alquiler, rp.id) AS id_origen,
+            COALESCE(pr.numero_prestamo, al.numero_alquiler, rp.numero) AS numero_origen,
+            COALESCE(pd.id_balon, ad.id_balon, rd.id_balon) AS id_balon,
             b.codigo_balon,
             b.id_producto_gas,
             pg.nombre AS nombre_producto_gas,
@@ -148,7 +155,9 @@ BEGIN
         LEFT JOIN bal_alquiler_detalle ad
             ON ad.id = rd.id_alquiler_detalle AND ad.estado = 1
         LEFT JOIN bal_alquiler al ON al.id = ad.id_alquiler
-        LEFT JOIN bal_balon b ON b.id = COALESCE(pd.id_balon, ad.id_balon)
+        LEFT JOIN bal_recarga_planta rp
+            ON rp.id = (SELECT r2.id_recarga_planta FROM bal_recojo r2 WHERE r2.id = p_id)
+        LEFT JOIN bal_balon b ON b.id = COALESCE(pd.id_balon, ad.id_balon, rd.id_balon)
         LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
         LEFT JOIN pro_producto pg ON pg.id = b.id_producto_gas
         LEFT JOIN gen_lista_opciones um_prod ON um_prod.id = pg.id_unidad_medida

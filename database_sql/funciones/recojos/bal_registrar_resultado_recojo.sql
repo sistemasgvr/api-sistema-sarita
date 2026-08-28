@@ -14,11 +14,13 @@ DECLARE
     v_id_cliente INTEGER;
     v_id_prestamo INTEGER;
     v_id_alquiler INTEGER;
+    v_id_recarga_planta INTEGER;
     v_estado_actual VARCHAR;
     v_fecha_visita DATE;
     v_item JSON;
     v_id_pd INTEGER;
     v_id_ad INTEGER;
+    v_id_b INTEGER;
     v_resultado VARCHAR;
     v_nombre_contenido VARCHAR;
     v_nueva_fecha DATE;
@@ -63,16 +65,45 @@ DECLARE
     v_cil_pendientes INTEGER;
     v_seen_pd INTEGER[] := '{}';
     v_seen_ad INTEGER[] := '{}';
+    v_seen_b INTEGER[] := '{}';
     v_ya_devuelto DATE;
     v_pass INTEGER;
+    v_id_estado_en_almacen INTEGER;
+    v_id_tipo_entrada_llenado INTEGER;
+    v_id_tipo_doc_ref INTEGER;
+    v_id_documento_ref INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT r.id_cliente, r.id_prestamo, r.id_alquiler, er.nombre
-    INTO v_id_cliente, v_id_prestamo, v_id_alquiler, v_estado_actual
+    SELECT r.id_cliente, r.id_prestamo, r.id_alquiler, r.id_recarga_planta, er.nombre
+    INTO v_id_cliente, v_id_prestamo, v_id_alquiler, v_id_recarga_planta, v_estado_actual
     FROM bal_recojo r
     LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
     WHERE r.id = p_id AND r.estado = 1;
+
+    SELECT lo.id INTO v_id_estado_en_almacen
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_tipo_entrada_llenado
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_LLENADO' AND lo.estado = 1
+    LIMIT 1;
+
+    IF v_id_recarga_planta IS NOT NULL THEN
+        SELECT lo.id INTO v_id_tipo_doc_ref
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON l.id = lo.id_lista
+        WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'RECARGA' AND lo.estado = 1
+        LIMIT 1;
+        v_id_documento_ref := v_id_recarga_planta;
+    ELSE
+        v_id_tipo_doc_ref := NULL;
+        v_id_documento_ref := NULL;
+    END IF;
 
     IF v_id_cliente IS NULL THEN
         RETURN json_build_object('error', 'Recojo no encontrado', 'registro', NULL);
@@ -321,12 +352,18 @@ BEGIN
                                     'id_alquiler_detalle', (elem->>'id_alquiler_detalle')::INTEGER,
                                     'observacion', elem->>'observacion'
                                 )
+                            WHEN NULLIF(elem->>'id_balon', '') IS NOT NULL THEN
+                                jsonb_build_object(
+                                    'id_balon', (elem->>'id_balon')::INTEGER,
+                                    'observacion', elem->>'observacion'
+                                )
                             ELSE NULL
                         END
                     ) FILTER (WHERE COALESCE(elem->>'solo_regulador', 'false') <> 'true'
                               AND (
                                   NULLIF(elem->>'id_prestamo_detalle', '') IS NOT NULL
                                   OR NULLIF(elem->>'id_alquiler_detalle', '') IS NOT NULL
+                                  OR NULLIF(elem->>'id_balon', '') IS NOT NULL
                               )),
                     '[]'::JSONB
                 )
@@ -340,7 +377,8 @@ BEGIN
                     );
                 END IF;
 
-                IF COALESCE(jsonb_array_length(v_repro_detalles), 0) = 0
+                IF v_id_recarga_planta IS NULL
+                   AND COALESCE(jsonb_array_length(v_repro_detalles), 0) = 0
                    AND v_id_alquiler IS NULL THEN
                     RETURN json_build_object(
                         'error', 'No se puede reprogramar el recojo: no hay pendientes válidos',
@@ -362,6 +400,10 @@ BEGIN
             v_id_ad := COALESCE(
                 NULLIF(v_item->>'idAlquilerDetalle', '')::INTEGER,
                 NULLIF(v_item->>'id_alquiler_detalle', '')::INTEGER
+            );
+            v_id_b := COALESCE(
+                NULLIF(v_item->>'idBalon', '')::INTEGER,
+                NULLIF(v_item->>'id_balon', '')::INTEGER
             );
             v_resultado := UPPER(TRIM(COALESCE(
                 v_item->>'resultado',
@@ -403,9 +445,9 @@ BEGIN
                 NULLIF(v_item->>'presion_psi', '')::NUMERIC
             );
 
-            IF (v_id_pd IS NOT NULL)::INTEGER + (v_id_ad IS NOT NULL)::INTEGER <> 1 THEN
+            IF (v_id_pd IS NOT NULL)::INTEGER + (v_id_ad IS NOT NULL)::INTEGER + (v_id_b IS NOT NULL)::INTEGER <> 1 THEN
                 RETURN json_build_object(
-                    'error', 'Cada detalle debe indicar id_prestamo_detalle o id_alquiler_detalle',
+                    'error', 'Cada detalle debe indicar id_prestamo_detalle, id_alquiler_detalle o id_balon',
                     'registro', NULL
                 );
             END IF;
@@ -450,6 +492,26 @@ BEGIN
                 END IF;
             END IF;
 
+            IF v_id_b IS NOT NULL THEN
+                IF v_id_b = ANY(v_seen_b) THEN
+                    RETURN json_build_object(
+                        'error', 'Balón duplicado en el recojo: ' || v_id_b,
+                        'registro', NULL
+                    );
+                END IF;
+                v_seen_b := array_append(v_seen_b, v_id_b);
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM bal_recojo_detalle
+                    WHERE id_recojo = p_id AND id_balon = v_id_b AND estado = 1
+                ) THEN
+                    RETURN json_build_object(
+                        'error', 'El balón ' || v_id_b || ' no pertenece a este recojo',
+                        'registro', NULL
+                    );
+                END IF;
+            END IF;
+
             IF v_resultado NOT IN ('RECOGIDO', 'NO_RECOGIDO', 'EXTENDIDO') THEN
                 RETURN json_build_object(
                     'error', 'Resultado inválido: ' || COALESCE(v_resultado, '(vacío)'),
@@ -480,16 +542,28 @@ BEGIN
             END IF;
 
             IF v_resultado = 'RECOGIDO' THEN
-                SELECT COALESCE(pd.id_balon, ad.id_balon), tb.capacidad
-                INTO v_id_balon, v_capacidad_tipo
-                FROM (SELECT 1) dummy
-                LEFT JOIN bal_prestamo_detalle pd
-                    ON pd.id = v_id_pd AND pd.estado = 1
-                LEFT JOIN bal_alquiler_detalle ad
-                    ON ad.id = v_id_ad AND ad.estado = 1
-                LEFT JOIN bal_balon b
-                    ON b.id = COALESCE(pd.id_balon, ad.id_balon) AND b.estado = 1
-                LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon;
+                IF v_id_pd IS NOT NULL THEN
+                    SELECT pd.id_balon, tb.capacidad
+                    INTO v_id_balon, v_capacidad_tipo
+                    FROM bal_prestamo_detalle pd
+                    JOIN bal_balon b ON b.id = pd.id_balon AND b.estado = 1
+                    JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+                    WHERE pd.id = v_id_pd AND pd.estado = 1;
+                ELSIF v_id_ad IS NOT NULL THEN
+                    SELECT ad.id_balon, tb.capacidad
+                    INTO v_id_balon, v_capacidad_tipo
+                    FROM bal_alquiler_detalle ad
+                    JOIN bal_balon b ON b.id = ad.id_balon AND b.estado = 1
+                    JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+                    WHERE ad.id = v_id_ad AND ad.estado = 1;
+                ELSE
+                    v_id_balon := v_id_b;
+                    SELECT tb.capacidad
+                    INTO v_capacidad_tipo
+                    FROM bal_balon b
+                    JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+                    WHERE b.id = v_id_b AND b.estado = 1;
+                END IF;
 
                 IF v_cantidad_restante IS NULL THEN
                     IF UPPER(COALESCE(v_nombre_contenido, 'VACIO')) = 'VACIO' THEN
@@ -516,6 +590,8 @@ BEGIN
                         v_nombre_contenido := 'VACIO';
                     ELSIF v_capacidad_tipo IS NOT NULL AND v_cantidad_restante >= v_capacidad_tipo THEN
                         v_nombre_contenido := 'LLENO';
+                    ELSIF v_capacidad_tipo IS NOT NULL AND v_cantidad_restante < v_capacidad_tipo THEN
+                        v_nombre_contenido := 'SEMILLLENO';
                     ELSE
                         v_nombre_contenido := 'DESCONOCIDO';
                     END IF;
@@ -537,6 +613,7 @@ BEGIN
                         jsonb_build_object(
                             'id_prestamo_detalle', v_id_pd,
                             'id_alquiler_detalle', v_id_ad,
+                            'id_balon', v_id_b,
                             'nueva_fecha_retorno', v_fecha_visita + 1,
                             'observacion', v_obs,
                             'no_recogido', TRUE
@@ -568,14 +645,17 @@ BEGIN
                   );
 
                 IF v_resultado = 'RECOGIDO' THEN
+                    v_dev := NULL;
                     IF v_id_pd IS NOT NULL THEN
                         SELECT pd.fecha_devolucion INTO v_ya_devuelto
                         FROM bal_prestamo_detalle pd
                         WHERE pd.id = v_id_pd AND pd.estado = 1;
-                    ELSE
+                    ELSIF v_id_ad IS NOT NULL THEN
                         SELECT ad.fecha_devolucion INTO v_ya_devuelto
                         FROM bal_alquiler_detalle ad
                         WHERE ad.id = v_id_ad AND ad.estado = 1;
+                    ELSE
+                        v_ya_devuelto := NULL;
                     END IF;
 
                     IF v_ya_devuelto IS NULL THEN
@@ -588,13 +668,39 @@ BEGIN
                                 COALESCE(v_nombre_contenido, 'VACIO'),
                                 v_obs
                             );
-                        ELSE
+                        ELSIF v_id_ad IS NOT NULL THEN
                             v_dev := bal_devolver_alquiler_detalle(
                                 v_id_ad,
                                 v_fecha_visita,
                                 v_id_almacen,
                                 p_id_usuario_auditoria
                             );
+                        ELSE
+                            -- Recarga en planta externa: ingreso físico del balón al almacén
+                            PERFORM bal_actualizar_balon(
+                                p_id                   => v_id_balon,
+                                p_id_almacen           => v_id_almacen,
+                                p_id_estado_balon      => v_id_estado_en_almacen,
+                                p_id_usuario_auditoria => p_id_usuario_auditoria
+                            );
+
+                            IF v_id_tipo_entrada_llenado IS NOT NULL AND v_id_tipo_doc_ref IS NOT NULL THEN
+                                v_dev := bal_crear_movimiento(
+                                    p_id_balon              => v_id_balon,
+                                    p_id_tipo_movimiento    => v_id_tipo_entrada_llenado,
+                                    p_id_documento_ref      => v_id_documento_ref,
+                                    p_id_tipo_documento_ref => v_id_tipo_doc_ref,
+                                    p_id_cliente            => v_id_cliente,
+                                    p_id_almacen_destino    => v_id_almacen,
+                                    p_observacion           => 'Entrada por recojo de recarga en planta (orden #'
+                                        || v_id_recarga_planta || ')',
+                                    p_id_usuario_auditoria  => p_id_usuario_auditoria
+                                );
+                                IF v_dev->>'error' IS NOT NULL THEN
+                                    RAISE EXCEPTION 'No se pudo registrar el movimiento de entrada del balón %: %',
+                                        v_id_balon, v_dev->>'error';
+                                END IF;
+                            END IF;
                         END IF;
                         IF v_dev->>'error' IS NOT NULL THEN
                             RAISE EXCEPTION '%', v_dev->>'error';
@@ -709,6 +815,7 @@ BEGIN
               AND (
                   (rd.id_prestamo_detalle IS NOT NULL AND rd.id_prestamo_detalle = ANY(v_seen_pd))
                   OR (rd.id_alquiler_detalle IS NOT NULL AND rd.id_alquiler_detalle = ANY(v_seen_ad))
+                  OR (rd.id_balon IS NOT NULL AND rd.id_balon = ANY(v_seen_b))
               );
 
             IF v_cnt_cubiertos <> v_cnt_total THEN
@@ -818,6 +925,7 @@ BEGIN
                 ELSE v_id_prestamo
             END,
             v_id_alquiler,
+            v_id_recarga_planta,
             v_fecha_repro,
             NULL::TIME,
             NULL::INTEGER,

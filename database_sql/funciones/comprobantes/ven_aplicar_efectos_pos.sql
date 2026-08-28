@@ -116,6 +116,7 @@ BEGIN
                 v_id_cliente,
                 v_id_prestamo,
                 NULL,
+                NULL,
                 NULLIF(v_item->>'fechaRetornoPactada', '')::DATE,
                 NULL::TIME,
                 NULL::INTEGER,
