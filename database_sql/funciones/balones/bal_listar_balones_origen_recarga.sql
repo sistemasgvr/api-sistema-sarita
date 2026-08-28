@@ -47,7 +47,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
         LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
         WHERE b.estado = 1
-          AND COALESCE(prop.nombre, '') = 'EMPRESA'
+          AND COALESCE(prop.nombre, '') IN ('EMPRESA', 'PROPIA')
           AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
           AND COALESCE(ec.nombre, '') = 'LLENO'
           AND b.id_producto_gas = p_id_producto_gas

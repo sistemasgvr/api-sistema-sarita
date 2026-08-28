@@ -1,4 +1,4 @@
--- Stock de gas físico = residuales de balones EMPRESA en EN_ALMACEN con gas útil
+-- Stock de gas físico = residuales de balones EMPRESA/PROPIA en EN_ALMACEN con gas útil
 -- (LLENO o DESCONOCIDO/parcial con capacidad_restante > 0).
 -- Lista todos los productos gas del catálogo (aunque el stock sea 0).
 
@@ -69,7 +69,8 @@ BEGIN
         LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
         LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
         WHERE b.estado = 1
-          AND COALESCE(prop.nombre, '') = 'EMPRESA'
+          -- EMPRESA y legado PROPIA = stock propio (alineado al POS)
+          AND COALESCE(prop.nombre, '') IN ('EMPRESA', 'PROPIA')
           AND COALESCE(eb.nombre, '') NOT IN ('DADO_DE_BAJA', 'ROBO')
           AND b.id_producto_gas IS NOT NULL
           AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
