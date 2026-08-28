@@ -314,6 +314,17 @@ export class RecojoReguladorResultadoDto {
   observacion?: string;
 }
 
+export class ValidarCodigosRecojoDto extends AuditoriaDto {
+  @ApiProperty({
+    type: [String],
+    description:
+      'Códigos de cilindro escaneados en la visita (bal_balon.codigo_balon)',
+  })
+  @IsArray()
+  @IsString({ each: true })
+  codigos!: string[];
+}
+
 export class RegistrarResultadoRecojoDto extends AuditoriaDto {
   @ApiPropertyOptional({ description: 'Fecha real de la visita (default: hoy)' })
   @IsOptional()

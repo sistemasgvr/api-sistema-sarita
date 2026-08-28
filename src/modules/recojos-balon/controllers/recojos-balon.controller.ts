@@ -20,6 +20,7 @@ import {
   FiltroRecojosBalonDto,
   RegistrarResultadoRecojoDto,
   UpdateRecojosBalonDto,
+  ValidarCodigosRecojoDto,
 } from '../dto/recojos-balon.dto';
 import { RecojosBalonLogic } from '../logic/recojos-balon.logic';
 
@@ -91,5 +92,19 @@ export class RecojosBalonController {
     @Body() dto: AuditoriaDto,
   ) {
     return this.logic.eliminar(id, dto.idUsuarioAuditoria);
+  }
+
+  @Post(':id/validar-codigos')
+  @Permisos(PermisoBanderas.RECOJOS_BALON_EDITAR)
+  @ApiOperation({
+    summary:
+      'Validar códigos de cilindro escaneados contra los detalles del recojo (scanner)',
+  })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  validarCodigos(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ValidarCodigosRecojoDto,
+  ) {
+    return this.logic.validarCodigos(id, dto);
   }
 }

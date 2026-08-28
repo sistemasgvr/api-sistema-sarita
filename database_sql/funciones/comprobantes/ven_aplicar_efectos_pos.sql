@@ -1,5 +1,3 @@
--- Aplica préstamo / recarga / alquiler / garantía / mantenimiento / baja
--- en la misma transacción que el CPE. Cualquier error hace RAISE (rollback).
 CREATE OR REPLACE FUNCTION ven_aplicar_efectos_pos(
     p_id_comprobante INTEGER,
     p_efectos JSON,
@@ -21,6 +19,8 @@ DECLARE
     v_garantia JSON;
     v_periodo JSON;
     v_id_producto INTEGER;
+    v_id_prestamo_detalle INTEGER;
+    v_arr_detalles JSONB := '[]'::JSONB;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -96,6 +96,36 @@ BEGIN
             p_id_usuario
         );
         PERFORM ven_raise_si_error(v_result);
+        v_id_prestamo_detalle := (v_result->'registro'->>'id')::INTEGER;
+
+        -- Auto-recojo: el préstamo ya tiene fecha de retorno pactada, por lo que se
+        -- programa el recojo sin pasar por la pantalla de programación manual.
+        -- El cilindro se queda PRESTADO_CLIENTE hasta que el chófer inicia la ruta.
+        IF v_id_prestamo_detalle IS NOT NULL
+           AND NULLIF(v_item->>'idBalon', '') IS NOT NULL
+           AND NULLIF(v_item->>'fechaRetornoPactada', '') IS NOT NULL
+        THEN
+            v_arr_detalles := jsonb_build_array(
+                jsonb_build_object(
+                    'idPrestamoDetalle', v_id_prestamo_detalle,
+                    'observacion', 'Recojo automático generado al vender el préstamo'
+                )
+            );
+
+            v_result := bal_crear_recojo(
+                v_id_cliente,
+                v_id_prestamo,
+                NULL,
+                NULLIF(v_item->>'fechaRetornoPactada', '')::DATE,
+                NULL::TIME,
+                NULL::INTEGER,
+                'Recojo automático generado al vender el préstamo',
+                v_arr_detalles::JSON,
+                p_id_usuario,
+                FALSE
+            );
+            PERFORM ven_raise_si_error(v_result);
+        END IF;
 
         v_garantia := v_item->'garantia';
         IF json_typeof(v_garantia) = 'object'

@@ -146,4 +146,11 @@ export class RecojosBalonModel {
       idUsuarioAuditoria ?? null,
     ]);
   }
+
+  validarCodigos(id: number, codigos: string[]) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_validar_codigos_recojo', [
+      id,
+      JSON.stringify(codigos ?? []),
+    ]);
+  }
 }

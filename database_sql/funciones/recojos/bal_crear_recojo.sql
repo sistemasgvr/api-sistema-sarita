@@ -7,7 +7,8 @@ CREATE OR REPLACE FUNCTION bal_crear_recojo(
     p_id_usuario_responsable INTEGER DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
     p_detalles JSON DEFAULT '[]',
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_marcar_balon_por_recoger BOOLEAN DEFAULT TRUE
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -255,7 +256,7 @@ BEGIN
             );
         END IF;
 
-        IF v_balon IS NOT NULL AND v_por_recoger IS NOT NULL THEN
+        IF v_balon IS NOT NULL AND v_por_recoger IS NOT NULL AND p_marcar_balon_por_recoger THEN
             UPDATE bal_balon
             SET
                 id_estado_balon = v_por_recoger,

@@ -10,6 +10,7 @@ import {
   FiltroRecojosBalonDto,
   RegistrarResultadoRecojoDto,
   UpdateRecojosBalonDto,
+  ValidarCodigosRecojoDto,
 } from '../dto/recojos-balon.dto';
 import { RecojosBalonModel } from '../models/recojos-balon.model';
 
@@ -50,5 +51,10 @@ export class RecojosBalonLogic {
   async eliminar(id: number, idUsuarioAuditoria?: number) {
     const result = await this.model.eliminar(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Recojo ${id} no encontrado`);
+  }
+
+  async validarCodigos(id: number, dto: ValidarCodigosRecojoDto) {
+    const result = await this.model.validarCodigos(id, dto.codigos ?? []);
+    return mapSingleResult(result, `Recojo ${id} no encontrado`);
   }
 }

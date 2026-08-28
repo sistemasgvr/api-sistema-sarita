@@ -53,6 +53,17 @@ BEGIN
         RETURN json_build_object('error', 'El cliente indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
+    -- Los préstamos a cliente deben nacer de una venta (punto de venta).
+    -- De esta forma el cilindro queda reservado y vinculado al comprobante.
+    IF v_nombre_tipo ILIKE '%CLIENTE%' AND p_id_comprobante_venta IS NULL THEN
+        RETURN json_build_object(
+            'error',
+            'Los préstamos a cliente deben estar vinculados a un comprobante de venta. Regístralos desde la venta en punto de venta.',
+            'registro',
+            NULL
+        );
+    END IF;
+
     IF p_numero_prestamo IS NOT NULL AND EXISTS (
         SELECT 1 FROM bal_prestamo WHERE numero_prestamo = TRIM(p_numero_prestamo)
     ) THEN
