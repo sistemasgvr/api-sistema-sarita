@@ -161,12 +161,12 @@ BEGIN
                         ELSE NULL
                     END,
                     CASE
-                        WHEN COALESCE(mr.serie_guia_salida, mr_linea.serie_guia_salida, rp.serie_guia_salida) IS NOT NULL
-                         AND COALESCE(mr.numero_guia_salida, mr_linea.numero_guia_salida, rp.numero_guia_salida) IS NOT NULL
+                        WHEN COALESCE(mr.serie_guia_salida, mr_linea.serie_guia_salida, rp.serie_guia_salida, rp_gre_salida.serie) IS NOT NULL
+                         AND COALESCE(mr.numero_guia_salida, mr_linea.numero_guia_salida, rp.numero_guia_salida, rp_gre_salida.numero) IS NOT NULL
                         THEN 'Guía salida '
-                            || COALESCE(mr.serie_guia_salida, mr_linea.serie_guia_salida, rp.serie_guia_salida)
+                            || COALESCE(mr.serie_guia_salida, mr_linea.serie_guia_salida, rp.serie_guia_salida, rp_gre_salida.serie)
                             || '-'
-                            || COALESCE(mr.numero_guia_salida, mr_linea.numero_guia_salida, rp.numero_guia_salida)
+                            || COALESCE(mr.numero_guia_salida, mr_linea.numero_guia_salida, rp.numero_guia_salida, rp_gre_salida.numero)
                         ELSE NULL
                     END
                 ), '')
@@ -179,8 +179,12 @@ BEGIN
                         ELSE NULL
                     END,
                     CASE
-                        WHEN rp_compra.serie_guia_salida IS NOT NULL AND rp_compra.numero_guia_salida IS NOT NULL
-                        THEN 'Guía salida ' || rp_compra.serie_guia_salida || '-' || rp_compra.numero_guia_salida
+                        WHEN COALESCE(rp_compra.serie_guia_salida, rp_compra_gre_salida.serie) IS NOT NULL
+                         AND COALESCE(rp_compra.numero_guia_salida, rp_compra_gre_salida.numero) IS NOT NULL
+                        THEN 'Guía salida '
+                            || COALESCE(rp_compra.serie_guia_salida, rp_compra_gre_salida.serie)
+                            || '-'
+                            || COALESCE(rp_compra.numero_guia_salida, rp_compra_gre_salida.numero)
                         ELSE NULL
                     END
                 ), '')
@@ -309,6 +313,10 @@ BEGIN
                 OR (mr.id IS NOT NULL AND rp.id = mr.id_recarga_planta)
            )
         LEFT JOIN cli_clientes rp_prov ON rp.id_proveedor = rp_prov.id
+        -- La orden guarda el FK a la GRE de salida; la serie/número puede no estar copiada.
+        LEFT JOIN gre_guia_remision rp_gre_salida
+            ON rp_gre_salida.id = rp.id_guia_salida
+           AND rp_gre_salida.estado = 1
         LEFT JOIN com_comprobante_compra cc ON cc.id = rp.id_comprobante_compra AND cc.estado = 1
         LEFT JOIN cli_clientes cc_prov ON cc.id_proveedor = cc_prov.id
         -- Compra como documento principal del movimiento (entrada con factura vinculada)
@@ -321,6 +329,9 @@ BEGIN
             ON tdr.nombre = 'COMPRA'
            AND rp_compra.id_comprobante_compra = m.id_documento_ref
            AND rp_compra.estado = 1
+        LEFT JOIN gre_guia_remision rp_compra_gre_salida
+            ON rp_compra_gre_salida.id = rp_compra.id_guia_salida
+           AND rp_compra_gre_salida.estado = 1
         -- Línea de la orden para este cilindro (enriquece ENTRADA_LLENADO / COMPRA)
         LEFT JOIN bal_recarga_planta_detalle rpd
             ON tm.nombre IN ('ENTRADA_LLENADO', 'ENTRADA_PLANTA_EXTERNA')

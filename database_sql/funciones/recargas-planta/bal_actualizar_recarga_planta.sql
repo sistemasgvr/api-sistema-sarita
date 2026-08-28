@@ -36,6 +36,7 @@ DECLARE
     v_id_tipo_entrada_llenado INTEGER;
     v_id_tipo_entrada_planta INTEGER;
     v_id_almacen_orden INTEGER;
+    v_id_guia_retorno INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -61,17 +62,11 @@ BEGIN
         RETURN json_build_object('error', 'El comprobante de compra no existe', 'registro', NULL);
     END IF;
 
-    -- Si se vincula compra, completar serie/número factura desde el comprobante cuando no vienen.
+    -- Con FK a la compra no se copian serie/número de factura: las lecturas los
+    -- resuelven por JOIN. Los campos de texto solo guardan lo que el usuario
+    -- escribe cuando la factura aún no existe como comprobante en el sistema.
     v_serie_factura := NULLIF(TRIM(p_serie_factura), '');
     v_numero_factura := NULLIF(TRIM(p_numero_factura), '');
-    IF p_id_comprobante_compra IS NOT NULL AND (v_serie_factura IS NULL OR v_numero_factura IS NULL) THEN
-        SELECT
-            COALESCE(v_serie_factura, NULLIF(TRIM(c.serie), '')),
-            COALESCE(v_numero_factura, NULLIF(TRIM(c.numero), ''))
-        INTO v_serie_factura, v_numero_factura
-        FROM com_comprobante_compra c
-        WHERE c.id = p_id_comprobante_compra AND c.estado = 1;
-    END IF;
 
     UPDATE bal_recarga_planta
     SET
@@ -79,24 +74,27 @@ BEGIN
         id_proveedor = COALESCE(p_id_proveedor, id_proveedor),
         id_almacen = COALESCE(p_id_almacen, id_almacen),
         id_guia_retorno = COALESCE(p_id_guia_retorno, id_guia_retorno),
-        -- '' explícito limpia; NULL conserva.
+        -- Con FK el documento manda y el espejo se limpia.
+        -- Sin FK: '' explícito limpia; NULL conserva.
         serie_guia_ingreso = CASE
+            WHEN p_id_guia_retorno IS NOT NULL THEN NULL
             WHEN p_serie_guia_ingreso IS NOT NULL THEN NULLIF(TRIM(p_serie_guia_ingreso), '')
             ELSE serie_guia_ingreso
         END,
         numero_guia_ingreso = CASE
+            WHEN p_id_guia_retorno IS NOT NULL THEN NULL
             WHEN p_numero_guia_ingreso IS NOT NULL THEN NULLIF(TRIM(p_numero_guia_ingreso), '')
             ELSE numero_guia_ingreso
         END,
         id_comprobante_compra = COALESCE(p_id_comprobante_compra, id_comprobante_compra),
         serie_factura = CASE
-            WHEN p_id_comprobante_compra IS NOT NULL AND v_serie_factura IS NOT NULL THEN v_serie_factura
-            WHEN p_serie_factura IS NOT NULL THEN NULLIF(TRIM(p_serie_factura), '')
+            WHEN p_id_comprobante_compra IS NOT NULL THEN NULL
+            WHEN p_serie_factura IS NOT NULL THEN v_serie_factura
             ELSE serie_factura
         END,
         numero_factura = CASE
-            WHEN p_id_comprobante_compra IS NOT NULL AND v_numero_factura IS NOT NULL THEN v_numero_factura
-            WHEN p_numero_factura IS NOT NULL THEN NULLIF(TRIM(p_numero_factura), '')
+            WHEN p_id_comprobante_compra IS NOT NULL THEN NULL
+            WHEN p_numero_factura IS NOT NULL THEN v_numero_factura
             ELSE numero_factura
         END,
         fecha_llegada_almacen = COALESCE(p_fecha_llegada_almacen, fecha_llegada_almacen),
@@ -138,7 +136,8 @@ BEGIN
             NULLIF(TRIM(serie_factura), ''),
             NULLIF(TRIM(numero_factura), ''),
             id_comprobante_compra,
-            id_almacen
+            id_almacen,
+            id_guia_retorno
         INTO
             v_fecha_llegada,
             v_lote,
@@ -147,7 +146,8 @@ BEGIN
             v_serie_factura,
             v_numero_factura,
             v_id_compra,
-            v_id_almacen_orden
+            v_id_almacen_orden,
+            v_id_guia_retorno
         FROM bal_recarga_planta
         WHERE id = p_id;
 
@@ -175,8 +175,13 @@ BEGIN
                 v_det.id_unidad_medida,
                 NULL,
                 NULL,
-                NULLIF(TRIM(COALESCE(p_serie_guia_ingreso, '')), ''),
-                NULLIF(TRIM(COALESCE(p_numero_guia_ingreso, '')), ''),
+                -- Con GRE de retorno vinculada, el movimiento la lee vía la orden.
+                CASE WHEN v_id_guia_retorno IS NULL
+                    THEN NULLIF(TRIM(COALESCE(p_serie_guia_ingreso, '')), '')
+                END,
+                CASE WHEN v_id_guia_retorno IS NULL
+                    THEN NULLIF(TRIM(COALESCE(p_numero_guia_ingreso, '')), '')
+                END,
                 v_serie_factura,
                 v_numero_factura,
                 NULL,

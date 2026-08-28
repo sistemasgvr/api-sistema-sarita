@@ -19,6 +19,7 @@ CREATE OR REPLACE FUNCTION age_actualizar_actividad(
     p_observaciones VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL,
     p_id_comprobante INTEGER DEFAULT NULL,
+    p_id_guia_remision INTEGER DEFAULT NULL,
     p_items JSON DEFAULT NULL
 )
 RETURNS JSON
@@ -137,6 +138,7 @@ BEGIN
         id_cliente = COALESCE(p_id_cliente, id_cliente),
         id_trabajador_responsable = COALESCE(p_id_trabajador_responsable, id_trabajador_responsable),
         id_comprobante = COALESCE(p_id_comprobante, id_comprobante),
+        id_guia_remision = COALESCE(p_id_guia_remision, id_guia_remision),
         id_estado_actividad = COALESCE(p_id_estado_actividad, id_estado_actividad),
         observaciones = COALESCE(p_observaciones, observaciones),
         id_usuario_modificacion = p_id_usuario_auditoria,

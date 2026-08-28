@@ -25,6 +25,9 @@ DECLARE
     v_referencias JSON;
     v_result JSON;
     v_n INTEGER;
+    v_id_guia INTEGER;
+    v_serie_guia VARCHAR;
+    v_numero_guia VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -49,8 +52,13 @@ BEGIN
         INNER JOIN gre_guia_remision g ON g.id = r.id_guia_remision AND g.estado = 1
         INNER JOIN ven_comprobante c ON c.id = p_id_comprobante
         WHERE r.estado = 1
-          AND UPPER(COALESCE(r.serie, '')) = UPPER(COALESCE(c.serie, ''))
-          AND COALESCE(r.numero, '') = COALESCE(c.numero, '')
+          AND (
+              r.id_comprobante = c.id
+              OR (
+                  UPPER(COALESCE(r.serie, '')) = UPPER(COALESCE(c.serie, ''))
+                  AND COALESCE(r.numero, '') = COALESCE(c.numero, '')
+              )
+          )
     ) THEN
         RETURN;
     END IF;
@@ -166,6 +174,7 @@ BEGIN
 
     v_referencias := json_build_array(json_build_object(
         'idTipoComprobante', v_comp.id_tipo_comprobante,
+        'idComprobante', v_comp.id,
         'serie', v_comp.serie,
         'numero', v_comp.numero,
         'fecha', v_comp.fecha
@@ -207,5 +216,30 @@ BEGIN
     IF v_result->>'error' IS NOT NULL THEN
         RETURN;
     END IF;
+
+    v_id_guia := (v_result->'registro'->>'id')::INTEGER;
+    v_serie_guia := v_result->'registro'->>'serie';
+    v_numero_guia := v_result->'registro'->>'numero';
+
+    IF v_id_guia IS NULL THEN
+        RETURN;
+    END IF;
+
+    -- Vínculo real detalle de préstamo ↔ GRE recién emitida. serie/numero se
+    -- mantienen como snapshot para la UI que aún los lee.
+    UPDATE bal_prestamo_detalle pd
+    SET
+        id_guia_entrega = v_id_guia,
+        serie_guia_entrega = v_serie_guia,
+        numero_guia_entrega = v_numero_guia,
+        id_usuario_modificacion = COALESCE(p_id_usuario, pd.id_usuario_modificacion),
+        fecha_modificacion = NOW()
+    FROM bal_prestamo p
+    WHERE p.id = pd.id_prestamo
+      AND p.estado = 1
+      AND p.id_comprobante_venta = p_id_comprobante
+      AND pd.estado = 1
+      AND pd.id_balon IS NOT NULL
+      AND pd.id_guia_entrega IS NULL;
 END;
 $function$;

@@ -112,6 +112,22 @@ export class CreatePrestamosDetalleDto extends AuditoriaDto {
   @IsString()
   numeroGuiaDevolucion?: string;
 
+  @ApiPropertyOptional({
+    description: 'GRE de entrega vinculada; sincroniza serie/nùmero desde la guùa',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idGuiaEntrega?: number;
+
+  @ApiPropertyOptional({
+    description: 'GRE de devoluciùn vinculada; sincroniza serie/nùmero desde la guùa',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idGuiaDevolucion?: number;
+
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
@@ -194,6 +210,22 @@ export class UpdatePrestamosDetalleDto extends AuditoriaDto {
   @IsString()
   numeroGuiaDevolucion?: string;
 
+  @ApiPropertyOptional({
+    description: 'GRE de entrega vinculada; sincroniza serie/n˙mero desde la guÌa',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idGuiaEntrega?: number;
+
+  @ApiPropertyOptional({
+    description: 'GRE de devoluciÛn vinculada; sincroniza serie/n˙mero desde la guÌa',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idGuiaDevolucion?: number;
+
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
@@ -208,13 +240,13 @@ export class UpdatePrestamosDetalleDto extends AuditoriaDto {
 }
 
 export class DevolverPrestamosDetalleDto extends AuditoriaDto {
-  @ApiPropertyOptional({ description: 'Fecha de devoluciÛn (default: hoy)' })
+  @ApiPropertyOptional({ description: 'Fecha de devoluciùn (default: hoy)' })
   @IsOptional()
   @IsDateString()
   fechaDevolucion?: string;
 
   @ApiPropertyOptional({
-    description: 'AlmacÈn destino del reingreso (default: almacÈn del prÈstamo)',
+    description: 'Almacùn destino del reingreso (default: almacùn del prùstamo)',
   })
   @Type(() => Number)
   @IsOptional()
@@ -231,7 +263,7 @@ export class DevolverPrestamosDetalleDto extends AuditoriaDto {
   nombreEstadoContenido?: string;
 
   @ApiPropertyOptional({
-    description: 'ObservaciÛn a anexar al detalle de prÈstamo',
+    description: 'Observaciùn a anexar al detalle de prùstamo',
   })
   @IsOptional()
   @IsString()

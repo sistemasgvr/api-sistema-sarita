@@ -948,6 +948,9 @@ CREATE TABLE bal_prestamo_detalle (
     dias_prestamo        INT DEFAULT 30,
     fecha_vencimiento    DATE,
     fecha_devolucion     DATE,
+    id_guia_entrega      INT NULL, -- FK a gre_guia_remision (se agrega tras crear esa tabla)
+    id_guia_devolucion   INT NULL, -- FK a gre_guia_remision (se agrega tras crear esa tabla)
+    -- serie/numero se mantienen sincronizados con la GRE por compatibilidad de UI
     serie_guia_entrega    varchar(10),
     numero_guia_entrega   varchar(15),
     serie_guia_devolucion varchar(10),
@@ -1477,11 +1480,20 @@ CREATE TABLE gre_guia_remision_detalle (
     fecha_modificacion TIMESTAMP DEFAULT NOW()
 );
 
+ALTER TABLE bal_prestamo_detalle
+    ADD CONSTRAINT fk_bal_prestamo_detalle_guia_entrega
+    FOREIGN KEY (id_guia_entrega) REFERENCES gre_guia_remision(id);
+
+ALTER TABLE bal_prestamo_detalle
+    ADD CONSTRAINT fk_bal_prestamo_detalle_guia_devolucion
+    FOREIGN KEY (id_guia_devolucion) REFERENCES gre_guia_remision(id);
+
 -- Documentos de referencia de la guía (facturas, boletas, otras GRE asociadas)
 CREATE TABLE gre_documentos_referencia (
     id                  SERIAL PRIMARY KEY,
     id_guia_remision      INT NOT NULL REFERENCES gre_guia_remision(id),
     id_tipo_comprobante   INT NOT NULL REFERENCES gen_lista_opciones(id),  -- (gen_lista: TipoComprobante) 01, 03, 09...
+    id_comprobante       INT REFERENCES ven_comprobante(id),  -- vínculo real al CPE; serie/numero/fecha quedan como snapshot fiscal
     serie               varchar(10),
     numero              varchar(15),
     fecha               DATE,
@@ -1934,6 +1946,8 @@ CREATE INDEX idx_bal_prestamo_tipo ON bal_prestamo(id_tipo_prestamo);
 CREATE INDEX idx_bal_prestamo_detalle_balon ON bal_prestamo_detalle(id_balon);
 CREATE INDEX idx_bal_prestamo_detalle_venc ON bal_prestamo_detalle(fecha_vencimiento);
 CREATE INDEX idx_bal_prestamo_detalle_est ON bal_prestamo_detalle(id_estado);
+CREATE INDEX idx_bal_prestamo_detalle_guia_ent ON bal_prestamo_detalle(id_guia_entrega);
+CREATE INDEX idx_bal_prestamo_detalle_guia_dev ON bal_prestamo_detalle(id_guia_devolucion);
 CREATE INDEX idx_bal_recojo_cliente ON bal_recojo(id_cliente);
 CREATE INDEX idx_bal_recojo_prestamo ON bal_recojo(id_prestamo);
 CREATE INDEX idx_bal_recojo_alquiler ON bal_recojo(id_alquiler);
@@ -1973,6 +1987,7 @@ CREATE INDEX idx_ven_garantia_mov ON ven_garantia_movimiento(id_garantia);
 CREATE INDEX idx_gre_serie ON gre_guia_remision(serie, numero);
 CREATE INDEX idx_gre_fecha ON gre_guia_remision(fecha);
 CREATE INDEX idx_gre_cliente ON gre_guia_remision(id_cliente);
+CREATE INDEX idx_gre_doc_ref_comprobante ON gre_documentos_referencia(id_comprobante);
 CREATE INDEX idx_gre_rango_responsable ON gre_rango_numeracion(responsable);
 
 -- Stock y movimientos

@@ -1,3 +1,8 @@
+DROP FUNCTION IF EXISTS bal_crear_prestamo_detalle(
+    INTEGER, INTEGER, INTEGER, VARCHAR, DATE, DATE, INTEGER, DATE, DATE,
+    VARCHAR, VARCHAR, VARCHAR, VARCHAR, INTEGER, VARCHAR, INTEGER
+);
+
 CREATE OR REPLACE FUNCTION bal_crear_prestamo_detalle(
     p_id_prestamo INTEGER,
     p_id_balon INTEGER DEFAULT NULL,
@@ -14,7 +19,9 @@ CREATE OR REPLACE FUNCTION bal_crear_prestamo_detalle(
     p_numero_guia_devolucion VARCHAR DEFAULT NULL,
     p_id_estado INTEGER DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_id_guia_entrega INTEGER DEFAULT NULL,
+    p_id_guia_devolucion INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -24,6 +31,10 @@ DECLARE
     v_id_producto INTEGER;
     v_id_estado_detalle INTEGER;
     v_salida JSON;
+    v_serie_entrega VARCHAR;
+    v_numero_entrega VARCHAR;
+    v_serie_devolucion VARCHAR;
+    v_numero_devolucion VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -35,6 +46,31 @@ BEGIN
 
     v_id_producto := p_id_producto;
     v_id_estado_detalle := p_id_estado;
+    v_serie_entrega := p_serie_guia_entrega;
+    v_numero_entrega := p_numero_guia_entrega;
+    v_serie_devolucion := p_serie_guia_devolucion;
+    v_numero_devolucion := p_numero_guia_devolucion;
+
+    -- Serie/número quedan como snapshot de la GRE vinculada (compatibilidad UI).
+    IF p_id_guia_entrega IS NOT NULL THEN
+        SELECT g.serie, g.numero INTO v_serie_entrega, v_numero_entrega
+        FROM gre_guia_remision g
+        WHERE g.id = p_id_guia_entrega AND g.estado = 1;
+
+        IF NOT FOUND THEN
+            RETURN json_build_object('error', 'La guía de remisión de entrega indicada no existe o está inactiva', 'registro', NULL);
+        END IF;
+    END IF;
+
+    IF p_id_guia_devolucion IS NOT NULL THEN
+        SELECT g.serie, g.numero INTO v_serie_devolucion, v_numero_devolucion
+        FROM gre_guia_remision g
+        WHERE g.id = p_id_guia_devolucion AND g.estado = 1;
+
+        IF NOT FOUND THEN
+            RETURN json_build_object('error', 'La guía de remisión de devolución indicada no existe o está inactiva', 'registro', NULL);
+        END IF;
+    END IF;
 
     IF v_id_estado_detalle IS NULL AND p_fecha_devolucion IS NULL THEN
         SELECT lo.id INTO v_id_estado_detalle
@@ -87,6 +123,7 @@ BEGIN
     INSERT INTO bal_prestamo_detalle (
         id_prestamo, id_balon, id_producto, motivo_especifico,
         fecha_entregado, fecha_prestamo, dias_prestamo, fecha_vencimiento, fecha_devolucion,
+        id_guia_entrega, id_guia_devolucion,
         serie_guia_entrega, numero_guia_entrega, serie_guia_devolucion, numero_guia_devolucion,
         id_estado, observacion,
         id_usuario_creacion, id_usuario_modificacion
@@ -94,7 +131,8 @@ BEGIN
     VALUES (
         p_id_prestamo, p_id_balon, v_id_producto, p_motivo_especifico,
         p_fecha_entregado, p_fecha_prestamo, COALESCE(p_dias_prestamo, 30), p_fecha_vencimiento, p_fecha_devolucion,
-        p_serie_guia_entrega, p_numero_guia_entrega, p_serie_guia_devolucion, p_numero_guia_devolucion,
+        p_id_guia_entrega, p_id_guia_devolucion,
+        v_serie_entrega, v_numero_entrega, v_serie_devolucion, v_numero_devolucion,
         v_id_estado_detalle, p_observacion,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )

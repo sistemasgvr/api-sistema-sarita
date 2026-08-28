@@ -259,11 +259,12 @@ BEGIN
         FOR v_ref IN SELECT value FROM json_array_elements(p_referencias)
         LOOP
             INSERT INTO gre_documentos_referencia (
-                id_guia_remision, id_tipo_comprobante, serie, numero, fecha,
+                id_guia_remision, id_tipo_comprobante, id_comprobante, serie, numero, fecha,
                 id_usuario_creacion, id_usuario_modificacion
             ) VALUES (
                 v_id,
                 COALESCE((v_ref->>'idTipoComprobante')::INTEGER, (v_ref->>'id_tipo_comprobante')::INTEGER),
+                COALESCE((v_ref->>'idComprobante')::INTEGER, (v_ref->>'id_comprobante')::INTEGER),
                 NULLIF(UPPER(TRIM(COALESCE(v_ref->>'serie', ''))), ''),
                 NULLIF(TRIM(COALESCE(v_ref->>'numero', '')), ''),
                 NULLIF(v_ref->>'fecha', '')::DATE,

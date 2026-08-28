@@ -49,6 +49,8 @@ export class PrestamosDetalleModel {
       dto.idEstado ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idGuiaEntrega ?? null,
+      dto.idGuiaDevolucion ?? null,
     ]);
   }
 
@@ -70,6 +72,8 @@ export class PrestamosDetalleModel {
       dto.idEstado ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idGuiaEntrega ?? null,
+      dto.idGuiaDevolucion ?? null,
     ]);
   }
 

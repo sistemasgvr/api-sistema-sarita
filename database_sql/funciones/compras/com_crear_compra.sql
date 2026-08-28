@@ -320,9 +320,9 @@ BEGIN
             p_id_guia_retorno       => p_id_guia_retorno,
             p_serie_guia_ingreso    => p_serie_guia_ingreso,
             p_numero_guia_ingreso   => p_numero_guia_ingreso,
+            -- Serie/número de factura no se replican: quedan en la compra y las
+            -- lecturas de la orden los resuelven por JOIN vía este FK.
             p_id_comprobante_compra => v_id_compra,
-            p_serie_factura         => p_serie,
-            p_numero_factura        => p_numero,
             p_fecha_llegada_almacen => v_fecha_llegada,
             p_lote                  => v_lote,
             p_fecha_vencimiento_lote => v_fecha_venc_lote,

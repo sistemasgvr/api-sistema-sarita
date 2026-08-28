@@ -48,6 +48,7 @@ function mapReferenciasToJson(referencias?: GuiaRemisionReferenciaDto[]) {
   return JSON.stringify(
     referencias.map((r) => ({
       id_tipo_comprobante: r.idTipoComprobante,
+      id_comprobante: r.idComprobante ?? null,
       serie: r.serie ?? null,
       numero: r.numero ?? null,
       fecha: r.fecha ?? null,

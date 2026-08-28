@@ -235,13 +235,14 @@ BEGIN
             v_id,
             d.item,
             d.id_producto,
-            NULLIF(TRIM(COALESCE(d.descripcion, p.nombre, '')), ''),
+            -- Con id_producto/id_balon el nombre se resuelve por JOIN en la lectura;
+            -- solo se copia el texto propio de la línea (líneas libres lo necesitan).
+            NULLIF(TRIM(COALESCE(d.descripcion, '')), ''),
             d.cantidad,
             d.id_balon,
             p_id_usuario_auditoria,
             p_id_usuario_auditoria
         FROM ven_comprobante_detalle d
-        LEFT JOIN pro_producto p ON p.id = d.id_producto
         WHERE d.id_comprobante = p_id_comprobante AND d.estado = 1
         ORDER BY d.item;
     ELSIF p_id_guia_remision IS NOT NULL THEN
@@ -253,13 +254,12 @@ BEGIN
             v_id,
             d.item,
             d.id_producto,
-            NULLIF(TRIM(COALESCE(d.descripcion, d.glosa, p.nombre, '')), ''),
+            NULLIF(TRIM(COALESCE(d.descripcion, d.glosa, '')), ''),
             d.cantidad,
             d.id_balon,
             p_id_usuario_auditoria,
             p_id_usuario_auditoria
         FROM gre_guia_remision_detalle d
-        LEFT JOIN pro_producto p ON p.id = d.id_producto
         WHERE d.id_guia_remision = p_id_guia_remision AND d.estado = 1
         ORDER BY d.item;
     END IF;

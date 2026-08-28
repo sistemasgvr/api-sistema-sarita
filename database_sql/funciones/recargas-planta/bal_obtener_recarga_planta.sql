@@ -24,14 +24,16 @@ BEGIN
             rp.id_almacen,
             a.nombre AS nombre_almacen,
             rp.id_guia_salida,
-            rp.serie_guia_salida,
-            rp.numero_guia_salida,
+            -- Serie/número se resuelven desde el documento vinculado; el texto
+            -- guardado solo aplica a órdenes sin FK (guías fuera del sistema).
+            COALESCE(rp.serie_guia_salida, gs.serie) AS serie_guia_salida,
+            COALESCE(rp.numero_guia_salida, gs.numero) AS numero_guia_salida,
             rp.id_guia_retorno,
-            rp.serie_guia_ingreso,
-            rp.numero_guia_ingreso,
+            COALESCE(rp.serie_guia_ingreso, gi.serie) AS serie_guia_ingreso,
+            COALESCE(rp.numero_guia_ingreso, gi.numero) AS numero_guia_ingreso,
             rp.id_comprobante_compra,
-            rp.serie_factura,
-            rp.numero_factura,
+            COALESCE(rp.serie_factura, cc.serie) AS serie_factura,
+            COALESCE(rp.numero_factura, cc.numero) AS numero_factura,
             rp.fecha_llegada_almacen,
             rp.lote,
             rp.fecha_vencimiento_lote,
@@ -47,6 +49,9 @@ BEGIN
         LEFT JOIN cli_clientes prv ON prv.id = rp.id_proveedor
         LEFT JOIN gen_almacen a ON a.id = rp.id_almacen
         LEFT JOIN gen_lista_opciones est ON est.id = rp.id_estado
+        LEFT JOIN gre_guia_remision gs ON gs.id = rp.id_guia_salida AND gs.estado = 1
+        LEFT JOIN gre_guia_remision gi ON gi.id = rp.id_guia_retorno AND gi.estado = 1
+        LEFT JOIN com_comprobante_compra cc ON cc.id = rp.id_comprobante_compra AND cc.estado = 1
         WHERE rp.id = p_id AND rp.estado = 1
     ) t;
 
@@ -65,7 +70,7 @@ BEGIN
             det.id_producto,
             p.nombre AS nombre_producto,
             p.codigo AS codigo_producto,
-            det.capacidad,
+            COALESCE(det.capacidad, tb.capacidad) AS capacidad,
             det.id_unidad_medida,
             um.nombre AS nombre_unidad_medida,
             det.lote,
@@ -78,6 +83,7 @@ BEGIN
             det.estado
         FROM bal_recarga_planta_detalle det
         INNER JOIN bal_balon b ON b.id = det.id_balon
+        LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
         LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
         LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
         LEFT JOIN pro_producto p ON p.id = det.id_producto

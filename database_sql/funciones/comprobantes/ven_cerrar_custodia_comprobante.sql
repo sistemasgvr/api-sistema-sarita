@@ -142,8 +142,13 @@ BEGIN
         INNER JOIN ven_comprobante c ON c.id = p_id_comprobante
         LEFT JOIN gen_lista_opciones es ON es.id = g.id_estado_sunat
         WHERE g.estado = 1
-          AND UPPER(COALESCE(r.serie, '')) = UPPER(COALESCE(c.serie, ''))
-          AND COALESCE(r.numero, '') = COALESCE(c.numero, '')
+          AND (
+              r.id_comprobante = c.id
+              OR (
+                  UPPER(COALESCE(r.serie, '')) = UPPER(COALESCE(c.serie, ''))
+                  AND COALESCE(r.numero, '') = COALESCE(c.numero, '')
+              )
+          )
           AND COALESCE(UPPER(es.nombre), 'PENDIENTE') <> 'ACEPTADO'
     LOOP
         v_result := gre_eliminar_guia_remision(v_guia.id, p_id_usuario);

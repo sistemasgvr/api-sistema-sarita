@@ -67,6 +67,7 @@ export class ActividadesLogic {
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria,
       dto.idComprobante ?? null,
+      dto.idGuiaRemision ?? null,
       dto.items ?? null,
     );
     return mapSingleResult(result, `Actividad ${id} no encontrada`);

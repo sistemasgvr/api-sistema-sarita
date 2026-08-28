@@ -75,6 +75,15 @@ export class GuiaRemisionReferenciaDto {
   @IsNotEmpty()
   idTipoComprobante!: number;
 
+  @ApiPropertyOptional({
+    description:
+      'Comprobante de venta referenciado. Serie/número/fecha se guardan igual como snapshot fiscal',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idComprobante?: number;
+
   @ApiPropertyOptional({ example: 'F001' })
   @IsOptional()
   @IsString()

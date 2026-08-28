@@ -91,6 +91,7 @@ export interface GuiaRemisionReferenciaRegistro {
   id_tipo_comprobante: number;
   nombre_tipo_comprobante?: string | null;
   codigo_tipo_comprobante?: string | null;
+  id_comprobante?: number | null;
   serie?: string | null;
   numero?: string | null;
   fecha?: string | null;

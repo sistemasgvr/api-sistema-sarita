@@ -89,6 +89,7 @@ export class ActividadesModel {
     observaciones: string | null,
     idUsuarioAuditoria?: number,
     idComprobante?: number | null,
+    idGuiaRemision?: number | null,
     items?: ActividadItemDto[] | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>(
@@ -109,6 +110,7 @@ export class ActividadesModel {
         observaciones,
         idUsuarioAuditoria ?? null,
         idComprobante ?? null,
+        idGuiaRemision ?? null,
         items ? JSON.stringify(items) : null,
       ],
     );

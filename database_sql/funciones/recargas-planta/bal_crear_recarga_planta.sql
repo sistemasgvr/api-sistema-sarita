@@ -68,12 +68,16 @@ BEGIN
             );
         END IF;
 
+        -- Con FK a la GRE la guía es la única fuente: no se copian serie/número
+        -- (las lecturas los resuelven por JOIN). El texto libre queda reservado
+        -- para órdenes cuya guía no existe como documento en el sistema.
+        v_serie := NULL;
+        v_numero_guia := NULL;
+
         SELECT
-            COALESCE(v_serie, g.serie),
-            COALESCE(v_numero_guia, g.numero),
             COALESCE(v_proveedor, g.id_destinatario, g.id_cliente),
             COALESCE(v_almacen, g.id_almacen)
-        INTO v_serie, v_numero_guia, v_proveedor, v_almacen
+        INTO v_proveedor, v_almacen
         FROM gre_guia_remision g
         WHERE g.id = p_id_guia_salida;
     END IF;

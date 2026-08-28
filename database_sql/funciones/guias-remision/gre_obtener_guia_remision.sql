@@ -177,6 +177,7 @@ BEGIN
             ref.id_tipo_comprobante,
             tc.nombre AS nombre_tipo_comprobante,
             tc.descripcion AS codigo_tipo_comprobante,
+            ref.id_comprobante,
             ref.serie,
             ref.numero,
             ref.fecha

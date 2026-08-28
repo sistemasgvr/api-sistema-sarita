@@ -1,3 +1,8 @@
+DROP FUNCTION IF EXISTS bal_actualizar_prestamo_detalle(
+    INTEGER, INTEGER, INTEGER, VARCHAR, DATE, DATE, INTEGER, DATE, DATE,
+    VARCHAR, VARCHAR, VARCHAR, VARCHAR, INTEGER, VARCHAR, INTEGER
+);
+
 CREATE OR REPLACE FUNCTION bal_actualizar_prestamo_detalle(
     p_id INTEGER,
     p_id_balon INTEGER DEFAULT NULL,
@@ -14,12 +19,18 @@ CREATE OR REPLACE FUNCTION bal_actualizar_prestamo_detalle(
     p_numero_guia_devolucion VARCHAR DEFAULT NULL,
     p_id_estado INTEGER DEFAULT NULL,
     p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
+    p_id_usuario_auditoria INTEGER DEFAULT NULL,
+    p_id_guia_entrega INTEGER DEFAULT NULL,
+    p_id_guia_devolucion INTEGER DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
 AS $function$
 DECLARE
+    v_serie_entrega VARCHAR;
+    v_numero_entrega VARCHAR;
+    v_serie_devolucion VARCHAR;
+    v_numero_devolucion VARCHAR;
     v_id_prestamo INTEGER;
     v_id_balon_actual INTEGER;
     v_fecha_devolucion DATE;
@@ -53,6 +64,48 @@ BEGIN
 
     IF v_id_prestamo IS NULL THEN
         RETURN json_build_object('error', 'El detalle de préstamo no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    v_serie_entrega := p_serie_guia_entrega;
+    v_numero_entrega := p_numero_guia_entrega;
+    v_serie_devolucion := p_serie_guia_devolucion;
+    v_numero_devolucion := p_numero_guia_devolucion;
+
+    -- Serie/número quedan como snapshot de la GRE vinculada (compatibilidad UI).
+    IF p_id_guia_entrega IS NOT NULL THEN
+        SELECT g.serie, g.numero INTO v_serie_entrega, v_numero_entrega
+        FROM gre_guia_remision g
+        WHERE g.id = p_id_guia_entrega AND g.estado = 1;
+
+        IF NOT FOUND THEN
+            RETURN json_build_object('error', 'La guía de remisión de entrega indicada no existe o está inactiva', 'registro', NULL);
+        END IF;
+    END IF;
+
+    IF p_id_guia_devolucion IS NOT NULL THEN
+        SELECT g.serie, g.numero INTO v_serie_devolucion, v_numero_devolucion
+        FROM gre_guia_remision g
+        WHERE g.id = p_id_guia_devolucion AND g.estado = 1;
+
+        IF NOT FOUND THEN
+            RETURN json_build_object('error', 'La guía de remisión de devolución indicada no existe o está inactiva', 'registro', NULL);
+        END IF;
+    END IF;
+
+    -- El vínculo GRE se aplica antes de cualquier bifurcación para que también
+    -- quede grabado cuando la actualización delega en la devolución.
+    IF p_id_guia_entrega IS NOT NULL OR p_id_guia_devolucion IS NOT NULL THEN
+        UPDATE bal_prestamo_detalle
+        SET
+            id_guia_entrega = COALESCE(p_id_guia_entrega, id_guia_entrega),
+            id_guia_devolucion = COALESCE(p_id_guia_devolucion, id_guia_devolucion),
+            serie_guia_entrega = COALESCE(v_serie_entrega, serie_guia_entrega),
+            numero_guia_entrega = COALESCE(v_numero_entrega, numero_guia_entrega),
+            serie_guia_devolucion = COALESCE(v_serie_devolucion, serie_guia_devolucion),
+            numero_guia_devolucion = COALESCE(v_numero_devolucion, numero_guia_devolucion),
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id = p_id AND estado = 1;
     END IF;
 
     v_id_balon_nuevo := COALESCE(p_id_balon, v_id_balon_actual);
@@ -172,10 +225,12 @@ BEGIN
         fecha_prestamo = COALESCE(p_fecha_prestamo, fecha_prestamo),
         dias_prestamo = COALESCE(p_dias_prestamo, dias_prestamo),
         fecha_vencimiento = COALESCE(p_fecha_vencimiento, fecha_vencimiento),
-        serie_guia_entrega = COALESCE(p_serie_guia_entrega, serie_guia_entrega),
-        numero_guia_entrega = COALESCE(p_numero_guia_entrega, numero_guia_entrega),
-        serie_guia_devolucion = COALESCE(p_serie_guia_devolucion, serie_guia_devolucion),
-        numero_guia_devolucion = COALESCE(p_numero_guia_devolucion, numero_guia_devolucion),
+        id_guia_entrega = COALESCE(p_id_guia_entrega, id_guia_entrega),
+        id_guia_devolucion = COALESCE(p_id_guia_devolucion, id_guia_devolucion),
+        serie_guia_entrega = COALESCE(v_serie_entrega, serie_guia_entrega),
+        numero_guia_entrega = COALESCE(v_numero_entrega, numero_guia_entrega),
+        serie_guia_devolucion = COALESCE(v_serie_devolucion, serie_guia_devolucion),
+        numero_guia_devolucion = COALESCE(v_numero_devolucion, numero_guia_devolucion),
         id_estado = COALESCE(p_id_estado, id_estado),
         observacion = COALESCE(p_observacion, observacion),
         id_usuario_modificacion = p_id_usuario_auditoria,
