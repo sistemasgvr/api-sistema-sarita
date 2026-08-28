@@ -220,3 +220,22 @@ export class UpdateRecargaPlantaDto extends AuditoriaDto {
   @MaxLength(500)
   observacion?: string;
 }
+
+export class GenerarRecojoRecargaPlantaDto extends AuditoriaDto {
+  @ApiPropertyOptional({ description: 'Fecha programada del recojo (default: hoy + 5 días)' })
+  @IsOptional()
+  @IsDateString()
+  fechaProgramada?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idUsuarioResponsable?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observacion?: string;
+}

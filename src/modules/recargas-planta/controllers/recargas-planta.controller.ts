@@ -17,6 +17,7 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   CreateRecargaPlantaDto,
   FiltroRecargasPlantaDto,
+  GenerarRecojoRecargaPlantaDto,
   UpdateRecargaPlantaDto,
 } from '../dto/recargas-planta.dto';
 import { RecargasPlantaLogic } from '../logic/recargas-planta.logic';
@@ -85,5 +86,19 @@ export class RecargasPlantaController {
     @Body() dto: AuditoriaDto,
   ) {
     return this.logic.eliminar(id, dto.idUsuarioAuditoria);
+  }
+
+  @Post(':id/recojo')
+  @Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_EDITAR)
+  @ApiOperation({
+    summary:
+      'Generar recojo PROGRAMADO de los balones en planta externa (siguen EN_RECARGA_EXTERNA hasta el recojo)',
+  })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  generarRecojo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: GenerarRecojoRecargaPlantaDto,
+  ) {
+    return this.logic.generarRecojo(id, dto);
   }
 }

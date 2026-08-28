@@ -54,6 +54,7 @@ export class RecojosBalonModel {
       dto.idCliente ?? null,
       dto.idPrestamo ?? null,
       dto.idAlquiler ?? null,
+      dto.idRecargaPlanta ?? null,
       dto.fechaProgramada ?? null,
       dto.horaEstimada ?? null,
       dto.idUsuarioResponsable ?? null,
@@ -62,6 +63,7 @@ export class RecojosBalonModel {
         (dto.detalles ?? []).map((d) => ({
           id_prestamo_detalle: d.idPrestamoDetalle,
           id_alquiler_detalle: d.idAlquilerDetalle,
+          id_balon: d.idBalon,
           observacion: d.observacion ?? null,
         })),
       ),
@@ -115,18 +117,19 @@ export class RecojosBalonModel {
         dto.fechaVisita ?? null,
         idMotivo,
         dto.observacion ?? null,
-        JSON.stringify(
-          (dto.detalles ?? []).map((d) => ({
-            id_prestamo_detalle: d.idPrestamoDetalle,
-            id_alquiler_detalle: d.idAlquilerDetalle,
-            resultado: d.resultado,
-            nombre_estado_contenido: d.nombreEstadoContenido ?? null,
-            cantidad_restante: d.cantidadRestante ?? null,
-            nueva_fecha_retorno: d.nuevaFechaRetorno ?? null,
-            id_almacen_destino: d.idAlmacenDestino ?? null,
-            observacion: d.observacion ?? null,
-          })),
-        ),
+         JSON.stringify(
+           (dto.detalles ?? []).map((d) => ({
+             id_prestamo_detalle: d.idPrestamoDetalle,
+             id_alquiler_detalle: d.idAlquilerDetalle,
+             id_balon: d.idBalon,
+             resultado: d.resultado,
+             nombre_estado_contenido: d.nombreEstadoContenido ?? null,
+             cantidad_restante: d.cantidadRestante ?? null,
+             nueva_fecha_retorno: d.nuevaFechaRetorno ?? null,
+             id_almacen_destino: d.idAlmacenDestino ?? null,
+             observacion: d.observacion ?? null,
+           })),
+         ),
         dto.idUsuarioAuditoria ?? null,
         dto.regulador
           ? JSON.stringify({

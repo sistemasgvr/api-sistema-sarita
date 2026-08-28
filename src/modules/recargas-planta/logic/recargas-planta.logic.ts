@@ -8,6 +8,7 @@ import { ResponseHelper } from '../../../common/helpers/response.helper';
 import {
   CreateRecargaPlantaDto,
   FiltroRecargasPlantaDto,
+  GenerarRecojoRecargaPlantaDto,
   UpdateRecargaPlantaDto,
 } from '../dto/recargas-planta.dto';
 import { RecargasPlantaModel } from '../models/recargas-planta.model';
@@ -49,5 +50,10 @@ export class RecargasPlantaLogic {
   async eliminar(id: number, idUsuarioAuditoria?: number) {
     const result = await this.model.eliminar(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Orden de recarga ${id} no encontrada`);
+  }
+
+  async generarRecojo(id: number, dto: GenerarRecojoRecargaPlantaDto) {
+    const result = await this.model.generarRecojo(id, dto);
+    return mapSingleResult(result, `No se pudo generar el recojo de la orden ${id}`);
   }
 }
