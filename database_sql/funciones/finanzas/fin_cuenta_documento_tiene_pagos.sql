@@ -1,10 +1,13 @@
-CREATE OR REPLACE FUNCTION fin_cuenta_documento_tiene_pagos(
-    p_id_comprobante_venta INTEGER DEFAULT NULL,
-    p_id_comprobante_compra INTEGER DEFAULT NULL
-)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-STABLE
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_cuenta_documento_tiene_pagos
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.675Z
+DROP FUNCTION IF EXISTS fin_cuenta_documento_tiene_pagos(p_id_comprobante_venta integer, p_id_comprobante_compra integer);
+
+CREATE OR REPLACE FUNCTION fin_cuenta_documento_tiene_pagos(p_id_comprobante_venta integer DEFAULT NULL::integer, p_id_comprobante_compra integer DEFAULT NULL::integer)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 BEGIN
     RETURN EXISTS (
@@ -43,4 +46,4 @@ BEGIN
           )
     );
 END;
-$function$;
+$function$

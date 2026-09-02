@@ -1,11 +1,12 @@
-CREATE OR REPLACE FUNCTION fin_cerrar_caja_sesion(
-    p_id INT,
-    p_monto_efectivo_contado NUMERIC,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_cerrar_caja_sesion
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.669Z
+DROP FUNCTION IF EXISTS fin_cerrar_caja_sesion(p_id integer, p_monto_efectivo_contado numeric, p_observacion character varying, p_id_usuario integer);
+
+CREATE OR REPLACE FUNCTION fin_cerrar_caja_sesion(p_id integer, p_monto_efectivo_contado numeric, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_sesion RECORD;
@@ -91,4 +92,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$;
+$function$

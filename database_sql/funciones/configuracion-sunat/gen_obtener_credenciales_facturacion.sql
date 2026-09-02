@@ -1,7 +1,12 @@
--- Uso interno del API: credenciales PSE con secretos (no exponer por HTTP).
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_obtener_credenciales_facturacion
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.747Z
+DROP FUNCTION IF EXISTS gen_obtener_credenciales_facturacion();
+
 CREATE OR REPLACE FUNCTION gen_obtener_credenciales_facturacion()
-RETURNS JSON
-LANGUAGE plpgsql
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registro JSON;
@@ -33,4 +38,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$;
+$function$

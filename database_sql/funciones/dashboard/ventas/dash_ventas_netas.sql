@@ -1,13 +1,13 @@
-DROP FUNCTION IF EXISTS dash_ventas_netas();
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_ventas_netas
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.663Z
+DROP FUNCTION IF EXISTS dash_ventas_netas(p_fecha_desde date, p_fecha_hasta date, p_id_cliente integer);
 
-CREATE OR REPLACE FUNCTION dash_ventas_netas(
-    p_fecha_desde DATE DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL,
-    p_id_cliente  INT  DEFAULT NULL
-)
-RETURNS NUMERIC(14,2)
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_ventas_netas(p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer)
+ RETURNS numeric
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_total NUMERIC(14,2);
 BEGIN
@@ -24,4 +24,4 @@ BEGIN
 
     RETURN v_total;
 END;
-$$;
+$function$

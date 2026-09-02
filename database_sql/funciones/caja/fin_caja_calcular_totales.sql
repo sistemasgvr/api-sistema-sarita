@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION fin_caja_calcular_totales(
-    p_fecha DATE,
-    p_id_sucursal INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_caja_calcular_totales
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.669Z
+DROP FUNCTION IF EXISTS fin_caja_calcular_totales(p_fecha date, p_id_sucursal integer);
+
+CREATE OR REPLACE FUNCTION fin_caja_calcular_totales(p_fecha date, p_id_sucursal integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_ventas_contado NUMERIC(14,4) := 0;
@@ -145,4 +148,4 @@ BEGIN
         'garantiasDevolucionMediosCaja', v_garantias_dev_caja
     );
 END;
-$function$;
+$function$

@@ -1,32 +1,12 @@
-DROP FUNCTION IF EXISTS pro_crear_movimiento(
-    DATE, INTEGER, INTEGER, INTEGER, NUMERIC, INTEGER, INTEGER, VARCHAR, INTEGER
-);
-DROP FUNCTION IF EXISTS pro_crear_movimiento(
-    DATE, INTEGER, INTEGER, INTEGER, NUMERIC, INTEGER, INTEGER, VARCHAR, INTEGER, BOOLEAN
-);
-DROP FUNCTION IF EXISTS pro_crear_movimiento(
-    DATE, INTEGER, INTEGER, INTEGER, NUMERIC, INTEGER, INTEGER, VARCHAR, INTEGER, BOOLEAN, INTEGER
-);
-DROP FUNCTION IF EXISTS pro_crear_movimiento(
-    DATE, INTEGER, INTEGER, INTEGER, NUMERIC, INTEGER, INTEGER, VARCHAR, INTEGER, BOOLEAN, INTEGER, VARCHAR
-);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: pro_crear_movimiento
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.772Z
+DROP FUNCTION IF EXISTS pro_crear_movimiento(p_fecha date, p_id_producto integer, p_id_almacen integer, p_id_tipo_movimiento integer, p_cantidad numeric, p_id_documento_ref integer, p_id_tipo_documento_ref integer, p_glosa character varying, p_id_usuario_auditoria integer, p_forzar_ajuste_stock boolean, p_id_almacen_destino integer, p_sentido_ajuste character varying);
 
-CREATE OR REPLACE FUNCTION pro_crear_movimiento(
-    p_fecha DATE,
-    p_id_producto INTEGER,
-    p_id_almacen INTEGER,
-    p_id_tipo_movimiento INTEGER,
-    p_cantidad NUMERIC,
-    p_id_documento_ref INTEGER DEFAULT NULL,
-    p_id_tipo_documento_ref INTEGER DEFAULT NULL,
-    p_glosa VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_forzar_ajuste_stock BOOLEAN DEFAULT FALSE,
-    p_id_almacen_destino INTEGER DEFAULT NULL,
-    p_sentido_ajuste VARCHAR DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION pro_crear_movimiento(p_fecha date, p_id_producto integer, p_id_almacen integer, p_id_tipo_movimiento integer, p_cantidad numeric, p_id_documento_ref integer DEFAULT NULL::integer, p_id_tipo_documento_ref integer DEFAULT NULL::integer, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_forzar_ajuste_stock boolean DEFAULT false, p_id_almacen_destino integer DEFAULT NULL::integer, p_sentido_ajuste character varying DEFAULT NULL::character varying)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -199,4 +179,4 @@ BEGIN
 
     RETURN pro_obtener_movimiento(v_id);
 END;
-$function$;
+$function$

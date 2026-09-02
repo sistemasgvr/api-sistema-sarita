@@ -1,17 +1,12 @@
--- Reasigna los inv_movimiento de un documento origen a otro (p.ej. conversión de una
--- venta sin documento (VSD/NV) a un CPE formal): NO crea ni revierte movimientos, solo
--- cambia a qué documento apuntan. Reemplaza el viejo "UPDATE pro_movimientos SET
--- id_documento_ref = ..." que quedó huérfano tras el corte a inv_movimiento.
-CREATE OR REPLACE FUNCTION inv_repuntar_documento(
-    p_codigo_tipo_documento_origen_actual VARCHAR,
-    p_id_documento_origen_actual INTEGER,
-    p_codigo_tipo_documento_origen_nuevo VARCHAR,
-    p_id_documento_origen_nuevo INTEGER,
-    p_glosa VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: inv_repuntar_documento
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.763Z
+DROP FUNCTION IF EXISTS inv_repuntar_documento(p_codigo_tipo_documento_origen_actual character varying, p_id_documento_origen_actual integer, p_codigo_tipo_documento_origen_nuevo character varying, p_id_documento_origen_nuevo integer, p_glosa character varying, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION inv_repuntar_documento(p_codigo_tipo_documento_origen_actual character varying, p_id_documento_origen_actual integer, p_codigo_tipo_documento_origen_nuevo character varying, p_id_documento_origen_nuevo integer, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_tipo_doc_actual INTEGER;
@@ -58,4 +53,4 @@ BEGIN
 
     RETURN json_build_object('repuntados', v_count);
 END;
-$function$;
+$function$

@@ -1,13 +1,12 @@
-CREATE OR REPLACE FUNCTION fin_listar_caja_sesiones(
-    p_fecha_desde DATE DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL,
-    p_id_sucursal INT DEFAULT NULL,
-    p_estado_caja VARCHAR DEFAULT NULL,
-    p_limite INT DEFAULT 20,
-    p_offset INT DEFAULT 0
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_listar_caja_sesiones
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.681Z
+DROP FUNCTION IF EXISTS fin_listar_caja_sesiones(p_fecha_desde date, p_fecha_hasta date, p_id_sucursal integer, p_estado_caja character varying, p_limite integer, p_offset integer);
+
+CREATE OR REPLACE FUNCTION fin_listar_caja_sesiones(p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_id_sucursal integer DEFAULT NULL::integer, p_estado_caja character varying DEFAULT NULL::character varying, p_limite integer DEFAULT 20, p_offset integer DEFAULT 0)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -57,4 +56,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

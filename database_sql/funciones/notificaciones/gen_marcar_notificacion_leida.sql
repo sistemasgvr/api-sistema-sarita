@@ -1,10 +1,12 @@
-CREATE OR REPLACE FUNCTION gen_marcar_notificacion_leida(
-    p_id INTEGER,
-    p_id_usuario INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_marcar_notificacion_leida
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.739Z
+DROP FUNCTION IF EXISTS gen_marcar_notificacion_leida(p_id integer, p_id_usuario integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION gen_marcar_notificacion_leida(p_id integer, p_id_usuario integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -26,4 +28,4 @@ BEGIN
 
     RETURN gen_obtener_notificacion(p_id, p_id_usuario);
 END;
-$function$;
+$function$

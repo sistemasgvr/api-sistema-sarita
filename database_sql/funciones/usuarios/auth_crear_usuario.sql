@@ -1,12 +1,12 @@
-CREATE OR REPLACE FUNCTION auth_crear_usuario(
-    p_nombre VARCHAR,
-    p_correo VARCHAR,
-    p_contrasena VARCHAR,
-    p_id_trabajador INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: auth_crear_usuario
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.490Z
+DROP FUNCTION IF EXISTS auth_crear_usuario(p_nombre character varying, p_correo character varying, p_contrasena character varying, p_id_trabajador integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION auth_crear_usuario(p_nombre character varying, p_correo character varying, p_contrasena character varying, p_id_trabajador integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -35,4 +35,4 @@ BEGIN
 
     RETURN auth_obtener_usuario(v_id);
 END;
-$function$;
+$function$

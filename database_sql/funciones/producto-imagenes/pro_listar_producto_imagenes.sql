@@ -1,10 +1,12 @@
-CREATE OR REPLACE FUNCTION pro_listar_producto_imagenes(
-    p_id_producto INTEGER,
-    p_limite INTEGER DEFAULT 50,
-    p_offset INTEGER DEFAULT 0
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: pro_listar_producto_imagenes
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.785Z
+DROP FUNCTION IF EXISTS pro_listar_producto_imagenes(p_id_producto integer, p_limite integer, p_offset integer);
+
+CREATE OR REPLACE FUNCTION pro_listar_producto_imagenes(p_id_producto integer, p_limite integer DEFAULT 50, p_offset integer DEFAULT 0)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -63,4 +65,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

@@ -1,16 +1,12 @@
-CREATE OR REPLACE FUNCTION gen_crear_archivo(
-    p_nombre_original VARCHAR,
-    p_nombre_almacenado VARCHAR,
-    p_ruta VARCHAR,
-    p_bucket VARCHAR,
-    p_mime_type VARCHAR DEFAULT NULL,
-    p_extension VARCHAR DEFAULT NULL,
-    p_tamanio_bytes BIGINT DEFAULT NULL,
-    p_id_empresa INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_crear_archivo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.702Z
+DROP FUNCTION IF EXISTS gen_crear_archivo(p_nombre_original character varying, p_nombre_almacenado character varying, p_ruta character varying, p_bucket character varying, p_mime_type character varying, p_extension character varying, p_tamanio_bytes bigint, p_id_empresa integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION gen_crear_archivo(p_nombre_original character varying, p_nombre_almacenado character varying, p_ruta character varying, p_bucket character varying, p_mime_type character varying DEFAULT NULL::character varying, p_extension character varying DEFAULT NULL::character varying, p_tamanio_bytes bigint DEFAULT NULL::bigint, p_id_empresa integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -58,4 +54,4 @@ BEGIN
 
     RETURN gen_obtener_archivo(v_id);
 END;
-$function$;
+$function$

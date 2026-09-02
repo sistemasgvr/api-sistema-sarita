@@ -1,16 +1,12 @@
-CREATE OR REPLACE FUNCTION gen_actualizar_configuracion_servicio(
-    p_id INTEGER,
-    p_codigo VARCHAR DEFAULT NULL,
-    p_nombre VARCHAR DEFAULT NULL,
-    p_usuario VARCHAR DEFAULT NULL,
-    p_contrasena VARCHAR DEFAULT NULL,
-    p_email VARCHAR DEFAULT NULL,
-    p_url VARCHAR DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_actualizar_configuracion_servicio
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.695Z
+DROP FUNCTION IF EXISTS gen_actualizar_configuracion_servicio(p_id integer, p_codigo character varying, p_nombre character varying, p_usuario character varying, p_contrasena character varying, p_email character varying, p_url character varying, p_observacion character varying, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION gen_actualizar_configuracion_servicio(p_id integer, p_codigo character varying DEFAULT NULL::character varying, p_nombre character varying DEFAULT NULL::character varying, p_usuario character varying DEFAULT NULL::character varying, p_contrasena character varying DEFAULT NULL::character varying, p_email character varying DEFAULT NULL::character varying, p_url character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -34,4 +30,4 @@ BEGIN
 
     RETURN gen_obtener_configuracion_servicio(p_id);
 END;
-$function$;
+$function$

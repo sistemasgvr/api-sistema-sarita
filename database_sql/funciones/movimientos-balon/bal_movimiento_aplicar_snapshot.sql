@@ -1,8 +1,12 @@
--- Completa el snapshot de custodia del cilindro *después* del movimiento
--- (no el estado actual del envase). Se usa como trigger BEFORE INSERT/UPDATE.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_movimiento_aplicar_snapshot
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.580Z
+DROP FUNCTION IF EXISTS bal_movimiento_aplicar_snapshot();
+
 CREATE OR REPLACE FUNCTION bal_movimiento_aplicar_snapshot()
-RETURNS TRIGGER
-LANGUAGE plpgsql
+ RETURNS trigger
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_tipo TEXT;
@@ -92,4 +96,4 @@ BEGIN
 
     RETURN NEW;
 END;
-$function$;
+$function$

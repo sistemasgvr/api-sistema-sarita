@@ -1,18 +1,12 @@
-DROP FUNCTION IF EXISTS fin_crear_caja_deposito(DATE, NUMERIC, INT, INT, VARCHAR, VARCHAR, INT, INT);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_crear_caja_deposito
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.670Z
+DROP FUNCTION IF EXISTS fin_crear_caja_deposito(p_fecha date, p_monto numeric, p_id_cuenta_bancaria integer, p_id_medio_pago integer, p_numero_operacion character varying, p_observacion character varying, p_id_sesion integer, p_id_usuario integer, p_id_sucursal integer);
 
-CREATE OR REPLACE FUNCTION fin_crear_caja_deposito(
-    p_fecha DATE,
-    p_monto NUMERIC,
-    p_id_cuenta_bancaria INT DEFAULT NULL,
-    p_id_medio_pago INT DEFAULT NULL,
-    p_numero_operacion VARCHAR DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_sesion INT DEFAULT NULL,
-    p_id_usuario INT DEFAULT NULL,
-    p_id_sucursal INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION fin_crear_caja_deposito(p_fecha date, p_monto numeric, p_id_cuenta_bancaria integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_numero_operacion character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_sesion integer DEFAULT NULL::integer, p_id_usuario integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INT;
@@ -82,4 +76,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$;
+$function$

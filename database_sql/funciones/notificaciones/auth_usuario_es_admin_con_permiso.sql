@@ -1,11 +1,13 @@
--- True si el usuario está activo, tiene rol Administrador y el permiso indicado (o auth.todo).
-CREATE OR REPLACE FUNCTION auth_usuario_es_admin_con_permiso(
-    p_id_usuario INTEGER,
-    p_permiso VARCHAR
-)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-STABLE
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: auth_usuario_es_admin_con_permiso
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.509Z
+DROP FUNCTION IF EXISTS auth_usuario_es_admin_con_permiso(p_id_usuario integer, p_permiso character varying);
+
+CREATE OR REPLACE FUNCTION auth_usuario_es_admin_con_permiso(p_id_usuario integer, p_permiso character varying)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 DECLARE
     v_ok BOOLEAN := FALSE;
@@ -32,4 +34,4 @@ BEGIN
 
     RETURN COALESCE(v_ok, FALSE);
 END;
-$function$;
+$function$

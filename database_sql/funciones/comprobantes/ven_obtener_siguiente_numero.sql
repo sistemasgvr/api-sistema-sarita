@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION ven_obtener_siguiente_numero(
-    p_id_tipo_comprobante INTEGER,
-    p_serie VARCHAR
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_obtener_siguiente_numero
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.815Z
+DROP FUNCTION IF EXISTS ven_obtener_siguiente_numero(p_id_tipo_comprobante integer, p_serie character varying);
+
+CREATE OR REPLACE FUNCTION ven_obtener_siguiente_numero(p_id_tipo_comprobante integer, p_serie character varying)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_serie VARCHAR;
@@ -43,4 +46,4 @@ BEGIN
         'numero', v_siguiente
     );
 END;
-$function$;
+$function$

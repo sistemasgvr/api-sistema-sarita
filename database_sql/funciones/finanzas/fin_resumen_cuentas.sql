@@ -1,13 +1,13 @@
--- Resumen (KPIs) de cuentas por cobrar o por pagar: pendiente, vencido, cantidades.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_resumen_cuentas
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.690Z
+DROP FUNCTION IF EXISTS fin_resumen_cuentas(p_tipo character varying);
 
-DROP FUNCTION IF EXISTS fin_resumen_cuentas(VARCHAR);
-
-CREATE OR REPLACE FUNCTION fin_resumen_cuentas(
-    p_tipo VARCHAR
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_resumen_cuentas(p_tipo character varying)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_id_tipo INT;
     v_res     JSON;
@@ -44,4 +44,4 @@ BEGIN
 
     RETURN v_res;
 END;
-$$;
+$function$

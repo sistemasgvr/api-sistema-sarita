@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_validar_codigos_recojo(
-    p_id_recojo INTEGER,
-    p_codigos JSON DEFAULT '[]'
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_validar_codigos_recojo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.609Z
+DROP FUNCTION IF EXISTS bal_validar_codigos_recojo(p_id_recojo integer, p_codigos json);
+
+CREATE OR REPLACE FUNCTION bal_validar_codigos_recojo(p_id_recojo integer, p_codigos json DEFAULT '[]'::json)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_estado VARCHAR;
@@ -118,4 +121,4 @@ BEGIN
         'completo', jsonb_array_length(v_faltantes) = 0
     );
 END;
-$function$;
+$function$

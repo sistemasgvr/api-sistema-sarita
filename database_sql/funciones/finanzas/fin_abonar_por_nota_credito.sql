@@ -1,12 +1,12 @@
--- Aplica la NC como abono a la CxC del comprobante origen (sin caja).
-CREATE OR REPLACE FUNCTION fin_abonar_por_nota_credito(
-    p_id_comprobante_origen INTEGER,
-    p_id_nota_credito INTEGER,
-    p_monto NUMERIC,
-    p_id_usuario INTEGER DEFAULT NULL
-)
-RETURNS VOID
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_abonar_por_nota_credito
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.663Z
+DROP FUNCTION IF EXISTS fin_abonar_por_nota_credito(p_id_comprobante_origen integer, p_id_nota_credito integer, p_monto numeric, p_id_usuario integer);
+
+CREATE OR REPLACE FUNCTION fin_abonar_por_nota_credito(p_id_comprobante_origen integer, p_id_nota_credito integer, p_monto numeric, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS void
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_restante NUMERIC(12,2);
@@ -82,4 +82,4 @@ BEGIN
         v_restante := fin_redondear_monto(v_restante - v_aplicar);
     END LOOP;
 END;
-$function$;
+$function$

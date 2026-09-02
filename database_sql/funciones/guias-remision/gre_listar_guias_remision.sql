@@ -1,17 +1,12 @@
-CREATE OR REPLACE FUNCTION gre_listar_guias_remision(
-    p_busqueda VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0,
-    p_id_tipo_guia INTEGER DEFAULT NULL,
-    p_id_destinatario INTEGER DEFAULT NULL,
-    p_id_estado INTEGER DEFAULT NULL,
-    p_id_estado_sunat INTEGER DEFAULT NULL,
-    p_fecha_desde DATE DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL,
-    p_serie VARCHAR DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gre_listar_guias_remision
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.757Z
+DROP FUNCTION IF EXISTS gre_listar_guias_remision(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_guia integer, p_id_destinatario integer, p_id_estado integer, p_id_estado_sunat integer, p_fecha_desde date, p_fecha_hasta date, p_serie character varying);
+
+CREATE OR REPLACE FUNCTION gre_listar_guias_remision(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_tipo_guia integer DEFAULT NULL::integer, p_id_destinatario integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer, p_id_estado_sunat integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_serie character varying DEFAULT NULL::character varying)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -156,4 +151,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

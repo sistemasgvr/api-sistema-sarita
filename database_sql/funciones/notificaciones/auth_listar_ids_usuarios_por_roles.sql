@@ -1,8 +1,12 @@
-CREATE OR REPLACE FUNCTION auth_listar_ids_usuarios_por_roles(
-    p_ids_roles JSON DEFAULT '[]'::JSON
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: auth_listar_ids_usuarios_por_roles
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.496Z
+DROP FUNCTION IF EXISTS auth_listar_ids_usuarios_por_roles(p_ids_roles json);
+
+CREATE OR REPLACE FUNCTION auth_listar_ids_usuarios_por_roles(p_ids_roles json DEFAULT '[]'::json)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_ids JSON;
@@ -23,4 +27,4 @@ BEGIN
 
     RETURN json_build_object('ids', v_ids);
 END;
-$function$;
+$function$

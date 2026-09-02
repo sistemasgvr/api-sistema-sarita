@@ -1,37 +1,12 @@
-DROP FUNCTION IF EXISTS public.com_crear_compra(integer, character varying, character varying, date, integer, integer, jsonb, integer, integer, integer, integer, integer, integer, integer, boolean, character varying, integer, boolean);
-DROP FUNCTION IF EXISTS public.com_crear_compra(integer, character varying, character varying, date, integer, integer, jsonb, integer, integer, integer, integer, integer, integer, integer, boolean, character varying, integer, boolean, date, character varying, date, date, integer, character varying, character varying);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: com_crear_compra
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.634Z
+DROP FUNCTION IF EXISTS com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer, p_id_recarga_planta integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_id_sucursal integer, p_id_moneda integer, p_id_condicion_pago integer, p_declarar_sunat boolean, p_glosa character varying, p_id_usuario_auditoria integer, p_registrar_retorno_balones boolean, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_id_guia_retorno integer, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb);
 
-CREATE OR REPLACE FUNCTION public.com_crear_compra(
-    p_id_tipo_comprobante integer,
-    p_serie character varying,
-    p_numero character varying,
-    p_fecha date,
-    p_id_proveedor integer,
-    p_id_almacen integer,
-    p_detalles jsonb,
-    p_id_comprobante_referencia integer DEFAULT NULL::integer,
-    p_id_recarga_planta integer DEFAULT NULL::integer,
-    p_id_tipo_registro integer DEFAULT NULL::integer,
-    p_id_categoria_gasto integer DEFAULT NULL::integer,
-    p_id_sucursal integer DEFAULT NULL::integer,
-    p_id_moneda integer DEFAULT NULL::integer,
-    p_id_condicion_pago integer DEFAULT NULL::integer,
-    p_declarar_sunat boolean DEFAULT false,
-    p_glosa character varying DEFAULT NULL::character varying,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer,
-    p_registrar_retorno_balones boolean DEFAULT false,
-    p_fecha_llegada_almacen date DEFAULT NULL::date,
-    p_lote character varying DEFAULT NULL::character varying,
-    p_fecha_vencimiento_lote date DEFAULT NULL::date,
-    p_fecha_prueba_hidrostatica date DEFAULT NULL::date,
-    p_id_guia_retorno integer DEFAULT NULL::integer,
-    p_serie_guia_ingreso character varying DEFAULT NULL::character varying,
-    p_numero_guia_ingreso character varying DEFAULT NULL::character varying,
-    p_fecha_vencimiento_cxp date DEFAULT NULL::date,
-    p_cuotas_cxp jsonb DEFAULT NULL::jsonb
-)
-RETURNS json
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer DEFAULT NULL::integer, p_id_recarga_planta integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_declarar_sunat boolean DEFAULT false, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_registrar_retorno_balones boolean DEFAULT false, p_fecha_llegada_almacen date DEFAULT NULL::date, p_lote character varying DEFAULT NULL::character varying, p_fecha_vencimiento_lote date DEFAULT NULL::date, p_fecha_prueba_hidrostatica date DEFAULT NULL::date, p_id_guia_retorno integer DEFAULT NULL::integer, p_serie_guia_ingreso character varying DEFAULT NULL::character varying, p_numero_guia_ingreso character varying DEFAULT NULL::character varying, p_fecha_vencimiento_cxp date DEFAULT NULL::date, p_cuotas_cxp jsonb DEFAULT NULL::jsonb)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_compra           INTEGER;
@@ -349,4 +324,4 @@ BEGIN
 
     RETURN com_obtener_compra(v_id_compra);
 END;
-$function$;
+$function$

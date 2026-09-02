@@ -1,9 +1,13 @@
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_garantias_alquiler
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.651Z
 DROP FUNCTION IF EXISTS dash_garantias_alquiler();
 
 CREATE OR REPLACE FUNCTION dash_garantias_alquiler()
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_id_estado_activo INT;
     v_id_tipo_cobro     INT;
@@ -67,4 +71,4 @@ BEGIN
         'ingresadoEsteMes', v_ingresado_mes
     );
 END;
-$$;
+$function$

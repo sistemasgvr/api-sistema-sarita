@@ -1,16 +1,12 @@
--- Actualiza cantidad y/o precio de una línea de compra activa.
--- Si afecta_stock y cambia la cantidad:
---   aumento  → INGRESO por el diferencial
---   disminución → SALIDA por el diferencial (valida stock disponible)
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: com_actualizar_compra_detalle
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.632Z
+DROP FUNCTION IF EXISTS com_actualizar_compra_detalle(p_id_detalle integer, p_cantidad numeric, p_precio_unitario numeric, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION com_actualizar_compra_detalle(
-    p_id_detalle             INTEGER,
-    p_cantidad               NUMERIC DEFAULT NULL,
-    p_precio_unitario        NUMERIC DEFAULT NULL,
-    p_id_usuario_auditoria   INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION com_actualizar_compra_detalle(p_id_detalle integer, p_cantidad numeric DEFAULT NULL::numeric, p_precio_unitario numeric DEFAULT NULL::numeric, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_detalle             RECORD;
@@ -115,4 +111,4 @@ BEGIN
 
     RETURN com_obtener_compra(v_detalle.id_comprobante);
 END;
-$function$;
+$function$

@@ -1,11 +1,12 @@
--- Resta capacidad del balón empresa origen. Si residual <= 0 → VACIO.
-CREATE OR REPLACE FUNCTION bal_consumir_capacidad_balon_origen(
-    p_id_balon INTEGER,
-    p_cantidad NUMERIC,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_consumir_capacidad_balon_origen
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.526Z
+DROP FUNCTION IF EXISTS bal_consumir_capacidad_balon_origen(p_id_balon integer, p_cantidad numeric, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_consumir_capacidad_balon_origen(p_id_balon integer, p_cantidad numeric, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_disponible NUMERIC;
@@ -40,4 +41,4 @@ BEGIN
         'quedo_vacio', v_nuevo <= 0
     );
 END;
-$function$;
+$function$

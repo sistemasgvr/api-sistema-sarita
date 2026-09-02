@@ -1,13 +1,13 @@
--- Total de balones activos (opcionalmente por ubicación en un cliente).
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_total_balones
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.659Z
+DROP FUNCTION IF EXISTS dash_total_balones(p_id_cliente integer);
 
-DROP FUNCTION IF EXISTS dash_total_balones();
-
-CREATE OR REPLACE FUNCTION dash_total_balones(
-    p_id_cliente INT DEFAULT NULL
-)
-RETURNS INTEGER
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_total_balones(p_id_cliente integer DEFAULT NULL::integer)
+ RETURNS integer
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
   v_total INTEGER;
 BEGIN
@@ -21,4 +21,4 @@ BEGIN
 
   RETURN v_total;
 END;
-$$;
+$function$

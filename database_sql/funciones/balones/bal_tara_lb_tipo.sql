@@ -1,7 +1,13 @@
-CREATE OR REPLACE FUNCTION bal_tara_lb_tipo(p_id_tipo_balon INTEGER)
-RETURNS NUMERIC
-LANGUAGE plpgsql
-STABLE
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_tara_lb_tipo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.609Z
+DROP FUNCTION IF EXISTS bal_tara_lb_tipo(p_id_tipo_balon integer);
+
+CREATE OR REPLACE FUNCTION bal_tara_lb_tipo(p_id_tipo_balon integer)
+ RETURNS numeric
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 DECLARE
     v_tara_lb NUMERIC;
@@ -26,4 +32,4 @@ BEGIN
 
     RETURN NULL;
 END;
-$function$;
+$function$

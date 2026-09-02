@@ -1,11 +1,12 @@
-CREATE OR REPLACE FUNCTION auth_actualizar_rol(
-    p_id INTEGER,
-    p_nombre VARCHAR DEFAULT NULL,
-    p_descripcion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: auth_actualizar_rol
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.485Z
+DROP FUNCTION IF EXISTS auth_actualizar_rol(p_id integer, p_nombre character varying, p_descripcion character varying, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION auth_actualizar_rol(p_id integer, p_nombre character varying DEFAULT NULL::character varying, p_descripcion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -24,4 +25,4 @@ BEGIN
 
     RETURN auth_obtener_rol(p_id);
 END;
-$function$;
+$function$

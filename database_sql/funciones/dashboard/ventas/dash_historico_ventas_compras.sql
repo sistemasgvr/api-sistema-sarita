@@ -1,11 +1,13 @@
-DROP FUNCTION IF EXISTS dash_historico_ventas_compras(INT);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_historico_ventas_compras
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.652Z
+DROP FUNCTION IF EXISTS dash_historico_ventas_compras(p_anio integer);
 
-CREATE OR REPLACE FUNCTION dash_historico_ventas_compras(
-    p_anio INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_historico_ventas_compras(p_anio integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_anio   INT := COALESCE(p_anio, EXTRACT(YEAR FROM CURRENT_DATE)::INT);
     v_result JSON;
@@ -49,4 +51,4 @@ BEGIN
 
     RETURN v_result;
 END;
-$$;
+$function$

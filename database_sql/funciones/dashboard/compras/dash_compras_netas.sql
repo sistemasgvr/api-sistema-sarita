@@ -1,12 +1,13 @@
-DROP FUNCTION IF EXISTS dash_compras_netas();
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_compras_netas
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.648Z
+DROP FUNCTION IF EXISTS dash_compras_netas(p_fecha_desde date, p_fecha_hasta date);
 
-CREATE OR REPLACE FUNCTION dash_compras_netas(
-    p_fecha_desde DATE DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL
-)
-RETURNS NUMERIC(14,2)
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_compras_netas(p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date)
+ RETURNS numeric
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_total NUMERIC(14,2);
 BEGIN
@@ -21,4 +22,4 @@ BEGIN
 
     RETURN v_total;
 END;
-$$;
+$function$

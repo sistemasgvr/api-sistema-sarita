@@ -1,10 +1,12 @@
--- Registra salidas de cilindros de una GRE (crear/actualizar). Idempotente por helper.
-CREATE OR REPLACE FUNCTION bal_aplicar_salidas_guia_remision(
-    p_id_guia INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_aplicar_salidas_guia_remision
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.523Z
+DROP FUNCTION IF EXISTS bal_aplicar_salidas_guia_remision(p_id_guia integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_aplicar_salidas_guia_remision(p_id_guia integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_almacen INTEGER;
@@ -134,4 +136,4 @@ BEGIN
         'error', NULL
     );
 END;
-$function$;
+$function$

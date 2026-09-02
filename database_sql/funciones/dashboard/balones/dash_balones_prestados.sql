@@ -1,13 +1,13 @@
--- Balones prestados a clientes. Filtro opcional por cliente (ubicación).
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_balones_prestados
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.646Z
+DROP FUNCTION IF EXISTS dash_balones_prestados(p_id_cliente integer);
 
-DROP FUNCTION IF EXISTS dash_balones_prestados();
-
-CREATE OR REPLACE FUNCTION dash_balones_prestados(
-    p_id_cliente INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_balones_prestados(p_id_cliente integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
   v_id_estado INT;
   v_result JSON;
@@ -53,4 +53,4 @@ BEGIN
 
   RETURN v_result;
 END;
-$$;
+$function$

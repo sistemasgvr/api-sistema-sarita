@@ -1,56 +1,13 @@
--- Crea una cuenta financiera CON PLAN DE CUOTAS (ej. préstamo bancario a pagar,
--- venta/compra a plazos, servicio pagado en N cuotas, etc.).
---
--- Genera:
---   - 1 fila padre en fin_cuenta con numero_cuotas_total = N y monto_pendiente = monto total.
---   - N filas hijas con numero_cuota = 1..N, monto a 2 decimales (última cuota
---     absorbe el céntimo de redondeo, ej. 1000 / 3 = 333.33 + 333.33 + 333.34).
---
--- Recurrencia MENSUAL:
---   - Cuota 1: fecha exacta que envía el usuario en p_fecha_primera_cuota.
---   - Cuota i (i>=2): mes (mes_primera + i-1), día = p_dia_mes_pago.
---     Si el mes destino no tiene ese día (ej. día 31 en febrero), se ajusta al
---     ÚLTIMO DÍA del mes (28/29/30 según corresponda).
---
--- Los pagos posteriores (fin_pago) se aplican a las CUOTAS HIJAS.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_crear_cuenta_cuotas
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.674Z
+DROP FUNCTION IF EXISTS fin_crear_cuenta_cuotas(p_tipo character varying, p_id_tercero integer, p_tercero_nombre character varying, p_fecha_emision date, p_monto_total numeric, p_numero_cuotas integer, p_fecha_primera_cuota date, p_dia_mes_pago integer, p_descripcion character varying, p_observacion character varying, p_id_banco integer, p_tasa_interes numeric, p_numero_comprobante character varying, p_id_usuario integer, p_id_comprobante_venta integer, p_id_comprobante_compra integer);
 
-DROP FUNCTION IF EXISTS fin_crear_cuenta_cuotas(
-  VARCHAR, INT, VARCHAR, DATE, NUMERIC, INT, INT, DATE, VARCHAR, VARCHAR, INT, NUMERIC, INT
-);
-DROP FUNCTION IF EXISTS fin_crear_cuenta_cuotas(
-  VARCHAR, INT, VARCHAR, DATE, NUMERIC, INT, DATE, INT, VARCHAR, VARCHAR, INT, NUMERIC, INT
-);
-DROP FUNCTION IF EXISTS fin_crear_cuenta_cuotas(
-  VARCHAR, INT, VARCHAR, DATE, NUMERIC, INT, DATE, INT, VARCHAR, VARCHAR, INT, NUMERIC, VARCHAR, INT
-);
-DROP FUNCTION IF EXISTS fin_crear_cuenta_cuotas(
-  VARCHAR, INT, VARCHAR, DATE, NUMERIC, INT, DATE, INT, VARCHAR, VARCHAR, INT, NUMERIC, VARCHAR, INT, INT
-);
-DROP FUNCTION IF EXISTS fin_crear_cuenta_cuotas(
-  VARCHAR, INT, VARCHAR, DATE, NUMERIC, INT, DATE, INT, VARCHAR, VARCHAR, INT, NUMERIC, VARCHAR, INT, INT, INT
-);
-
-CREATE OR REPLACE FUNCTION fin_crear_cuenta_cuotas(
-    p_tipo                 VARCHAR,
-    p_id_tercero           INT     DEFAULT NULL,
-    p_tercero_nombre       VARCHAR DEFAULT NULL,
-    p_fecha_emision        DATE    DEFAULT NULL,
-    p_monto_total          NUMERIC DEFAULT NULL,
-    p_numero_cuotas        INT     DEFAULT NULL,
-    p_fecha_primera_cuota  DATE    DEFAULT NULL,   -- fecha exacta de la cuota #1
-    p_dia_mes_pago         INT     DEFAULT NULL,   -- 1..31; día del mes para cuotas #2..N
-    p_descripcion          VARCHAR DEFAULT NULL,
-    p_observacion          VARCHAR DEFAULT NULL,
-    p_id_banco             INT     DEFAULT NULL,
-    p_tasa_interes         NUMERIC DEFAULT NULL,
-    p_numero_comprobante   VARCHAR DEFAULT NULL,
-    p_id_usuario           INT     DEFAULT NULL,
-    p_id_comprobante_venta INT     DEFAULT NULL,
-    p_id_comprobante_compra INT    DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_crear_cuenta_cuotas(p_tipo character varying, p_id_tercero integer DEFAULT NULL::integer, p_tercero_nombre character varying DEFAULT NULL::character varying, p_fecha_emision date DEFAULT NULL::date, p_monto_total numeric DEFAULT NULL::numeric, p_numero_cuotas integer DEFAULT NULL::integer, p_fecha_primera_cuota date DEFAULT NULL::date, p_dia_mes_pago integer DEFAULT NULL::integer, p_descripcion character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_banco integer DEFAULT NULL::integer, p_tasa_interes numeric DEFAULT NULL::numeric, p_numero_comprobante character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer, p_id_comprobante_venta integer DEFAULT NULL::integer, p_id_comprobante_compra integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_id_tipo         INT;
     v_id_tercero      INT;
@@ -231,4 +188,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$$;
+$function$

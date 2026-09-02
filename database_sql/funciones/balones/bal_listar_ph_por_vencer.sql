@@ -1,9 +1,12 @@
--- Cilindros activos con PH por vencer dentro de p_dias (America/Lima).
-CREATE OR REPLACE FUNCTION bal_listar_ph_por_vencer(
-    p_dias INTEGER DEFAULT 60
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_listar_ph_por_vencer
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.569Z
+DROP FUNCTION IF EXISTS bal_listar_ph_por_vencer(p_dias integer);
+
+CREATE OR REPLACE FUNCTION bal_listar_ph_por_vencer(p_dias integer DEFAULT 60)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_dias INTEGER;
@@ -34,4 +37,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros);
 END;
-$function$;
+$function$

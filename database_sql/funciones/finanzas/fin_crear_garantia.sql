@@ -1,19 +1,13 @@
--- Registra una nueva garantía dejada por un cliente. Estado inicial = ACTIVA.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_crear_garantia
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.675Z
+DROP FUNCTION IF EXISTS fin_crear_garantia(p_fecha date, p_id_cliente integer, p_id_medio_pago integer, p_importe numeric, p_observacion character varying, p_id_usuario integer);
 
-DROP FUNCTION IF EXISTS fin_crear_garantia(DATE, INT, INT, NUMERIC, VARCHAR, INT);
-DROP FUNCTION IF EXISTS fin_crear_garantia(DATE, INT, INT, NUMERIC, VARCHAR, INT, INT);
-
-CREATE OR REPLACE FUNCTION fin_crear_garantia(
-    p_fecha          DATE,
-    p_id_cliente     INT,
-    p_id_medio_pago  INT,
-    p_importe        NUMERIC,
-    p_observacion    VARCHAR DEFAULT NULL,
-    p_id_usuario     INT     DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_crear_garantia(p_fecha date, p_id_cliente integer, p_id_medio_pago integer, p_importe numeric, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_id_cliente INT;
     v_id_estado  INT;
@@ -78,4 +72,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$$;
+$function$

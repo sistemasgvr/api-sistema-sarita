@@ -1,10 +1,12 @@
-CREATE OR REPLACE FUNCTION auth_listar_permisos(
-    p_busqueda VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: auth_listar_permisos
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.497Z
+DROP FUNCTION IF EXISTS auth_listar_permisos(p_busqueda character varying, p_limite integer, p_offset integer);
+
+CREATE OR REPLACE FUNCTION auth_listar_permisos(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -55,4 +57,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

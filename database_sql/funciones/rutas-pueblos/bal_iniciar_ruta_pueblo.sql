@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_iniciar_ruta_pueblo(
-    p_id INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_iniciar_ruta_pueblo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.557Z
+DROP FUNCTION IF EXISTS bal_iniciar_ruta_pueblo(p_id integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_iniciar_ruta_pueblo(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_estado VARCHAR;
@@ -79,4 +82,4 @@ BEGIN
 
     RETURN bal_obtener_ruta_pueblo(p_id);
 END;
-$function$;
+$function$

@@ -1,16 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_finalizar_mantenimiento(
-    p_id INTEGER,
-    p_fecha_salida DATE DEFAULT CURRENT_DATE,
-    p_id_almacen_destino INTEGER DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_vigencia_ph_anios INTEGER DEFAULT NULL,
-    p_id_organo_inspector INTEGER DEFAULT NULL,
-    p_organo_inspector_no_aplica BOOLEAN DEFAULT NULL,
-    p_numero_certificado_ph VARCHAR DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_finalizar_mantenimiento
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.554Z
+DROP FUNCTION IF EXISTS bal_finalizar_mantenimiento(p_id integer, p_fecha_salida date, p_id_almacen_destino integer, p_observacion character varying, p_id_usuario_auditoria integer, p_vigencia_ph_anios integer, p_id_organo_inspector integer, p_organo_inspector_no_aplica boolean, p_numero_certificado_ph character varying);
+
+CREATE OR REPLACE FUNCTION bal_finalizar_mantenimiento(p_id integer, p_fecha_salida date DEFAULT CURRENT_DATE, p_id_almacen_destino integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_vigencia_ph_anios integer DEFAULT NULL::integer, p_id_organo_inspector integer DEFAULT NULL::integer, p_organo_inspector_no_aplica boolean DEFAULT NULL::boolean, p_numero_certificado_ph character varying DEFAULT NULL::character varying)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_balon INTEGER;
@@ -296,4 +292,4 @@ BEGIN
 
     RETURN bal_obtener_mantenimiento(p_id);
 END;
-$function$;
+$function$

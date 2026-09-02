@@ -1,27 +1,12 @@
-DROP FUNCTION IF EXISTS bal_crear_recarga_cliente(
-    INTEGER, INTEGER, INTEGER, NUMERIC, NUMERIC, INTEGER, VARCHAR, NUMERIC,
-    INTEGER, INTEGER, VARCHAR, INTEGER, INTEGER
-);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_crear_recarga_cliente
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.536Z
+DROP FUNCTION IF EXISTS bal_crear_recarga_cliente(p_id_cliente integer, p_id_balon integer, p_id_producto integer, p_precio_unitario numeric, p_cantidad numeric, p_id_tipo_comprobante integer, p_serie character varying, p_capacidad numeric, p_id_medio_pago integer, p_id_almacen integer, p_observacion character varying, p_id_balon_origen integer, p_id_usuario_auditoria integer, p_id_condicion_pago integer, p_fecha_vencimiento date);
 
-CREATE OR REPLACE FUNCTION bal_crear_recarga_cliente(
-    p_id_cliente INTEGER,
-    p_id_balon INTEGER,
-    p_id_producto INTEGER,
-    p_precio_unitario NUMERIC,
-    p_cantidad NUMERIC DEFAULT 1,
-    p_id_tipo_comprobante INTEGER DEFAULT NULL,
-    p_serie VARCHAR DEFAULT 'B001',
-    p_capacidad NUMERIC DEFAULT NULL,
-    p_id_medio_pago INTEGER DEFAULT NULL,
-    p_id_almacen INTEGER DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_balon_origen INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_id_condicion_pago INTEGER DEFAULT NULL,
-    p_fecha_vencimiento DATE DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION bal_crear_recarga_cliente(p_id_cliente integer, p_id_balon integer, p_id_producto integer, p_precio_unitario numeric, p_cantidad numeric DEFAULT 1, p_id_tipo_comprobante integer DEFAULT NULL::integer, p_serie character varying DEFAULT 'B001'::character varying, p_capacidad numeric DEFAULT NULL::numeric, p_id_medio_pago integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_balon_origen integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_fecha_vencimiento date DEFAULT NULL::date)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_fecha DATE;
@@ -356,4 +341,4 @@ BEGIN
         )
     );
 END;
-$function$;
+$function$

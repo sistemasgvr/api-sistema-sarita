@@ -1,20 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_dar_baja_balon(
-    p_id_balon INTEGER,
-    p_id_motivo_baja INTEGER,
-    p_id_usuario_solicita INTEGER,
-    p_id_usuario_autoriza INTEGER DEFAULT NULL,
-    p_motivo_detalle VARCHAR DEFAULT NULL,
-    p_id_cliente_comprador INTEGER DEFAULT NULL,
-    p_id_comprobante_venta INTEGER DEFAULT NULL,
-    p_serie_comprobante VARCHAR DEFAULT NULL,
-    p_numero_comprobante VARCHAR DEFAULT NULL,
-    p_monto_venta NUMERIC DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_fecha_baja DATE DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_dar_baja_balon
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.539Z
+DROP FUNCTION IF EXISTS bal_dar_baja_balon(p_id_balon integer, p_id_motivo_baja integer, p_id_usuario_solicita integer, p_id_usuario_autoriza integer, p_motivo_detalle character varying, p_id_cliente_comprador integer, p_id_comprobante_venta integer, p_serie_comprobante character varying, p_numero_comprobante character varying, p_monto_venta numeric, p_observacion character varying, p_fecha_baja date, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_dar_baja_balon(p_id_balon integer, p_id_motivo_baja integer, p_id_usuario_solicita integer, p_id_usuario_autoriza integer DEFAULT NULL::integer, p_motivo_detalle character varying DEFAULT NULL::character varying, p_id_cliente_comprador integer DEFAULT NULL::integer, p_id_comprobante_venta integer DEFAULT NULL::integer, p_serie_comprobante character varying DEFAULT NULL::character varying, p_numero_comprobante character varying DEFAULT NULL::character varying, p_monto_venta numeric DEFAULT NULL::numeric, p_observacion character varying DEFAULT NULL::character varying, p_fecha_baja date DEFAULT NULL::date, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 BEGIN
     RETURN bal_solicitar_baja_balon(
@@ -32,4 +24,4 @@ BEGIN
         p_id_usuario_auditoria
     );
 END;
-$function$;
+$function$

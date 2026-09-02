@@ -1,18 +1,13 @@
--- Registra el REEMBOLSO de una garantía: fecha, método de pago del reembolso
--- y observaciones. Marca la garantía como DEVUELTA.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_reembolsar_garantia
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.688Z
+DROP FUNCTION IF EXISTS fin_reembolsar_garantia(p_id integer, p_fecha_reembolso date, p_id_medio_reembolso integer, p_observacion_reembolso character varying, p_id_usuario integer);
 
-DROP FUNCTION IF EXISTS fin_reembolsar_garantia(INT, DATE, INT, VARCHAR, INT);
-
-CREATE OR REPLACE FUNCTION fin_reembolsar_garantia(
-    p_id                    INT,
-    p_fecha_reembolso       DATE,
-    p_id_medio_reembolso    INT,
-    p_observacion_reembolso VARCHAR DEFAULT NULL,
-    p_id_usuario            INT     DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_reembolsar_garantia(p_id integer, p_fecha_reembolso date, p_id_medio_reembolso integer, p_observacion_reembolso character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_garantia  fin_garantia%ROWTYPE;
     v_id_devuelta INT;
@@ -81,4 +76,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$$;
+$function$

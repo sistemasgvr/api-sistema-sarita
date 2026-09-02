@@ -1,14 +1,13 @@
-DROP FUNCTION IF EXISTS dash_velocidad_salida(DATE, DATE, INT, INT);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_velocidad_salida
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.661Z
+DROP FUNCTION IF EXISTS dash_velocidad_salida(p_fecha_desde date, p_fecha_hasta date, p_id_almacen integer, p_limite integer);
 
-CREATE OR REPLACE FUNCTION dash_velocidad_salida(
-    p_fecha_desde DATE DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL,
-    p_id_almacen  INT  DEFAULT NULL,
-    p_limite      INT  DEFAULT 20
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_velocidad_salida(p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_id_almacen integer DEFAULT NULL::integer, p_limite integer DEFAULT 20)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_result JSON;
 BEGIN
@@ -85,4 +84,4 @@ BEGIN
 
     RETURN json_build_object('detalle', v_result);
 END;
-$$;
+$function$

@@ -1,21 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_crear_alquiler(
-    p_numero_alquiler VARCHAR DEFAULT NULL,
-    p_id_cliente INTEGER DEFAULT NULL,
-    p_id_almacen INTEGER DEFAULT NULL,
-    p_fecha_inicio DATE DEFAULT NULL,
-    p_fecha_fin_pactada DATE DEFAULT NULL,
-    p_fecha_fin_real DATE DEFAULT NULL,
-    p_tarifa_diaria NUMERIC DEFAULT 0,
-    p_total_cobrado NUMERIC DEFAULT 0,
-    p_id_estado INTEGER DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_comprobante_venta INTEGER DEFAULT NULL,
-    p_id_producto_regulador INTEGER DEFAULT NULL,
-    p_id_producto_stock INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_crear_alquiler
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.528Z
+DROP FUNCTION IF EXISTS bal_crear_alquiler(p_numero_alquiler character varying, p_id_cliente integer, p_id_almacen integer, p_fecha_inicio date, p_fecha_fin_pactada date, p_fecha_fin_real date, p_tarifa_diaria numeric, p_total_cobrado numeric, p_id_estado integer, p_observacion character varying, p_id_comprobante_venta integer, p_id_producto_regulador integer, p_id_producto_stock integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_crear_alquiler(p_numero_alquiler character varying DEFAULT NULL::character varying, p_id_cliente integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_fecha_inicio date DEFAULT NULL::date, p_fecha_fin_pactada date DEFAULT NULL::date, p_fecha_fin_real date DEFAULT NULL::date, p_tarifa_diaria numeric DEFAULT 0, p_total_cobrado numeric DEFAULT 0, p_id_estado integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_comprobante_venta integer DEFAULT NULL::integer, p_id_producto_regulador integer DEFAULT NULL::integer, p_id_producto_stock integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -168,4 +159,4 @@ EXCEPTION
     WHEN OTHERS THEN
         RETURN json_build_object('error', SQLERRM, 'registro', NULL);
 END;
-$function$;
+$function$

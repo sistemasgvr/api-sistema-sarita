@@ -1,17 +1,13 @@
--- F1: saldos agregados por tercero (cliente/proveedor) a una fecha de corte.
--- Excluye cabeceras de plan de cuotas (como fin_resumen_cuentas) para no doble contar.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_saldos_por_tercero
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.690Z
+DROP FUNCTION IF EXISTS fin_saldos_por_tercero(p_tipo character varying, p_fecha_corte date, p_buscar character varying, p_solo_pendientes integer, p_limite integer, p_offset integer);
 
-CREATE OR REPLACE FUNCTION fin_saldos_por_tercero(
-    p_tipo            VARCHAR DEFAULT 'COBRAR',
-    p_fecha_corte     DATE    DEFAULT CURRENT_DATE,
-    p_buscar          VARCHAR DEFAULT NULL,
-    p_solo_pendientes INT     DEFAULT 1,
-    p_limite          INT     DEFAULT 50,
-    p_offset          INT     DEFAULT 0
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_saldos_por_tercero(p_tipo character varying DEFAULT 'COBRAR'::character varying, p_fecha_corte date DEFAULT CURRENT_DATE, p_buscar character varying DEFAULT NULL::character varying, p_solo_pendientes integer DEFAULT 1, p_limite integer DEFAULT 50, p_offset integer DEFAULT 0)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_id_tipo   INT;
     v_buscar    VARCHAR;
@@ -142,4 +138,4 @@ BEGIN
         )
     );
 END;
-$$;
+$function$

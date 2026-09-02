@@ -1,13 +1,13 @@
-DROP FUNCTION IF EXISTS dash_clientes_mora(INT, DATE, DATE);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_clientes_mora
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.647Z
+DROP FUNCTION IF EXISTS dash_clientes_mora(p_dias_urgente integer, p_fecha_desde date, p_fecha_hasta date);
 
-CREATE OR REPLACE FUNCTION dash_clientes_mora(
-    p_dias_urgente INT  DEFAULT 30,
-    p_fecha_desde  DATE DEFAULT NULL,
-    p_fecha_hasta  DATE DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_clientes_mora(p_dias_urgente integer DEFAULT 30, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_id_tipo_cobrar INT;
     v_result         JSON;
@@ -57,4 +57,4 @@ BEGIN
 
     RETURN v_result;
 END;
-$$;
+$function$

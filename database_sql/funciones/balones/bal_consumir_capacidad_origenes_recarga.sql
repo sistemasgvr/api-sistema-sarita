@@ -1,10 +1,12 @@
--- Consume capacidad de varios balones empresa según asignación FIFO.
-CREATE OR REPLACE FUNCTION bal_consumir_capacidad_origenes_recarga(
-    p_origenes JSON,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_consumir_capacidad_origenes_recarga
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.527Z
+DROP FUNCTION IF EXISTS bal_consumir_capacidad_origenes_recarga(p_origenes json, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_consumir_capacidad_origenes_recarga(p_origenes json, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     o JSONB;
@@ -52,4 +54,4 @@ BEGIN
         'id_balon_origen_principal', (v_arr->0->>'id_balon')::INTEGER
     );
 END;
-$function$;
+$function$

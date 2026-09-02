@@ -1,12 +1,12 @@
-CREATE OR REPLACE FUNCTION pro_crear_stock(
-    p_id_almacen INTEGER,
-    p_id_producto INTEGER,
-    p_stock NUMERIC DEFAULT 0,
-    p_stock_minimo NUMERIC DEFAULT 0,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: pro_crear_stock
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.775Z
+DROP FUNCTION IF EXISTS pro_crear_stock(p_id_almacen integer, p_id_producto integer, p_stock numeric, p_stock_minimo numeric, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION pro_crear_stock(p_id_almacen integer, p_id_producto integer, p_stock numeric DEFAULT 0, p_stock_minimo numeric DEFAULT 0, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -119,4 +119,4 @@ BEGIN
 
     RETURN pro_obtener_stock(v_id);
 END;
-$function$;
+$function$

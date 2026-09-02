@@ -1,15 +1,12 @@
-DROP FUNCTION IF EXISTS gen_listar_vehiculos;
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_listar_vehiculos
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.738Z
+DROP FUNCTION IF EXISTS gen_listar_vehiculos(p_solo_activos integer, p_buscar character varying, p_limite integer, p_offset integer, p_id_cliente integer, p_solo_flota_propia boolean);
 
-CREATE OR REPLACE FUNCTION gen_listar_vehiculos(
-    p_solo_activos INT DEFAULT NULL,
-    p_buscar VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0,
-    p_id_cliente INTEGER DEFAULT NULL,
-    p_solo_flota_propia BOOLEAN DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION gen_listar_vehiculos(p_solo_activos integer DEFAULT NULL::integer, p_buscar character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_cliente integer DEFAULT NULL::integer, p_solo_flota_propia boolean DEFAULT NULL::boolean)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -96,4 +93,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

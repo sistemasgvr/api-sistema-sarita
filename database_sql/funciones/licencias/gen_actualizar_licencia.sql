@@ -1,25 +1,12 @@
-DROP FUNCTION IF EXISTS gen_actualizar_licencia(
-    INTEGER,
-    INTEGER,
-    VARCHAR,
-    INTEGER,
-    INTEGER,
-    DATE,
-    DATE,
-    INTEGER
-);
-CREATE OR REPLACE FUNCTION gen_actualizar_licencia(
-    p_id                      INTEGER,
-    p_id_chofer               INTEGER DEFAULT NULL,
-    p_codigo                  VARCHAR DEFAULT NULL,
-    p_id_tipo_licencia        INTEGER DEFAULT NULL,
-    p_id_categoria_licencia   INTEGER DEFAULT NULL,
-    p_fecha_emision           DATE DEFAULT NULL,
-    p_fecha_vencimiento       DATE DEFAULT NULL,
-    p_id_usuario_auditoria    INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_actualizar_licencia
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.698Z
+DROP FUNCTION IF EXISTS gen_actualizar_licencia(p_id integer, p_id_chofer integer, p_codigo character varying, p_id_tipo_licencia integer, p_id_categoria_licencia integer, p_fecha_emision date, p_fecha_vencimiento date, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION gen_actualizar_licencia(p_id integer, p_id_chofer integer DEFAULT NULL::integer, p_codigo character varying DEFAULT NULL::character varying, p_id_tipo_licencia integer DEFAULT NULL::integer, p_id_categoria_licencia integer DEFAULT NULL::integer, p_fecha_emision date DEFAULT NULL::date, p_fecha_vencimiento date DEFAULT NULL::date, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -42,4 +29,4 @@ BEGIN
 
     RETURN gen_obtener_licencia(p_id);
 END;
-$function$;
+$function$

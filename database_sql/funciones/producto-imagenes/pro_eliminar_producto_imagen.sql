@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION pro_eliminar_producto_imagen(
-    p_id INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: pro_eliminar_producto_imagen
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.780Z
+DROP FUNCTION IF EXISTS pro_eliminar_producto_imagen(p_id integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION pro_eliminar_producto_imagen(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_producto INTEGER;
@@ -68,4 +71,4 @@ BEGIN
         'bucket', v_bucket
     );
 END;
-$function$;
+$function$

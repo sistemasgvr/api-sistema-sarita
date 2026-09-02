@@ -1,19 +1,13 @@
--- Baja lógica de una cuenta financiera. Reglas:
---   * No se puede eliminar si tiene pagos activos aplicados (en la propia
---     cuenta o en cualquiera de sus cuotas hijas si es cabecera de plan).
---   * Si es cabecera de plan, se dan de baja también las cuotas hijas.
---   * No se pueden eliminar cuotas individuales directamente (elimina el plan).
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_eliminar_cuenta
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.677Z
+DROP FUNCTION IF EXISTS fin_eliminar_cuenta(p_id integer, p_tipo character varying, p_id_usuario integer);
 
-DROP FUNCTION IF EXISTS fin_eliminar_cuenta(INT, VARCHAR, INT);
-
-CREATE OR REPLACE FUNCTION fin_eliminar_cuenta(
-    p_id         INT,
-    p_tipo       VARCHAR DEFAULT NULL,
-    p_id_usuario INT     DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_eliminar_cuenta(p_id integer, p_tipo character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_cuenta   fin_cuenta%ROWTYPE;
     v_id_tipo  INT;
@@ -67,4 +61,4 @@ BEGIN
 
     RETURN json_build_object('eliminado', true, 'id', p_id);
 END;
-$$;
+$function$

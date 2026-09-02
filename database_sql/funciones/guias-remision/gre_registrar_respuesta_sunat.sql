@@ -1,14 +1,12 @@
-CREATE OR REPLACE FUNCTION gre_registrar_respuesta_sunat(
-    p_id INTEGER,
-    p_ticket_sunat VARCHAR DEFAULT NULL,
-    p_hash_documento VARCHAR DEFAULT NULL,
-    p_xml_firmado TEXT DEFAULT NULL,
-    p_cdr_respuesta TEXT DEFAULT NULL,
-    p_nombre_estado_sunat VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gre_registrar_respuesta_sunat
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.760Z
+DROP FUNCTION IF EXISTS gre_registrar_respuesta_sunat(p_id integer, p_ticket_sunat character varying, p_hash_documento character varying, p_xml_firmado text, p_cdr_respuesta text, p_nombre_estado_sunat character varying, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION gre_registrar_respuesta_sunat(p_id integer, p_ticket_sunat character varying DEFAULT NULL::character varying, p_hash_documento character varying DEFAULT NULL::character varying, p_xml_firmado text DEFAULT NULL::text, p_cdr_respuesta text DEFAULT NULL::text, p_nombre_estado_sunat character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_estado_sunat INTEGER;
@@ -55,4 +53,4 @@ BEGIN
 
     RETURN gre_obtener_guia_remision(p_id);
 END;
-$function$;
+$function$

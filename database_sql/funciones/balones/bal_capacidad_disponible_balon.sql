@@ -1,8 +1,13 @@
--- Capacidad de gas aún disponible en un cilindro LLENO (residual o capacidad del tipo).
-CREATE OR REPLACE FUNCTION bal_capacidad_disponible_balon(p_id_balon INTEGER)
-RETURNS NUMERIC
-LANGUAGE plpgsql
-STABLE
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_capacidad_disponible_balon
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.524Z
+DROP FUNCTION IF EXISTS bal_capacidad_disponible_balon(p_id_balon integer);
+
+CREATE OR REPLACE FUNCTION bal_capacidad_disponible_balon(p_id_balon integer)
+ RETURNS numeric
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 DECLARE
     v_disponible NUMERIC;
@@ -16,4 +21,4 @@ BEGIN
 
     RETURN COALESCE(v_disponible, 0);
 END;
-$function$;
+$function$

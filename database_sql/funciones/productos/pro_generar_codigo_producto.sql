@@ -1,8 +1,12 @@
-CREATE OR REPLACE FUNCTION pro_generar_codigo_producto(
-    p_prefijo VARCHAR DEFAULT 'PRO'
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: pro_generar_codigo_producto
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.782Z
+DROP FUNCTION IF EXISTS pro_generar_codigo_producto(p_prefijo character varying);
+
+CREATE OR REPLACE FUNCTION pro_generar_codigo_producto(p_prefijo character varying DEFAULT 'PRO'::character varying)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_prefijo VARCHAR(10);
@@ -50,4 +54,4 @@ BEGIN
         'registro', json_build_object('codigo', v_codigo)
     );
 END;
-$function$;
+$function$

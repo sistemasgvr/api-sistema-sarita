@@ -1,12 +1,14 @@
--- Opciones de la lista MedioPago (para el selector al registrar un pago).
-
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_listar_medios_pago
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.684Z
 DROP FUNCTION IF EXISTS fin_listar_medios_pago();
 
 CREATE OR REPLACE FUNCTION fin_listar_medios_pago()
-RETURNS JSON
-LANGUAGE sql
-STABLE
-AS $$
+ RETURNS json
+ LANGUAGE sql
+ STABLE
+AS $function$
     SELECT COALESCE(
         json_agg(
             json_build_object('id', glo.id, 'nombre', glo.nombre)
@@ -17,4 +19,4 @@ AS $$
     FROM gen_lista_opciones glo
     JOIN gen_lista gl ON gl.id = glo.id_lista
     WHERE gl.nombre = 'MedioPago';
-$$;
+$function$

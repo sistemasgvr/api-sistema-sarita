@@ -1,17 +1,12 @@
-DROP FUNCTION IF EXISTS fin_listar_caja_gastos(VARCHAR, INTEGER, INTEGER, DATE, DATE, INTEGER, INTEGER, INTEGER);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_listar_caja_gastos
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.680Z
+DROP FUNCTION IF EXISTS fin_listar_caja_gastos(p_buscar character varying, p_limite integer, p_offset integer, p_fecha_desde date, p_fecha_hasta date, p_id_categoria_gasto integer, p_id_sesion integer, p_estado integer);
 
-CREATE OR REPLACE FUNCTION fin_listar_caja_gastos(
-    p_buscar VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0,
-    p_fecha_desde DATE DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL,
-    p_id_categoria_gasto INTEGER DEFAULT NULL,
-    p_id_sesion INTEGER DEFAULT NULL,
-    p_estado INTEGER DEFAULT 1
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION fin_listar_caja_gastos(p_buscar character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_id_categoria_gasto integer DEFAULT NULL::integer, p_id_sesion integer DEFAULT NULL::integer, p_estado integer DEFAULT 1)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_result JSON;
@@ -67,4 +62,4 @@ BEGIN
 
     RETURN v_result;
 END;
-$function$;
+$function$

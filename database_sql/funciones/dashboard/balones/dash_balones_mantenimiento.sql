@@ -1,13 +1,13 @@
--- Balones en mantenimiento (pendiente / en proceso). Filtro opcional por cliente (ubicación).
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_balones_mantenimiento
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.645Z
+DROP FUNCTION IF EXISTS dash_balones_mantenimiento(p_id_cliente integer);
 
-DROP FUNCTION IF EXISTS dash_balones_mantenimiento();
-
-CREATE OR REPLACE FUNCTION dash_balones_mantenimiento(
-    p_id_cliente INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_balones_mantenimiento(p_id_cliente integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
   v_id_pendiente INT;
   v_id_en_proceso INT;
@@ -51,4 +51,4 @@ BEGIN
 
   RETURN v_result;
 END;
-$$;
+$function$

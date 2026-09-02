@@ -1,14 +1,12 @@
-CREATE OR REPLACE FUNCTION pro_listar_catalogo_precios(
-    p_busqueda VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0,
-    p_id_tipo_catalogo INTEGER DEFAULT NULL,
-    p_id_producto INTEGER DEFAULT NULL,
-    p_id_proveedor INTEGER DEFAULT NULL,
-    p_periodo VARCHAR DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: pro_listar_catalogo_precios
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.783Z
+DROP FUNCTION IF EXISTS pro_listar_catalogo_precios(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_catalogo integer, p_id_producto integer, p_id_proveedor integer, p_periodo character varying);
+
+CREATE OR REPLACE FUNCTION pro_listar_catalogo_precios(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_tipo_catalogo integer DEFAULT NULL::integer, p_id_producto integer DEFAULT NULL::integer, p_id_proveedor integer DEFAULT NULL::integer, p_periodo character varying DEFAULT NULL::character varying)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -100,4 +98,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

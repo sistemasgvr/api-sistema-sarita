@@ -1,11 +1,13 @@
-DROP FUNCTION IF EXISTS dash_inventario_resumen(INT);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_inventario_resumen
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.653Z
+DROP FUNCTION IF EXISTS dash_inventario_resumen(p_id_almacen integer);
 
-CREATE OR REPLACE FUNCTION dash_inventario_resumen(
-    p_id_almacen INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_inventario_resumen(p_id_almacen integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_valor_total NUMERIC(14,2);
     v_margen_prom NUMERIC(6,2);
@@ -32,4 +34,4 @@ BEGIN
         'margenPromedio', COALESCE(v_margen_prom, 0)
     );
 END;
-$$;
+$function$

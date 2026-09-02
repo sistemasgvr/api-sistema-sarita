@@ -1,32 +1,12 @@
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: cli_crear_direccion
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.615Z
+DROP FUNCTION IF EXISTS cli_crear_direccion(p_id_cliente integer, p_direccion character varying, p_descripcion character varying, p_id_departamento integer, p_id_provincia integer, p_id_distrito integer, p_referencia character varying, p_latitud numeric, p_longitud numeric, p_es_principal boolean, p_id_usuario_auditoria integer);
 
-DROP FUNCTION IF EXISTS cli_crear_direccion(
-    INTEGER,
-    VARCHAR,
-    VARCHAR,
-    INTEGER,
-    INTEGER,
-    INTEGER,
-    VARCHAR,
-    NUMERIC,
-    NUMERIC,
-    BOOLEAN,
-    INTEGER
-);
-CREATE OR REPLACE FUNCTION cli_crear_direccion(
-    p_id_cliente INTEGER,
-    p_direccion VARCHAR,
-    p_descripcion VARCHAR DEFAULT NULL,
-    p_id_departamento INTEGER DEFAULT NULL,
-    p_id_provincia INTEGER DEFAULT NULL,
-    p_id_distrito INTEGER DEFAULT NULL,
-    p_referencia VARCHAR DEFAULT NULL,
-    p_latitud NUMERIC DEFAULT NULL,
-    p_longitud NUMERIC DEFAULT NULL,
-    p_es_principal BOOLEAN DEFAULT FALSE,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION cli_crear_direccion(p_id_cliente integer, p_direccion character varying, p_descripcion character varying DEFAULT NULL::character varying, p_id_departamento integer DEFAULT NULL::integer, p_id_provincia integer DEFAULT NULL::integer, p_id_distrito integer DEFAULT NULL::integer, p_referencia character varying DEFAULT NULL::character varying, p_latitud numeric DEFAULT NULL::numeric, p_longitud numeric DEFAULT NULL::numeric, p_es_principal boolean DEFAULT false, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -73,4 +53,4 @@ BEGIN
 
     RETURN cli_obtener_por_id_direccion(v_id);
 END;
-$function$;
+$function$

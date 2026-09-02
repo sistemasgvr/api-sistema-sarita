@@ -1,37 +1,13 @@
--- Edita una cuenta financiera.
--- Reglas de negocio:
---   * Cabecera de plan de cuotas: solo edita descripción / observación /
---     numero_comprobante (nunca monto ni cuotas, para no romper el plan).
---   * Cuenta con pagos activos: solo edita descripción / observación /
---     numero_comprobante / fecha_vencimiento.
---   * Cuenta simple sin pagos: edita también tercero, monto y fechas
---     (recalcula monto_saldo = monto_pendiente).
---   * Cuota hija: no editable directamente (se maneja por su cabecera).
---
--- Convenciones:
---   * Los parámetros que llegan como NULL NO se modifican (se preservan).
---     Para tercero_nombre usar cadena vacía si se quiere limpiar.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_actualizar_cuenta
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.665Z
+DROP FUNCTION IF EXISTS fin_actualizar_cuenta(p_id integer, p_tipo character varying, p_id_tercero integer, p_tercero_nombre character varying, p_fecha_emision date, p_fecha_vencimiento date, p_monto numeric, p_descripcion character varying, p_observacion character varying, p_numero_comprobante character varying, p_id_usuario integer);
 
-DROP FUNCTION IF EXISTS fin_actualizar_cuenta(
-  INT, VARCHAR, INT, VARCHAR, DATE, DATE, NUMERIC, VARCHAR, VARCHAR, VARCHAR, INT
-);
-
-CREATE OR REPLACE FUNCTION fin_actualizar_cuenta(
-    p_id                 INT,
-    p_tipo               VARCHAR DEFAULT NULL,     -- validación opcional del tipo (COBRAR/PAGAR)
-    p_id_tercero         INT     DEFAULT NULL,
-    p_tercero_nombre     VARCHAR DEFAULT NULL,     -- '' → limpia; NULL → no toca
-    p_fecha_emision      DATE    DEFAULT NULL,
-    p_fecha_vencimiento  DATE    DEFAULT NULL,
-    p_monto              NUMERIC DEFAULT NULL,
-    p_descripcion        VARCHAR DEFAULT NULL,
-    p_observacion        VARCHAR DEFAULT NULL,
-    p_numero_comprobante VARCHAR DEFAULT NULL,
-    p_id_usuario         INT     DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_actualizar_cuenta(p_id integer, p_tipo character varying DEFAULT NULL::character varying, p_id_tercero integer DEFAULT NULL::integer, p_tercero_nombre character varying DEFAULT NULL::character varying, p_fecha_emision date DEFAULT NULL::date, p_fecha_vencimiento date DEFAULT NULL::date, p_monto numeric DEFAULT NULL::numeric, p_descripcion character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_numero_comprobante character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_cuenta        fin_cuenta%ROWTYPE;
     v_id_tipo       INT;
@@ -178,4 +154,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$$;
+$function$

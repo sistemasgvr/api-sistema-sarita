@@ -1,8 +1,13 @@
--- Saldo actual de un producto en un almacén (punto único de consulta de stock).
-CREATE OR REPLACE FUNCTION inv_stock_producto(p_id_producto INTEGER, p_id_almacen INTEGER)
-RETURNS NUMERIC
-LANGUAGE plpgsql
-STABLE
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: inv_stock_producto
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.765Z
+DROP FUNCTION IF EXISTS inv_stock_producto(p_id_producto integer, p_id_almacen integer);
+
+CREATE OR REPLACE FUNCTION inv_stock_producto(p_id_producto integer, p_id_almacen integer)
+ RETURNS numeric
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 DECLARE
     v_stock NUMERIC(12,4);
@@ -13,4 +18,4 @@ BEGIN
 
     RETURN COALESCE(v_stock, 0);
 END;
-$function$;
+$function$

@@ -1,8 +1,12 @@
-DROP FUNCTION IF EXISTS cli_obtener_baja_cliente;
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: cli_obtener_baja_cliente
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.624Z
+DROP FUNCTION IF EXISTS cli_obtener_baja_cliente(p_id integer);
 
-CREATE OR REPLACE FUNCTION cli_obtener_baja_cliente(p_id INTEGER)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION cli_obtener_baja_cliente(p_id integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registro JSON;
@@ -53,4 +57,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$;
+$function$

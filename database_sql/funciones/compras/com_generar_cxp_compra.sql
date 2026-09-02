@@ -1,19 +1,12 @@
--- Genera CxP (fin_cuenta tipo PAGAR) para una compra según su condición de pago.
--- Idempotente: no crea nada si ya existe cuenta activa ligada a la compra.
--- Criterio (igual que ventas/CxC): dias_credito > 0 OR numero_cuotas > 1, y total > 0.
--- Fechas/montos se pueden personalizar con p_fecha_vencimiento (crédito) o p_cuotas (plan).
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: com_generar_cxp_compra
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.637Z
+DROP FUNCTION IF EXISTS com_generar_cxp_compra(p_id_comprobante integer, p_id_usuario_auditoria integer, p_fecha_vencimiento date, p_cuotas jsonb);
 
-DROP FUNCTION IF EXISTS public.com_generar_cxp_compra(integer, integer);
-DROP FUNCTION IF EXISTS public.com_generar_cxp_compra(integer, integer, date, jsonb);
-
-CREATE OR REPLACE FUNCTION com_generar_cxp_compra(
-    p_id_comprobante       INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_fecha_vencimiento    DATE DEFAULT NULL,
-    p_cuotas               JSONB DEFAULT NULL
-)
-RETURNS VOID
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION com_generar_cxp_compra(p_id_comprobante integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_fecha_vencimiento date DEFAULT NULL::date, p_cuotas jsonb DEFAULT NULL::jsonb)
+ RETURNS void
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_proveedor      INTEGER;
@@ -245,4 +238,4 @@ BEGIN
         );
     END IF;
 END;
-$function$;
+$function$

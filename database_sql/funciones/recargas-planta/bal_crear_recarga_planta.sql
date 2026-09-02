@@ -1,17 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_crear_recarga_planta(
-    p_fecha_salida DATE,
-    p_id_proveedor INTEGER DEFAULT NULL,
-    p_id_almacen INTEGER DEFAULT NULL,
-    p_id_guia_salida INTEGER DEFAULT NULL,
-    p_serie_guia_salida VARCHAR DEFAULT NULL,
-    p_numero_guia_salida VARCHAR DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_confirmar_salida BOOLEAN DEFAULT TRUE,
-    p_detalles JSON DEFAULT '[]',
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_crear_recarga_planta
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.537Z
+DROP FUNCTION IF EXISTS bal_crear_recarga_planta(p_fecha_salida date, p_id_proveedor integer, p_id_almacen integer, p_id_guia_salida integer, p_serie_guia_salida character varying, p_numero_guia_salida character varying, p_observacion character varying, p_confirmar_salida boolean, p_detalles json, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_crear_recarga_planta(p_fecha_salida date, p_id_proveedor integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_guia_salida integer DEFAULT NULL::integer, p_serie_guia_salida character varying DEFAULT NULL::character varying, p_numero_guia_salida character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_confirmar_salida boolean DEFAULT true, p_detalles json DEFAULT '[]'::json, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -201,4 +196,4 @@ BEGIN
 
     RETURN bal_obtener_recarga_planta(v_id);
 END;
-$function$;
+$function$

@@ -1,6 +1,12 @@
-CREATE OR REPLACE FUNCTION act_obtener_activo(p_id INTEGER)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: act_obtener_activo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.474Z
+DROP FUNCTION IF EXISTS act_obtener_activo(p_id integer);
+
+CREATE OR REPLACE FUNCTION act_obtener_activo(p_id integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registro JSON;
@@ -42,4 +48,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$;
+$function$

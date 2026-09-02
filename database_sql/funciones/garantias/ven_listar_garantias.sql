@@ -1,20 +1,12 @@
-DROP FUNCTION IF EXISTS ven_listar_garantias(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER);
-DROP FUNCTION IF EXISTS ven_listar_garantias(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, VARCHAR, DATE, DATE);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_listar_garantias
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.809Z
+DROP FUNCTION IF EXISTS ven_listar_garantias(p_busqueda character varying, p_limite integer, p_offset integer, p_id_cliente integer, p_id_prestamo integer, p_id_estado integer, p_id_alquiler integer, p_estado_nombre character varying, p_desde date, p_hasta date);
 
-CREATE OR REPLACE FUNCTION ven_listar_garantias(
-    p_busqueda VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0,
-    p_id_cliente INTEGER DEFAULT NULL,
-    p_id_prestamo INTEGER DEFAULT NULL,
-    p_id_estado INTEGER DEFAULT NULL,
-    p_id_alquiler INTEGER DEFAULT NULL,
-    p_estado_nombre VARCHAR DEFAULT NULL,
-    p_desde DATE DEFAULT NULL,
-    p_hasta DATE DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION ven_listar_garantias(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_cliente integer DEFAULT NULL::integer, p_id_prestamo integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer, p_id_alquiler integer DEFAULT NULL::integer, p_estado_nombre character varying DEFAULT NULL::character varying, p_desde date DEFAULT NULL::date, p_hasta date DEFAULT NULL::date)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -201,4 +193,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

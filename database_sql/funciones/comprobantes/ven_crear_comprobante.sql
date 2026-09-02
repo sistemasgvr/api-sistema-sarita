@@ -1,41 +1,12 @@
--- precio_unitario en detalles se asume CON IGV incluido (descompone base + impuesto).
-DROP FUNCTION IF EXISTS ven_crear_comprobante(
-    INTEGER, VARCHAR, VARCHAR, DATE, INTEGER, JSON, INTEGER, INTEGER, INTEGER,
-    INTEGER, INTEGER, DATE, NUMERIC, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER,
-    VARCHAR, VARCHAR, VARCHAR, VARCHAR, INTEGER, JSON, INTEGER, VARCHAR
-);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_crear_comprobante
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.801Z
+DROP FUNCTION IF EXISTS ven_crear_comprobante(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_cliente integer, p_detalles json, p_id_tipo_operacion_sunat integer, p_id_comprobante_origen integer, p_id_motivo_nota integer, p_id_tipo_movimiento integer, p_id_tipo_venta integer, p_fecha_vencimiento date, p_tipo_cambio numeric, p_id_sucursal integer, p_id_almacen integer, p_id_condicion_pago integer, p_id_moneda integer, p_id_medio_pago integer, p_glosa character varying, p_observaciones character varying, p_periodo_contable character varying, p_operacion character varying, p_id_estado integer, p_cuotas json, p_id_usuario_auditoria integer, p_origen_pos character varying, p_efectos_pos json);
 
-CREATE OR REPLACE FUNCTION ven_crear_comprobante(
-    p_id_tipo_comprobante INTEGER,
-    p_serie VARCHAR,
-    p_numero VARCHAR DEFAULT NULL,
-    p_fecha DATE DEFAULT NULL,
-    p_id_cliente INTEGER DEFAULT NULL,
-    p_detalles JSON DEFAULT '[]'::JSON,
-    p_id_tipo_operacion_sunat INTEGER DEFAULT NULL,
-    p_id_comprobante_origen INTEGER DEFAULT NULL,
-    p_id_motivo_nota INTEGER DEFAULT NULL,
-    p_id_tipo_movimiento INTEGER DEFAULT NULL,
-    p_id_tipo_venta INTEGER DEFAULT NULL,
-    p_fecha_vencimiento DATE DEFAULT NULL,
-    p_tipo_cambio NUMERIC DEFAULT 3.5,
-    p_id_sucursal INTEGER DEFAULT NULL,
-    p_id_almacen INTEGER DEFAULT NULL,
-    p_id_condicion_pago INTEGER DEFAULT NULL,
-    p_id_moneda INTEGER DEFAULT NULL,
-    p_id_medio_pago INTEGER DEFAULT NULL,
-    p_glosa VARCHAR DEFAULT NULL,
-    p_observaciones VARCHAR DEFAULT NULL,
-    p_periodo_contable VARCHAR DEFAULT NULL,
-    p_operacion VARCHAR DEFAULT NULL,
-    p_id_estado INTEGER DEFAULT NULL,
-    p_cuotas JSON DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_origen_pos VARCHAR DEFAULT NULL,
-    p_efectos_pos JSON DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION ven_crear_comprobante(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying DEFAULT NULL::character varying, p_fecha date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer, p_detalles json DEFAULT '[]'::json, p_id_tipo_operacion_sunat integer DEFAULT NULL::integer, p_id_comprobante_origen integer DEFAULT NULL::integer, p_id_motivo_nota integer DEFAULT NULL::integer, p_id_tipo_movimiento integer DEFAULT NULL::integer, p_id_tipo_venta integer DEFAULT NULL::integer, p_fecha_vencimiento date DEFAULT NULL::date, p_tipo_cambio numeric DEFAULT 3.5, p_id_sucursal integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_glosa character varying DEFAULT NULL::character varying, p_observaciones character varying DEFAULT NULL::character varying, p_periodo_contable character varying DEFAULT NULL::character varying, p_operacion character varying DEFAULT NULL::character varying, p_id_estado integer DEFAULT NULL::integer, p_cuotas json DEFAULT NULL::json, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_origen_pos character varying DEFAULT NULL::character varying, p_efectos_pos json DEFAULT NULL::json)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -997,4 +968,4 @@ BEGIN
 
     RETURN ven_obtener_comprobante(v_id);
 END;
-$function$;
+$function$

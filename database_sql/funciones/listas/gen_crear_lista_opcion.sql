@@ -1,11 +1,12 @@
-CREATE OR REPLACE FUNCTION gen_crear_lista_opcion(
-    p_id_lista INTEGER,
-    p_nombre VARCHAR,
-    p_descripcion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_crear_lista_opcion
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.710Z
+DROP FUNCTION IF EXISTS gen_crear_lista_opcion(p_id_lista integer, p_nombre character varying, p_descripcion character varying, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION gen_crear_lista_opcion(p_id_lista integer, p_nombre character varying, p_descripcion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -76,4 +77,4 @@ BEGIN
         )
     );
 END;
-$function$;
+$function$

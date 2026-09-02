@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION ven_sincronizar_cxc_venta(
-    p_id_comprobante INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS VOID
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_sincronizar_cxc_venta
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.821Z
+DROP FUNCTION IF EXISTS ven_sincronizar_cxc_venta(p_id_comprobante integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION ven_sincronizar_cxc_venta(p_id_comprobante integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS void
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_total NUMERIC(12,4);
@@ -171,4 +174,4 @@ BEGIN
         );
     END IF;
 END;
-$function$;
+$function$

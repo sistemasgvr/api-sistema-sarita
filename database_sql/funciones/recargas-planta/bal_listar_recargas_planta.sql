@@ -1,15 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_listar_recargas_planta(
-    p_busqueda VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0,
-    p_id_proveedor INTEGER DEFAULT NULL,
-    p_id_almacen INTEGER DEFAULT NULL,
-    p_id_estado INTEGER DEFAULT NULL,
-    p_fecha_desde DATE DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_listar_recargas_planta
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.574Z
+DROP FUNCTION IF EXISTS bal_listar_recargas_planta(p_busqueda character varying, p_limite integer, p_offset integer, p_id_proveedor integer, p_id_almacen integer, p_id_estado integer, p_fecha_desde date, p_fecha_hasta date);
+
+CREATE OR REPLACE FUNCTION bal_listar_recargas_planta(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_proveedor integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -143,4 +140,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

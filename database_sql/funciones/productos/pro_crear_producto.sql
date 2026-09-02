@@ -1,29 +1,12 @@
-DROP FUNCTION IF EXISTS pro_crear_producto(VARCHAR, VARCHAR, INTEGER, VARCHAR, INTEGER, VARCHAR, VARCHAR, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, NUMERIC, VARCHAR, INTEGER, NUMERIC, NUMERIC);
-DROP FUNCTION IF EXISTS pro_crear_producto(VARCHAR, VARCHAR, INTEGER, VARCHAR, INTEGER, VARCHAR, VARCHAR, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, NUMERIC, VARCHAR, INTEGER, NUMERIC, NUMERIC, NUMERIC, NUMERIC);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: pro_crear_producto
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.773Z
+DROP FUNCTION IF EXISTS pro_crear_producto(p_codigo character varying, p_nombre character varying, p_id_sub_categoria integer, p_codigo_barra character varying, p_id_unidad_medida integer, p_marca character varying, p_presentacion character varying, p_es_gas boolean, p_es_servicio boolean, p_es_alquilable boolean, p_afecta_stock boolean, p_precio numeric, p_codigo_ubicacion character varying, p_id_usuario_auditoria integer, p_precio_compra numeric, p_precio_garantia numeric, p_factor_kg_m3 numeric, p_factor_lb_m3 numeric, p_es_mantenimiento boolean);
 
-CREATE OR REPLACE FUNCTION pro_crear_producto(
-    p_codigo VARCHAR,
-    p_nombre VARCHAR,
-    p_id_sub_categoria INTEGER DEFAULT NULL,
-    p_codigo_barra VARCHAR DEFAULT NULL,
-    p_id_unidad_medida INTEGER DEFAULT NULL,
-    p_marca VARCHAR DEFAULT NULL,
-    p_presentacion VARCHAR DEFAULT NULL,
-    p_es_gas BOOLEAN DEFAULT FALSE,
-    p_es_servicio BOOLEAN DEFAULT FALSE,
-    p_es_alquilable BOOLEAN DEFAULT FALSE,
-    p_afecta_stock BOOLEAN DEFAULT TRUE,
-    p_precio NUMERIC DEFAULT 0,
-    p_codigo_ubicacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_precio_compra NUMERIC DEFAULT 0,
-    p_precio_garantia NUMERIC DEFAULT 0,
-    p_factor_kg_m3 NUMERIC DEFAULT NULL,
-    p_factor_lb_m3 NUMERIC DEFAULT NULL,
-    p_es_mantenimiento BOOLEAN DEFAULT FALSE
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION pro_crear_producto(p_codigo character varying, p_nombre character varying, p_id_sub_categoria integer DEFAULT NULL::integer, p_codigo_barra character varying DEFAULT NULL::character varying, p_id_unidad_medida integer DEFAULT NULL::integer, p_marca character varying DEFAULT NULL::character varying, p_presentacion character varying DEFAULT NULL::character varying, p_es_gas boolean DEFAULT false, p_es_servicio boolean DEFAULT false, p_es_alquilable boolean DEFAULT false, p_afecta_stock boolean DEFAULT true, p_precio numeric DEFAULT 0, p_codigo_ubicacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_precio_compra numeric DEFAULT 0, p_precio_garantia numeric DEFAULT 0, p_factor_kg_m3 numeric DEFAULT NULL::numeric, p_factor_lb_m3 numeric DEFAULT NULL::numeric, p_es_mantenimiento boolean DEFAULT false)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -139,4 +122,4 @@ BEGIN
 
     RETURN pro_obtener_producto(v_id);
 END;
-$function$;
+$function$

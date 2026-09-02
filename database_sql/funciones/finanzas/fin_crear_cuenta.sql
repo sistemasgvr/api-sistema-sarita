@@ -1,30 +1,13 @@
--- Crea una cuenta financiera manual (externa a las ventas/compras).
--- Ej.: préstamo bancario a pagar, cobro esperado no derivado de una venta, etc.
--- No usa comprobante: es una cuenta suelta.
--- El tercero puede ser un cliente/proveedor (p_id_tercero) o un nombre libre
--- (p_tercero_nombre). Al menos UNO de los dos debe venir.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_crear_cuenta
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.673Z
+DROP FUNCTION IF EXISTS fin_crear_cuenta(p_tipo character varying, p_id_tercero integer, p_tercero_nombre character varying, p_fecha_emision date, p_fecha_vencimiento date, p_monto numeric, p_descripcion character varying, p_observacion character varying, p_id_banco integer, p_tasa_interes numeric, p_numero_comprobante character varying, p_id_usuario integer);
 
-DROP FUNCTION IF EXISTS fin_crear_cuenta(VARCHAR, INT, DATE, DATE, NUMERIC, VARCHAR, INT);
-DROP FUNCTION IF EXISTS fin_crear_cuenta(VARCHAR, INT, VARCHAR, DATE, DATE, NUMERIC, VARCHAR, VARCHAR, INT, NUMERIC, INT);
-DROP FUNCTION IF EXISTS fin_crear_cuenta(VARCHAR, INT, VARCHAR, DATE, DATE, NUMERIC, VARCHAR, VARCHAR, INT, NUMERIC, VARCHAR, INT);
-
-CREATE OR REPLACE FUNCTION fin_crear_cuenta(
-    p_tipo             VARCHAR,   -- 'COBRAR' | 'PAGAR'
-    p_id_tercero       INT       DEFAULT NULL,
-    p_tercero_nombre   VARCHAR   DEFAULT NULL,
-    p_fecha_emision    DATE      DEFAULT NULL,
-    p_fecha_vencimiento DATE     DEFAULT NULL,
-    p_monto            NUMERIC   DEFAULT NULL,
-    p_descripcion      VARCHAR   DEFAULT NULL,
-    p_observacion      VARCHAR   DEFAULT NULL,
-    p_id_banco         INT       DEFAULT NULL,
-    p_tasa_interes     NUMERIC   DEFAULT NULL,
-    p_numero_comprobante VARCHAR DEFAULT NULL,
-    p_id_usuario       INT       DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_crear_cuenta(p_tipo character varying, p_id_tercero integer DEFAULT NULL::integer, p_tercero_nombre character varying DEFAULT NULL::character varying, p_fecha_emision date DEFAULT NULL::date, p_fecha_vencimiento date DEFAULT NULL::date, p_monto numeric DEFAULT NULL::numeric, p_descripcion character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_banco integer DEFAULT NULL::integer, p_tasa_interes numeric DEFAULT NULL::numeric, p_numero_comprobante character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_id_tipo    INT;
     v_id_tercero INT;
@@ -142,4 +125,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$$;
+$function$

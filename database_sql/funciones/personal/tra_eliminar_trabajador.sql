@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION tra_eliminar_trabajador(
-    p_id INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: tra_eliminar_trabajador
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.797Z
+DROP FUNCTION IF EXISTS tra_eliminar_trabajador(p_id integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION tra_eliminar_trabajador(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -22,9 +25,9 @@ BEGIN
     UPDATE auth_usuarios
     SET estado = FALSE,
         fecha_modificacion = NOW()
-    WHERE id_trabajador = p_id
+    WHERE id = (SELECT id_usuario FROM tra_trabajadores WHERE id = p_id)
       AND estado = TRUE;
 
     RETURN json_build_object('eliminado', TRUE, 'id', p_id);
 END;
-$function$;
+$function$

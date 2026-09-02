@@ -1,7 +1,12 @@
--- Convierte un JSON { error: "..." } de funciones de dominio en excepción (rollback).
-CREATE OR REPLACE FUNCTION ven_raise_si_error(p_result JSON)
-RETURNS VOID
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_raise_si_error
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.817Z
+DROP FUNCTION IF EXISTS ven_raise_si_error(p_result json);
+
+CREATE OR REPLACE FUNCTION ven_raise_si_error(p_result json)
+ RETURNS void
+ LANGUAGE plpgsql
 AS $function$
 BEGIN
     IF p_result IS NULL THEN
@@ -12,4 +17,4 @@ BEGIN
         RAISE EXCEPTION '%', p_result->>'error';
     END IF;
 END;
-$function$;
+$function$

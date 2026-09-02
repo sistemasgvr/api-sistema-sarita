@@ -1,6 +1,12 @@
-CREATE OR REPLACE FUNCTION auth_obtener_usuario_por_correo(p_correo VARCHAR)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: auth_obtener_usuario_por_correo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.508Z
+DROP FUNCTION IF EXISTS auth_obtener_usuario_por_correo(p_correo character varying);
+
+CREATE OR REPLACE FUNCTION auth_obtener_usuario_por_correo(p_correo character varying)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registro JSON;
@@ -31,4 +37,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$;
+$function$

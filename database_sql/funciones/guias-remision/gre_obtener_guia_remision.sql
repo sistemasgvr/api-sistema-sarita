@@ -1,6 +1,12 @@
-CREATE OR REPLACE FUNCTION gre_obtener_guia_remision(p_id INTEGER)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gre_obtener_guia_remision
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.758Z
+DROP FUNCTION IF EXISTS gre_obtener_guia_remision(p_id integer);
+
+CREATE OR REPLACE FUNCTION gre_obtener_guia_remision(p_id integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registro JSON;
@@ -190,4 +196,4 @@ BEGIN
         'referencias', v_referencias
     );
 END;
-$function$;
+$function$

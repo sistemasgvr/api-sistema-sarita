@@ -1,30 +1,12 @@
-DROP FUNCTION IF EXISTS act_listar_activos(
-    INTEGER,
-    INTEGER,
-    INTEGER,
-    DATE,
-    DATE,
-    NUMERIC,
-    NUMERIC,
-    VARCHAR,
-    INTEGER,
-    INTEGER
-);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: act_listar_activos
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.473Z
+DROP FUNCTION IF EXISTS act_listar_activos(p_estado integer, p_id_tipo integer, p_id_sucursal integer, p_fecha_desde date, p_fecha_hasta date, p_importe_min numeric, p_importe_max numeric, p_buscar character varying, p_limite integer, p_offset integer);
 
-CREATE OR REPLACE FUNCTION act_listar_activos(
-    p_estado        INTEGER DEFAULT NULL,   -- 1 activos, 0 inactivos, NULL = todos
-    p_id_tipo       INTEGER DEFAULT NULL,
-    p_id_sucursal   INTEGER DEFAULT NULL,
-    p_fecha_desde   DATE    DEFAULT NULL,
-    p_fecha_hasta   DATE    DEFAULT NULL,
-    p_importe_min   NUMERIC DEFAULT NULL,
-    p_importe_max   NUMERIC DEFAULT NULL,
-    p_buscar        VARCHAR DEFAULT '',
-    p_limite        INTEGER DEFAULT 10,
-    p_offset        INTEGER DEFAULT 0
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION act_listar_activos(p_estado integer DEFAULT NULL::integer, p_id_tipo integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_importe_min numeric DEFAULT NULL::numeric, p_importe_max numeric DEFAULT NULL::numeric, p_buscar character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -94,4 +76,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

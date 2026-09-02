@@ -1,11 +1,12 @@
--- importe de cada línea se asume CON IGV incluido; se descompone en
--- base imponible (sub_total) + IGV (igv), igual que en com_crear_compra.
-CREATE OR REPLACE FUNCTION com_recalcular_totales_compra(
-    p_id_comprobante         INTEGER,
-    p_id_usuario_auditoria   INTEGER DEFAULT NULL
-)
-RETURNS VOID
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: com_recalcular_totales_compra
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.639Z
+DROP FUNCTION IF EXISTS com_recalcular_totales_compra(p_id_comprobante integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION com_recalcular_totales_compra(p_id_comprobante integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS void
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_total_bruto     NUMERIC(12,4);
@@ -32,4 +33,4 @@ BEGIN
     -- genera la CxP (idempotente si ya existe).
     PERFORM com_sincronizar_cxp_compra(p_id_comprobante, p_id_usuario_auditoria);
 END;
-$function$;
+$function$

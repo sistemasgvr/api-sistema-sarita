@@ -1,17 +1,12 @@
--- CY6: conteos y detalle de cilindros por propietario (EMPRESA / PLANTA / CLIENTE).
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_reporte_balones_propietario
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.603Z
+DROP FUNCTION IF EXISTS bal_reporte_balones_propietario(p_busqueda character varying, p_limite integer, p_offset integer, p_tipo_propietario character varying, p_id_planta integer, p_id_cliente_propietario integer, p_id_almacen integer, p_excluir_bajas boolean);
 
-CREATE OR REPLACE FUNCTION bal_reporte_balones_propietario(
-    p_busqueda VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 50,
-    p_offset INTEGER DEFAULT 0,
-    p_tipo_propietario VARCHAR DEFAULT NULL,
-    p_id_planta INTEGER DEFAULT NULL,
-    p_id_cliente_propietario INTEGER DEFAULT NULL,
-    p_id_almacen INTEGER DEFAULT NULL,
-    p_excluir_bajas BOOLEAN DEFAULT TRUE
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION bal_reporte_balones_propietario(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 50, p_offset integer DEFAULT 0, p_tipo_propietario character varying DEFAULT NULL::character varying, p_id_planta integer DEFAULT NULL::integer, p_id_cliente_propietario integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_excluir_bajas boolean DEFAULT true)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -213,4 +208,4 @@ BEGIN
         )
     );
 END;
-$function$;
+$function$

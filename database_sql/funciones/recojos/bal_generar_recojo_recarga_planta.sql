@@ -1,12 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_generar_recojo_recarga_planta(
-    p_id_recarga_planta INTEGER,
-    p_fecha_programada DATE DEFAULT NULL,
-    p_id_usuario_responsable INTEGER DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_generar_recojo_recarga_planta
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.556Z
+DROP FUNCTION IF EXISTS bal_generar_recojo_recarga_planta(p_id_recarga_planta integer, p_fecha_programada date, p_id_usuario_responsable integer, p_observacion character varying, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_generar_recojo_recarga_planta(p_id_recarga_planta integer, p_fecha_programada date DEFAULT NULL::date, p_id_usuario_responsable integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_proveedor INTEGER;
@@ -96,4 +96,4 @@ BEGIN
         p_id_usuario_auditoria
     );
 END;
-$function$;
+$function$

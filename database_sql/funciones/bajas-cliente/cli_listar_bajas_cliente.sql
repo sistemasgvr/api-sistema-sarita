@@ -1,16 +1,12 @@
-DROP FUNCTION IF EXISTS cli_listar_bajas_cliente;
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: cli_listar_bajas_cliente
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.619Z
+DROP FUNCTION IF EXISTS cli_listar_bajas_cliente(p_solo_activos integer, p_buscar character varying, p_limite integer, p_offset integer, p_id_cliente integer, p_id_estado_aprobacion integer, p_id_tipo_solicitud integer);
 
-CREATE OR REPLACE FUNCTION cli_listar_bajas_cliente(
-    p_solo_activos INT DEFAULT NULL,
-    p_buscar VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0,
-    p_id_cliente INTEGER DEFAULT NULL,
-    p_id_estado_aprobacion INTEGER DEFAULT NULL,
-    p_id_tipo_solicitud INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION cli_listar_bajas_cliente(p_solo_activos integer DEFAULT NULL::integer, p_buscar character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_cliente integer DEFAULT NULL::integer, p_id_estado_aprobacion integer DEFAULT NULL::integer, p_id_tipo_solicitud integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -103,4 +99,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

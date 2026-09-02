@@ -1,11 +1,13 @@
-DROP FUNCTION IF EXISTS dash_stock_por_categoria(INT);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_stock_por_categoria
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.657Z
+DROP FUNCTION IF EXISTS dash_stock_por_categoria(p_id_almacen integer);
 
-CREATE OR REPLACE FUNCTION dash_stock_por_categoria(
-    p_id_almacen INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_stock_por_categoria(p_id_almacen integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_result JSON;
 BEGIN
@@ -49,4 +51,4 @@ BEGIN
 
     RETURN v_result;
 END;
-$$;
+$function$

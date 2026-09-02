@@ -1,21 +1,13 @@
--- Lista garantías con paginación + filtros por estado, cliente, rango de fechas
--- y búsqueda por texto.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_listar_garantias
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.682Z
+DROP FUNCTION IF EXISTS fin_listar_garantias(p_buscar character varying, p_id_cliente integer, p_desde date, p_hasta date, p_estado character varying, p_limite integer, p_offset integer);
 
-DROP FUNCTION IF EXISTS fin_listar_garantias(VARCHAR, INT, DATE, DATE, INT, INT);
-DROP FUNCTION IF EXISTS fin_listar_garantias(VARCHAR, INT, DATE, DATE, VARCHAR, INT, INT);
-
-CREATE OR REPLACE FUNCTION fin_listar_garantias(
-    p_buscar     VARCHAR DEFAULT NULL,
-    p_id_cliente INT     DEFAULT NULL,
-    p_desde      DATE    DEFAULT NULL,
-    p_hasta      DATE    DEFAULT NULL,
-    p_estado     VARCHAR DEFAULT NULL,   -- 'ACTIVA' | 'DEVUELTA' | NULL (todas)
-    p_limite     INT     DEFAULT 10,
-    p_offset     INT     DEFAULT 0
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_listar_garantias(p_buscar character varying DEFAULT NULL::character varying, p_id_cliente integer DEFAULT NULL::integer, p_desde date DEFAULT NULL::date, p_hasta date DEFAULT NULL::date, p_estado character varying DEFAULT NULL::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_resultado JSON;
     v_buscar    VARCHAR;
@@ -81,4 +73,4 @@ BEGIN
 
     RETURN v_resultado;
 END;
-$$;
+$function$

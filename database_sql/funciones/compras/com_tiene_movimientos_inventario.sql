@@ -1,11 +1,12 @@
--- ¿esta compra tiene líneas que ya afectaron stock?
--- Si devuelve TRUE, la compra NO admite modificación parcial:
--- ni agregar/quitar línea, ni cambiar cantidad, ni tocar cabecera.
-CREATE OR REPLACE FUNCTION com_tiene_movimientos_inventario(
-    p_id_comprobante INTEGER
-)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: com_tiene_movimientos_inventario
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.642Z
+DROP FUNCTION IF EXISTS com_tiene_movimientos_inventario(p_id_comprobante integer);
+
+CREATE OR REPLACE FUNCTION com_tiene_movimientos_inventario(p_id_comprobante integer)
+ RETURNS boolean
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_tiene BOOLEAN;
@@ -20,4 +21,4 @@ BEGIN
  
     RETURN v_tiene;
 END;
-$function$;
+$function$

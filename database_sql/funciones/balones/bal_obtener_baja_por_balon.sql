@@ -1,6 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_obtener_baja_por_balon(p_id_balon INTEGER)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_obtener_baja_por_balon
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.583Z
+DROP FUNCTION IF EXISTS bal_obtener_baja_por_balon(p_id_balon integer);
+
+CREATE OR REPLACE FUNCTION bal_obtener_baja_por_balon(p_id_balon integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -19,4 +25,4 @@ BEGIN
 
     RETURN bal_obtener_baja_balon(v_id);
 END;
-$function$;
+$function$

@@ -1,15 +1,13 @@
--- Total de clientes activos (opcionalmente filtrado por cliente y rango de fecha de registro).
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_total_clientes
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.659Z
+DROP FUNCTION IF EXISTS dash_total_clientes(p_id_cliente integer, p_fecha_desde date, p_fecha_hasta date);
 
-DROP FUNCTION IF EXISTS dash_total_clientes();
-
-CREATE OR REPLACE FUNCTION dash_total_clientes(
-    p_id_cliente  INT  DEFAULT NULL,
-    p_fecha_desde DATE DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL
-)
-RETURNS INTEGER
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_total_clientes(p_id_cliente integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date)
+ RETURNS integer
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_total INTEGER;
 BEGIN
@@ -25,4 +23,4 @@ BEGIN
 
     RETURN v_total;
 END;
-$$;
+$function$

@@ -1,12 +1,13 @@
-DROP FUNCTION IF EXISTS dash_demanda_gases(DATE, DATE);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_demanda_gases
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.649Z
+DROP FUNCTION IF EXISTS dash_demanda_gases(p_fecha_desde date, p_fecha_hasta date);
 
-CREATE OR REPLACE FUNCTION dash_demanda_gases(
-    p_fecha_desde DATE DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_demanda_gases(p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_result JSON;
 BEGIN
@@ -53,4 +54,4 @@ BEGIN
 
     RETURN v_result;
 END;
-$$;
+$function$

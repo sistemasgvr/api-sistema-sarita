@@ -1,12 +1,13 @@
-DROP FUNCTION IF EXISTS dash_venta_gases_comparativo(INT, INT);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_venta_gases_comparativo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.661Z
+DROP FUNCTION IF EXISTS dash_venta_gases_comparativo(p_anio integer, p_mes integer);
 
-CREATE OR REPLACE FUNCTION dash_venta_gases_comparativo(
-    p_anio INT DEFAULT NULL,
-    p_mes  INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_venta_gases_comparativo(p_anio integer DEFAULT NULL::integer, p_mes integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_fecha_ref     DATE;
     v_inicio_actual DATE;
@@ -62,4 +63,4 @@ BEGIN
 
     RETURN v_result;
 END;
-$$;
+$function$

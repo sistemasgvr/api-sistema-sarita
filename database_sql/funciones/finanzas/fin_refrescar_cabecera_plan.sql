@@ -1,10 +1,13 @@
--- Recalcula abonado/saldo de la cabecera a partir de las cuotas hijas.
--- Si ninguna hija tiene saldo a céntimos, la cabecera queda PAGADA
--- (absorbe el céntimo de redondeo 1000 vs 333.33×3).
-CREATE OR REPLACE FUNCTION fin_refrescar_cabecera_plan(p_id_padre INTEGER)
-RETURNS VOID
-LANGUAGE plpgsql
-AS $$
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_refrescar_cabecera_plan
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.689Z
+DROP FUNCTION IF EXISTS fin_refrescar_cabecera_plan(p_id_padre integer);
+
+CREATE OR REPLACE FUNCTION fin_refrescar_cabecera_plan(p_id_padre integer)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_pendiente        NUMERIC(12,2);
     v_total_abonado    NUMERIC(12,2);
@@ -52,4 +55,4 @@ BEGIN
         fecha_modificacion = NOW()
     WHERE id = p_id_padre;
 END;
-$$;
+$function$

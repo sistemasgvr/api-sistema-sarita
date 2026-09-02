@@ -1,13 +1,13 @@
-DROP FUNCTION IF EXISTS dash_top_clientes_venta(DATE, DATE, INT);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_top_clientes_venta
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.658Z
+DROP FUNCTION IF EXISTS dash_top_clientes_venta(p_fecha_desde date, p_fecha_hasta date, p_limite integer);
 
-CREATE OR REPLACE FUNCTION dash_top_clientes_venta(
-    p_fecha_desde DATE DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL,
-    p_limite      INT  DEFAULT 10
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_top_clientes_venta(p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_limite integer DEFAULT 10)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_desde  DATE := COALESCE(p_fecha_desde, DATE_TRUNC('month', CURRENT_DATE)::date);
     v_hasta  DATE := COALESCE(p_fecha_hasta, (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month - 1 day')::date);
@@ -40,4 +40,4 @@ BEGIN
         'detalle', v_result
     );
 END;
-$$;
+$function$

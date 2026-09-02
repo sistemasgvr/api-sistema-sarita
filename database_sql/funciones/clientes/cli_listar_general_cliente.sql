@@ -1,15 +1,13 @@
-DROP FUNCTION IF EXISTS cli_listar_clientes(INT, INT, VARCHAR, INT, INT);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: cli_listar_clientes
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.620Z
+DROP FUNCTION IF EXISTS cli_listar_clientes(p_solo_activos integer, p_id_tipo_cliente integer, p_buscar character varying, p_limite integer, p_offset integer);
 
-CREATE OR REPLACE FUNCTION cli_listar_clientes(
-    p_solo_activos    INT     DEFAULT NULL,
-    p_id_tipo_cliente INT     DEFAULT NULL,
-    p_buscar          VARCHAR DEFAULT NULL,
-    p_limite          INT     DEFAULT 10,
-    p_offset          INT     DEFAULT 0
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION cli_listar_clientes(p_solo_activos integer DEFAULT NULL::integer, p_id_tipo_cliente integer DEFAULT NULL::integer, p_buscar character varying DEFAULT NULL::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_resultado JSON;
     v_buscar    VARCHAR;
@@ -134,4 +132,4 @@ BEGIN
 
     RETURN v_resultado;
 END;
-$$;
+$function$

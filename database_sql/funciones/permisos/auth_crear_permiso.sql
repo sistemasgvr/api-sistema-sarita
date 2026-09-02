@@ -1,10 +1,12 @@
-CREATE OR REPLACE FUNCTION auth_crear_permiso(
-    p_nombre VARCHAR,
-    p_descripcion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: auth_crear_permiso
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.488Z
+DROP FUNCTION IF EXISTS auth_crear_permiso(p_nombre character varying, p_descripcion character varying, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION auth_crear_permiso(p_nombre character varying, p_descripcion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -17,4 +19,4 @@ BEGIN
 
     RETURN auth_obtener_permiso(v_id);
 END;
-$function$;
+$function$

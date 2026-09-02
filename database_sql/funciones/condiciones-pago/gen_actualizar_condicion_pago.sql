@@ -1,17 +1,12 @@
-DROP FUNCTION IF EXISTS gen_actualizar_condicion_pago(INTEGER, VARCHAR, VARCHAR, INTEGER, INTEGER);
-DROP FUNCTION IF EXISTS gen_actualizar_condicion_pago(INTEGER, VARCHAR, VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_actualizar_condicion_pago
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.694Z
+DROP FUNCTION IF EXISTS gen_actualizar_condicion_pago(p_id integer, p_codigo character varying, p_nombre character varying, p_dias_credito integer, p_numero_cuotas integer, p_dia_mes_pago integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION gen_actualizar_condicion_pago(
-    p_id INTEGER,
-    p_codigo VARCHAR DEFAULT NULL,
-    p_nombre VARCHAR DEFAULT NULL,
-    p_dias_credito INTEGER DEFAULT NULL,
-    p_numero_cuotas INTEGER DEFAULT NULL,
-    p_dia_mes_pago INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION gen_actualizar_condicion_pago(p_id integer, p_codigo character varying DEFAULT NULL::character varying, p_nombre character varying DEFAULT NULL::character varying, p_dias_credito integer DEFAULT NULL::integer, p_numero_cuotas integer DEFAULT NULL::integer, p_dia_mes_pago integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_dias INTEGER;
@@ -73,4 +68,4 @@ BEGIN
 
     RETURN gen_obtener_condicion_pago(p_id);
 END;
-$function$;
+$function$

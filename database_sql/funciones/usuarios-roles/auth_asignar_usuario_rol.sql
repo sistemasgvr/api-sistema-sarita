@@ -1,10 +1,12 @@
-CREATE OR REPLACE FUNCTION auth_asignar_usuario_rol(
-    p_id_usuario INTEGER,
-    p_id_rol INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: auth_asignar_usuario_rol
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.487Z
+DROP FUNCTION IF EXISTS auth_asignar_usuario_rol(p_id_usuario integer, p_id_rol integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION auth_asignar_usuario_rol(p_id_usuario integer, p_id_rol integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -43,4 +45,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$;
+$function$

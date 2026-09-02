@@ -1,14 +1,12 @@
-DROP FUNCTION IF EXISTS cli_solicitar_baja_cliente;
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: cli_solicitar_baja_cliente
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.628Z
+DROP FUNCTION IF EXISTS cli_solicitar_baja_cliente(p_id_cliente integer, p_id_motivo_baja integer, p_motivo_detalle character varying, p_id_usuario_auditoria integer, p_id_tipo_solicitud integer);
 
-CREATE OR REPLACE FUNCTION cli_solicitar_baja_cliente(
-    p_id_cliente INTEGER,
-    p_id_motivo_baja INTEGER DEFAULT NULL,
-    p_motivo_detalle VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_id_tipo_solicitud INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION cli_solicitar_baja_cliente(p_id_cliente integer, p_id_motivo_baja integer DEFAULT NULL::integer, p_motivo_detalle character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_tipo_solicitud integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_baja INTEGER;
@@ -63,4 +61,4 @@ BEGIN
 
     RETURN cli_obtener_baja_cliente(v_id_baja);
 END;
-$function$;
+$function$

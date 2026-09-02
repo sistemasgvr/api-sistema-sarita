@@ -1,16 +1,13 @@
--- Detalle de una cuenta financiera con su historial de pagos activos.
--- Si es cabecera de un plan de cuotas (numero_cuotas_total IS NOT NULL),
--- incluye también el arreglo de cuotas hijas con su estado calculado.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_obtener_cuenta
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.686Z
+DROP FUNCTION IF EXISTS fin_obtener_cuenta(p_id integer, p_tipo character varying);
 
-DROP FUNCTION IF EXISTS fin_obtener_cuenta(INT, VARCHAR);
-
-CREATE OR REPLACE FUNCTION fin_obtener_cuenta(
-    p_id   INT,
-    p_tipo VARCHAR DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_obtener_cuenta(p_id integer, p_tipo character varying DEFAULT NULL::character varying)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_registro JSON;
     v_id_tipo  INT;
@@ -122,4 +119,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$$;
+$function$

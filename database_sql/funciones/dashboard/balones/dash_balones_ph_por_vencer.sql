@@ -1,14 +1,13 @@
--- Balones con PH por vencer (días de alerta, default 30). Filtro opcional por cliente (ubicación).
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_balones_ph_por_vencer
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.646Z
+DROP FUNCTION IF EXISTS dash_balones_ph_por_vencer(p_dias_alerta integer, p_id_cliente integer);
 
-DROP FUNCTION IF EXISTS dash_balones_ph_por_vencer(INT);
-
-CREATE OR REPLACE FUNCTION dash_balones_ph_por_vencer(
-    p_dias_alerta INT DEFAULT 30,
-    p_id_cliente  INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_balones_ph_por_vencer(p_dias_alerta integer DEFAULT 30, p_id_cliente integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
   v_id_baja INT;
   v_result JSON;
@@ -46,4 +45,4 @@ BEGIN
 
   RETURN v_result;
 END;
-$$;
+$function$

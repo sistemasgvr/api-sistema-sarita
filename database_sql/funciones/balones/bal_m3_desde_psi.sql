@@ -1,11 +1,13 @@
--- Aprox. operativa a T constante: m³ = capacidad_tipo * (PSI / PSI_llenado)
-CREATE OR REPLACE FUNCTION bal_m3_desde_psi(
-    p_id_tipo_balon INTEGER,
-    p_psi NUMERIC
-)
-RETURNS NUMERIC
-LANGUAGE plpgsql
-STABLE
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_m3_desde_psi
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.580Z
+DROP FUNCTION IF EXISTS bal_m3_desde_psi(p_id_tipo_balon integer, p_psi numeric);
+
+CREATE OR REPLACE FUNCTION bal_m3_desde_psi(p_id_tipo_balon integer, p_psi numeric)
+ RETURNS numeric
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 DECLARE
     v_cap NUMERIC;
@@ -26,4 +28,4 @@ BEGIN
 
     RETURN ROUND(v_cap * LEAST(p_psi / v_psi_lleno, 1), 4);
 END;
-$function$;
+$function$

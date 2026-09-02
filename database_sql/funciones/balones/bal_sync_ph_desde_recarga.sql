@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_sync_ph_desde_recarga(
-    p_id_movimiento_recarga INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS VOID
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_sync_ph_desde_recarga
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.608Z
+DROP FUNCTION IF EXISTS bal_sync_ph_desde_recarga(p_id_movimiento_recarga integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_sync_ph_desde_recarga(p_id_movimiento_recarga integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS void
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_row RECORD;
@@ -42,4 +45,4 @@ BEGIN
         p_id_usuario_auditoria
     );
 END;
-$function$;
+$function$

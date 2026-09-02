@@ -1,8 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_obtener_siguiente_numero_alquiler(
-    p_anio INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_obtener_siguiente_numero_alquiler
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.592Z
+DROP FUNCTION IF EXISTS bal_obtener_siguiente_numero_alquiler(p_anio integer);
+
+CREATE OR REPLACE FUNCTION bal_obtener_siguiente_numero_alquiler(p_anio integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_anio INTEGER;
@@ -43,4 +47,4 @@ EXCEPTION
             'numero', NULL
         );
 END;
-$function$;
+$function$

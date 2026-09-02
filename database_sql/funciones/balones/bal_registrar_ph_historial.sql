@@ -1,17 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_registrar_ph_historial(
-    p_id_balon INTEGER,
-    p_fecha_prueba DATE,
-    p_vigencia_anios INTEGER DEFAULT NULL,
-    p_id_organo_inspector INTEGER DEFAULT NULL,
-    p_organo_inspector_no_aplica BOOLEAN DEFAULT FALSE,
-    p_numero_certificado VARCHAR DEFAULT NULL,
-    p_id_mantenimiento INTEGER DEFAULT NULL,
-    p_id_movimiento_recarga INTEGER DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_registrar_ph_historial
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.598Z
+DROP FUNCTION IF EXISTS bal_registrar_ph_historial(p_id_balon integer, p_fecha_prueba date, p_vigencia_anios integer, p_id_organo_inspector integer, p_organo_inspector_no_aplica boolean, p_numero_certificado character varying, p_id_mantenimiento integer, p_id_movimiento_recarga integer, p_observacion character varying, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_registrar_ph_historial(p_id_balon integer, p_fecha_prueba date, p_vigencia_anios integer DEFAULT NULL::integer, p_id_organo_inspector integer DEFAULT NULL::integer, p_organo_inspector_no_aplica boolean DEFAULT false, p_numero_certificado character varying DEFAULT NULL::character varying, p_id_mantenimiento integer DEFAULT NULL::integer, p_id_movimiento_recarga integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -82,4 +77,4 @@ BEGIN
 
     RETURN bal_obtener_ph_historial(v_id);
 END;
-$function$;
+$function$

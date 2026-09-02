@@ -1,13 +1,12 @@
--- Alinea la CxP con el total y la condición actuales de la compra.
--- Sin pagos: recrea o da de baja. Con pagos: solo permite si el total no cambió.
-CREATE OR REPLACE FUNCTION com_sincronizar_cxp_compra(
-    p_id_comprobante       INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_fecha_vencimiento    DATE DEFAULT NULL,
-    p_cuotas               JSONB DEFAULT NULL
-)
-RETURNS VOID
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: com_sincronizar_cxp_compra
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.641Z
+DROP FUNCTION IF EXISTS com_sincronizar_cxp_compra(p_id_comprobante integer, p_id_usuario_auditoria integer, p_fecha_vencimiento date, p_cuotas jsonb);
+
+CREATE OR REPLACE FUNCTION com_sincronizar_cxp_compra(p_id_comprobante integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_fecha_vencimiento date DEFAULT NULL::date, p_cuotas jsonb DEFAULT NULL::jsonb)
+ RETURNS void
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_total NUMERIC(12,4);
@@ -94,4 +93,4 @@ BEGIN
         p_cuotas
     );
 END;
-$function$;
+$function$

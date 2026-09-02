@@ -1,10 +1,12 @@
-CREATE OR REPLACE FUNCTION fin_bajar_cuentas_documento(
-    p_id_usuario INTEGER,
-    p_id_comprobante_venta INTEGER DEFAULT NULL,
-    p_id_comprobante_compra INTEGER DEFAULT NULL
-)
-RETURNS VOID
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_bajar_cuentas_documento
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.668Z
+DROP FUNCTION IF EXISTS fin_bajar_cuentas_documento(p_id_usuario integer, p_id_comprobante_venta integer, p_id_comprobante_compra integer);
+
+CREATE OR REPLACE FUNCTION fin_bajar_cuentas_documento(p_id_usuario integer, p_id_comprobante_venta integer DEFAULT NULL::integer, p_id_comprobante_compra integer DEFAULT NULL::integer)
+ RETURNS void
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_padre INTEGER;
@@ -27,4 +29,4 @@ BEGIN
            OR id_cuenta_padre = v_id_padre;
     END LOOP;
 END;
-$function$;
+$function$

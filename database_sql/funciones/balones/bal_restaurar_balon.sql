@@ -1,11 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_restaurar_balon(
-    p_id_balon INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_almacen INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_restaurar_balon
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.605Z
+DROP FUNCTION IF EXISTS bal_restaurar_balon(p_id_balon integer, p_id_usuario_auditoria integer, p_observacion character varying, p_id_almacen integer);
+
+CREATE OR REPLACE FUNCTION bal_restaurar_balon(p_id_balon integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_almacen integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_estado_actual VARCHAR;
@@ -94,4 +95,4 @@ BEGIN
 
     RETURN bal_obtener_balon(p_id_balon);
 END;
-$function$;
+$function$

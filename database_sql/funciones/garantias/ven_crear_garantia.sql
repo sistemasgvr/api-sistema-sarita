@@ -1,23 +1,12 @@
-DROP FUNCTION IF EXISTS ven_crear_garantia(INTEGER, NUMERIC, INTEGER, INTEGER, INTEGER, VARCHAR, NUMERIC, INTEGER, DATE, VARCHAR, INTEGER, INTEGER);
-DROP FUNCTION IF EXISTS ven_crear_garantia(INTEGER, NUMERIC, INTEGER, INTEGER, INTEGER, VARCHAR, NUMERIC, INTEGER, DATE, VARCHAR, INTEGER, INTEGER, INTEGER);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_crear_garantia
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.802Z
+DROP FUNCTION IF EXISTS ven_crear_garantia(p_id_cliente integer, p_monto numeric, p_id_comprobante integer, p_id_prestamo integer, p_id_producto integer, p_ubicacion character varying, p_cantidad_venta numeric, p_id_unidad_medida integer, p_fecha_registro date, p_observacion character varying, p_id_usuario_auditoria integer, p_id_alquiler integer, p_id_medio_pago integer);
 
-CREATE OR REPLACE FUNCTION ven_crear_garantia(
-    p_id_cliente INTEGER,
-    p_monto NUMERIC,
-    p_id_comprobante INTEGER DEFAULT NULL,
-    p_id_prestamo INTEGER DEFAULT NULL,
-    p_id_producto INTEGER DEFAULT NULL,
-    p_ubicacion VARCHAR DEFAULT NULL,
-    p_cantidad_venta NUMERIC DEFAULT NULL,
-    p_id_unidad_medida INTEGER DEFAULT NULL,
-    p_fecha_registro DATE DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_id_alquiler INTEGER DEFAULT NULL,
-    p_id_medio_pago INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION ven_crear_garantia(p_id_cliente integer, p_monto numeric, p_id_comprobante integer DEFAULT NULL::integer, p_id_prestamo integer DEFAULT NULL::integer, p_id_producto integer DEFAULT NULL::integer, p_ubicacion character varying DEFAULT NULL::character varying, p_cantidad_venta numeric DEFAULT NULL::numeric, p_id_unidad_medida integer DEFAULT NULL::integer, p_fecha_registro date DEFAULT NULL::date, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_alquiler integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -185,4 +174,4 @@ BEGIN
 
     RETURN ven_obtener_garantia(v_id);
 END;
-$function$;
+$function$

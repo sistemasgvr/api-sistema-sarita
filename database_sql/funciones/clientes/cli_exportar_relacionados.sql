@@ -1,10 +1,12 @@
-DROP FUNCTION IF EXISTS public.cli_exportar_relacionados(integer[]);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: cli_exportar_relacionados
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.619Z
+DROP FUNCTION IF EXISTS cli_exportar_relacionados(p_ids_cliente integer[]);
 
-CREATE OR REPLACE FUNCTION public.cli_exportar_relacionados(
-    p_ids_cliente integer[]
-)
-RETURNS json
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION cli_exportar_relacionados(p_ids_cliente integer[])
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_resultado JSON;
@@ -166,4 +168,4 @@ BEGIN
 
     RETURN v_resultado;
 END;
-$function$;
+$function$

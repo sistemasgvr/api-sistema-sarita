@@ -1,11 +1,13 @@
-DROP FUNCTION IF EXISTS cli_eliminar_logico_cliente(INT, INT);
-CREATE OR REPLACE FUNCTION cli_eliminar_logico_cliente(
-    p_id           INT,
-    p_id_usuario_auditoria   INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: cli_eliminar_logico_cliente
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.618Z
+DROP FUNCTION IF EXISTS cli_eliminar_logico_cliente(p_id integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION cli_eliminar_logico_cliente(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_estado INT;
 BEGIN
@@ -68,4 +70,4 @@ BEGIN
         'id', p_id
     );
 END;
-$$;
+$function$

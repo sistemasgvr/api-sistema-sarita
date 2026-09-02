@@ -1,19 +1,12 @@
-DROP FUNCTION IF EXISTS gen_crear_empresa(VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, INTEGER);
-DROP FUNCTION IF EXISTS gen_crear_empresa(VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, INTEGER, NUMERIC, NUMERIC);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_crear_empresa
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.708Z
+DROP FUNCTION IF EXISTS gen_crear_empresa(p_ruc character varying, p_razon_social character varying, p_nombre_comercial character varying, p_direccion character varying, p_telefono character varying, p_email character varying, p_id_usuario_auditoria integer, p_tolerancia_m3_ruta_pueblo numeric, p_psi_minimo_util numeric);
 
-CREATE OR REPLACE FUNCTION gen_crear_empresa(
-    p_ruc VARCHAR,
-    p_razon_social VARCHAR DEFAULT NULL,
-    p_nombre_comercial VARCHAR DEFAULT NULL,
-    p_direccion VARCHAR DEFAULT NULL,
-    p_telefono VARCHAR DEFAULT NULL,
-    p_email VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_tolerancia_m3_ruta_pueblo NUMERIC DEFAULT NULL,
-    p_psi_minimo_util NUMERIC DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION gen_crear_empresa(p_ruc character varying, p_razon_social character varying DEFAULT NULL::character varying, p_nombre_comercial character varying DEFAULT NULL::character varying, p_direccion character varying DEFAULT NULL::character varying, p_telefono character varying DEFAULT NULL::character varying, p_email character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_tolerancia_m3_ruta_pueblo numeric DEFAULT NULL::numeric, p_psi_minimo_util numeric DEFAULT NULL::numeric)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -51,4 +44,4 @@ EXCEPTION
     WHEN OTHERS THEN
         RETURN json_build_object('error', SQLERRM, 'registro', NULL);
 END;
-$function$;
+$function$

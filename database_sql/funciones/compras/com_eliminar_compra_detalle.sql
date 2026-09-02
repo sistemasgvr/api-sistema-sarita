@@ -1,12 +1,12 @@
--- Elimina (baja lógica) una línea de compra.
--- Si la línea ingresó stock (afecta_stock snapshot), genera SALIDA de reversa.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: com_eliminar_compra_detalle
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.635Z
+DROP FUNCTION IF EXISTS com_eliminar_compra_detalle(p_id_detalle integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION com_eliminar_compra_detalle(
-    p_id_detalle             INTEGER,
-    p_id_usuario_auditoria   INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION com_eliminar_compra_detalle(p_id_detalle integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_detalle             RECORD;
@@ -84,4 +84,4 @@ BEGIN
 
     RETURN json_build_object('eliminado', TRUE, 'id', p_id_detalle);
 END;
-$function$;
+$function$

@@ -1,47 +1,12 @@
--- Firma anterior (incluía p_id_estado_contenido, retirado en Fase 1: el contenido del
--- balón ya no se rastrea aquí; sin este DROP, CREATE OR REPLACE crea un overload nuevo
--- y deja el viejo activo, así que el caller (que aún mandaba 31 args) seguía cayendo ahí.
-DROP FUNCTION IF EXISTS bal_crear_balon(
-    VARCHAR, VARCHAR, INTEGER, DATE, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER,
-    INTEGER, INTEGER, DATE, INTEGER, DATE, DATE, VARCHAR, NUMERIC, VARCHAR, VARCHAR,
-    INTEGER, INTEGER, BOOLEAN, SMALLINT, SMALLINT, INTEGER, INTEGER, VARCHAR, NUMERIC, VARCHAR,
-    INTEGER
-);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_crear_balon
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.530Z
+DROP FUNCTION IF EXISTS bal_crear_balon(p_codigo_balon character varying, p_libro_cilindro character varying, p_pagina_libro integer, p_fecha_registro date, p_id_almacen integer, p_id_cliente_ubicacion integer, p_id_propietario integer, p_id_cliente_propietario integer, p_id_referencia integer, p_id_tipo_balon integer, p_id_producto_gas integer, p_id_estado_balon integer, p_fecha_ultima_prueba_hidrostatica date, p_vigencia_prueba_hidrostatica_anios integer, p_fecha_proxima_prueba_hidrostatica date, p_fecha_fabricacion date, p_numero_recepcion character varying, p_presion_actual numeric, p_observacion character varying, p_numero_serie character varying, p_id_marca_cilindro integer, p_id_organo_inspector integer, p_organo_inspector_no_aplica boolean, p_anio_fabricacion smallint, p_mes_fabricacion smallint, p_id_planta integer, p_tipo_valvula character varying, p_peso_aproximado_kg numeric, p_sello_inspeccion character varying, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION bal_crear_balon(
-    p_codigo_balon VARCHAR,
-    p_libro_cilindro VARCHAR DEFAULT NULL,
-    p_pagina_libro INTEGER DEFAULT NULL,
-    p_fecha_registro DATE DEFAULT NULL,
-    p_id_almacen INTEGER DEFAULT NULL,
-    p_id_cliente_ubicacion INTEGER DEFAULT NULL,
-    p_id_propietario INTEGER DEFAULT NULL,
-    p_id_cliente_propietario INTEGER DEFAULT NULL,
-    p_id_referencia INTEGER DEFAULT NULL,
-    p_id_tipo_balon INTEGER DEFAULT NULL,
-    p_id_producto_gas INTEGER DEFAULT NULL,
-    p_id_estado_balon INTEGER DEFAULT NULL,
-    p_fecha_ultima_prueba_hidrostatica DATE DEFAULT NULL,
-    p_vigencia_prueba_hidrostatica_anios INTEGER DEFAULT NULL,
-    p_fecha_proxima_prueba_hidrostatica DATE DEFAULT NULL,
-    p_fecha_fabricacion DATE DEFAULT NULL,
-    p_numero_recepcion VARCHAR DEFAULT NULL,
-    p_presion_actual NUMERIC DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_numero_serie VARCHAR DEFAULT NULL,
-    p_id_marca_cilindro INTEGER DEFAULT NULL,
-    p_id_organo_inspector INTEGER DEFAULT NULL,
-    p_organo_inspector_no_aplica BOOLEAN DEFAULT FALSE,
-    p_anio_fabricacion SMALLINT DEFAULT NULL,
-    p_mes_fabricacion SMALLINT DEFAULT NULL,
-    p_id_planta INTEGER DEFAULT NULL,
-    p_tipo_valvula VARCHAR DEFAULT NULL,
-    p_peso_aproximado_kg NUMERIC DEFAULT NULL,
-    p_sello_inspeccion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION bal_crear_balon(p_codigo_balon character varying, p_libro_cilindro character varying DEFAULT NULL::character varying, p_pagina_libro integer DEFAULT NULL::integer, p_fecha_registro date DEFAULT NULL::date, p_id_almacen integer DEFAULT NULL::integer, p_id_cliente_ubicacion integer DEFAULT NULL::integer, p_id_propietario integer DEFAULT NULL::integer, p_id_cliente_propietario integer DEFAULT NULL::integer, p_id_referencia integer DEFAULT NULL::integer, p_id_tipo_balon integer DEFAULT NULL::integer, p_id_producto_gas integer DEFAULT NULL::integer, p_id_estado_balon integer DEFAULT NULL::integer, p_fecha_ultima_prueba_hidrostatica date DEFAULT NULL::date, p_vigencia_prueba_hidrostatica_anios integer DEFAULT NULL::integer, p_fecha_proxima_prueba_hidrostatica date DEFAULT NULL::date, p_fecha_fabricacion date DEFAULT NULL::date, p_numero_recepcion character varying DEFAULT NULL::character varying, p_presion_actual numeric DEFAULT NULL::numeric, p_observacion character varying DEFAULT NULL::character varying, p_numero_serie character varying DEFAULT NULL::character varying, p_id_marca_cilindro integer DEFAULT NULL::integer, p_id_organo_inspector integer DEFAULT NULL::integer, p_organo_inspector_no_aplica boolean DEFAULT false, p_anio_fabricacion smallint DEFAULT NULL::smallint, p_mes_fabricacion smallint DEFAULT NULL::smallint, p_id_planta integer DEFAULT NULL::integer, p_tipo_valvula character varying DEFAULT NULL::character varying, p_peso_aproximado_kg numeric DEFAULT NULL::numeric, p_sello_inspeccion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -244,4 +209,4 @@ BEGIN
 
     RETURN bal_obtener_balon(v_id);
 END;
-$function$;
+$function$

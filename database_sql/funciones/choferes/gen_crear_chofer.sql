@@ -1,24 +1,12 @@
-DROP FUNCTION IF EXISTS gen_crear_chofer(VARCHAR, INTEGER, VARCHAR, VARCHAR, INTEGER, VARCHAR, VARCHAR, VARCHAR, DATE, DATE, INTEGER, INTEGER, INTEGER);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_crear_chofer
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.703Z
+DROP FUNCTION IF EXISTS gen_crear_chofer(p_nombres character varying, p_id_cliente integer, p_id_trabajador integer, p_apellido_paterno character varying, p_apellido_materno character varying, p_id_tipo_documento integer, p_numero_documento character varying, p_telefono character varying, p_codigo_licencia character varying, p_fecha_emision date, p_fecha_vencimiento date, p_id_tipo_licencia integer, p_id_categoria_licencia integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION gen_crear_chofer(
-    p_nombres               VARCHAR,
-    p_id_cliente            INTEGER DEFAULT NULL,
-    p_id_trabajador         INTEGER DEFAULT NULL,
-    p_apellido_paterno      VARCHAR DEFAULT NULL,
-    p_apellido_materno      VARCHAR DEFAULT NULL,
-    p_id_tipo_documento     INTEGER DEFAULT NULL,
-    p_numero_documento      VARCHAR DEFAULT NULL,
-    p_telefono              VARCHAR DEFAULT NULL,
-    -- licencia
-    p_codigo_licencia       VARCHAR DEFAULT NULL,
-    p_fecha_emision         DATE    DEFAULT NULL,
-    p_fecha_vencimiento     DATE    DEFAULT NULL,
-    p_id_tipo_licencia      INTEGER DEFAULT NULL,
-    p_id_categoria_licencia INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria  INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION gen_crear_chofer(p_nombres character varying, p_id_cliente integer DEFAULT NULL::integer, p_id_trabajador integer DEFAULT NULL::integer, p_apellido_paterno character varying DEFAULT NULL::character varying, p_apellido_materno character varying DEFAULT NULL::character varying, p_id_tipo_documento integer DEFAULT NULL::integer, p_numero_documento character varying DEFAULT NULL::character varying, p_telefono character varying DEFAULT NULL::character varying, p_codigo_licencia character varying DEFAULT NULL::character varying, p_fecha_emision date DEFAULT NULL::date, p_fecha_vencimiento date DEFAULT NULL::date, p_id_tipo_licencia integer DEFAULT NULL::integer, p_id_categoria_licencia integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_chofer INTEGER;
@@ -87,49 +75,4 @@ BEGIN
 
     RETURN gen_obtener_chofer(v_id_chofer);
 END;
-$function$;
-/* DROP FUNCTION IF EXISTS gen_crear_chofer(
-   VARCHAR,
-   INTEGER,
-   VARCHAR,
-   VARCHAR,
-   INTEGER,
-   VARCHAR,
-   VARCHAR,
-   VARCHAR,
-   INTEGER
-);
-CREATE OR REPLACE FUNCTION gen_crear_chofer(
-    p_nombres               VARCHAR,
-    p_id_cliente            INTEGER DEFAULT NULL,
-    p_apellido_paterno      VARCHAR DEFAULT NULL,
-    p_apellido_materno      VARCHAR DEFAULT NULL,
-    p_id_tipo_documento     INTEGER DEFAULT NULL,
-    p_numero_documento      VARCHAR DEFAULT NULL,
-    p_telefono              VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria  INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $function$
-DECLARE
-    v_id INTEGER;
-BEGIN
-    SET TIME ZONE 'America/Lima';
-
-    INSERT INTO gen_chofer (
-        id_cliente, apellido_paterno, apellido_materno, nombres,
-        id_tipo_documento, numero_documento,telefono,
-        id_usuario_creacion, id_usuario_modificacion
-    )
-    VALUES (
-        p_id_cliente, p_apellido_paterno, p_apellido_materno, p_nombres,
-        p_id_tipo_documento, p_numero_documento, p_telefono,
-        p_id_usuario_auditoria, p_id_usuario_auditoria
-    )
-    RETURNING id INTO v_id;
-
-    RETURN gen_obtener_chofer(v_id);
-END;
-$function$;
- */
+$function$

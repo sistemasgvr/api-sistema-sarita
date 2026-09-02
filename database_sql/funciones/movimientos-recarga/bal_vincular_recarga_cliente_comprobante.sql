@@ -1,16 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_vincular_recarga_cliente_comprobante(
-    p_id_comprobante INTEGER,
-    p_id_cliente INTEGER,
-    p_id_balon INTEGER,
-    p_id_producto INTEGER,
-    p_capacidad NUMERIC DEFAULT NULL,
-    p_id_almacen INTEGER DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_balon_origen INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_vincular_recarga_cliente_comprobante
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.610Z
+DROP FUNCTION IF EXISTS bal_vincular_recarga_cliente_comprobante(p_id_comprobante integer, p_id_cliente integer, p_id_balon integer, p_id_producto integer, p_capacidad numeric, p_id_almacen integer, p_observacion character varying, p_id_balon_origen integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_vincular_recarga_cliente_comprobante(p_id_comprobante integer, p_id_cliente integer, p_id_balon integer, p_id_producto integer, p_capacidad numeric DEFAULT NULL::numeric, p_id_almacen integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_balon_origen integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_fecha DATE;
@@ -255,4 +251,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_recarga->'registro');
 END;
-$function$;
+$function$

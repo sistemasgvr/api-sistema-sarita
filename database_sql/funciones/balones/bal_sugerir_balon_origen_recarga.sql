@@ -1,11 +1,12 @@
--- Sugiere asignación FIFO (puede ser varios balones). Devuelve el primero + etiqueta completa.
-CREATE OR REPLACE FUNCTION bal_sugerir_balon_origen_recarga(
-    p_id_producto_gas INTEGER,
-    p_capacidad_requerida NUMERIC DEFAULT NULL,
-    p_id_almacen INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_sugerir_balon_origen_recarga
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.607Z
+DROP FUNCTION IF EXISTS bal_sugerir_balon_origen_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric, p_id_almacen integer);
+
+CREATE OR REPLACE FUNCTION bal_sugerir_balon_origen_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric DEFAULT NULL::numeric, p_id_almacen integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_asignacion JSON;
@@ -74,4 +75,4 @@ BEGIN
         ) t
     );
 END;
-$function$;
+$function$

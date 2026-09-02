@@ -1,15 +1,12 @@
-DROP FUNCTION IF EXISTS gen_crear_condicion_pago(VARCHAR, VARCHAR, INTEGER, INTEGER);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_crear_condicion_pago
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.704Z
+DROP FUNCTION IF EXISTS gen_crear_condicion_pago(p_codigo character varying, p_nombre character varying, p_dias_credito integer, p_numero_cuotas integer, p_dia_mes_pago integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION gen_crear_condicion_pago(
-    p_codigo VARCHAR,
-    p_nombre VARCHAR,
-    p_dias_credito INTEGER DEFAULT 0,
-    p_numero_cuotas INTEGER DEFAULT NULL,
-    p_dia_mes_pago INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION gen_crear_condicion_pago(p_codigo character varying, p_nombre character varying, p_dias_credito integer DEFAULT 0, p_numero_cuotas integer DEFAULT NULL::integer, p_dia_mes_pago integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -70,4 +67,4 @@ BEGIN
 
     RETURN gen_obtener_condicion_pago(v_id);
 END;
-$function$;
+$function$

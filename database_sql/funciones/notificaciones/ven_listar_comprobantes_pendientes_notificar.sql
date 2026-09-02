@@ -1,10 +1,12 @@
--- Comprobantes con ticket SUNAT aún en PENDIENTE desde hace >= p_dias_min días.
-CREATE OR REPLACE FUNCTION ven_listar_comprobantes_pendientes_notificar(
-    p_dias_min INTEGER DEFAULT 1,
-    p_fecha DATE DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_listar_comprobantes_pendientes_notificar
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.807Z
+DROP FUNCTION IF EXISTS ven_listar_comprobantes_pendientes_notificar(p_dias_min integer, p_fecha date);
+
+CREATE OR REPLACE FUNCTION ven_listar_comprobantes_pendientes_notificar(p_dias_min integer DEFAULT 1, p_fecha date DEFAULT NULL::date)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_fecha DATE;
@@ -43,4 +45,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros);
 END;
-$function$;
+$function$

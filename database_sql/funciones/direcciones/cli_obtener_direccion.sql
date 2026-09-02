@@ -1,7 +1,12 @@
-DROP FUNCTION IF EXISTS cli_obtener_por_id_direccion(INTEGER);
-CREATE OR REPLACE FUNCTION cli_obtener_por_id_direccion(p_id INTEGER)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: cli_obtener_por_id_direccion
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.626Z
+DROP FUNCTION IF EXISTS cli_obtener_por_id_direccion(p_id integer);
+
+CREATE OR REPLACE FUNCTION cli_obtener_por_id_direccion(p_id integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registro JSON;
@@ -52,4 +57,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$;
+$function$

@@ -1,13 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_listar_pendientes_recojo(
-    p_busqueda VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0,
-    p_id_cliente INTEGER DEFAULT NULL,
-    p_tipo_origen VARCHAR DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_listar_pendientes_recojo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.568Z
+DROP FUNCTION IF EXISTS bal_listar_pendientes_recojo(p_busqueda character varying, p_limite integer, p_offset integer, p_id_cliente integer, p_tipo_origen character varying, p_fecha_hasta date);
+
+CREATE OR REPLACE FUNCTION bal_listar_pendientes_recojo(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_cliente integer DEFAULT NULL::integer, p_tipo_origen character varying DEFAULT NULL::character varying, p_fecha_hasta date DEFAULT NULL::date)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_rows JSON;
@@ -152,4 +151,4 @@ BEGIN
 
     RETURN json_build_object('registros', COALESCE(v_rows, '[]'::JSON), 'total', COALESCE(v_total, 0));
 END;
-$function$;
+$function$

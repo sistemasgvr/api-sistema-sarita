@@ -1,6 +1,12 @@
-CREATE OR REPLACE FUNCTION gen_obtener_archivo(p_id INTEGER)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_obtener_archivo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.743Z
+DROP FUNCTION IF EXISTS gen_obtener_archivo(p_id integer);
+
+CREATE OR REPLACE FUNCTION gen_obtener_archivo(p_id integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registro JSON;
@@ -36,4 +42,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$;
+$function$

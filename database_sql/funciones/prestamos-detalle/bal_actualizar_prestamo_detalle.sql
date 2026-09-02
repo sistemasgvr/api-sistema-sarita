@@ -1,30 +1,12 @@
-DROP FUNCTION IF EXISTS bal_actualizar_prestamo_detalle(
-    INTEGER, INTEGER, INTEGER, VARCHAR, DATE, DATE, INTEGER, DATE, DATE,
-    VARCHAR, VARCHAR, VARCHAR, VARCHAR, INTEGER, VARCHAR, INTEGER
-);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_actualizar_prestamo_detalle
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.518Z
+DROP FUNCTION IF EXISTS bal_actualizar_prestamo_detalle(p_id integer, p_id_balon integer, p_id_producto integer, p_motivo_especifico character varying, p_fecha_entregado date, p_fecha_prestamo date, p_dias_prestamo integer, p_fecha_vencimiento date, p_fecha_devolucion date, p_serie_guia_entrega character varying, p_numero_guia_entrega character varying, p_serie_guia_devolucion character varying, p_numero_guia_devolucion character varying, p_id_estado integer, p_observacion character varying, p_id_usuario_auditoria integer, p_id_guia_entrega integer, p_id_guia_devolucion integer);
 
-CREATE OR REPLACE FUNCTION bal_actualizar_prestamo_detalle(
-    p_id INTEGER,
-    p_id_balon INTEGER DEFAULT NULL,
-    p_id_producto INTEGER DEFAULT NULL,
-    p_motivo_especifico VARCHAR DEFAULT NULL,
-    p_fecha_entregado DATE DEFAULT NULL,
-    p_fecha_prestamo DATE DEFAULT NULL,
-    p_dias_prestamo INTEGER DEFAULT NULL,
-    p_fecha_vencimiento DATE DEFAULT NULL,
-    p_fecha_devolucion DATE DEFAULT NULL,
-    p_serie_guia_entrega VARCHAR DEFAULT NULL,
-    p_numero_guia_entrega VARCHAR DEFAULT NULL,
-    p_serie_guia_devolucion VARCHAR DEFAULT NULL,
-    p_numero_guia_devolucion VARCHAR DEFAULT NULL,
-    p_id_estado INTEGER DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_id_guia_entrega INTEGER DEFAULT NULL,
-    p_id_guia_devolucion INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION bal_actualizar_prestamo_detalle(p_id integer, p_id_balon integer DEFAULT NULL::integer, p_id_producto integer DEFAULT NULL::integer, p_motivo_especifico character varying DEFAULT NULL::character varying, p_fecha_entregado date DEFAULT NULL::date, p_fecha_prestamo date DEFAULT NULL::date, p_dias_prestamo integer DEFAULT NULL::integer, p_fecha_vencimiento date DEFAULT NULL::date, p_fecha_devolucion date DEFAULT NULL::date, p_serie_guia_entrega character varying DEFAULT NULL::character varying, p_numero_guia_entrega character varying DEFAULT NULL::character varying, p_serie_guia_devolucion character varying DEFAULT NULL::character varying, p_numero_guia_devolucion character varying DEFAULT NULL::character varying, p_id_estado integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_guia_entrega integer DEFAULT NULL::integer, p_id_guia_devolucion integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_serie_entrega VARCHAR;
@@ -243,4 +225,4 @@ BEGIN
 
     RETURN bal_obtener_prestamo_detalle(p_id);
 END;
-$function$;
+$function$

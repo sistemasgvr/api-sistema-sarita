@@ -1,11 +1,12 @@
--- Devuelve a almacén los cilindros de una GRE que ya no van (o todos si p_conservar es NULL).
-CREATE OR REPLACE FUNCTION bal_revertir_salidas_guia_remision(
-    p_id_guia INTEGER,
-    p_ids_conservar INTEGER[] DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_revertir_salidas_guia_remision
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.606Z
+DROP FUNCTION IF EXISTS bal_revertir_salidas_guia_remision(p_id_guia integer, p_ids_conservar integer[], p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_revertir_salidas_guia_remision(p_id_guia integer, p_ids_conservar integer[] DEFAULT NULL::integer[], p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_result JSON;
@@ -76,4 +77,4 @@ BEGIN
 
     RETURN json_build_object('ok', TRUE, 'revertidos', v_revertidos, 'error', NULL);
 END;
-$function$;
+$function$

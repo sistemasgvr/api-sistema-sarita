@@ -1,21 +1,12 @@
-DROP FUNCTION IF EXISTS gen_crear_vehiculo(VARCHAR, INTEGER, INTEGER, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, INTEGER, VARCHAR, VARCHAR, VARCHAR, INTEGER);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_crear_vehiculo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.712Z
+DROP FUNCTION IF EXISTS gen_crear_vehiculo(p_placa character varying, p_id_cliente integer, p_id_tipo_vehiculo integer, p_placa2 character varying, p_marca character varying, p_marca2 character varying, p_modelo character varying, p_anio integer, p_color character varying, p_certificado_inscripcion character varying, p_certificado2 character varying, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION gen_crear_vehiculo(
-    p_placa VARCHAR,
-    p_id_cliente INTEGER DEFAULT NULL,
-    p_id_tipo_vehiculo INTEGER DEFAULT NULL,
-    p_placa2 VARCHAR DEFAULT NULL,
-    p_marca VARCHAR DEFAULT NULL,
-    p_marca2 VARCHAR DEFAULT NULL,
-    p_modelo VARCHAR DEFAULT NULL,
-    p_anio INTEGER DEFAULT NULL,
-    p_color VARCHAR DEFAULT NULL,
-    p_certificado_inscripcion VARCHAR DEFAULT NULL,
-    p_certificado2 VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION gen_crear_vehiculo(p_placa character varying, p_id_cliente integer DEFAULT NULL::integer, p_id_tipo_vehiculo integer DEFAULT NULL::integer, p_placa2 character varying DEFAULT NULL::character varying, p_marca character varying DEFAULT NULL::character varying, p_marca2 character varying DEFAULT NULL::character varying, p_modelo character varying DEFAULT NULL::character varying, p_anio integer DEFAULT NULL::integer, p_color character varying DEFAULT NULL::character varying, p_certificado_inscripcion character varying DEFAULT NULL::character varying, p_certificado2 character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -62,4 +53,4 @@ BEGIN
 
     RETURN gen_obtener_vehiculo(v_id);
 END;
-$function$;
+$function$

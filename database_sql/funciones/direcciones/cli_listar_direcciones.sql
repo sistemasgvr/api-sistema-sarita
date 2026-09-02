@@ -1,19 +1,12 @@
-DROP FUNCTION IF EXISTS cli_listar_direcciones(
-    INTEGER,
-    INTEGER,
-    VARCHAR,
-    INTEGER,
-    INTEGER
-);
-CREATE OR REPLACE FUNCTION public.cli_listar_direcciones(
-    p_solo_activos integer DEFAULT NULL,
-    p_id_cliente integer DEFAULT NULL,
-    p_buscar character varying DEFAULT NULL,
-    p_limite integer DEFAULT 10,
-    p_offset integer DEFAULT 0
-)
-RETURNS json
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: cli_listar_direcciones
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.623Z
+DROP FUNCTION IF EXISTS cli_listar_direcciones(p_solo_activos integer, p_id_cliente integer, p_buscar character varying, p_limite integer, p_offset integer);
+
+CREATE OR REPLACE FUNCTION cli_listar_direcciones(p_solo_activos integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_buscar character varying DEFAULT NULL::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_resultado JSON;
@@ -102,4 +95,4 @@ BEGIN
 
     RETURN v_resultado;
 END;
-$function$;
+$function$

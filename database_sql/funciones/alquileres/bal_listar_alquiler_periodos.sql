@@ -1,10 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_listar_alquiler_periodos(
-    p_id_alquiler INTEGER,
-    p_limite INTEGER DEFAULT 100,
-    p_offset INTEGER DEFAULT 0
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_listar_alquiler_periodos
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.559Z
+DROP FUNCTION IF EXISTS bal_listar_alquiler_periodos(p_id_alquiler integer, p_limite integer, p_offset integer);
+
+CREATE OR REPLACE FUNCTION bal_listar_alquiler_periodos(p_id_alquiler integer, p_limite integer DEFAULT 100, p_offset integer DEFAULT 0)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -53,4 +55,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

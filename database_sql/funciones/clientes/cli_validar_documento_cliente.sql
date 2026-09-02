@@ -1,10 +1,13 @@
-CREATE OR REPLACE FUNCTION cli_validar_documento_cliente(
-    p_numero_documento varchar,
-    p_id_excluir       INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: cli_validar_documento_cliente
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.630Z
+DROP FUNCTION IF EXISTS cli_validar_documento_cliente(p_numero_documento character varying, p_id_excluir integer);
+
+CREATE OR REPLACE FUNCTION cli_validar_documento_cliente(p_numero_documento character varying, p_id_excluir integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_existe BOOLEAN;
 BEGIN
@@ -16,4 +19,4 @@ BEGIN
 
     RETURN json_build_object('existe', v_existe);
 END;
-$$;
+$function$

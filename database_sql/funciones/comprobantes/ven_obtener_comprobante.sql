@@ -1,6 +1,12 @@
-CREATE OR REPLACE FUNCTION ven_obtener_comprobante(p_id INTEGER)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_obtener_comprobante
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.811Z
+DROP FUNCTION IF EXISTS ven_obtener_comprobante(p_id integer);
+
+CREATE OR REPLACE FUNCTION ven_obtener_comprobante(p_id integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registro JSON;
@@ -195,4 +201,4 @@ BEGIN
         'cuotas', v_cuotas
     );
 END;
-$function$;
+$function$

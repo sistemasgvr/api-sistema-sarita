@@ -1,21 +1,13 @@
--- Detecta si un pago que se va a registrar podría estar duplicado.
--- Reglas (OR):
---   * alta / factura: mismo tercero + mismo nº de comprobante (cuenta o doc vinculado)
---   * alta / exacto: mismo tercero + mismo monto + misma fecha
---   * media / reciente: mismo tercero + mismo monto en ventana de días (±7)
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_verificar_duplicado_pago
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.692Z
+DROP FUNCTION IF EXISTS fin_verificar_duplicado_pago(p_id_cuenta integer, p_fecha_pago date, p_monto numeric, p_dias_ventana integer, p_numero_comprobante character varying);
 
-DROP FUNCTION IF EXISTS fin_verificar_duplicado_pago(INT, DATE, NUMERIC, INT, VARCHAR);
-
-CREATE OR REPLACE FUNCTION fin_verificar_duplicado_pago(
-    p_id_cuenta          INT,
-    p_fecha_pago         DATE,
-    p_monto              NUMERIC,
-    p_dias_ventana       INT     DEFAULT 7,
-    p_numero_comprobante VARCHAR DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_verificar_duplicado_pago(p_id_cuenta integer, p_fecha_pago date, p_monto numeric, p_dias_ventana integer DEFAULT 7, p_numero_comprobante character varying DEFAULT NULL::character varying)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_cuenta           fin_cuenta%ROWTYPE;
     v_id_tercero       INT;
@@ -172,4 +164,4 @@ BEGIN
 
     RETURN json_build_object('duplicado', false);
 END;
-$$;
+$function$

@@ -1,8 +1,12 @@
-CREATE OR REPLACE FUNCTION com_obtener_compra(
-    p_id INTEGER
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: com_obtener_compra
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.638Z
+DROP FUNCTION IF EXISTS com_obtener_compra(p_id integer);
+
+CREATE OR REPLACE FUNCTION com_obtener_compra(p_id integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_cabecera JSON;
@@ -146,4 +150,4 @@ BEGIN
         )
     );
 END;
-$function$;
+$function$

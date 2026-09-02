@@ -1,15 +1,13 @@
--- Revierte el reembolso de una garantía: limpia los campos de reembolso y
--- vuelve a marcarla como ACTIVA. Útil si se registró un reembolso por error.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_anular_reembolso_garantia
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.667Z
+DROP FUNCTION IF EXISTS fin_anular_reembolso_garantia(p_id integer, p_id_usuario integer);
 
-DROP FUNCTION IF EXISTS fin_anular_reembolso_garantia(INT, INT);
-
-CREATE OR REPLACE FUNCTION fin_anular_reembolso_garantia(
-    p_id         INT,
-    p_id_usuario INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_anular_reembolso_garantia(p_id integer, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_garantia    fin_garantia%ROWTYPE;
     v_id_activa   INT;
@@ -44,4 +42,4 @@ BEGIN
 
     RETURN json_build_object('registro', json_build_object('id', p_id, 'estado_texto', 'ACTIVA'));
 END;
-$$;
+$function$

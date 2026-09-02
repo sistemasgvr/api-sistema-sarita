@@ -1,18 +1,12 @@
-DROP FUNCTION IF EXISTS gen_crear_cuenta_bancaria(INTEGER, INTEGER, INTEGER, VARCHAR, VARCHAR, VARCHAR, VARCHAR, BOOLEAN, INTEGER);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_crear_cuenta_bancaria
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.707Z
+DROP FUNCTION IF EXISTS gen_crear_cuenta_bancaria(p_id_cliente integer, p_id_banco integer, p_id_tipo_cuenta integer, p_titular character varying, p_numero_cuenta character varying, p_numero_cuenta_interbancaria character varying, p_telefono_billetera character varying, p_es_principal boolean, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION gen_crear_cuenta_bancaria(
-    p_id_cliente INTEGER DEFAULT NULL,
-    p_id_banco INTEGER DEFAULT NULL,
-    p_id_tipo_cuenta INTEGER DEFAULT NULL,
-    p_titular VARCHAR DEFAULT NULL,
-    p_numero_cuenta VARCHAR DEFAULT NULL,
-    p_numero_cuenta_interbancaria VARCHAR DEFAULT NULL,
-    p_telefono_billetera VARCHAR DEFAULT NULL,
-    p_es_principal BOOLEAN DEFAULT FALSE,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION gen_crear_cuenta_bancaria(p_id_cliente integer DEFAULT NULL::integer, p_id_banco integer DEFAULT NULL::integer, p_id_tipo_cuenta integer DEFAULT NULL::integer, p_titular character varying DEFAULT NULL::character varying, p_numero_cuenta character varying DEFAULT NULL::character varying, p_numero_cuenta_interbancaria character varying DEFAULT NULL::character varying, p_telefono_billetera character varying DEFAULT NULL::character varying, p_es_principal boolean DEFAULT false, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -54,4 +48,4 @@ BEGIN
 
     RETURN gen_obtener_cuenta_bancaria(v_id);
 END;
-$function$;
+$function$

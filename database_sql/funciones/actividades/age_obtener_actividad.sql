@@ -1,11 +1,13 @@
-DROP FUNCTION IF EXISTS age_obtener_actividad(INTEGER);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: age_obtener_actividad
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.483Z
+DROP FUNCTION IF EXISTS age_obtener_actividad(p_id integer);
 
-CREATE OR REPLACE FUNCTION age_obtener_actividad(
-    p_id INTEGER
-)
-RETURNS JSON
-LANGUAGE plpgsql
-STABLE
+CREATE OR REPLACE FUNCTION age_obtener_actividad(p_id integer)
+ RETURNS json
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 DECLARE
     v_registro JSON;
@@ -102,4 +104,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$;
+$function$

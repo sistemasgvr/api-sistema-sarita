@@ -1,15 +1,13 @@
--- Anula un pago (baja lógica) y revierte el saldo de la cuenta asociada.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_anular_pago
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.666Z
+DROP FUNCTION IF EXISTS fin_anular_pago(p_id_pago integer, p_tipo character varying, p_id_usuario integer);
 
-DROP FUNCTION IF EXISTS fin_anular_pago(INT, VARCHAR, INT);
-
-CREATE OR REPLACE FUNCTION fin_anular_pago(
-    p_id_pago    INT,
-    p_tipo       VARCHAR DEFAULT NULL,
-    p_id_usuario INT     DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_anular_pago(p_id_pago integer, p_tipo character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_id_tipo INT;
     v_pago    fin_pago%ROWTYPE;
@@ -66,4 +64,4 @@ BEGIN
 
     RETURN json_build_object('eliminado', true, 'id', p_id_pago);
 END;
-$$;
+$function$

@@ -1,6 +1,12 @@
-CREATE OR REPLACE FUNCTION auth_obtener_permisos_usuario(p_id_usuario INTEGER)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: auth_obtener_permisos_usuario
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.504Z
+DROP FUNCTION IF EXISTS auth_obtener_permisos_usuario(p_id_usuario integer);
+
+CREATE OR REPLACE FUNCTION auth_obtener_permisos_usuario(p_id_usuario integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_permisos JSON;
@@ -21,4 +27,4 @@ BEGIN
 
     RETURN json_build_object('permisos', v_permisos);
 END;
-$function$;
+$function$

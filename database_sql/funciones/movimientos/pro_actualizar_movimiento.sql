@@ -1,13 +1,12 @@
-CREATE OR REPLACE FUNCTION pro_actualizar_movimiento(
-    p_id INTEGER,
-    p_fecha DATE DEFAULT NULL,
-    p_glosa VARCHAR DEFAULT NULL,
-    p_id_documento_ref INTEGER DEFAULT NULL,
-    p_id_tipo_documento_ref INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: pro_actualizar_movimiento
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.767Z
+DROP FUNCTION IF EXISTS pro_actualizar_movimiento(p_id integer, p_fecha date, p_glosa character varying, p_id_documento_ref integer, p_id_tipo_documento_ref integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION pro_actualizar_movimiento(p_id integer, p_fecha date DEFAULT NULL::date, p_glosa character varying DEFAULT NULL::character varying, p_id_documento_ref integer DEFAULT NULL::integer, p_id_tipo_documento_ref integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -28,4 +27,4 @@ BEGIN
 
     RETURN pro_obtener_movimiento(p_id);
 END;
-$function$;
+$function$

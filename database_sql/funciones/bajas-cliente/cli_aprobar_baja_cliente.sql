@@ -1,11 +1,12 @@
-DROP FUNCTION IF EXISTS cli_aprobar_baja_cliente;
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: cli_aprobar_baja_cliente
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.613Z
+DROP FUNCTION IF EXISTS cli_aprobar_baja_cliente(p_id_baja integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION cli_aprobar_baja_cliente(
-    p_id_baja INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION cli_aprobar_baja_cliente(p_id_baja integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_pendiente INTEGER;
@@ -87,4 +88,4 @@ BEGIN
 
     RETURN cli_obtener_baja_cliente(p_id_baja);
 END;
-$function$;
+$function$

@@ -1,24 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_actualizar_mantenimiento(
-    p_id INTEGER,
-    p_id_tipo_mantenimiento INTEGER DEFAULT NULL,
-    p_fecha_ingreso DATE DEFAULT NULL,
-    p_fecha_salida DATE DEFAULT NULL,
-    p_descripcion VARCHAR DEFAULT NULL,
-    p_costo NUMERIC DEFAULT NULL,
-    p_es_externo BOOLEAN DEFAULT NULL,
-    p_id_proveedor INTEGER DEFAULT NULL,
-    p_id_estado INTEGER DEFAULT NULL,
-    p_id_comprobante_venta INTEGER DEFAULT NULL,
-    p_id_comprobante_compra INTEGER DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_vigencia_ph_anios INTEGER DEFAULT NULL,
-    p_id_organo_inspector INTEGER DEFAULT NULL,
-    p_organo_inspector_no_aplica BOOLEAN DEFAULT NULL,
-    p_numero_certificado_ph VARCHAR DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_actualizar_mantenimiento
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.515Z
+DROP FUNCTION IF EXISTS bal_actualizar_mantenimiento(p_id integer, p_id_tipo_mantenimiento integer, p_fecha_ingreso date, p_fecha_salida date, p_descripcion character varying, p_costo numeric, p_es_externo boolean, p_id_proveedor integer, p_id_estado integer, p_id_comprobante_venta integer, p_id_comprobante_compra integer, p_observacion character varying, p_id_usuario_auditoria integer, p_vigencia_ph_anios integer, p_id_organo_inspector integer, p_organo_inspector_no_aplica boolean, p_numero_certificado_ph character varying);
+
+CREATE OR REPLACE FUNCTION bal_actualizar_mantenimiento(p_id integer, p_id_tipo_mantenimiento integer DEFAULT NULL::integer, p_fecha_ingreso date DEFAULT NULL::date, p_fecha_salida date DEFAULT NULL::date, p_descripcion character varying DEFAULT NULL::character varying, p_costo numeric DEFAULT NULL::numeric, p_es_externo boolean DEFAULT NULL::boolean, p_id_proveedor integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer, p_id_comprobante_venta integer DEFAULT NULL::integer, p_id_comprobante_compra integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_vigencia_ph_anios integer DEFAULT NULL::integer, p_id_organo_inspector integer DEFAULT NULL::integer, p_organo_inspector_no_aplica boolean DEFAULT NULL::boolean, p_numero_certificado_ph character varying DEFAULT NULL::character varying)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_estado_finalizado INTEGER;
@@ -90,4 +78,4 @@ BEGIN
 
     RETURN bal_obtener_mantenimiento(p_id);
 END;
-$function$;
+$function$

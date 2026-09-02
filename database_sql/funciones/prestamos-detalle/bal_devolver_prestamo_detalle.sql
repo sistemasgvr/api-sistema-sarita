@@ -1,13 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_devolver_prestamo_detalle(
-    p_id INTEGER,
-    p_fecha_devolucion DATE DEFAULT CURRENT_DATE,
-    p_id_almacen_destino INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_nombre_estado_contenido VARCHAR DEFAULT 'VACIO',
-    p_observacion VARCHAR DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_devolver_prestamo_detalle
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.541Z
+DROP FUNCTION IF EXISTS bal_devolver_prestamo_detalle(p_id integer, p_fecha_devolucion date, p_id_almacen_destino integer, p_id_usuario_auditoria integer, p_nombre_estado_contenido character varying, p_observacion character varying);
+
+CREATE OR REPLACE FUNCTION bal_devolver_prestamo_detalle(p_id integer, p_fecha_devolucion date DEFAULT CURRENT_DATE, p_id_almacen_destino integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_nombre_estado_contenido character varying DEFAULT 'VACIO'::character varying, p_observacion character varying DEFAULT NULL::character varying)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_prestamo INTEGER;
@@ -114,4 +113,4 @@ BEGIN
 
     RETURN bal_obtener_prestamo_detalle(p_id);
 END;
-$function$;
+$function$

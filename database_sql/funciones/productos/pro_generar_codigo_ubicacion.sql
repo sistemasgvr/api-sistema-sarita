@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION pro_generar_codigo_ubicacion(
-    p_prefijo VARCHAR DEFAULT NULL,
-    p_id_producto INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: pro_generar_codigo_ubicacion
+-- Overloads: 2
+-- Generated: 2026-09-02T21:31:03.783Z
+DROP FUNCTION IF EXISTS pro_generar_codigo_ubicacion(p_prefijo character varying, p_id_producto integer);
+
+CREATE OR REPLACE FUNCTION pro_generar_codigo_ubicacion(p_prefijo character varying DEFAULT NULL::character varying, p_id_producto integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_prefijo VARCHAR(17);
@@ -19,7 +22,6 @@ BEGIN
     v_prefijo := TRIM(BOTH '-' FROM v_prefijo);
 
     IF v_prefijo IS NULL OR LENGTH(v_prefijo) < 2 THEN
-        -- Compatibilidad: secuencia numérica si no hay prefijo
         SELECT COALESCE(MAX(codigo_ubicacion::INTEGER), 0) + 1
         INTO v_siguiente
         FROM pro_producto
@@ -84,4 +86,29 @@ BEGIN
         'registro', json_build_object('codigo_ubicacion', v_codigo)
     );
 END;
-$function$;
+$function$
+
+DROP FUNCTION IF EXISTS pro_generar_codigo_ubicacion();
+
+CREATE OR REPLACE FUNCTION pro_generar_codigo_ubicacion()
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_siguiente INTEGER;
+    v_codigo VARCHAR(20);
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT COALESCE(MAX(codigo_ubicacion::INTEGER), 0) + 1
+    INTO v_siguiente
+    FROM pro_producto
+    WHERE codigo_ubicacion ~ '^\d+$';
+
+    v_codigo := LPAD(v_siguiente::TEXT, GREATEST(4, LENGTH(v_siguiente::TEXT)), '0');
+
+    RETURN json_build_object(
+        'registro', json_build_object('codigo_ubicacion', v_codigo)
+    );
+END;
+$function$

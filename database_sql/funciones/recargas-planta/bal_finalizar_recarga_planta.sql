@@ -1,40 +1,12 @@
--- Cierra el vínculo compra -> recarga en planta externa cuando la compra
--- ya quedó registrada. Reutiliza lo que ya existe en el módulo de balones:
---
--- 1) bal_actualizar_recarga_planta: cascada ya construida que, al recibir
---    p_id_comprobante_compra + p_fecha_llegada_almacen (+ ahora también
---    p_id_proveedor, por si la orden se creó sin proveedor conocido y
---    recién se confirma con esta compra), propaga lote/fecha a
---    bal_recarga_planta_detalle, actualiza cada bal_movimiento_recarga
---    (vía bal_actualizar_movimiento_recarga) y ESO marca cada balón como
---    LLENO (id_estado_contenido) con su id_producto_gas correspondiente.
---    También transiciona bal_recarga_planta.id_estado a CERRADO. Esto
---    siempre se hace: registrar la factura del proveedor es un hecho
---    real independiente de si los balones ya llegaron físicamente.
---
--- 2) p_guardar_balones_almacen (opcional, FALSE por defecto): registrar la
---    factura NO implica que los balones ya estén en el almacén (pueden
---    seguir en tránsito). Solo si viene en TRUE se hace, por cada balón
---    de la orden:
---      a) bal_actualizar_balon: fija id_almacen (el de esta compra) y
---         id_estado_balon = EN_ALMACEN.
---      b) bal_crear_movimiento: dejar registrado en el kardex general del
---         balón (bal_movimiento, distinto de bal_movimiento_recarga) un
---         movimiento ENTRADA_LLENADO por cilindro, referenciado a esta
---         orden de recarga.
---    Si viene en FALSE, ese ingreso queda pendiente para registrarse más
---    adelante desde el propio módulo de Recargas en planta.
-CREATE OR REPLACE FUNCTION bal_finalizar_recarga_planta(
-    p_id_recarga_planta        INTEGER,
-    p_id_comprobante_compra    INTEGER,
-    p_fecha_llegada_almacen    DATE,
-    p_id_almacen               INTEGER,
-    p_id_proveedor             INTEGER DEFAULT NULL,
-    p_guardar_balones_almacen  BOOLEAN DEFAULT FALSE,
-    p_id_usuario_auditoria     INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_finalizar_recarga_planta
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.555Z
+DROP FUNCTION IF EXISTS bal_finalizar_recarga_planta(p_id_recarga_planta integer, p_id_comprobante_compra integer, p_fecha_llegada_almacen date, p_id_almacen integer, p_id_proveedor integer, p_guardar_balones_almacen boolean, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_finalizar_recarga_planta(p_id_recarga_planta integer, p_id_comprobante_compra integer, p_fecha_llegada_almacen date, p_id_almacen integer, p_id_proveedor integer DEFAULT NULL::integer, p_guardar_balones_almacen boolean DEFAULT false, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_resultado             JSON;
@@ -128,4 +100,4 @@ BEGIN
         'registro', json_build_object('id_recarga_planta', p_id_recarga_planta)
     );
 END;
-$function$;
+$function$

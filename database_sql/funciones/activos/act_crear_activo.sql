@@ -1,32 +1,12 @@
-DROP FUNCTION IF EXISTS act_crear_activo(
-    INTEGER,
-    VARCHAR,
-    DATE,
-    NUMERIC,
-    INTEGER,
-    VARCHAR,
-    VARCHAR,
-    VARCHAR,
-    INTEGER,
-    VARCHAR,
-    INTEGER
-);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: act_crear_activo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.471Z
+DROP FUNCTION IF EXISTS act_crear_activo(p_id_tipo integer, p_descripcion character varying, p_fecha_compra date, p_importe numeric, p_id_sucursal integer, p_marca character varying, p_modelo character varying, p_numero_serie character varying, p_id_trabajador_responsable integer, p_imagen_principal_ruta character varying, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION act_crear_activo(
-    p_id_tipo                     INTEGER DEFAULT NULL,
-    p_descripcion                 VARCHAR DEFAULT NULL,
-    p_fecha_compra                DATE DEFAULT NULL,
-    p_importe                     NUMERIC DEFAULT NULL,
-    p_id_sucursal                 INTEGER DEFAULT NULL,
-    p_marca                       VARCHAR DEFAULT NULL,
-    p_modelo                      VARCHAR DEFAULT NULL,
-    p_numero_serie                VARCHAR DEFAULT NULL,
-    p_id_trabajador_responsable   INTEGER DEFAULT NULL,
-    p_imagen_principal_ruta       VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria        INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION act_crear_activo(p_id_tipo integer DEFAULT NULL::integer, p_descripcion character varying DEFAULT NULL::character varying, p_fecha_compra date DEFAULT NULL::date, p_importe numeric DEFAULT NULL::numeric, p_id_sucursal integer DEFAULT NULL::integer, p_marca character varying DEFAULT NULL::character varying, p_modelo character varying DEFAULT NULL::character varying, p_numero_serie character varying DEFAULT NULL::character varying, p_id_trabajador_responsable integer DEFAULT NULL::integer, p_imagen_principal_ruta character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -57,4 +37,4 @@ BEGIN
 
     RETURN act_obtener_activo(v_id);
 END;
-$function$;
+$function$

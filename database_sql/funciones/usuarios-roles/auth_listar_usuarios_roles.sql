@@ -1,11 +1,12 @@
-CREATE OR REPLACE FUNCTION auth_listar_usuarios_roles(
-    p_id_usuario INTEGER DEFAULT NULL,
-    p_id_rol INTEGER DEFAULT NULL,
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: auth_listar_usuarios_roles
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.502Z
+DROP FUNCTION IF EXISTS auth_listar_usuarios_roles(p_id_usuario integer, p_id_rol integer, p_limite integer, p_offset integer);
+
+CREATE OR REPLACE FUNCTION auth_listar_usuarios_roles(p_id_usuario integer DEFAULT NULL::integer, p_id_rol integer DEFAULT NULL::integer, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -46,4 +47,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

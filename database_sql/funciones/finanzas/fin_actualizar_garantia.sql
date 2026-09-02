@@ -1,21 +1,13 @@
--- Edita los datos generales de una garantía (recepción). Los datos de reembolso
--- se manejan por separado con fin_reembolsar_garantia / fin_anular_reembolso.
--- Los parámetros NULL preservan el valor actual.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_actualizar_garantia
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.665Z
+DROP FUNCTION IF EXISTS fin_actualizar_garantia(p_id integer, p_fecha date, p_id_cliente integer, p_id_medio_pago integer, p_importe numeric, p_observacion character varying, p_id_usuario integer);
 
-DROP FUNCTION IF EXISTS fin_actualizar_garantia(INT, DATE, INT, INT, NUMERIC, VARCHAR, INT);
-
-CREATE OR REPLACE FUNCTION fin_actualizar_garantia(
-    p_id             INT,
-    p_fecha          DATE    DEFAULT NULL,
-    p_id_cliente     INT     DEFAULT NULL,
-    p_id_medio_pago  INT     DEFAULT NULL,
-    p_importe        NUMERIC DEFAULT NULL,
-    p_observacion    VARCHAR DEFAULT NULL,
-    p_id_usuario     INT     DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_actualizar_garantia(p_id integer, p_fecha date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_importe numeric DEFAULT NULL::numeric, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_garantia   fin_garantia%ROWTYPE;
     v_id_cliente INT;
@@ -83,4 +75,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$$;
+$function$

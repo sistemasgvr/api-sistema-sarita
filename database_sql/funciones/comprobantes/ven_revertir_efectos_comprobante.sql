@@ -1,11 +1,12 @@
--- Revierte kardex de producto y CxC impaga. No da de baja el CPE (eso lo hace eliminar/baja).
-CREATE OR REPLACE FUNCTION ven_revertir_efectos_comprobante(
-    p_id INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_exigir_sin_pagos BOOLEAN DEFAULT FALSE
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_revertir_efectos_comprobante
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.820Z
+DROP FUNCTION IF EXISTS ven_revertir_efectos_comprobante(p_id integer, p_id_usuario_auditoria integer, p_exigir_sin_pagos boolean);
+
+CREATE OR REPLACE FUNCTION ven_revertir_efectos_comprobante(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_exigir_sin_pagos boolean DEFAULT false)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_hay_pagos BOOLEAN;
@@ -55,4 +56,4 @@ BEGIN
 
     RETURN json_build_object('ok', TRUE, 'error', NULL);
 END;
-$function$;
+$function$

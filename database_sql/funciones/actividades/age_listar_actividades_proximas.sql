@@ -1,10 +1,12 @@
-DROP FUNCTION IF EXISTS age_listar_actividades_proximas(INTEGER);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: age_listar_actividades_proximas
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.482Z
+DROP FUNCTION IF EXISTS age_listar_actividades_proximas(p_minutos_adelante integer);
 
-CREATE OR REPLACE FUNCTION age_listar_actividades_proximas(
-    p_minutos_adelante INTEGER DEFAULT 60
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION age_listar_actividades_proximas(p_minutos_adelante integer DEFAULT 60)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -89,4 +91,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros);
 END;
-$function$;
+$function$

@@ -1,18 +1,12 @@
-DROP FUNCTION IF EXISTS age_listar_actividades(VARCHAR, INTEGER, INTEGER, DATE, DATE, INTEGER, INTEGER, INTEGER, BOOLEAN);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: age_listar_actividades
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.481Z
+DROP FUNCTION IF EXISTS age_listar_actividades(p_busqueda character varying, p_limite integer, p_offset integer, p_fecha_desde date, p_fecha_hasta date, p_id_estado integer, p_id_tipo integer, p_id_prioridad integer, p_sin_responsable boolean);
 
-CREATE OR REPLACE FUNCTION age_listar_actividades(
-    p_busqueda VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0,
-    p_fecha_desde DATE DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL,
-    p_id_estado INTEGER DEFAULT NULL,
-    p_id_tipo INTEGER DEFAULT NULL,
-    p_id_prioridad INTEGER DEFAULT NULL,
-    p_sin_responsable BOOLEAN DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION age_listar_actividades(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_id_estado integer DEFAULT NULL::integer, p_id_tipo integer DEFAULT NULL::integer, p_id_prioridad integer DEFAULT NULL::integer, p_sin_responsable boolean DEFAULT NULL::boolean)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -127,4 +121,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

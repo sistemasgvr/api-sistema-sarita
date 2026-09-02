@@ -1,20 +1,12 @@
--- Campos administrativos que NO afectan inventario.
--- Se permiten aunque la compra ya haya generado ingresos de stock.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: com_actualizar_compra_cabecera
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.631Z
+DROP FUNCTION IF EXISTS com_actualizar_compra_cabecera(p_id_comprobante integer, p_glosa character varying, p_id_condicion_pago integer, p_id_categoria_gasto integer, p_declarar_sunat boolean, p_id_usuario_auditoria integer, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb);
 
-DROP FUNCTION IF EXISTS public.com_actualizar_compra_cabecera(integer, character varying, integer, integer, boolean, integer);
-
-CREATE OR REPLACE FUNCTION com_actualizar_compra_cabecera(
-    p_id_comprobante         INTEGER,
-    p_glosa                  VARCHAR DEFAULT NULL,
-    p_id_condicion_pago      INTEGER DEFAULT NULL,
-    p_id_categoria_gasto     INTEGER DEFAULT NULL,
-    p_declarar_sunat         BOOLEAN DEFAULT NULL,
-    p_id_usuario_auditoria   INTEGER DEFAULT NULL,
-    p_fecha_vencimiento_cxp  DATE DEFAULT NULL,
-    p_cuotas_cxp             JSONB DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION com_actualizar_compra_cabecera(p_id_comprobante integer, p_glosa character varying DEFAULT NULL::character varying, p_id_condicion_pago integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_declarar_sunat boolean DEFAULT NULL::boolean, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_fecha_vencimiento_cxp date DEFAULT NULL::date, p_cuotas_cxp jsonb DEFAULT NULL::jsonb)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -41,4 +33,4 @@ BEGIN
 
     RETURN com_obtener_compra(p_id_comprobante);
 END;
-$function$;
+$function$

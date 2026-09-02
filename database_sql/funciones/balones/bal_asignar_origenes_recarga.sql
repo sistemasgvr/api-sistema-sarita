@@ -1,17 +1,12 @@
--- Valida disponibilidad de gas para una recarga y sugiere balón(es) de referencia.
--- Fase 1: el gas es stock de producto por almacén (pro_stock), no se rastrea m³ por
--- cilindro individual. Este check de disponibilidad ahora es real (contra pro_stock);
--- el "origen" que se registra en bal_movimiento_recarga_origen es solo una referencia
--- informativa de qué cilindro físico se usó (si se indicó uno) o el más antiguo
--- disponible del mismo gas, no un reparto exacto de m³ por cilindro (eso ya no existe).
-CREATE OR REPLACE FUNCTION bal_asignar_origenes_recarga(
-    p_id_producto_gas INTEGER,
-    p_capacidad_requerida NUMERIC,
-    p_id_almacen INTEGER DEFAULT NULL,
-    p_id_balon_preferido INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_asignar_origenes_recarga
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.524Z
+DROP FUNCTION IF EXISTS bal_asignar_origenes_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric, p_id_almacen integer, p_id_balon_preferido integer);
+
+CREATE OR REPLACE FUNCTION bal_asignar_origenes_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric, p_id_almacen integer DEFAULT NULL::integer, p_id_balon_preferido integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_requerida NUMERIC;
@@ -96,4 +91,4 @@ BEGIN
         END
     );
 END;
-$function$;
+$function$

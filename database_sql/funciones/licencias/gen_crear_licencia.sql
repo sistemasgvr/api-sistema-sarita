@@ -1,23 +1,12 @@
-DROP FUNCTION IF EXISTS gen_crear_licencia(
-    VARCHAR,
-    INTEGER,
-    DATE,
-    DATE,
-    INTEGER,
-    INTEGER,
-    INTEGER
-);
-CREATE OR REPLACE FUNCTION gen_crear_licencia(
-    p_codigo                  VARCHAR,
-    p_id_chofer               INTEGER,
-    p_fecha_emision           DATE,
-    p_fecha_vencimiento       DATE,
-    p_id_tipo_licencia        INTEGER DEFAULT NULL,
-    p_id_categoria_licencia   INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria    INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_crear_licencia
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.709Z
+DROP FUNCTION IF EXISTS gen_crear_licencia(p_codigo character varying, p_id_chofer integer, p_fecha_emision date, p_fecha_vencimiento date, p_id_tipo_licencia integer, p_id_categoria_licencia integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION gen_crear_licencia(p_codigo character varying, p_id_chofer integer, p_fecha_emision date, p_fecha_vencimiento date, p_id_tipo_licencia integer DEFAULT NULL::integer, p_id_categoria_licencia integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -38,4 +27,4 @@ BEGIN
 
     RETURN gen_obtener_licencia(v_id);
 END;
-$function$;
+$function$

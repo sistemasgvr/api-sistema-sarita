@@ -1,9 +1,13 @@
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_balones_bajas_solicitadas
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.644Z
 DROP FUNCTION IF EXISTS dash_balones_bajas_solicitadas();
 
 CREATE OR REPLACE FUNCTION dash_balones_bajas_solicitadas()
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
   v_result JSON;
 BEGIN
@@ -34,4 +38,4 @@ BEGIN
 
   RETURN v_result;
 END;
-$$;
+$function$

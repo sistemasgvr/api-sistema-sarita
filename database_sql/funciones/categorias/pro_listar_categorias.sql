@@ -1,13 +1,12 @@
-DROP FUNCTION IF EXISTS pro_listar_categorias(VARCHAR, INTEGER, INTEGER);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: pro_listar_categorias
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.784Z
+DROP FUNCTION IF EXISTS pro_listar_categorias(p_busqueda character varying, p_limite integer, p_offset integer, p_solo_activos integer);
 
-CREATE OR REPLACE FUNCTION pro_listar_categorias(
-    p_busqueda VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0,
-    p_solo_activos INTEGER DEFAULT 1
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION pro_listar_categorias(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_solo_activos integer DEFAULT 1)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -63,4 +62,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

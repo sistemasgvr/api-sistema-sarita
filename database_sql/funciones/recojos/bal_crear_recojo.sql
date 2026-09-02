@@ -1,18 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_crear_recojo(
-    p_id_cliente INTEGER,
-    p_id_prestamo INTEGER DEFAULT NULL,
-    p_id_alquiler INTEGER DEFAULT NULL,
-    p_id_recarga_planta INTEGER DEFAULT NULL,
-    p_fecha_programada DATE DEFAULT NULL,
-    p_hora_estimada TIME DEFAULT NULL,
-    p_id_usuario_responsable INTEGER DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_detalles JSON DEFAULT '[]',
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_marcar_balon_por_recoger BOOLEAN DEFAULT TRUE
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_crear_recojo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.538Z
+DROP FUNCTION IF EXISTS bal_crear_recojo(p_id_cliente integer, p_id_prestamo integer, p_id_alquiler integer, p_id_recarga_planta integer, p_fecha_programada date, p_hora_estimada time without time zone, p_id_usuario_responsable integer, p_observacion character varying, p_detalles json, p_id_usuario_auditoria integer, p_marcar_balon_por_recoger boolean);
+
+CREATE OR REPLACE FUNCTION bal_crear_recojo(p_id_cliente integer, p_id_prestamo integer DEFAULT NULL::integer, p_id_alquiler integer DEFAULT NULL::integer, p_id_recarga_planta integer DEFAULT NULL::integer, p_fecha_programada date DEFAULT NULL::date, p_hora_estimada time without time zone DEFAULT NULL::time without time zone, p_id_usuario_responsable integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_detalles json DEFAULT '[]'::json, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_marcar_balon_por_recoger boolean DEFAULT true)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -393,4 +387,4 @@ EXCEPTION
         END IF;
         RETURN json_build_object('error', SQLERRM, 'registro', NULL);
 END;
-$function$;
+$function$

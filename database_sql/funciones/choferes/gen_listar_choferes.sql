@@ -1,19 +1,12 @@
-DROP FUNCTION IF EXISTS gen_listar_choferes(
-    INT,
-    VARCHAR,
-    INTEGER,
-    INTEGER,
-    INTEGER
-);
-CREATE OR REPLACE FUNCTION gen_listar_choferes(
-    p_solo_activos INT DEFAULT NULL,
-    p_buscar VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0,
-    p_id_cliente INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_listar_choferes
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.725Z
+DROP FUNCTION IF EXISTS gen_listar_choferes(p_solo_activos integer, p_buscar character varying, p_limite integer, p_offset integer, p_id_cliente integer);
+
+CREATE OR REPLACE FUNCTION gen_listar_choferes(p_solo_activos integer DEFAULT NULL::integer, p_buscar character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_cliente integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -91,5 +84,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
-
+$function$

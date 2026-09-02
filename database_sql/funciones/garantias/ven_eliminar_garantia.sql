@@ -1,11 +1,12 @@
-DROP FUNCTION IF EXISTS ven_eliminar_garantia(INTEGER, INTEGER);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_eliminar_garantia
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.806Z
+DROP FUNCTION IF EXISTS ven_eliminar_garantia(p_id integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION ven_eliminar_garantia(
-    p_id INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION ven_eliminar_garantia(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_garantia RECORD;
@@ -68,4 +69,4 @@ BEGIN
 
     RETURN json_build_object('eliminado', true, 'id', p_id);
 END;
-$function$;
+$function$

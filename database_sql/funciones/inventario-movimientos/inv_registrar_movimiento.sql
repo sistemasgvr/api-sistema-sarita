@@ -1,29 +1,12 @@
--- Punto único de escritura de inv_movimiento (Fase 1, hito 1).
--- naturaleza='PRODUCTO': mueve pro_stock (misma lógica que pro_crear_movimiento).
--- naturaleza='BALON': mueve custodia de bal_balon (misma lógica que bal_aplicar_custodia_tipo_movimiento);
---   si además viene p_id_producto (gas), también mueve pro_stock de ese gas.
--- Idempotente por (naturaleza, id_tipo_documento_origen, id_documento_origen, id_producto/id_balon, id_tipo_movimiento)
--- cuando se informa documento origen y no se fuerza.
-CREATE OR REPLACE FUNCTION inv_registrar_movimiento(
-    p_naturaleza VARCHAR,
-    p_codigo_tipo_movimiento VARCHAR,
-    p_fecha TIMESTAMP DEFAULT NOW(),
-    p_id_producto INTEGER DEFAULT NULL,
-    p_id_balon INTEGER DEFAULT NULL,
-    p_cantidad NUMERIC DEFAULT 0,
-    p_id_almacen_origen INTEGER DEFAULT NULL,
-    p_id_almacen_destino INTEGER DEFAULT NULL,
-    p_id_cliente INTEGER DEFAULT NULL,
-    p_codigo_tipo_documento_origen VARCHAR DEFAULT NULL,
-    p_id_documento_origen INTEGER DEFAULT NULL,
-    p_glosa VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_id_movimiento_padre INTEGER DEFAULT NULL,
-    p_sentido_ajuste VARCHAR DEFAULT NULL,
-    p_forzar BOOLEAN DEFAULT FALSE
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: inv_registrar_movimiento
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.763Z
+DROP FUNCTION IF EXISTS inv_registrar_movimiento(p_naturaleza character varying, p_codigo_tipo_movimiento character varying, p_fecha timestamp without time zone, p_id_producto integer, p_id_balon integer, p_cantidad numeric, p_id_almacen_origen integer, p_id_almacen_destino integer, p_id_cliente integer, p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_glosa character varying, p_id_usuario_auditoria integer, p_id_movimiento_padre integer, p_sentido_ajuste character varying, p_forzar boolean);
+
+CREATE OR REPLACE FUNCTION inv_registrar_movimiento(p_naturaleza character varying, p_codigo_tipo_movimiento character varying, p_fecha timestamp without time zone DEFAULT now(), p_id_producto integer DEFAULT NULL::integer, p_id_balon integer DEFAULT NULL::integer, p_cantidad numeric DEFAULT 0, p_id_almacen_origen integer DEFAULT NULL::integer, p_id_almacen_destino integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_codigo_tipo_documento_origen character varying DEFAULT NULL::character varying, p_id_documento_origen integer DEFAULT NULL::integer, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_movimiento_padre integer DEFAULT NULL::integer, p_sentido_ajuste character varying DEFAULT NULL::character varying, p_forzar boolean DEFAULT false)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_naturaleza VARCHAR;
@@ -364,4 +347,4 @@ BEGIN
 
     RETURN (inv_obtener_movimiento(v_id)::JSONB || jsonb_build_object('creado', TRUE))::JSON;
 END;
-$function$;
+$function$

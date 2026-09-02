@@ -1,28 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_crear_movimiento_recarga(
-    p_fecha_salida_almacen DATE,
-    p_id_balon INTEGER,
-    p_id_producto INTEGER DEFAULT NULL,
-    p_capacidad NUMERIC DEFAULT NULL,
-    p_id_unidad_medida INTEGER DEFAULT NULL,
-    p_serie_guia_salida VARCHAR DEFAULT NULL,
-    p_numero_guia_salida VARCHAR DEFAULT NULL,
-    p_serie_guia_ingreso VARCHAR DEFAULT NULL,
-    p_numero_guia_ingreso VARCHAR DEFAULT NULL,
-    p_serie_factura VARCHAR DEFAULT NULL,
-    p_numero_factura VARCHAR DEFAULT NULL,
-    p_id_comprobante INTEGER DEFAULT NULL,
-    p_fecha_llegada_almacen DATE DEFAULT NULL,
-    p_lote VARCHAR DEFAULT NULL,
-    p_fecha_vencimiento_lote DATE DEFAULT NULL,
-    p_fecha_prueba_hidrostatica DATE DEFAULT NULL,
-    p_id_proveedor INTEGER DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_almacen INTEGER DEFAULT NULL,
-    p_id_comprobante_compra INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_crear_movimiento_recarga
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.532Z
+DROP FUNCTION IF EXISTS bal_crear_movimiento_recarga(p_fecha_salida_almacen date, p_id_balon integer, p_id_producto integer, p_capacidad numeric, p_id_unidad_medida integer, p_serie_guia_salida character varying, p_numero_guia_salida character varying, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_serie_factura character varying, p_numero_factura character varying, p_id_comprobante integer, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_id_proveedor integer, p_observacion character varying, p_id_almacen integer, p_id_comprobante_compra integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_crear_movimiento_recarga(p_fecha_salida_almacen date, p_id_balon integer, p_id_producto integer DEFAULT NULL::integer, p_capacidad numeric DEFAULT NULL::numeric, p_id_unidad_medida integer DEFAULT NULL::integer, p_serie_guia_salida character varying DEFAULT NULL::character varying, p_numero_guia_salida character varying DEFAULT NULL::character varying, p_serie_guia_ingreso character varying DEFAULT NULL::character varying, p_numero_guia_ingreso character varying DEFAULT NULL::character varying, p_serie_factura character varying DEFAULT NULL::character varying, p_numero_factura character varying DEFAULT NULL::character varying, p_id_comprobante integer DEFAULT NULL::integer, p_fecha_llegada_almacen date DEFAULT NULL::date, p_lote character varying DEFAULT NULL::character varying, p_fecha_vencimiento_lote date DEFAULT NULL::date, p_fecha_prueba_hidrostatica date DEFAULT NULL::date, p_id_proveedor integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_almacen integer DEFAULT NULL::integer, p_id_comprobante_compra integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id INTEGER;
@@ -218,4 +202,4 @@ BEGIN
 
     RETURN bal_obtener_movimiento_recarga(v_id);
 END;
-$function$;
+$function$

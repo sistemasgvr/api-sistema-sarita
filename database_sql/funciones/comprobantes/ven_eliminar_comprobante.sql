@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION ven_eliminar_comprobante(
-    p_id INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_eliminar_comprobante
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.805Z
+DROP FUNCTION IF EXISTS ven_eliminar_comprobante(p_id integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION ven_eliminar_comprobante(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_estado_sunat VARCHAR;
@@ -75,4 +78,4 @@ BEGIN
 
     RETURN json_build_object('eliminado', TRUE, 'id', p_id);
 END;
-$function$;
+$function$

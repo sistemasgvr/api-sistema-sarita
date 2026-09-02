@@ -1,15 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_registrar_alquiler_periodo(
-    p_id_alquiler INTEGER,
-    p_fecha_inicio DATE,
-    p_fecha_fin DATE,
-    p_monto NUMERIC DEFAULT 0,
-    p_id_producto INTEGER DEFAULT NULL,
-    p_id_comprobante INTEGER DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_registrar_alquiler_periodo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.597Z
+DROP FUNCTION IF EXISTS bal_registrar_alquiler_periodo(p_id_alquiler integer, p_fecha_inicio date, p_fecha_fin date, p_monto numeric, p_id_producto integer, p_id_comprobante integer, p_observacion character varying, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_registrar_alquiler_periodo(p_id_alquiler integer, p_fecha_inicio date, p_fecha_fin date, p_monto numeric DEFAULT 0, p_id_producto integer DEFAULT NULL::integer, p_id_comprobante integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_numero INTEGER;
@@ -73,4 +70,4 @@ BEGIN
         )
     );
 END;
-$function$;
+$function$

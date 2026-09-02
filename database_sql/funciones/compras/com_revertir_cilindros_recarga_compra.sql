@@ -1,10 +1,12 @@
-CREATE OR REPLACE FUNCTION com_revertir_cilindros_recarga_compra(
-    p_id_recarga_planta INTEGER,
-    p_id_comprobante INTEGER,
-    p_id_usuario INTEGER DEFAULT NULL
-)
-RETURNS VOID
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: com_revertir_cilindros_recarga_compra
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.640Z
+DROP FUNCTION IF EXISTS com_revertir_cilindros_recarga_compra(p_id_recarga_planta integer, p_id_comprobante integer, p_id_usuario integer);
+
+CREATE OR REPLACE FUNCTION com_revertir_cilindros_recarga_compra(p_id_recarga_planta integer, p_id_comprobante integer, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS void
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_det RECORD;
@@ -110,4 +112,4 @@ BEGIN
           );
     END IF;
 END;
-$function$;
+$function$

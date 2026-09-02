@@ -1,19 +1,12 @@
-DROP FUNCTION IF EXISTS bal_actualizar_recojo(INTEGER, INTEGER, DATE, TIME, INTEGER, VARCHAR, VARCHAR, INTEGER);
-DROP FUNCTION IF EXISTS bal_actualizar_recojo(INTEGER, INTEGER, INTEGER, DATE, TIME, INTEGER, VARCHAR, VARCHAR, INTEGER);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_actualizar_recojo
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.519Z
+DROP FUNCTION IF EXISTS bal_actualizar_recojo(p_id integer, p_id_prestamo integer, p_id_alquiler integer, p_fecha_programada date, p_hora_estimada time without time zone, p_id_usuario_responsable integer, p_estado_nombre character varying, p_observacion character varying, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION bal_actualizar_recojo(
-    p_id INTEGER,
-    p_id_prestamo INTEGER DEFAULT NULL,
-    p_id_alquiler INTEGER DEFAULT NULL,
-    p_fecha_programada DATE DEFAULT NULL,
-    p_hora_estimada TIME DEFAULT NULL,
-    p_id_usuario_responsable INTEGER DEFAULT NULL,
-    p_estado_nombre VARCHAR DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION bal_actualizar_recojo(p_id integer, p_id_prestamo integer DEFAULT NULL::integer, p_id_alquiler integer DEFAULT NULL::integer, p_fecha_programada date DEFAULT NULL::date, p_hora_estimada time without time zone DEFAULT NULL::time without time zone, p_id_usuario_responsable integer DEFAULT NULL::integer, p_estado_nombre character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_cliente INTEGER;
@@ -170,4 +163,4 @@ BEGIN
 
     RETURN bal_obtener_recojo(p_id);
 END;
-$function$;
+$function$

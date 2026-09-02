@@ -1,12 +1,13 @@
--- Kardex de venta: solo accesorios/gases vendidos.
--- No mueve stock la tarifa de alquiler (es_alquilable) ni líneas de garantía.
-CREATE OR REPLACE FUNCTION ven_producto_mueve_kardex_venta(
-    p_id_producto INTEGER,
-    p_descripcion VARCHAR DEFAULT NULL
-)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-STABLE
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_producto_mueve_kardex_venta
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.816Z
+DROP FUNCTION IF EXISTS ven_producto_mueve_kardex_venta(p_id_producto integer, p_descripcion character varying);
+
+CREATE OR REPLACE FUNCTION ven_producto_mueve_kardex_venta(p_id_producto integer, p_descripcion character varying DEFAULT NULL::character varying)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 DECLARE
     v_afecta BOOLEAN;
@@ -35,4 +36,4 @@ BEGIN
 
     RETURN TRUE;
 END;
-$function$;
+$function$

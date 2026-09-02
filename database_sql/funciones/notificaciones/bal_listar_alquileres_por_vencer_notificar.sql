@@ -1,11 +1,12 @@
--- Alquileres ACTIVOS que vencen entre p_dias_min y p_dias_max días (inclusive).
-CREATE OR REPLACE FUNCTION bal_listar_alquileres_por_vencer_notificar(
-    p_dias_min INTEGER DEFAULT 3,
-    p_dias_max INTEGER DEFAULT 7,
-    p_fecha DATE DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_listar_alquileres_por_vencer_notificar
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.561Z
+DROP FUNCTION IF EXISTS bal_listar_alquileres_por_vencer_notificar(p_dias_min integer, p_dias_max integer, p_fecha date);
+
+CREATE OR REPLACE FUNCTION bal_listar_alquileres_por_vencer_notificar(p_dias_min integer DEFAULT 3, p_dias_max integer DEFAULT 7, p_fecha date DEFAULT NULL::date)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_fecha DATE;
@@ -55,4 +56,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros);
 END;
-$function$;
+$function$

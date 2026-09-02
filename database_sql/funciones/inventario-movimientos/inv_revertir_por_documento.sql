@@ -1,12 +1,12 @@
--- Revierte todos los inv_movimiento activos ligados a un documento origen
--- (stock de producto/gas + custodia de balón), y los da de baja lógica.
-CREATE OR REPLACE FUNCTION inv_revertir_por_documento(
-    p_codigo_tipo_documento_origen VARCHAR,
-    p_id_documento_origen INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: inv_revertir_por_documento
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.764Z
+DROP FUNCTION IF EXISTS inv_revertir_por_documento(p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION inv_revertir_por_documento(p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_tipo_doc INTEGER;
@@ -132,4 +132,4 @@ BEGIN
 
     RETURN json_build_object('revertidos', v_count);
 END;
-$function$;
+$function$

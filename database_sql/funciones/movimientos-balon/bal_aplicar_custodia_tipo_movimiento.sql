@@ -1,11 +1,12 @@
--- Aplica el Libro (custodia viva) según TipoMovBalon. Solo movimientos sin documento.
-CREATE OR REPLACE FUNCTION bal_aplicar_custodia_tipo_movimiento(
-    p_id_movimiento INTEGER,
-    p_revertir BOOLEAN DEFAULT FALSE,
-    p_id_usuario INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_aplicar_custodia_tipo_movimiento
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.522Z
+DROP FUNCTION IF EXISTS bal_aplicar_custodia_tipo_movimiento(p_id_movimiento integer, p_revertir boolean, p_id_usuario integer);
+
+CREATE OR REPLACE FUNCTION bal_aplicar_custodia_tipo_movimiento(p_id_movimiento integer, p_revertir boolean DEFAULT false, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_mov RECORD;
@@ -112,4 +113,4 @@ BEGIN
 
     RETURN json_build_object('ok', TRUE, 'skipped', FALSE);
 END;
-$function$;
+$function$

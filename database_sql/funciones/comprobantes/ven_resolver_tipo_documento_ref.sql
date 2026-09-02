@@ -1,17 +1,13 @@
--- Único punto de verdad para el código TipoDocumentoRef que corresponde a un comprobante
--- de venta, usado tanto al crear/actualizar movimientos (inv_registrar_movimiento) como al
--- revertirlos (inv_revertir_por_documento). Antes esta lógica estaba copiada inline en más de
--- 10 sitios entre ven_crear_comprobante.sql y ven_actualizar_comprobante.sql, con copias
--- desactualizadas que no cubrían '08' (NOTA_DEBITO) ni 'NV'/'VSD' (NOTA_VENTA) — eso hacía que
--- crear/editar una Nota de Venta o Nota de Débito etiquetara el movimiento como 'FACTURA' en
--- algunos casos, y como el código correcto en otros, rompiendo la reversión.
-CREATE OR REPLACE FUNCTION ven_resolver_tipo_documento_ref(
-    p_codigo_tipo_comprobante VARCHAR,
-    p_nombre_tipo_venta VARCHAR DEFAULT NULL
-)
-RETURNS VARCHAR
-LANGUAGE plpgsql
-STABLE
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_resolver_tipo_documento_ref
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.819Z
+DROP FUNCTION IF EXISTS ven_resolver_tipo_documento_ref(p_codigo_tipo_comprobante character varying, p_nombre_tipo_venta character varying);
+
+CREATE OR REPLACE FUNCTION ven_resolver_tipo_documento_ref(p_codigo_tipo_comprobante character varying, p_nombre_tipo_venta character varying DEFAULT NULL::character varying)
+ RETURNS character varying
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 BEGIN
     RETURN CASE
@@ -24,4 +20,4 @@ BEGIN
         ELSE 'FACTURA'
     END;
 END;
-$function$;
+$function$

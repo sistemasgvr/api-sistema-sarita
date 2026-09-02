@@ -1,8 +1,12 @@
-CREATE OR REPLACE FUNCTION auth_listar_ids_usuarios_por_permiso(
-    p_permiso VARCHAR
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: auth_listar_ids_usuarios_por_permiso
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.495Z
+DROP FUNCTION IF EXISTS auth_listar_ids_usuarios_por_permiso(p_permiso character varying);
+
+CREATE OR REPLACE FUNCTION auth_listar_ids_usuarios_por_permiso(p_permiso character varying)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_ids JSON;
@@ -24,4 +28,4 @@ BEGIN
 
     RETURN json_build_object('ids', v_ids);
 END;
-$function$;
+$function$

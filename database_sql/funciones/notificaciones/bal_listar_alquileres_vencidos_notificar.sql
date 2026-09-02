@@ -1,9 +1,12 @@
--- Alquileres ACTIVOS cuya fecha de vencimiento (periodo vigente o fecha_fin_pactada) ya pasó.
-CREATE OR REPLACE FUNCTION bal_listar_alquileres_vencidos_notificar(
-    p_fecha DATE DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_listar_alquileres_vencidos_notificar
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.562Z
+DROP FUNCTION IF EXISTS bal_listar_alquileres_vencidos_notificar(p_fecha date);
+
+CREATE OR REPLACE FUNCTION bal_listar_alquileres_vencidos_notificar(p_fecha date DEFAULT NULL::date)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_fecha DATE;
@@ -49,4 +52,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros);
 END;
-$function$;
+$function$

@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION fin_eliminar_caja_observacion(
-    p_id INT,
-    p_id_usuario INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_eliminar_caja_observacion
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.677Z
+DROP FUNCTION IF EXISTS fin_eliminar_caja_observacion(p_id integer, p_id_usuario integer);
+
+CREATE OR REPLACE FUNCTION fin_eliminar_caja_observacion(p_id integer, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -16,4 +19,4 @@ BEGIN
     END IF;
     RETURN json_build_object('eliminado', true, 'id', p_id);
 END;
-$function$;
+$function$

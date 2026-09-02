@@ -1,25 +1,12 @@
-CREATE OR REPLACE FUNCTION gen_actualizar_configuracion_sunat(
-    p_id INTEGER,
-    p_id_empresa INTEGER DEFAULT NULL,
-    p_usuario_sol VARCHAR DEFAULT NULL,
-    p_clave_sol VARCHAR DEFAULT NULL,
-    p_certificado_digital VARCHAR DEFAULT NULL,
-    p_clave_certificado VARCHAR DEFAULT NULL,
-    p_id_ambiente INTEGER DEFAULT NULL,
-    p_proveedor_pse VARCHAR DEFAULT NULL,
-    p_pse_habilitado BOOLEAN DEFAULT NULL,
-    p_api_base_url VARCHAR DEFAULT NULL,
-    p_api_token TEXT DEFAULT NULL,
-    p_api_usuario VARCHAR DEFAULT NULL,
-    p_api_clave VARCHAR DEFAULT NULL,
-    p_ruc_emisor VARCHAR DEFAULT NULL,
-    p_client_id VARCHAR DEFAULT NULL,
-    p_client_secret VARCHAR DEFAULT NULL,
-    p_timeout_ms INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_actualizar_configuracion_sunat
+-- Overloads: 2
+-- Generated: 2026-09-02T21:31:03.696Z
+DROP FUNCTION IF EXISTS gen_actualizar_configuracion_sunat(p_id integer, p_id_empresa integer, p_usuario_sol character varying, p_clave_sol character varying, p_certificado_digital character varying, p_clave_certificado character varying, p_id_ambiente integer, p_proveedor_pse character varying, p_pse_habilitado boolean, p_api_base_url character varying, p_api_token text, p_api_usuario character varying, p_api_clave character varying, p_ruc_emisor character varying, p_client_id character varying, p_client_secret character varying, p_timeout_ms integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION gen_actualizar_configuracion_sunat(p_id integer, p_id_empresa integer DEFAULT NULL::integer, p_usuario_sol character varying DEFAULT NULL::character varying, p_clave_sol character varying DEFAULT NULL::character varying, p_certificado_digital character varying DEFAULT NULL::character varying, p_clave_certificado character varying DEFAULT NULL::character varying, p_id_ambiente integer DEFAULT NULL::integer, p_proveedor_pse character varying DEFAULT NULL::character varying, p_pse_habilitado boolean DEFAULT NULL::boolean, p_api_base_url character varying DEFAULT NULL::character varying, p_api_token text DEFAULT NULL::text, p_api_usuario character varying DEFAULT NULL::character varying, p_api_clave character varying DEFAULT NULL::character varying, p_ruc_emisor character varying DEFAULT NULL::character varying, p_client_id character varying DEFAULT NULL::character varying, p_client_secret character varying DEFAULT NULL::character varying, p_timeout_ms integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -79,4 +66,33 @@ BEGIN
 
     RETURN gen_obtener_configuracion_sunat(p_id);
 END;
-$function$;
+$function$
+
+DROP FUNCTION IF EXISTS gen_actualizar_configuracion_sunat(p_id integer, p_id_empresa integer, p_usuario_sol character varying, p_clave_sol character varying, p_certificado_digital character varying, p_clave_certificado character varying, p_id_ambiente integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION gen_actualizar_configuracion_sunat(p_id integer, p_id_empresa integer DEFAULT NULL::integer, p_usuario_sol character varying DEFAULT NULL::character varying, p_clave_sol character varying DEFAULT NULL::character varying, p_certificado_digital character varying DEFAULT NULL::character varying, p_clave_certificado character varying DEFAULT NULL::character varying, p_id_ambiente integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    UPDATE gen_configuracion_sunat
+    SET
+        id_empresa = COALESCE(p_id_empresa, id_empresa),
+        usuario_sol = COALESCE(p_usuario_sol, usuario_sol),
+        clave_sol = COALESCE(p_clave_sol, clave_sol),
+        certificado_digital = COALESCE(p_certificado_digital, certificado_digital),
+        clave_certificado = COALESCE(p_clave_certificado, clave_certificado),
+        id_ambiente = COALESCE(p_id_ambiente, id_ambiente),
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id AND estado = 1;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('registro', NULL);
+    END IF;
+
+    RETURN gen_obtener_configuracion_sunat(p_id);
+END;
+$function$

@@ -1,16 +1,12 @@
--- Devuelve NULL si la operación está permitida; si no, mensaje de error.
--- Regla de cierre diario (arqueo Z):
---   * Debe existir sesión ABIERTA para la fecha de la operación.
---   * No se operan cajas de días anteriores aún abiertas: hay que cerrarlas primero.
---   * Si pides operar hoy y hay otra fecha ABIERTA, se indica cerrarla antes.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_caja_assert_abierta
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.668Z
+DROP FUNCTION IF EXISTS fin_caja_assert_abierta(p_fecha date, p_id_sucursal integer);
 
-CREATE OR REPLACE FUNCTION fin_caja_assert_abierta(
-    p_fecha DATE,
-    p_id_sucursal INT DEFAULT NULL
-)
-RETURNS TEXT
-LANGUAGE plpgsql
-VOLATILE
+CREATE OR REPLACE FUNCTION fin_caja_assert_abierta(p_fecha date, p_id_sucursal integer DEFAULT NULL::integer)
+ RETURNS text
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_estado VARCHAR;
@@ -73,4 +69,4 @@ BEGIN
 
     RETURN 'No hay caja abierta para esta fecha. Abre la caja en Ventas → Caja antes de continuar.';
 END;
-$function$;
+$function$

@@ -1,19 +1,12 @@
--- Agrega una línea a una compra activa.
--- Si el producto tiene afecta_stock, genera INGRESO de inventario.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: com_crear_compra_detalle
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.635Z
+DROP FUNCTION IF EXISTS com_crear_compra_detalle(p_id_comprobante integer, p_id_producto integer, p_cantidad numeric, p_precio_unitario numeric, p_id_clasificacion_gasto integer, p_descripcion character varying, p_id_unidad_medida integer, p_id_almacen integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION com_crear_compra_detalle(
-    p_id_comprobante         INTEGER,
-    p_id_producto            INTEGER,
-    p_cantidad               NUMERIC,
-    p_precio_unitario        NUMERIC DEFAULT 0,
-    p_id_clasificacion_gasto INTEGER DEFAULT NULL,
-    p_descripcion            VARCHAR DEFAULT NULL,
-    p_id_unidad_medida       INTEGER DEFAULT NULL,
-    p_id_almacen             INTEGER DEFAULT NULL,
-    p_id_usuario_auditoria   INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION com_crear_compra_detalle(p_id_comprobante integer, p_id_producto integer, p_cantidad numeric, p_precio_unitario numeric DEFAULT 0, p_id_clasificacion_gasto integer DEFAULT NULL::integer, p_descripcion character varying DEFAULT NULL::character varying, p_id_unidad_medida integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_detalle          INTEGER;
@@ -115,4 +108,4 @@ BEGIN
 
     RETURN com_obtener_compra(p_id_comprobante);
 END;
-$function$;
+$function$

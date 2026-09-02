@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION pro_asegurar_stock_producto(
-    p_id_producto INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS VOID
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: pro_asegurar_stock_producto
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.771Z
+DROP FUNCTION IF EXISTS pro_asegurar_stock_producto(p_id_producto integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION pro_asegurar_stock_producto(p_id_producto integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS void
+ LANGUAGE plpgsql
 AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -61,4 +64,4 @@ BEGIN
             AND s.id_producto = p_id_producto
       );
 END;
-$function$;
+$function$

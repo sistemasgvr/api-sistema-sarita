@@ -1,7 +1,13 @@
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_psi_minimo_util
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.596Z
+DROP FUNCTION IF EXISTS bal_psi_minimo_util();
+
 CREATE OR REPLACE FUNCTION bal_psi_minimo_util()
-RETURNS NUMERIC
-LANGUAGE plpgsql
-STABLE
+ RETURNS numeric
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 DECLARE
     v_psi NUMERIC;
@@ -15,4 +21,4 @@ BEGIN
 
     RETURN COALESCE(v_psi, 100);
 END;
-$function$;
+$function$

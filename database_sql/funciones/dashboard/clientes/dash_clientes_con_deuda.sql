@@ -1,16 +1,13 @@
--- Clientes con deuda (cuentas por cobrar) con su detalle de comprobantes y productos.
--- Filtros opcionales: cliente y rango de fecha de emisión.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: dash_clientes_con_deuda
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.647Z
+DROP FUNCTION IF EXISTS dash_clientes_con_deuda(p_id_cliente integer, p_fecha_desde date, p_fecha_hasta date);
 
-DROP FUNCTION IF EXISTS dash_clientes_con_deuda();
-
-CREATE OR REPLACE FUNCTION dash_clientes_con_deuda(
-    p_id_cliente  INT  DEFAULT NULL,
-    p_fecha_desde DATE DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION dash_clientes_con_deuda(p_id_cliente integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
   v_id_tipo_cobrar INT;
   v_result JSON;
@@ -81,4 +78,4 @@ BEGIN
 
   RETURN v_result;
 END;
-$$;
+$function$

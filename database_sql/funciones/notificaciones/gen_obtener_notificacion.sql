@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION gen_obtener_notificacion(
-    p_id INTEGER,
-    p_id_usuario INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: gen_obtener_notificacion
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.751Z
+DROP FUNCTION IF EXISTS gen_obtener_notificacion(p_id integer, p_id_usuario integer);
+
+CREATE OR REPLACE FUNCTION gen_obtener_notificacion(p_id integer, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registro JSON;
@@ -37,4 +40,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$;
+$function$

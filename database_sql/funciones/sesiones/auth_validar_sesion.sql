@@ -1,6 +1,12 @@
-CREATE OR REPLACE FUNCTION auth_validar_sesion(p_token VARCHAR)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: auth_validar_sesion
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.510Z
+DROP FUNCTION IF EXISTS auth_validar_sesion(p_token character varying);
+
+CREATE OR REPLACE FUNCTION auth_validar_sesion(p_token character varying)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registro JSON;
@@ -25,4 +31,4 @@ BEGIN
 
     RETURN json_build_object('valida', v_registro IS NOT NULL, 'registro', v_registro);
 END;
-$function$;
+$function$

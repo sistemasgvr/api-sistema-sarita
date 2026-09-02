@@ -1,10 +1,12 @@
--- Cierra préstamo/recarga/alquiler/GRE pendientes ligados al CPE y suelta cilindros.
-CREATE OR REPLACE FUNCTION ven_cerrar_custodia_comprobante(
-    p_id_comprobante INTEGER,
-    p_id_usuario INTEGER DEFAULT NULL
-)
-RETURNS VOID
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_cerrar_custodia_comprobante
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.801Z
+DROP FUNCTION IF EXISTS ven_cerrar_custodia_comprobante(p_id_comprobante integer, p_id_usuario integer);
+
+CREATE OR REPLACE FUNCTION ven_cerrar_custodia_comprobante(p_id_comprobante integer, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS void
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_prestamo RECORD;
@@ -188,4 +190,4 @@ BEGIN
           WHERE gm0.id_garantia = g.id AND gm0.id_comprobante = p_id_comprobante
       );
 END;
-$function$;
+$function$

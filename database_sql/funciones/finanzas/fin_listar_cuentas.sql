@@ -1,26 +1,13 @@
--- Lista cuentas financieras (por COBRAR o por PAGAR) con paginación y filtros.
--- Comparte la tabla fin_cuenta; el tipo se resuelve por nombre (COBRAR/PAGAR).
---
--- Por defecto se listan solo cuentas "de primer nivel" (sin id_cuenta_padre):
--- cuentas simples + cabeceras de planes de cuotas. Las cuotas hijas se listan
--- pasando p_id_padre = <id_cabecera>.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_listar_cuentas
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.681Z
+DROP FUNCTION IF EXISTS fin_listar_cuentas(p_tipo character varying, p_id_tercero integer, p_estado character varying, p_solo_pendientes integer, p_buscar character varying, p_id_padre integer, p_limite integer, p_offset integer);
 
-DROP FUNCTION IF EXISTS fin_listar_cuentas(VARCHAR, INT, VARCHAR, INT, VARCHAR, INT, INT);
-DROP FUNCTION IF EXISTS fin_listar_cuentas(VARCHAR, INT, VARCHAR, INT, VARCHAR, INT, INT, INT);
-
-CREATE OR REPLACE FUNCTION fin_listar_cuentas(
-    p_tipo            VARCHAR DEFAULT NULL,   -- 'COBRAR' | 'PAGAR'
-    p_id_tercero      INT     DEFAULT NULL,
-    p_estado          VARCHAR DEFAULT NULL,   -- PENDIENTE | PARCIAL | VENCIDO | PAGADO
-    p_solo_pendientes INT     DEFAULT NULL,   -- 1 = solo cuentas con saldo > 0
-    p_buscar          VARCHAR DEFAULT NULL,
-    p_id_padre        INT     DEFAULT NULL,   -- NULL = solo primer nivel; <id> = cuotas de esa cabecera
-    p_limite          INT     DEFAULT 10,
-    p_offset          INT     DEFAULT 0
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION fin_listar_cuentas(p_tipo character varying DEFAULT NULL::character varying, p_id_tercero integer DEFAULT NULL::integer, p_estado character varying DEFAULT NULL::character varying, p_solo_pendientes integer DEFAULT NULL::integer, p_buscar character varying DEFAULT NULL::character varying, p_id_padre integer DEFAULT NULL::integer, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_resultado JSON;
     v_buscar    VARCHAR;
@@ -130,4 +117,4 @@ BEGIN
 
     RETURN v_resultado;
 END;
-$$;
+$function$

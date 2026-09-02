@@ -1,6 +1,12 @@
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_reporte_prestamos_huerfanos
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.605Z
+DROP FUNCTION IF EXISTS bal_reporte_prestamos_huerfanos();
+
 CREATE OR REPLACE FUNCTION bal_reporte_prestamos_huerfanos()
-RETURNS JSON
-LANGUAGE plpgsql
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -50,4 +56,4 @@ BEGIN
         'registros', v_registros
     );
 END;
-$function$;
+$function$

@@ -1,24 +1,12 @@
-DROP FUNCTION IF EXISTS tra_listar_trabajadores(
-    INTEGER,
-    VARCHAR,
-    INTEGER,
-    INTEGER,
-    INTEGER,
-    INTEGER,
-    BOOLEAN
-);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: tra_listar_trabajadores
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.797Z
+DROP FUNCTION IF EXISTS tra_listar_trabajadores(p_estado integer, p_buscar character varying, p_id_area integer, p_id_cargo integer, p_limite integer, p_offset integer, p_solo_sin_usuario boolean);
 
-CREATE OR REPLACE FUNCTION tra_listar_trabajadores(
-    p_estado        INTEGER DEFAULT NULL,   -- 1 activos, 0 cesados, NULL = todos
-    p_buscar        VARCHAR DEFAULT '',
-    p_id_area       INTEGER DEFAULT NULL,
-    p_id_cargo      INTEGER DEFAULT NULL,
-    p_limite        INTEGER DEFAULT 10,
-    p_offset        INTEGER DEFAULT 0,
-    p_solo_sin_usuario BOOLEAN DEFAULT FALSE
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION tra_listar_trabajadores(p_estado integer DEFAULT NULL::integer, p_buscar character varying DEFAULT ''::character varying, p_id_area integer DEFAULT NULL::integer, p_id_cargo integer DEFAULT NULL::integer, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_solo_sin_usuario boolean DEFAULT false)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -104,4 +92,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$

@@ -1,12 +1,12 @@
-CREATE OR REPLACE FUNCTION pro_actualizar_sub_categoria(
-    p_id INTEGER,
-    p_id_categoria INTEGER DEFAULT NULL,
-    p_nombre VARCHAR DEFAULT NULL,
-    p_descripcion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: pro_actualizar_sub_categoria
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.770Z
+DROP FUNCTION IF EXISTS pro_actualizar_sub_categoria(p_id integer, p_id_categoria integer, p_nombre character varying, p_descripcion character varying, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION pro_actualizar_sub_categoria(p_id integer, p_id_categoria integer DEFAULT NULL::integer, p_nombre character varying DEFAULT NULL::character varying, p_descripcion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_nombre VARCHAR;
@@ -55,4 +55,4 @@ BEGIN
 
     RETURN pro_obtener_sub_categoria(p_id);
 END;
-$function$;
+$function$

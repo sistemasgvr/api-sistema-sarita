@@ -1,15 +1,13 @@
-DROP FUNCTION IF EXISTS cli_listar_clientes_mapa(INT, VARCHAR, VARCHAR, INT, INT);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: cli_listar_clientes_mapa
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.621Z
+DROP FUNCTION IF EXISTS cli_listar_clientes_mapa(p_solo_activos integer, p_buscar character varying, p_filtro_balones character varying, p_limite integer, p_offset integer);
 
-CREATE OR REPLACE FUNCTION cli_listar_clientes_mapa(
-    p_solo_activos    INT     DEFAULT 1,
-    p_buscar          VARCHAR DEFAULT NULL,
-    p_filtro_balones  VARCHAR DEFAULT NULL, -- NULL | CON_BALONES | PRESTADO_CLIENTE | ALQUILADO | EN_PODER_CLIENTE
-    p_limite          INT     DEFAULT 500,
-    p_offset          INT     DEFAULT 0
-)
-RETURNS JSON
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE FUNCTION cli_listar_clientes_mapa(p_solo_activos integer DEFAULT 1, p_buscar character varying DEFAULT NULL::character varying, p_filtro_balones character varying DEFAULT NULL::character varying, p_limite integer DEFAULT 500, p_offset integer DEFAULT 0)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_resultado JSON;
     v_buscar    VARCHAR;
@@ -286,4 +284,4 @@ BEGIN
 
     RETURN v_resultado;
 END;
-$$;
+$function$

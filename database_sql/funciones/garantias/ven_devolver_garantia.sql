@@ -1,17 +1,12 @@
-DROP FUNCTION IF EXISTS ven_devolver_garantia(INTEGER, NUMERIC, INTEGER, DATE, VARCHAR, INTEGER);
-DROP FUNCTION IF EXISTS ven_devolver_garantia(INTEGER, NUMERIC, INTEGER, DATE, VARCHAR, INTEGER, INTEGER);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_devolver_garantia
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.804Z
+DROP FUNCTION IF EXISTS ven_devolver_garantia(p_id integer, p_monto numeric, p_id_comprobante integer, p_fecha date, p_observacion character varying, p_id_usuario_auditoria integer, p_id_medio_reembolso integer);
 
-CREATE OR REPLACE FUNCTION ven_devolver_garantia(
-    p_id INTEGER,
-    p_monto NUMERIC,
-    p_id_comprobante INTEGER DEFAULT NULL,
-    p_fecha DATE DEFAULT NULL,
-    p_observacion VARCHAR DEFAULT NULL,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL,
-    p_id_medio_reembolso INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION ven_devolver_garantia(p_id integer, p_monto numeric, p_id_comprobante integer DEFAULT NULL::integer, p_fecha date DEFAULT NULL::date, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_medio_reembolso integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_garantia RECORD;
@@ -198,4 +193,4 @@ BEGIN
 
     RETURN ven_obtener_garantia(p_id);
 END;
-$function$;
+$function$

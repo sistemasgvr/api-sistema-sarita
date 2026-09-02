@@ -1,9 +1,12 @@
-CREATE OR REPLACE FUNCTION auth_cerrar_sesion(
-    p_id INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: auth_cerrar_sesion
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.488Z
+DROP FUNCTION IF EXISTS auth_cerrar_sesion(p_id integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION auth_cerrar_sesion(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -21,4 +24,4 @@ BEGIN
 
     RETURN json_build_object('cerrada', TRUE, 'id', p_id);
 END;
-$function$;
+$function$

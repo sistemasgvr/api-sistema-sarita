@@ -1,11 +1,13 @@
--- Factor m³ por lb: tipo (capacidad/capacidad_lb) > producto.factor_lb_m3 > 0.3174
-CREATE OR REPLACE FUNCTION bal_factor_lb_m3(
-    p_id_tipo_balon INTEGER DEFAULT NULL,
-    p_id_producto_gas INTEGER DEFAULT NULL
-)
-RETURNS NUMERIC
-LANGUAGE plpgsql
-STABLE
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_factor_lb_m3
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.553Z
+DROP FUNCTION IF EXISTS bal_factor_lb_m3(p_id_tipo_balon integer, p_id_producto_gas integer);
+
+CREATE OR REPLACE FUNCTION bal_factor_lb_m3(p_id_tipo_balon integer DEFAULT NULL::integer, p_id_producto_gas integer DEFAULT NULL::integer)
+ RETURNS numeric
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 DECLARE
     v_cap_m3 NUMERIC;
@@ -36,4 +38,4 @@ BEGIN
 
     RETURN 0.317400;
 END;
-$function$;
+$function$

@@ -1,10 +1,12 @@
-CREATE OR REPLACE FUNCTION bal_aprobar_baja_balon(
-    p_id_baja INTEGER,
-    p_id_usuario_autoriza INTEGER,
-    p_id_usuario_auditoria INTEGER DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_aprobar_baja_balon
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.523Z
+DROP FUNCTION IF EXISTS bal_aprobar_baja_balon(p_id_baja integer, p_id_usuario_autoriza integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION bal_aprobar_baja_balon(p_id_baja integer, p_id_usuario_autoriza integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_balon INTEGER;
@@ -175,4 +177,4 @@ BEGIN
 
     RETURN bal_obtener_baja_balon(p_id_baja);
 END;
-$function$;
+$function$

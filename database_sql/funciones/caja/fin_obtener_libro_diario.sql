@@ -1,11 +1,12 @@
-CREATE OR REPLACE FUNCTION fin_obtener_libro_diario(
-    p_fecha_desde DATE,
-    p_fecha_hasta DATE DEFAULT NULL,
-    p_id_cliente INT DEFAULT NULL,
-    p_id_sucursal INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_obtener_libro_diario
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.686Z
+DROP FUNCTION IF EXISTS fin_obtener_libro_diario(p_fecha_desde date, p_fecha_hasta date, p_id_cliente integer, p_id_sucursal integer);
+
+CREATE OR REPLACE FUNCTION fin_obtener_libro_diario(p_fecha_desde date, p_fecha_hasta date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_hasta DATE;
@@ -217,4 +218,4 @@ BEGIN
         )
     );
 END;
-$function$;
+$function$

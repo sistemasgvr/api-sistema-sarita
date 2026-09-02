@@ -1,12 +1,12 @@
--- Sesiones ABIERTA cuya fecha operativa es anterior a hoy (Lima).
--- Sirve para UI (banner de cierre pendiente) y job de notificaciones.
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: fin_listar_caja_pendiente_cierre
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.680Z
+DROP FUNCTION IF EXISTS fin_listar_caja_pendiente_cierre(p_id_sucursal integer);
 
-CREATE OR REPLACE FUNCTION fin_listar_caja_pendiente_cierre(
-    p_id_sucursal INT DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
-VOLATILE
+CREATE OR REPLACE FUNCTION fin_listar_caja_pendiente_cierre(p_id_sucursal integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -38,4 +38,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', jsonb_array_length(v_registros::jsonb));
 END;
-$function$;
+$function$

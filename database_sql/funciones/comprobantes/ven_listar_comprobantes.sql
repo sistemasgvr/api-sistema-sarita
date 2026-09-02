@@ -1,17 +1,12 @@
-CREATE OR REPLACE FUNCTION ven_listar_comprobantes(
-    p_busqueda VARCHAR DEFAULT '',
-    p_limite INTEGER DEFAULT 10,
-    p_offset INTEGER DEFAULT 0,
-    p_id_tipo_comprobante INTEGER DEFAULT NULL,
-    p_id_cliente INTEGER DEFAULT NULL,
-    p_id_estado INTEGER DEFAULT NULL,
-    p_id_estado_sunat INTEGER DEFAULT NULL,
-    p_fecha_desde DATE DEFAULT NULL,
-    p_fecha_hasta DATE DEFAULT NULL,
-    p_serie VARCHAR DEFAULT NULL
-)
-RETURNS JSON
-LANGUAGE plpgsql
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_listar_comprobantes
+-- Overloads: 1
+-- Generated: 2026-09-02T21:31:03.806Z
+DROP FUNCTION IF EXISTS ven_listar_comprobantes(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_comprobante integer, p_id_cliente integer, p_id_estado integer, p_id_estado_sunat integer, p_fecha_desde date, p_fecha_hasta date, p_serie character varying);
+
+CREATE OR REPLACE FUNCTION ven_listar_comprobantes(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_tipo_comprobante integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer, p_id_estado_sunat integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_serie character varying DEFAULT NULL::character varying)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -160,4 +155,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$;
+$function$
