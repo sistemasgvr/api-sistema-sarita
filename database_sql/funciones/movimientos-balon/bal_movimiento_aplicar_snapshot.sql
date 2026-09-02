@@ -18,10 +18,6 @@ BEGIN
     FROM gen_lista_opciones lo
     WHERE lo.id = NEW.id_tipo_movimiento;
 
-    SELECT b.id_estado_contenido INTO v_id_contenido_actual
-    FROM bal_balon b
-    WHERE b.id = NEW.id_balon;
-
     v_estado_codigo := NULL;
     v_contenido_codigo := NULL;
     v_almacen := NULL;
@@ -89,12 +85,6 @@ BEGIN
         NEW.id_estado_balon := v_id_estado;
     ELSE
         NEW.id_estado_balon := NULL;
-    END IF;
-
-    IF v_contenido_codigo IS NOT NULL THEN
-        NEW.id_estado_contenido := bal_id_estado_contenido(v_contenido_codigo);
-    ELSIF TG_OP = 'INSERT' THEN
-        NEW.id_estado_contenido := v_id_contenido_actual;
     END IF;
 
     NEW.id_almacen_ubicacion := v_almacen;

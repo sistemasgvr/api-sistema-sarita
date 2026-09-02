@@ -223,16 +223,20 @@ BEGIN
         RETURNING id INTO v_id_detalle;
  
         IF v_afecta_stock THEN
-            v_result_movimiento := pro_crear_movimiento(
-                p_fecha                 => p_fecha,
-                p_id_producto           => v_id_producto,
-                p_id_almacen            => v_id_almacen_linea,
-                p_id_tipo_movimiento    => v_id_tipo_ingreso,
-                p_cantidad              => v_cantidad,
-                p_id_documento_ref      => v_id_detalle,
-                p_id_tipo_documento_ref => v_id_tipo_doc_ref,
-                p_glosa                 => 'Ingreso por compra ' || p_serie || '-' || p_numero,
-                p_id_usuario_auditoria  => p_id_usuario_auditoria
+            v_result_movimiento := inv_registrar_movimiento(
+                p_naturaleza                => 'PRODUCTO',
+                p_codigo_tipo_movimiento    => 'INGRESO',
+                p_fecha                     => p_fecha,
+                p_id_producto               => v_id_producto,
+                p_id_balon                  => NULL,
+                p_cantidad                  => v_cantidad,
+                p_id_almacen_origen         => v_id_almacen_linea,
+                p_id_almacen_destino        => NULL,
+                p_id_cliente                => NULL,
+                p_codigo_tipo_documento_origen => 'COMPRA',
+                p_id_documento_origen       => v_id_detalle,
+                p_glosa                     => 'Ingreso por compra ' || p_serie || '-' || p_numero,
+                p_id_usuario_auditoria      => p_id_usuario_auditoria
             );
  
             IF (v_result_movimiento->>'error') IS NOT NULL THEN
@@ -345,4 +349,4 @@ BEGIN
 
     RETURN com_obtener_compra(v_id_compra);
 END;
-$function$
+$function$;

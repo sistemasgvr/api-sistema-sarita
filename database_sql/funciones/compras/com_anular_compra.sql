@@ -120,17 +120,21 @@ BEGIN
           AND afecta_stock = TRUE
           AND estado = 1
     LOOP
-        v_result_movimiento := pro_crear_movimiento(
-            p_fecha                 => CURRENT_DATE,
-            p_id_producto           => v_detalle.id_producto,
-            p_id_almacen            => v_detalle.id_almacen,
-            p_id_tipo_movimiento    => v_id_tipo_salida,
-            p_cantidad              => v_detalle.cantidad,
-            p_id_documento_ref      => v_detalle.id,
-            p_id_tipo_documento_ref => v_id_tipo_doc_ref,
-            p_glosa                 => 'Reversa por anulación de compra ' || v_serie || '-' || v_numero,
-            p_id_usuario_auditoria  => p_id_usuario_auditoria,
-            p_forzar_ajuste_stock   => TRUE
+        v_result_movimiento := inv_registrar_movimiento(
+            p_naturaleza                => 'PRODUCTO',
+            p_codigo_tipo_movimiento    => 'SALIDA',
+            p_fecha                     => CURRENT_DATE,
+            p_id_producto               => v_detalle.id_producto,
+            p_id_balon                  => NULL,
+            p_cantidad                  => v_detalle.cantidad,
+            p_id_almacen_origen         => v_detalle.id_almacen,
+            p_id_almacen_destino        => NULL,
+            p_id_cliente                => NULL,
+            p_codigo_tipo_documento_origen => 'DEVOLUCION',
+            p_id_documento_origen       => v_detalle.id,
+            p_glosa                     => 'Reversa por anulación de compra ' || v_serie || '-' || v_numero,
+            p_id_usuario_auditoria      => p_id_usuario_auditoria,
+            p_forzar                    => TRUE
         );
 
         IF (v_result_movimiento->>'error') IS NOT NULL THEN

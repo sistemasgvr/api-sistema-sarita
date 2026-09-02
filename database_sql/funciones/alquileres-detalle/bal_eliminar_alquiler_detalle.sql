@@ -12,8 +12,6 @@ DECLARE
     v_id_cliente INTEGER;
     v_fecha_devolucion DATE;
     v_id_estado_en_almacen INTEGER;
-    v_id_tipo_movimiento INTEGER;
-    v_id_tipo_documento_ref INTEGER;
     v_mov JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -58,34 +56,21 @@ BEGIN
         LIMIT 1;
 
         IF v_id_estado_en_almacen IS NOT NULL THEN
-            SELECT lo.id INTO v_id_tipo_movimiento
-            FROM gen_lista_opciones lo
-            INNER JOIN gen_lista l ON lo.id_lista = l.id
-            WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_DEVOLUCION' AND lo.estado = 1
-            LIMIT 1;
-
-            SELECT lo.id INTO v_id_tipo_documento_ref
-            FROM gen_lista_opciones lo
-            INNER JOIN gen_lista l ON lo.id_lista = l.id
-            WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'ALQUILER' AND lo.estado = 1
-            LIMIT 1;
-
-            IF v_id_tipo_movimiento IS NOT NULL THEN
-                v_mov := bal_crear_movimiento(
-                    v_id_balon,
-                    v_id_tipo_movimiento,
-                    v_id_alquiler,
-                    v_id_tipo_documento_ref,
-                    v_id_cliente,
-                    NULL::INTEGER,
-                    v_id_almacen,
-                    NOW()::TIMESTAMP,
-                    'Entrada por quitar cilindro del alquiler'::VARCHAR,
-                    p_id_usuario_auditoria
-                );
-                IF v_mov->>'error' IS NOT NULL THEN
-                    RAISE EXCEPTION '%', v_mov->>'error';
-                END IF;
+            v_mov := inv_registrar_movimiento(
+                p_naturaleza                => 'BALON',
+                p_codigo_tipo_movimiento    => 'ENTRADA_DEVOLUCION',
+                p_fecha                     => NOW(),
+                p_id_balon                  => v_id_balon,
+                p_cantidad                  => 1,
+                p_id_almacen_destino        => v_id_almacen,
+                p_id_cliente                => v_id_cliente,
+                p_codigo_tipo_documento_origen => 'ALQUILER',
+                p_id_documento_origen       => v_id_alquiler,
+                p_glosa                     => 'Entrada por quitar cilindro del alquiler',
+                p_id_usuario_auditoria      => p_id_usuario_auditoria
+            );
+            IF v_mov->>'error' IS NOT NULL THEN
+                RAISE EXCEPTION '%', v_mov->>'error';
             END IF;
 
             UPDATE bal_balon

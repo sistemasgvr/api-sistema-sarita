@@ -57,7 +57,6 @@ BEGIN
             det.lb_salida,
             det.lb_retorno,
             det.m3_delta,
-            det.capacidad_restante_m3,
             det.observacion
         FROM bal_ruta_pueblo_detalle det
         INNER JOIN bal_balon b ON b.id = det.id_balon

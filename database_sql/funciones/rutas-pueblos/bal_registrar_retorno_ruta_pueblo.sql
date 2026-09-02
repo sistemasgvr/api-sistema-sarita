@@ -110,7 +110,6 @@ BEGIN
         SET
             lb_retorno = v_lb_retorno,
             m3_delta = v_m3_delta,
-            capacidad_restante_m3 = v_restante_m3,
             observacion = COALESCE(
                 NULLIF(TRIM(COALESCE(v_detalle->>'observacion', '')), ''),
                 observacion
@@ -154,22 +153,7 @@ BEGIN
             fecha_modificacion = NOW()
         WHERE id = v_id_balon AND estado = 1;
 
-        -- Residual dual + contenido (parcial → DESCONOCIDO; 0 → VACIO; casi lleno → LLENO)
-        v_sync := bal_sync_capacidad_restante(
-            v_id_balon,
-            NULL,
-            v_lb_retorno,
-            NULL,
-            'FROM_LB',
-            NULL,
-            p_id_usuario_auditoria
-        );
 
-        IF COALESCE((v_sync->>'ok')::BOOLEAN, FALSE) IS NOT TRUE THEN
-            RAISE EXCEPTION 'Cilindro %: %',
-                v_id_balon,
-                COALESCE(v_sync->>'error', 'No se pudo sincronizar capacidad residual');
-        END IF;
     END LOOP;
 
     UPDATE bal_ruta_pueblo

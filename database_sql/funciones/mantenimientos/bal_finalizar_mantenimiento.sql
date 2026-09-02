@@ -25,9 +25,6 @@ DECLARE
     v_nombre_estado VARCHAR;
     v_es_servicio_cliente BOOLEAN;
     v_id_almacen_destino INTEGER;
-    v_id_tipo_movimiento INTEGER;
-    v_id_tipo_documento_ref INTEGER;
-    v_id_tipo_ingreso INTEGER;
     v_id_estado_finalizado INTEGER;
     v_id_estado_destino INTEGER;
     v_mov_result JSON;
@@ -90,12 +87,6 @@ BEGIN
         );
     END IF;
 
-    SELECT lo.id INTO v_id_tipo_documento_ref
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'MANTENIMIENTO' AND lo.estado = 1
-    LIMIT 1;
-
     UPDATE bal_mantenimiento
     SET
         fecha_salida = COALESCE(p_fecha_salida, CURRENT_DATE),
@@ -123,32 +114,20 @@ BEGIN
               AND estado = 1
               AND COALESCE(afecta_stock, FALSE) = TRUE
         ) THEN
-            SELECT lo.id INTO v_id_tipo_ingreso
-            FROM gen_lista_opciones lo
-            INNER JOIN gen_lista l ON l.id = lo.id_lista
-            WHERE l.nombre = 'TipoMovInv' AND lo.nombre = 'INGRESO' AND lo.estado = 1
-            LIMIT 1;
-
-            IF v_id_tipo_ingreso IS NULL THEN
-                RETURN json_build_object(
-                    'error', 'No se encontró el tipo de movimiento INGRESO (TipoMovInv)',
-                    'registro', NULL
-                );
-            END IF;
-
-            v_mov_result := pro_crear_movimiento(
-                COALESCE(p_fecha_salida, CURRENT_DATE),
-                v_id_producto,
-                v_id_almacen_destino,
-                v_id_tipo_ingreso,
-                1,
-                p_id,
-                v_id_tipo_documento_ref,
-                COALESCE(
+            v_mov_result := inv_registrar_movimiento(
+                p_naturaleza                => 'PRODUCTO',
+                p_codigo_tipo_movimiento    => 'INGRESO',
+                p_fecha                     => COALESCE(p_fecha_salida, CURRENT_DATE),
+                p_id_producto               => v_id_producto,
+                p_cantidad                  => 1,
+                p_id_almacen_origen         => v_id_almacen_destino,
+                p_codigo_tipo_documento_origen => 'MANTENIMIENTO',
+                p_id_documento_origen       => p_id,
+                p_glosa                     => COALESCE(
                     NULLIF(TRIM(p_observacion), ''),
                     'Reingreso regulador tras mantenimiento #' || p_id
                 ),
-                p_id_usuario_auditoria
+                p_id_usuario_auditoria      => p_id_usuario_auditoria
             );
 
             IF v_mov_result->>'error' IS NOT NULL THEN
@@ -183,20 +162,6 @@ BEGIN
             v_id_cliente_comprobante
         );
 
-        SELECT lo.id INTO v_id_tipo_movimiento
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'SALIDA_ENTREGA_CLIENTE' AND lo.estado = 1
-        LIMIT 1;
-
-        IF v_id_tipo_movimiento IS NULL THEN
-            SELECT lo.id INTO v_id_tipo_movimiento
-            FROM gen_lista_opciones lo
-            INNER JOIN gen_lista l ON lo.id_lista = l.id
-            WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'SALIDA_MANTENIMIENTO' AND lo.estado = 1
-            LIMIT 1;
-        END IF;
-
         IF v_nombre_propietario = 'CLIENTE' THEN
             SELECT lo.id INTO v_id_estado_destino
             FROM gen_lista_opciones lo
@@ -224,23 +189,22 @@ BEGIN
             'Entrega al cliente tras servicio de mantenimiento'
         );
 
-        IF v_id_tipo_movimiento IS NOT NULL THEN
-            v_mov_result := bal_crear_movimiento(
-                v_id_balon,
-                v_id_tipo_movimiento,
-                p_id,
-                v_id_tipo_documento_ref,
-                v_id_cliente_destino,
-                v_id_almacen,
-                NULL::INTEGER,
-                COALESCE(p_fecha_salida, CURRENT_DATE)::TIMESTAMP,
-                v_obs_movimiento::VARCHAR,
-                p_id_usuario_auditoria
-            );
+        v_mov_result := inv_registrar_movimiento(
+            p_naturaleza                => 'BALON',
+            p_codigo_tipo_movimiento    => 'SALIDA_ENTREGA_CLIENTE',
+            p_fecha                     => COALESCE(p_fecha_salida, CURRENT_DATE),
+            p_id_balon                  => v_id_balon,
+            p_cantidad                  => 1,
+            p_id_almacen_origen         => v_id_almacen,
+            p_id_cliente                => v_id_cliente_destino,
+            p_codigo_tipo_documento_origen => 'MANTENIMIENTO',
+            p_id_documento_origen       => p_id,
+            p_glosa                     => v_obs_movimiento,
+            p_id_usuario_auditoria      => p_id_usuario_auditoria
+        );
 
-            IF v_mov_result->>'error' IS NOT NULL THEN
-                RAISE EXCEPTION '%', v_mov_result->>'error';
-            END IF;
+        IF v_mov_result->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_mov_result->>'error';
         END IF;
 
         -- Custodia al cliente. Tras mant. sale vacío; residual no aplica fuera de planta.
@@ -249,21 +213,11 @@ BEGIN
             id_almacen = NULL,
             id_cliente_ubicacion = v_id_cliente_destino,
             id_estado_balon = v_id_estado_destino,
-            id_estado_contenido = COALESCE(bal_id_estado_contenido('VACIO'), id_estado_contenido),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_balon
           AND estado = 1;
 
-        PERFORM bal_sync_capacidad_restante(
-            v_id_balon,
-            NULL,
-            NULL,
-            NULL,
-            'CLEAR',
-            NULL,
-            p_id_usuario_auditoria
-        );
     ELSE
         -- Inventario empresa: reingreso a almacén
         v_id_almacen_destino := COALESCE(p_id_almacen_destino, v_id_almacen);
@@ -284,20 +238,6 @@ BEGIN
             );
         END IF;
 
-        SELECT lo.id INTO v_id_tipo_movimiento
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_MANTENIMIENTO' AND lo.estado = 1
-        LIMIT 1;
-
-        IF v_id_tipo_movimiento IS NULL THEN
-            SELECT lo.id INTO v_id_tipo_movimiento
-            FROM gen_lista_opciones lo
-            INNER JOIN gen_lista l ON lo.id_lista = l.id
-            WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_DEVOLUCION' AND lo.estado = 1
-            LIMIT 1;
-        END IF;
-
         SELECT lo.id INTO v_id_estado_destino
         FROM gen_lista_opciones lo
         INNER JOIN gen_lista l ON lo.id_lista = l.id
@@ -316,23 +256,21 @@ BEGIN
             'Entrada por finalización de mantenimiento'
         );
 
-        IF v_id_tipo_movimiento IS NOT NULL THEN
-            v_mov_result := bal_crear_movimiento(
-                v_id_balon,
-                v_id_tipo_movimiento,
-                p_id,
-                v_id_tipo_documento_ref,
-                NULL::INTEGER,
-                NULL::INTEGER,
-                v_id_almacen_destino,
-                COALESCE(p_fecha_salida, CURRENT_DATE)::TIMESTAMP,
-                v_obs_movimiento::VARCHAR,
-                p_id_usuario_auditoria
-            );
+        v_mov_result := inv_registrar_movimiento(
+            p_naturaleza                => 'BALON',
+            p_codigo_tipo_movimiento    => 'ENTRADA_MANTENIMIENTO',
+            p_fecha                     => COALESCE(p_fecha_salida, CURRENT_DATE),
+            p_id_balon                  => v_id_balon,
+            p_cantidad                  => 1,
+            p_id_almacen_destino        => v_id_almacen_destino,
+            p_codigo_tipo_documento_origen => 'MANTENIMIENTO',
+            p_id_documento_origen       => p_id,
+            p_glosa                     => v_obs_movimiento,
+            p_id_usuario_auditoria      => p_id_usuario_auditoria
+        );
 
-            IF v_mov_result->>'error' IS NOT NULL THEN
-                RAISE EXCEPTION '%', v_mov_result->>'error';
-            END IF;
+        IF v_mov_result->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_mov_result->>'error';
         END IF;
 
         -- Reingreso a almacén vacío (tras PH/reparación no se asume recarga).
@@ -341,7 +279,6 @@ BEGIN
             id_cliente_ubicacion = NULL,
             id_almacen = v_id_almacen_destino,
             id_estado_balon = v_id_estado_destino,
-            id_estado_contenido = COALESCE(bal_id_estado_contenido('VACIO'), id_estado_contenido),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_balon

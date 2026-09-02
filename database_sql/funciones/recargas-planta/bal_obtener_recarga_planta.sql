@@ -79,13 +79,11 @@ BEGIN
             det.id_movimiento_recarga,
             det.observacion,
             eb.nombre AS nombre_estado_balon,
-            ec.nombre AS nombre_estado_contenido,
             det.estado
         FROM bal_recarga_planta_detalle det
         INNER JOIN bal_balon b ON b.id = det.id_balon
         LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
         LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
-        LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
         LEFT JOIN pro_producto p ON p.id = det.id_producto
         LEFT JOIN gen_lista_opciones um ON um.id = det.id_unidad_medida
         WHERE det.id_recarga_planta = p_id AND det.estado = 1

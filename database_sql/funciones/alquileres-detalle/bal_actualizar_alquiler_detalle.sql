@@ -12,10 +12,6 @@ DECLARE
     v_fecha_devolucion DATE;
     v_id_cliente INTEGER;
     v_id_almacen INTEGER;
-    v_id_tipo_salida INTEGER;
-    v_id_tipo_entrada INTEGER;
-    v_id_tipo_doc INTEGER;
-    v_id_estado_alquilado INTEGER;
     v_id_estado_en_almacen INTEGER;
     v_mov JSON;
 BEGIN
@@ -92,37 +88,13 @@ BEGIN
             );
         END IF;
 
-        SELECT lo.id INTO v_id_tipo_salida
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'SALIDA_ALQUILER' AND lo.estado = 1
-        LIMIT 1;
-
-        SELECT lo.id INTO v_id_tipo_entrada
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_DEVOLUCION' AND lo.estado = 1
-        LIMIT 1;
-
-        SELECT lo.id INTO v_id_tipo_doc
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'ALQUILER' AND lo.estado = 1
-        LIMIT 1;
-
-        SELECT lo.id INTO v_id_estado_alquilado
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'ALQUILADO' AND lo.estado = 1
-        LIMIT 1;
-
         SELECT lo.id INTO v_id_estado_en_almacen
         FROM gen_lista_opciones lo
         INNER JOIN gen_lista l ON lo.id_lista = l.id
         WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
         LIMIT 1;
 
-        IF v_id_estado_alquilado IS NULL OR v_id_estado_en_almacen IS NULL THEN
+        IF v_id_estado_en_almacen IS NULL THEN
             RETURN json_build_object(
                 'error', 'Faltan estados ALQUILADO / EN_ALMACEN en el catálogo EstadoBalon',
                 'registro', NULL
@@ -136,65 +108,46 @@ BEGIN
             );
         END IF;
 
-        IF v_id_tipo_entrada IS NOT NULL THEN
-            v_mov := bal_crear_movimiento(
-                v_id_balon_actual,
-                v_id_tipo_entrada,
-                v_id_alquiler,
-                v_id_tipo_doc,
-                v_id_cliente,
-                NULL::INTEGER,
-                v_id_almacen,
-                NOW()::TIMESTAMP,
-                'Retorno por cambio de cilindro en alquiler'::VARCHAR,
-                p_id_usuario_auditoria
-            );
-            IF v_mov->>'error' IS NOT NULL THEN
-                RAISE EXCEPTION '%', v_mov->>'error';
-            END IF;
-        END IF;
-
-        UPDATE bal_balon
-        SET
-            id_cliente_ubicacion = NULL,
-            id_almacen = v_id_almacen,
-            id_estado_balon = v_id_estado_en_almacen,
-            id_estado_contenido = COALESCE(bal_id_estado_contenido('VACIO'), id_estado_contenido),
-            id_usuario_modificacion = p_id_usuario_auditoria,
-            fecha_modificacion = NOW()
-        WHERE id = v_id_balon_actual AND estado = 1;
-
-        IF v_id_tipo_salida IS NOT NULL THEN
-            v_mov := bal_crear_movimiento(
-                p_id_balon,
-                v_id_tipo_salida,
-                v_id_alquiler,
-                v_id_tipo_doc,
-                v_id_cliente,
-                v_id_almacen,
-                NULL::INTEGER,
-                NOW()::TIMESTAMP,
-                'Salida por cambio de cilindro en alquiler'::VARCHAR,
-                p_id_usuario_auditoria
-            );
-            IF v_mov->>'error' IS NOT NULL THEN
-                RAISE EXCEPTION '%', v_mov->>'error';
-            END IF;
-        END IF;
-
-        UPDATE bal_balon
-        SET
-            id_cliente_ubicacion = v_id_cliente,
-            id_almacen = NULL,
-            id_estado_balon = v_id_estado_alquilado,
-            id_estado_contenido = COALESCE(bal_id_estado_contenido('DESCONOCIDO'), id_estado_contenido),
-            id_usuario_modificacion = p_id_usuario_auditoria,
-            fecha_modificacion = NOW()
-        WHERE id = p_id_balon AND estado = 1;
-
-        PERFORM bal_sync_capacidad_restante(
-            p_id_balon, NULL, NULL, NULL, 'CLEAR', NULL, p_id_usuario_auditoria
+        v_mov := inv_registrar_movimiento(
+            p_naturaleza                => 'BALON',
+            p_codigo_tipo_movimiento    => 'ENTRADA_DEVOLUCION',
+            p_fecha                     => NOW(),
+            p_id_balon                  => v_id_balon_actual,
+            p_cantidad                  => 1,
+            p_id_almacen_destino        => v_id_almacen,
+            p_id_cliente                => v_id_cliente,
+            p_codigo_tipo_documento_origen => 'ALQUILER',
+            p_id_documento_origen       => v_id_alquiler,
+            p_glosa                     => 'Retorno por cambio de cilindro en alquiler',
+            p_id_usuario_auditoria      => p_id_usuario_auditoria
         );
+        IF v_mov->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_mov->>'error';
+        END IF;
+
+        -- inv_registrar_movimiento ya deja el balón devuelto en EN_ALMACEN/v_id_almacen
+        -- (mapeo ENTRADA_DEVOLUCION), no hace falta repetirlo aquí.
+
+        v_mov := inv_registrar_movimiento(
+            p_naturaleza                => 'BALON',
+            p_codigo_tipo_movimiento    => 'SALIDA_ALQUILER',
+            p_fecha                     => NOW(),
+            p_id_balon                  => p_id_balon,
+            p_cantidad                  => 1,
+            p_id_almacen_origen         => v_id_almacen,
+            p_id_cliente                => v_id_cliente,
+            p_codigo_tipo_documento_origen => 'ALQUILER',
+            p_id_documento_origen       => v_id_alquiler,
+            p_glosa                     => 'Salida por cambio de cilindro en alquiler',
+            p_id_usuario_auditoria      => p_id_usuario_auditoria
+        );
+        IF v_mov->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_mov->>'error';
+        END IF;
+
+        -- inv_registrar_movimiento ya deja el balón nuevo en ALQUILADO/v_id_cliente
+        -- (mapeo SALIDA_ALQUILER), no hace falta repetirlo aquí.
+
     END IF;
 
     UPDATE bal_alquiler_detalle

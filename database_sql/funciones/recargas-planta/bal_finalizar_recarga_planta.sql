@@ -39,8 +39,6 @@ AS $function$
 DECLARE
     v_resultado             JSON;
     v_id_estado_en_almacen  INTEGER;
-    v_id_tipo_entrada_llenado INTEGER;
-    v_id_tipo_doc_ref       INTEGER;
     v_id_documento_ref      INTEGER;
     v_det                   RECORD;
     v_mov                   JSON;
@@ -74,32 +72,17 @@ BEGIN
         WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
         LIMIT 1;
 
-        SELECT lo.id INTO v_id_tipo_entrada_llenado
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON l.id = lo.id_lista
-        WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_LLENADO' AND lo.estado = 1
-        LIMIT 1;
-
         -- Preferir COMPRA como documento de referencia cuando la factura ya está vinculada.
         IF p_id_comprobante_compra IS NOT NULL THEN
-            SELECT lo.id INTO v_id_tipo_doc_ref
-            FROM gen_lista_opciones lo
-            INNER JOIN gen_lista l ON l.id = lo.id_lista
-            WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'COMPRA' AND lo.estado = 1
-            LIMIT 1;
             v_id_documento_ref := p_id_comprobante_compra;
         ELSE
-            SELECT lo.id INTO v_id_tipo_doc_ref
-            FROM gen_lista_opciones lo
-            INNER JOIN gen_lista l ON l.id = lo.id_lista
-            WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'RECARGA' AND lo.estado = 1
-            LIMIT 1;
             v_id_documento_ref := p_id_recarga_planta;
         END IF;
 
         FOR v_det IN
-            SELECT d.id_balon
+            SELECT d.id_balon, COALESCE(d.id_producto, b.id_producto_gas) AS id_producto, d.capacidad
             FROM bal_recarga_planta_detalle d
+            LEFT JOIN bal_balon b ON b.id = d.id_balon
             WHERE d.id_recarga_planta = p_id_recarga_planta
               AND d.estado = 1
         LOOP
@@ -110,27 +93,32 @@ BEGIN
                 p_id_usuario_auditoria => p_id_usuario_auditoria
             );
 
-            IF v_id_tipo_entrada_llenado IS NOT NULL AND v_id_tipo_doc_ref IS NOT NULL THEN
-                v_mov := bal_crear_movimiento(
-                    p_id_balon              => v_det.id_balon,
-                    p_id_tipo_movimiento    => v_id_tipo_entrada_llenado,
-                    p_id_documento_ref      => v_id_documento_ref,
-                    p_id_tipo_documento_ref => v_id_tipo_doc_ref,
-                    p_id_cliente            => p_id_proveedor,
-                    p_id_almacen_destino    => p_id_almacen,
-                    p_observacion           => CASE
-                        WHEN p_id_comprobante_compra IS NOT NULL THEN
-                            'Entrada por compra #' || p_id_comprobante_compra
-                            || ' (orden planta #' || p_id_recarga_planta || ')'
-                        ELSE
-                            'Entrada por recarga en planta externa (orden #' || p_id_recarga_planta || ')'
-                    END,
-                    p_id_usuario_auditoria  => p_id_usuario_auditoria
-                );
+            v_mov := inv_registrar_movimiento(
+                p_naturaleza                => 'BALON',
+                p_codigo_tipo_movimiento    => 'ENTRADA_LLENADO',
+                p_fecha                     => NOW(),
+                p_id_producto               => v_det.id_producto,
+                p_id_balon                  => v_det.id_balon,
+                p_cantidad                  => COALESCE(v_det.capacidad, 1),
+                p_id_almacen_destino        => p_id_almacen,
+                p_id_cliente                => p_id_proveedor,
+                p_codigo_tipo_documento_origen => CASE
+                    WHEN p_id_comprobante_compra IS NOT NULL THEN 'COMPRA'
+                    ELSE 'RECARGA'
+                END,
+                p_id_documento_origen       => v_id_documento_ref,
+                p_glosa                     => CASE
+                    WHEN p_id_comprobante_compra IS NOT NULL THEN
+                        'Entrada por compra #' || p_id_comprobante_compra
+                        || ' (orden planta #' || p_id_recarga_planta || ')'
+                    ELSE
+                        'Entrada por recarga en planta externa (orden #' || p_id_recarga_planta || ')'
+                END,
+                p_id_usuario_auditoria      => p_id_usuario_auditoria
+            );
 
-                IF v_mov->>'error' IS NOT NULL THEN
-                    RAISE EXCEPTION 'No se pudo registrar el movimiento de entrada del balón %: %', v_det.id_balon, v_mov->>'error';
-                END IF;
+            IF v_mov->>'error' IS NOT NULL THEN
+                RAISE EXCEPTION 'No se pudo registrar el movimiento de entrada del balón %: %', v_det.id_balon, v_mov->>'error';
             END IF;
         END LOOP;
     END IF;

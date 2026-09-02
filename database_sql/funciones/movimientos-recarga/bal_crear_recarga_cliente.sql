@@ -43,8 +43,8 @@ DECLARE
     v_comprobante JSON;
     v_capacidad NUMERIC;
     v_capacidad_destino NUMERIC;
+    v_mov JSON;
     v_producto_nombre VARCHAR;
-    v_consumo JSON;
     v_asignacion JSON;
     v_origenes JSON;
     v_id_balon_origen_principal INTEGER;
@@ -253,15 +253,9 @@ BEGIN
     v_serie_comprobante := v_comprobante->>'serie';
     v_numero_comprobante := v_comprobante->>'numero';
 
-    v_consumo := bal_consumir_capacidad_origenes_recarga(
-        v_origenes,
-        p_id_usuario_auditoria
-    );
-
-    IF v_consumo->>'error' IS NOT NULL THEN
-        -- Abortar para revertir el comprobante ya creado en la misma transacción.
-        RAISE EXCEPTION '%', v_consumo->>'error';
-    END IF;
+    -- El stock de gas ya se validó en bal_asignar_origenes_recarga (pro_stock) y se
+    -- descuenta más abajo vía inv_registrar_movimiento; ya no hay capacidad por
+    -- cilindro que "consumir" aparte.
 
     INSERT INTO bal_movimiento_recarga (
         fecha_salida_almacen,
@@ -323,63 +317,35 @@ BEGIN
     FROM json_array_elements(v_origenes) o;
 
     IF v_id_tipo_movimiento IS NOT NULL THEN
-        INSERT INTO bal_movimiento (
-            id_balon,
-            id_tipo_movimiento,
-            id_documento_ref,
-            id_tipo_documento_ref,
-            id_cliente,
-            id_almacen_destino,
-            fecha_movimiento,
-            observacion,
-            id_usuario_creacion,
-            id_usuario_modificacion
-        )
-        VALUES (
-            p_id_balon,
-            v_id_tipo_movimiento,
-            v_id_recarga,
-            v_id_tipo_documento_ref,
-            p_id_cliente,
-            p_id_almacen,
-            NOW(),
-            COALESCE(p_observacion, 'Recarga cliente'),
-            p_id_usuario_auditoria,
-            p_id_usuario_auditoria
+        v_mov := inv_registrar_movimiento(
+            p_naturaleza                => 'BALON',
+            p_codigo_tipo_movimiento    => 'RECARGA_CLIENTE',
+            p_fecha                     => NOW(),
+            p_id_producto               => p_id_producto,
+            p_id_balon                  => p_id_balon,
+            p_cantidad                  => v_capacidad,
+            p_id_almacen_origen         => p_id_almacen,
+            p_id_almacen_destino        => NULL,
+            p_id_cliente                => p_id_cliente,
+            p_codigo_tipo_documento_origen => 'RECARGA',
+            p_id_documento_origen       => v_id_recarga,
+            p_glosa                     => COALESCE(p_observacion, 'Recarga cliente'),
+            p_id_usuario_auditoria      => p_id_usuario_auditoria
         );
+        IF v_mov->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_mov->>'error';
+        END IF;
     END IF;
 
-    -- Sale lleno del mostrador, pero fuera de planta el residual deja de ser confiable.
+    -- inv_registrar_movimiento ya actualizó id_estado_balon, id_cliente_ubicacion, id_almacen.
+    -- Solo fijamos id_producto_gas y limpiamos presion/contenido.
     UPDATE bal_balon
     SET
         id_producto_gas = p_id_producto,
-        id_cliente_ubicacion = p_id_cliente,
-        id_almacen = NULL,
         presion_actual = NULL,
-        id_estado_balon = COALESCE(
-            (
-                SELECT lo.id
-                FROM gen_lista_opciones lo
-                INNER JOIN gen_lista l ON lo.id_lista = l.id
-                WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_PODER_CLIENTE' AND lo.estado = 1
-                LIMIT 1
-            ),
-            id_estado_balon
-        ),
-        id_estado_contenido = COALESCE(bal_id_estado_contenido('DESCONOCIDO'), id_estado_contenido),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id_balon AND estado = 1;
-
-    PERFORM bal_sync_capacidad_restante(
-        p_id_balon,
-        NULL,
-        NULL,
-        NULL,
-        'CLEAR',
-        NULL,
-        p_id_usuario_auditoria
-    );
 
     v_recarga := bal_obtener_movimiento_recarga(v_id_recarga);
 

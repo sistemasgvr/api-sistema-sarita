@@ -19,8 +19,7 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    -- Stock de productos = accesorios / artículos físicos.
-    -- Los gases se gestionan en Balones → Stock de gas (balones empresa LLENO).
+    -- Stock de productos: accesorios y, desde Fase 1, también gas (pro_stock unificado).
     SELECT
         COUNT(*),
         json_build_object(
@@ -33,8 +32,7 @@ BEGIN
     FROM pro_stock s
     INNER JOIN gen_almacen a ON s.id_almacen = a.id
     INNER JOIN pro_producto p ON s.id_producto = p.id
-    WHERE COALESCE(p.es_gas, FALSE) = FALSE
-      AND (p_solo_activos IS NULL OR s.estado = p_solo_activos)
+    WHERE (p_solo_activos IS NULL OR s.estado = p_solo_activos)
       AND (p_solo_activos IS DISTINCT FROM 1 OR (a.estado = 1 AND p.estado = 1))
       AND (p_id_almacen IS NULL OR s.id_almacen = p_id_almacen)
       AND (p_id_producto IS NULL OR s.id_producto = p_id_producto)
@@ -87,8 +85,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones um ON p.id_unidad_medida = um.id
         LEFT JOIN auth_usuarios uc ON s.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um2 ON s.id_usuario_modificacion = um2.id
-        WHERE COALESCE(p.es_gas, FALSE) = FALSE
-          AND (p_solo_activos IS NULL OR s.estado = p_solo_activos)
+        WHERE (p_solo_activos IS NULL OR s.estado = p_solo_activos)
           AND (p_solo_activos IS DISTINCT FROM 1 OR (a.estado = 1 AND p.estado = 1))
           AND (p_id_almacen IS NULL OR s.id_almacen = p_id_almacen)
           AND (p_id_producto IS NULL OR s.id_producto = p_id_producto)

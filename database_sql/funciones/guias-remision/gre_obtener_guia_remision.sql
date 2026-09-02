@@ -156,7 +156,6 @@ BEGIN
             tb.capacidad AS capacidad_tipo_balon,
             tb.capacidad AS capacidad,
             eb.nombre AS nombre_estado_balon,
-            ec.nombre AS nombre_estado_contenido,
             det.glosa
         FROM gre_guia_remision_detalle det
         LEFT JOIN pro_producto p ON det.id_producto = p.id
@@ -165,7 +164,6 @@ BEGIN
         LEFT JOIN bal_tipo_balon tb ON tb.id = bal.id_tipo_balon
         LEFT JOIN gen_lista_opciones umt ON umt.id = tb.id_unidad_medida
         LEFT JOIN gen_lista_opciones eb ON eb.id = bal.id_estado_balon
-        LEFT JOIN gen_lista_opciones ec ON ec.id = bal.id_estado_contenido
         WHERE det.id_guia_remision = p_id AND det.estado = 1
     ) d;
 

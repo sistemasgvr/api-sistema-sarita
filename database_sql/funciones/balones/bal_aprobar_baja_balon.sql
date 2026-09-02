@@ -156,22 +156,10 @@ BEGIN
         id_estado_balon = v_id_estado_baja,
         id_almacen = NULL,
         id_cliente_ubicacion = CASE WHEN v_nombre_motivo = 'VENDIDO' THEN v_id_cliente_comprador ELSE id_cliente_ubicacion END,
-        -- Tras baja (venta/robo/etc.) ya no controlamos residual ni presión
-        id_estado_contenido = COALESCE(bal_id_estado_contenido('DESCONOCIDO'), id_estado_contenido),
         presion_actual = NULL,
         id_usuario_modificacion = v_id_usuario,
         fecha_modificacion = NOW()
     WHERE id = v_id_balon AND estado = 1;
-
-    PERFORM bal_sync_capacidad_restante(
-        v_id_balon,
-        NULL,
-        NULL,
-        NULL,
-        'CLEAR',
-        NULL,
-        v_id_usuario
-    );
 
     PERFORM bal_registrar_estado_historial(
         v_id_balon,

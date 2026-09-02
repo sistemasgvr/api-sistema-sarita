@@ -15,8 +15,6 @@ DECLARE
     v_numero VARCHAR;
     v_condicion VARCHAR := UPPER(TRIM(COALESCE(p_condicion, '')));
     v_id_condicion INTEGER;
-    v_id_tipo_ingreso INTEGER;
-    v_id_tipo_doc INTEGER;
     v_id_tipo_rep INTEGER;
     v_id_estado_pend INTEGER;
     v_id_mant INTEGER;
@@ -99,35 +97,17 @@ BEGIN
                  AND COALESCE(afecta_stock, FALSE) = TRUE
            )
         THEN
-            SELECT lo.id INTO v_id_tipo_ingreso
-            FROM gen_lista_opciones lo
-            INNER JOIN gen_lista l ON l.id = lo.id_lista
-            WHERE l.nombre = 'TipoMovInv' AND lo.nombre = 'INGRESO' AND lo.estado = 1
-            LIMIT 1;
-
-            SELECT lo.id INTO v_id_tipo_doc
-            FROM gen_lista_opciones lo
-            INNER JOIN gen_lista l ON l.id = lo.id_lista
-            WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'ALQUILER' AND lo.estado = 1
-            LIMIT 1;
-
-            IF v_id_tipo_ingreso IS NULL THEN
-                RETURN json_build_object(
-                    'error', 'No se encontró el tipo de movimiento INGRESO (TipoMovInv)',
-                    'registro', NULL
-                );
-            END IF;
-
-            v_mov := pro_crear_movimiento(
-                COALESCE(p_fecha, CURRENT_DATE),
-                v_producto,
-                v_almacen,
-                v_id_tipo_ingreso,
-                1,
-                p_id_alquiler,
-                v_id_tipo_doc,
-                'Reingreso regulador OK — alquiler ' || COALESCE(v_numero, '#' || p_id_alquiler),
-                p_id_usuario_auditoria
+            v_mov := inv_registrar_movimiento(
+                p_naturaleza                => 'PRODUCTO',
+                p_codigo_tipo_movimiento    => 'INGRESO',
+                p_fecha                     => COALESCE(p_fecha, CURRENT_DATE),
+                p_id_producto               => v_producto,
+                p_cantidad                  => 1,
+                p_id_almacen_origen         => v_almacen,
+                p_codigo_tipo_documento_origen => 'ALQUILER',
+                p_id_documento_origen       => p_id_alquiler,
+                p_glosa                     => 'Reingreso regulador OK — alquiler ' || COALESCE(v_numero, '#' || p_id_alquiler),
+                p_id_usuario_auditoria      => p_id_usuario_auditoria
             );
 
             IF v_mov->>'error' IS NOT NULL THEN

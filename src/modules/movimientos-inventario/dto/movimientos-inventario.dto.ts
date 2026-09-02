@@ -136,11 +136,6 @@ export class CreateTrasladoLoteDto extends AuditoriaDto {
   @IsInt()
   idAlmacenDestino!: number;
 
-  @ApiProperty({ example: 1, description: 'Debe ser tipo TRASLADO' })
-  @Type(() => Number)
-  @IsInt()
-  idTipoMovimiento!: number;
-
   @ApiProperty({ type: [TrasladoLoteDetalleDto] })
   @IsArray()
   @ArrayMinSize(1)
@@ -160,11 +155,10 @@ export class CreateTrasladoLoteDto extends AuditoriaDto {
   @IsInt()
   idDocumentoRef?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: 'AJUSTE_MANUAL', description: 'Código en la lista TipoDocumentoRef' })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  idTipoDocumentoRef?: number;
+  @IsString()
+  codigoDocumentoRef?: string;
 }
 
 export class UpdateMovimientoInventarioDto extends AuditoriaDto {

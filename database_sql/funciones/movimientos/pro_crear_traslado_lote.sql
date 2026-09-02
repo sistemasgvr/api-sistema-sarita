@@ -6,12 +6,11 @@ CREATE OR REPLACE FUNCTION pro_crear_traslado_lote(
     p_fecha DATE,
     p_id_almacen INTEGER,
     p_id_almacen_destino INTEGER,
-    p_id_tipo_movimiento INTEGER,
     p_detalles JSONB,
     p_glosa VARCHAR DEFAULT NULL,
     p_id_usuario_auditoria INTEGER DEFAULT NULL,
     p_id_documento_ref INTEGER DEFAULT NULL,
-    p_id_tipo_documento_ref INTEGER DEFAULT NULL
+    p_codigo_documento_ref VARCHAR DEFAULT NULL
 )
 RETURNS JSON
 LANGUAGE plpgsql
@@ -20,7 +19,6 @@ DECLARE
     v_detalle JSONB;
     v_result JSON;
     v_registros JSONB := '[]'::JSONB;
-    v_nombre_tipo VARCHAR;
     v_id_producto INTEGER;
     v_cantidad NUMERIC;
     v_total INTEGER := 0;
@@ -57,24 +55,6 @@ BEGIN
         RETURN json_build_object('error', 'El almacén de destino no existe o está inactivo', 'registros', NULL);
     END IF;
 
-    IF NOT EXISTS (SELECT 1 FROM gen_lista_opciones WHERE id = p_id_tipo_movimiento AND estado = 1) THEN
-        RETURN json_build_object(
-            'error', 'El tipo de movimiento indicado no existe o está inactivo',
-            'registros', NULL
-        );
-    END IF;
-
-    SELECT nombre INTO v_nombre_tipo
-    FROM gen_lista_opciones
-    WHERE id = p_id_tipo_movimiento;
-
-    IF UPPER(COALESCE(v_nombre_tipo, '')) <> 'TRASLADO' THEN
-        RETURN json_build_object(
-            'error', 'El tipo de movimiento debe ser TRASLADO',
-            'registros', NULL
-        );
-    END IF;
-
     FOR v_detalle IN SELECT * FROM jsonb_array_elements(p_detalles)
     LOOP
         v_id_producto := NULLIF(TRIM(COALESCE(v_detalle->>'idProducto', '')), '')::INTEGER;
@@ -84,18 +64,18 @@ BEGIN
             RAISE EXCEPTION 'Cada detalle debe incluir idProducto y cantidad mayor a cero';
         END IF;
 
-        v_result := pro_crear_movimiento(
-            p_fecha,
-            v_id_producto,
-            p_id_almacen,
-            p_id_tipo_movimiento,
-            v_cantidad,
-            p_id_documento_ref,
-            p_id_tipo_documento_ref,
-            p_glosa,
-            p_id_usuario_auditoria,
-            FALSE,
-            p_id_almacen_destino
+        v_result := inv_registrar_movimiento(
+            p_naturaleza                => 'PRODUCTO',
+            p_codigo_tipo_movimiento    => 'TRASLADO',
+            p_fecha                     => p_fecha,
+            p_id_producto               => v_id_producto,
+            p_cantidad                  => v_cantidad,
+            p_id_almacen_origen         => p_id_almacen,
+            p_id_almacen_destino        => p_id_almacen_destino,
+            p_codigo_tipo_documento_origen => p_codigo_documento_ref,
+            p_id_documento_origen       => p_id_documento_ref,
+            p_glosa                     => p_glosa,
+            p_id_usuario_auditoria      => p_id_usuario_auditoria
         );
 
         IF v_result->>'error' IS NOT NULL THEN

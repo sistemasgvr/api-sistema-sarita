@@ -49,7 +49,6 @@ export class MovimientosInventarioLogic {
       dto.fecha,
       dto.idAlmacen,
       dto.idAlmacenDestino,
-      dto.idTipoMovimiento,
       dto.detalles.map((d) => ({
         idProducto: d.idProducto,
         cantidad: d.cantidad,
@@ -57,7 +56,7 @@ export class MovimientosInventarioLogic {
       dto.glosa ?? null,
       dto.idUsuarioAuditoria,
       dto.idDocumentoRef ?? null,
-      dto.idTipoDocumentoRef ?? null,
+      dto.codigoDocumentoRef ?? null,
     );
 
     if (result.error) {

@@ -45,15 +45,6 @@ BEGIN
     LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
     WHERE p.id = v_id_producto;
 
-    IF COALESCE(v_es_gas, FALSE) THEN
-        RETURN json_build_object(
-            'error',
-            'El stock de gas no se ajusta aquí. Usa Balones / Stock de gas o Libro de cilindros.',
-            'registro',
-            NULL
-        );
-    END IF;
-
     IF NOT COALESCE(v_es_gas, FALSE)
        AND v_nombre_unidad IN ('UNID', 'NIU', 'UND', 'UNI', 'UNIDAD', 'UNIDADES', 'PZ', 'PZA', 'PIEZA', 'PIEZAS')
     THEN

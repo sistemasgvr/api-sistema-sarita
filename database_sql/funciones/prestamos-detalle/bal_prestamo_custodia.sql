@@ -168,13 +168,6 @@ BEGIN
     END IF;
 
     IF COALESCE(v_nombre_estado, '') = 'EN_ALMACEN' THEN
-        UPDATE bal_balon
-        SET id_estado_contenido = COALESCE(bal_id_estado_contenido('DESCONOCIDO'), id_estado_contenido)
-        WHERE id = p_id_balon AND estado = 1;
-
-        PERFORM bal_sync_capacidad_restante(
-            p_id_balon, NULL, NULL, NULL, 'CLEAR', NULL, p_id_usuario_auditoria
-        );
         v_custodia := TRUE;
     END IF;
 
@@ -199,8 +192,6 @@ DECLARE
     v_nombre_estado VARCHAR;
     v_id_almacen INTEGER;
     v_id_estado_en_almacen INTEGER;
-    v_id_tipo_movimiento INTEGER;
-    v_id_tipo_documento_ref INTEGER;
     v_contenido VARCHAR;
     v_capacidad NUMERIC;
     v_mov JSON;
@@ -265,35 +256,22 @@ BEGIN
     END IF;
 
     IF p_crear_movimiento THEN
-        SELECT lo.id INTO v_id_tipo_movimiento
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_DEVOLUCION' AND lo.estado = 1
-        LIMIT 1;
+        v_mov := inv_registrar_movimiento(
+            p_naturaleza                => 'BALON',
+            p_codigo_tipo_movimiento    => 'ENTRADA_DEVOLUCION',
+            p_fecha                     => NOW(),
+            p_id_balon                  => p_id_balon,
+            p_cantidad                  => 1,
+            p_id_almacen_destino        => p_id_almacen_destino,
+            p_id_cliente                => p_id_cliente,
+            p_codigo_tipo_documento_origen => 'PRESTAMO',
+            p_id_documento_origen       => p_id_prestamo,
+            p_glosa                     => COALESCE(NULLIF(TRIM(p_observacion), ''), 'Entrada por devolución de préstamo'),
+            p_id_usuario_auditoria      => p_id_usuario_auditoria
+        );
 
-        SELECT lo.id INTO v_id_tipo_documento_ref
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'PRESTAMO' AND lo.estado = 1
-        LIMIT 1;
-
-        IF v_id_tipo_movimiento IS NOT NULL THEN
-            v_mov := bal_crear_movimiento(
-                p_id_balon,
-                v_id_tipo_movimiento,
-                p_id_prestamo,
-                v_id_tipo_documento_ref,
-                p_id_cliente,
-                NULL::INTEGER,
-                p_id_almacen_destino,
-                NOW()::TIMESTAMP,
-                COALESCE(NULLIF(TRIM(p_observacion), ''), 'Entrada por devolución de préstamo')::VARCHAR,
-                p_id_usuario_auditoria
-            );
-
-            IF v_mov->>'error' IS NOT NULL THEN
-                RETURN json_build_object('error', v_mov->>'error', 'ok', FALSE);
-            END IF;
+        IF v_mov->>'error' IS NOT NULL THEN
+            RETURN json_build_object('error', v_mov->>'error', 'ok', FALSE);
         END IF;
     END IF;
 
@@ -305,32 +283,6 @@ BEGIN
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id_balon AND estado = 1;
-
-    v_contenido := UPPER(NULLIF(TRIM(p_nombre_contenido), ''));
-
-    IF v_contenido = 'LLENO' THEN
-        UPDATE bal_balon
-        SET id_estado_contenido = COALESCE(bal_id_estado_contenido('LLENO'), id_estado_contenido)
-        WHERE id = p_id_balon AND estado = 1;
-
-        IF COALESCE(v_capacidad, 0) > 0 THEN
-            PERFORM bal_sync_capacidad_restante(
-                p_id_balon, v_capacidad, NULL, NULL, 'FROM_M3', NULL, p_id_usuario_auditoria
-            );
-        END IF;
-    ELSIF v_contenido = 'VACIO' THEN
-        UPDATE bal_balon
-        SET id_estado_contenido = COALESCE(bal_id_estado_contenido('VACIO'), id_estado_contenido)
-        WHERE id = p_id_balon AND estado = 1;
-
-        PERFORM bal_sync_capacidad_restante(
-            p_id_balon, NULL, NULL, NULL, 'CLEAR', NULL, p_id_usuario_auditoria
-        );
-    ELSIF v_contenido = 'DESCONOCIDO' THEN
-        UPDATE bal_balon
-        SET id_estado_contenido = COALESCE(bal_id_estado_contenido('DESCONOCIDO'), id_estado_contenido)
-        WHERE id = p_id_balon AND estado = 1;
-    END IF;
 
     RETURN json_build_object('ok', TRUE, 'skipped', FALSE);
 END;

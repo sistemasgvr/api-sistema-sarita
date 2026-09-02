@@ -22,8 +22,6 @@ DECLARE
     v_numero VARCHAR;
     v_corr JSON;
     v_prod RECORD;
-    v_id_tipo_salida INTEGER;
-    v_id_tipo_doc INTEGER;
     v_mov JSON;
     v_id_estado INTEGER;
 BEGIN
@@ -146,32 +144,17 @@ BEGIN
 
     IF p_id_producto_stock IS NOT NULL THEN
     IF COALESCE(v_prod.afecta_stock, FALSE) THEN
-        SELECT lo.id INTO v_id_tipo_salida
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON l.id = lo.id_lista
-        WHERE l.nombre = 'TipoMovInv' AND lo.nombre = 'SALIDA' AND lo.estado = 1
-        LIMIT 1;
-
-        SELECT lo.id INTO v_id_tipo_doc
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON l.id = lo.id_lista
-        WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'ALQUILER' AND lo.estado = 1
-        LIMIT 1;
-
-        IF v_id_tipo_salida IS NULL THEN
-            RAISE EXCEPTION 'No se encontró el tipo de movimiento SALIDA (TipoMovInv)';
-        END IF;
-
-        v_mov := pro_crear_movimiento(
-            p_fecha_inicio,
-            p_id_producto_stock,
-            p_id_almacen,
-            v_id_tipo_salida,
-            1,
-            v_id,
-            v_id_tipo_doc,
-            'Salida por alquiler ' || v_numero,
-            p_id_usuario_auditoria
+        v_mov := inv_registrar_movimiento(
+            p_naturaleza                => 'PRODUCTO',
+            p_codigo_tipo_movimiento    => 'SALIDA',
+            p_fecha                     => p_fecha_inicio,
+            p_id_producto               => p_id_producto_stock,
+            p_cantidad                  => 1,
+            p_id_almacen_origen         => p_id_almacen,
+            p_codigo_tipo_documento_origen => 'ALQUILER',
+            p_id_documento_origen       => v_id,
+            p_glosa                     => 'Salida por alquiler ' || v_numero,
+            p_id_usuario_auditoria      => p_id_usuario_auditoria
         );
 
         IF v_mov->>'error' IS NOT NULL THEN

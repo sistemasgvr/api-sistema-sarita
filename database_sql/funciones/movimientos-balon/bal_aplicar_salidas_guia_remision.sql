@@ -73,7 +73,11 @@ BEGIN
         v_codigo_estado := 'PRESTADO_CLIENTE';
         v_id_cliente_ubicacion := COALESCE(v_id_cliente, v_id_destinatario);
     ELSE
-        v_codigo_tipo_mov := 'SALIDA_PRESTAMO';
+        -- Sin cliente/destinatario: ruta a Lima. inv_registrar_movimiento resuelve el estado
+        -- de custodia únicamente a partir del código de tipo de movimiento (ya no admite un
+        -- estado de destino separado), así que el código debe ser TRASLADO_LIMA y no
+        -- SALIDA_PRESTAMO (que siempre mapea a PRESTADO_CLIENTE).
+        v_codigo_tipo_mov := 'TRASLADO_LIMA';
         v_codigo_estado := 'EN_RUTA_LIMA';
         v_id_cliente_ubicacion := NULL;
     END IF;

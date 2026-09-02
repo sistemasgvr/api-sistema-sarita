@@ -47,8 +47,6 @@ BEGIN
             pg.nombre AS nombre_producto_gas,
             b.id_estado_balon,
             eb.nombre AS nombre_estado_balon,
-            b.id_estado_contenido,
-            ec.nombre AS nombre_estado_contenido,
             b.fecha_ultima_prueba_hidrostatica,
             b.vigencia_prueba_hidrostatica_anios,
             b.fecha_proxima_prueba_hidrostatica,
@@ -63,8 +61,6 @@ BEGIN
             b.mes_fabricacion,
             b.numero_recepcion,
             b.presion_actual,
-            b.capacidad_restante,
-            b.capacidad_restante_lb,
             b.observacion,
             b.tipo_valvula,
             b.estado,
@@ -125,7 +121,6 @@ BEGIN
         LEFT JOIN gen_lista_opciones um ON tb.id_unidad_medida = um.id
         LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
         LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
-        LEFT JOIN gen_lista_opciones ec ON b.id_estado_contenido = ec.id
         LEFT JOIN auth_usuarios uc ON b.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios umu ON b.id_usuario_modificacion = umu.id
         WHERE b.id = p_id AND b.estado = 1

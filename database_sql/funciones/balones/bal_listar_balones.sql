@@ -6,6 +6,16 @@ DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, I
 DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER, INTEGER, INTEGER, BOOLEAN);
 DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER);
 DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, VARCHAR);
+DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER, VARCHAR);
+DROP FUNCTION IF EXISTS bal_listar_balones(VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, INTEGER, BOOLEAN, VARCHAR, INTEGER, INTEGER, VARCHAR, BOOLEAN);
+
+-- Firma anterior (incluía p_id_estado_contenido, retirado en Fase 1). Ver nota en
+-- bal_crear_balon.sql: sin este DROP, el caller viejo (19 args) sigue cayendo en el
+-- overload legado en vez de en esta versión nueva.
+DROP FUNCTION IF EXISTS bal_listar_balones(
+    VARCHAR, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER,
+    INTEGER, BOOLEAN, VARCHAR, INTEGER, INTEGER, INTEGER, BOOLEAN, INTEGER, VARCHAR
+);
 
 CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_busqueda VARCHAR DEFAULT '',
@@ -22,7 +32,6 @@ CREATE OR REPLACE FUNCTION bal_listar_balones(
     p_solo_bajas BOOLEAN DEFAULT NULL,
     p_familia_gas VARCHAR DEFAULT NULL,
     p_id_propietario INTEGER DEFAULT NULL,
-    p_id_estado_contenido INTEGER DEFAULT NULL,
     p_id_producto_gas INTEGER DEFAULT NULL,
     p_solo_llenos_fuera BOOLEAN DEFAULT NULL,
     p_id_planta INTEGER DEFAULT NULL,
@@ -47,9 +56,8 @@ BEGIN
         json_build_object(
             'total', COUNT(*),
             'en_almacen', COUNT(*) FILTER (WHERE eb.nombre = 'EN_ALMACEN'),
-            -- Llenos/vacíos solo del stock en almacén (en cliente el contenido es incierto).
-            'llenos', COUNT(*) FILTER (WHERE eb.nombre = 'EN_ALMACEN' AND ec.nombre = 'LLENO'),
-            'vacios', COUNT(*) FILTER (WHERE eb.nombre = 'EN_ALMACEN' AND ec.nombre = 'VACIO')
+            'llenos', COUNT(*) FILTER (WHERE eb.nombre = 'EN_ALMACEN'),
+            'vacios', COUNT(*) FILTER (WHERE eb.nombre = 'EN_ALMACEN')
         )
     INTO v_total, v_resumen
     FROM bal_balon b
@@ -57,7 +65,6 @@ BEGIN
     LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
     LEFT JOIN gen_almacen a ON b.id_almacen = a.id
     LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
-    LEFT JOIN gen_lista_opciones ec ON b.id_estado_contenido = ec.id
     LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
     LEFT JOIN cli_clientes cu ON b.id_cliente_ubicacion = cu.id
     LEFT JOIN cli_clientes cp ON b.id_cliente_propietario = cp.id
@@ -65,7 +72,6 @@ BEGIN
       AND (p_id_tipo_balon IS NULL OR b.id_tipo_balon = p_id_tipo_balon)
       AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
       AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
-      AND (p_id_estado_contenido IS NULL OR b.id_estado_contenido = p_id_estado_contenido)
       AND (p_id_producto_gas IS NULL OR b.id_producto_gas = p_id_producto_gas)
       AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
       AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
@@ -94,8 +100,7 @@ BEGIN
       AND (
           p_solo_llenos_fuera IS NOT TRUE
           OR (
-              COALESCE(ec.nombre, '') = 'LLENO'
-              AND COALESCE(eb.nombre, '') IS DISTINCT FROM 'EN_ALMACEN'
+              COALESCE(eb.nombre, '') IS DISTINCT FROM 'EN_ALMACEN'
               AND COALESCE(eb.nombre, '') NOT IN ('DADO_DE_BAJA', 'ROBO')
           )
       )
@@ -189,8 +194,6 @@ BEGIN
             pg.nombre AS nombre_producto_gas,
             b.id_estado_balon,
             eb.nombre AS nombre_estado_balon,
-            b.id_estado_contenido,
-            ec.nombre AS nombre_estado_contenido,
             b.id_marca_cilindro,
             mc.nombre AS nombre_marca_cilindro,
             b.id_organo_inspector,
@@ -208,8 +211,6 @@ BEGIN
                 ELSE 'VIGENTE'
             END AS estado_ph,
             b.presion_actual,
-            b.capacidad_restante,
-            b.capacidad_restante_lb,
             b.tipo_valvula,
             EXISTS (
                 SELECT 1
@@ -251,7 +252,6 @@ BEGIN
         LEFT JOIN gen_almacen a ON b.id_almacen = a.id
         LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
         LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
-        LEFT JOIN gen_lista_opciones ec ON b.id_estado_contenido = ec.id
         LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
         LEFT JOIN gen_lista_opciones oi ON b.id_organo_inspector = oi.id
         LEFT JOIN gen_lista_opciones prop ON b.id_propietario = prop.id
@@ -262,7 +262,6 @@ BEGIN
           AND (p_id_tipo_balon IS NULL OR b.id_tipo_balon = p_id_tipo_balon)
           AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
           AND (p_id_estado_balon IS NULL OR b.id_estado_balon = p_id_estado_balon)
-          AND (p_id_estado_contenido IS NULL OR b.id_estado_contenido = p_id_estado_contenido)
           AND (p_id_producto_gas IS NULL OR b.id_producto_gas = p_id_producto_gas)
           AND (p_id_cliente_ubicacion IS NULL OR b.id_cliente_ubicacion = p_id_cliente_ubicacion)
           AND (p_id_marca_cilindro IS NULL OR b.id_marca_cilindro = p_id_marca_cilindro)
@@ -291,8 +290,7 @@ BEGIN
           AND (
               p_solo_llenos_fuera IS NOT TRUE
               OR (
-                  COALESCE(ec.nombre, '') = 'LLENO'
-                  AND COALESCE(eb.nombre, '') IS DISTINCT FROM 'EN_ALMACEN'
+                  COALESCE(eb.nombre, '') IS DISTINCT FROM 'EN_ALMACEN'
                   AND COALESCE(eb.nombre, '') NOT IN ('DADO_DE_BAJA', 'ROBO')
               )
           )

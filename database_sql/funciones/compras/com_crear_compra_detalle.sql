@@ -25,8 +25,6 @@ DECLARE
     v_serie               VARCHAR;
     v_numero              VARCHAR;
     v_importe             NUMERIC(12,4);
-    v_id_tipo_ingreso     INTEGER;
-    v_id_tipo_doc_ref     INTEGER;
     v_result_movimiento   JSON;
     v_descripcion_linea   VARCHAR;
 BEGIN
@@ -83,30 +81,17 @@ BEGIN
     RETURNING id INTO v_id_detalle;
 
     IF v_afecta_stock THEN
-        SELECT glo.id INTO v_id_tipo_ingreso
-        FROM gen_lista_opciones glo
-        JOIN gen_lista gl ON gl.id = glo.id_lista
-        WHERE gl.nombre = 'TipoMovInv' AND glo.nombre = 'INGRESO' AND glo.estado = 1;
-
-        SELECT glo.id INTO v_id_tipo_doc_ref
-        FROM gen_lista_opciones glo
-        JOIN gen_lista gl ON gl.id = glo.id_lista
-        WHERE gl.nombre = 'TipoDocumentoRef' AND glo.nombre = 'COMPRA' AND glo.estado = 1;
-
-        IF v_id_tipo_ingreso IS NULL OR v_id_tipo_doc_ref IS NULL THEN
-            RAISE EXCEPTION 'Faltan configurar las opciones INGRESO (TipoMovInv) o COMPRA (TipoDocumentoRef)';
-        END IF;
-
-        v_result_movimiento := pro_crear_movimiento(
-            p_fecha                 => v_fecha,
-            p_id_producto           => p_id_producto,
-            p_id_almacen            => v_id_almacen_linea,
-            p_id_tipo_movimiento    => v_id_tipo_ingreso,
-            p_cantidad              => p_cantidad,
-            p_id_documento_ref      => v_id_detalle,
-            p_id_tipo_documento_ref => v_id_tipo_doc_ref,
-            p_glosa                 => 'Ingreso por compra ' || v_serie || '-' || v_numero,
-            p_id_usuario_auditoria  => p_id_usuario_auditoria
+        v_result_movimiento := inv_registrar_movimiento(
+            p_naturaleza                => 'PRODUCTO',
+            p_codigo_tipo_movimiento    => 'INGRESO',
+            p_fecha                     => v_fecha,
+            p_id_producto               => p_id_producto,
+            p_cantidad                  => p_cantidad,
+            p_id_almacen_origen         => v_id_almacen_linea,
+            p_codigo_tipo_documento_origen => 'COMPRA',
+            p_id_documento_origen       => v_id_detalle,
+            p_glosa                     => 'Ingreso por compra ' || v_serie || '-' || v_numero,
+            p_id_usuario_auditoria      => p_id_usuario_auditoria
         );
 
         IF (v_result_movimiento->>'error') IS NOT NULL THEN

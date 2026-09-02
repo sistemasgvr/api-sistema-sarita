@@ -36,7 +36,7 @@ DECLARE
     v_id_tipo_entrada INTEGER;
     v_mov JSON;
     v_obs VARCHAR;
-    v_m3_sync NUMERIC;
+    v_id_producto_gas_balon INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -163,78 +163,57 @@ BEGIN
     v_obs := COALESCE(NULLIF(TRIM(p_observacion), ''), 'Recarga planta externa');
 
     -- Libro de movimientos: salida a planta.
-    v_mov := bal_crear_movimiento(
-        p_id_balon,
-        v_id_tipo_salida,
-        v_id,
-        v_id_tipo_doc_recarga,
-        p_id_proveedor,
-        p_id_almacen,
-        NULL::INTEGER,
-        p_fecha_salida_almacen::TIMESTAMP,
-        v_obs,
-        p_id_usuario_auditoria
+    v_mov := inv_registrar_movimiento(
+        p_naturaleza                => 'BALON',
+        p_codigo_tipo_movimiento    => 'SALIDA_PLANTA_EXTERNA',
+        p_fecha                     => p_fecha_salida_almacen::TIMESTAMP,
+        p_id_producto               => NULL,
+        p_id_balon                  => p_id_balon,
+        p_cantidad                  => 1,
+        p_id_almacen_origen         => p_id_almacen,
+        p_id_almacen_destino        => NULL,
+        p_id_cliente                => p_id_proveedor,
+        p_codigo_tipo_documento_origen => 'RECARGA',
+        p_id_documento_origen       => v_id,
+        p_glosa                     => v_obs,
+        p_id_usuario_auditoria      => p_id_usuario_auditoria
     );
     IF v_mov->>'error' IS NOT NULL THEN
         RETURN json_build_object('error', v_mov->>'error', 'registro', NULL);
     END IF;
 
     IF p_fecha_llegada_almacen IS NOT NULL THEN
-        SELECT COALESCE(NULLIF(v_capacidad_tipo, 0), p_capacidad, b.capacidad_restante)
-        INTO v_m3_sync
-        FROM bal_balon b
-        WHERE b.id = p_id_balon AND b.estado = 1;
-
+        -- inv_registrar_movimiento ya actualizó id_estado_balon a EN_ALMACEN.
+        -- Solo fijamos id_producto_gas.
         UPDATE bal_balon
         SET
-            id_estado_balon = v_id_estado_en_almacen,
             id_producto_gas = COALESCE(p_id_producto, id_producto_gas),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
-        WHERE id = p_id_balon AND estado = 1;
+        WHERE id = p_id_balon AND estado = 1
+        RETURNING id_producto_gas INTO v_id_producto_gas_balon;
 
-        PERFORM bal_sync_capacidad_restante(
-            p_id_balon,
-            v_m3_sync,
-            NULL,
-            NULL,
-            'FROM_M3',
-            NULL,
-            p_id_usuario_auditoria
-        );
-
-        v_mov := bal_crear_movimiento(
-            p_id_balon,
-            v_id_tipo_entrada,
-            v_id,
-            v_id_tipo_doc_recarga,
-            p_id_proveedor,
-            NULL::INTEGER,
-            p_id_almacen,
-            p_fecha_llegada_almacen::TIMESTAMP,
-            v_obs,
-            p_id_usuario_auditoria
+        v_mov := inv_registrar_movimiento(
+            p_naturaleza                => 'BALON',
+            p_codigo_tipo_movimiento    => 'ENTRADA_PLANTA_EXTERNA',
+            p_fecha                     => p_fecha_llegada_almacen::TIMESTAMP,
+            p_id_producto               => v_id_producto_gas_balon,
+            p_id_balon                  => p_id_balon,
+            p_cantidad                  => COALESCE(p_capacidad, NULLIF(v_capacidad_tipo, 0), 1),
+            p_id_almacen_origen         => NULL,
+            p_id_almacen_destino        => p_id_almacen,
+            p_id_cliente                => p_id_proveedor,
+            p_codigo_tipo_documento_origen => 'RECARGA',
+            p_id_documento_origen       => v_id,
+            p_glosa                     => v_obs,
+            p_id_usuario_auditoria      => p_id_usuario_auditoria
         );
         IF v_mov->>'error' IS NOT NULL THEN
             RETURN json_build_object('error', v_mov->>'error', 'registro', NULL);
         END IF;
     ELSE
-        UPDATE bal_balon
-        SET
-            id_estado_balon = v_id_estado_recarga_externa,
-            id_usuario_modificacion = p_id_usuario_auditoria,
-            fecha_modificacion = NOW()
-        WHERE id = p_id_balon AND estado = 1;
-
-        PERFORM bal_sync_capacidad_restante(
-            p_id_balon,
-            0,
-            NULL,
-            NULL,
-            'FROM_M3',
-            NULL,
-            p_id_usuario_auditoria
-        );
+        -- inv_registrar_movimiento (SALIDA_PLANTA_EXTERNA) ya puso EN_RECARGA_EXTERNA + limpió almacén.
+        NULL;
     END IF;
 
     RETURN bal_obtener_movimiento_recarga(v_id);

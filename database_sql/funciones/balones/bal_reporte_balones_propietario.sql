@@ -68,8 +68,6 @@ BEGIN
             pg.nombre AS nombre_producto_gas,
             b.id_estado_balon,
             eb.nombre AS nombre_estado_balon,
-            b.id_estado_contenido,
-            ec.nombre AS nombre_estado_contenido,
             b.id_almacen,
             a.nombre AS nombre_almacen,
             b.fecha_proxima_prueba_hidrostatica
@@ -81,7 +79,6 @@ BEGIN
         LEFT JOIN gen_lista_opciones um ON um.id = tb.id_unidad_medida
         LEFT JOIN pro_producto pg ON pg.id = b.id_producto_gas
         LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
-        LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
         LEFT JOIN gen_almacen a ON a.id = b.id_almacen
         WHERE b.estado = 1
           AND (

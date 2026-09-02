@@ -27,7 +27,6 @@ DECLARE
     v_id_almacen INTEGER;
     v_obs VARCHAR(500);
     v_id_resultado INTEGER;
-    v_id_contenido INTEGER;
     v_id_prestamo_det INTEGER;
     v_id_alquiler_det INTEGER;
     v_dev JSON;
@@ -49,10 +48,10 @@ DECLARE
     v_repro_detalles JSONB := '[]'::JSONB;
     v_cantidad_restante NUMERIC(10,4);
     v_capacidad_tipo NUMERIC(10,4);
+    v_id_producto_gas_recojo INTEGER;
     v_lb_restante NUMERIC(10,4);
     v_peso_bruto_lb NUMERIC(10,4);
     v_presion_psi NUMERIC(10,4);
-    v_sync JSON;
     v_tiene_regulador BOOLEAN := FALSE;
     v_procesa_regulador BOOLEAN := FALSE;
     v_reg JSONB;
@@ -69,9 +68,6 @@ DECLARE
     v_ya_devuelto DATE;
     v_pass INTEGER;
     v_id_estado_en_almacen INTEGER;
-    v_id_tipo_entrada_llenado INTEGER;
-    v_id_tipo_doc_ref INTEGER;
-    v_id_documento_ref INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -86,24 +82,6 @@ BEGIN
     INNER JOIN gen_lista l ON l.id = lo.id_lista
     WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
     LIMIT 1;
-
-    SELECT lo.id INTO v_id_tipo_entrada_llenado
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON l.id = lo.id_lista
-    WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_LLENADO' AND lo.estado = 1
-    LIMIT 1;
-
-    IF v_id_recarga_planta IS NOT NULL THEN
-        SELECT lo.id INTO v_id_tipo_doc_ref
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON l.id = lo.id_lista
-        WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'RECARGA' AND lo.estado = 1
-        LIMIT 1;
-        v_id_documento_ref := v_id_recarga_planta;
-    ELSE
-        v_id_tipo_doc_ref := NULL;
-        v_id_documento_ref := NULL;
-    END IF;
 
     IF v_id_cliente IS NULL THEN
         RETURN json_build_object('error', 'Recojo no encontrado', 'registro', NULL);
@@ -532,10 +510,7 @@ BEGIN
                 );
             END IF;
 
-            v_id_contenido := NULL;
-            IF v_nombre_contenido IS NOT NULL THEN
-                v_id_contenido := bal_id_estado_contenido(v_nombre_contenido);
-            END IF;
+
 
             IF v_resultado = 'EXTENDIDO' THEN
                 v_nueva_fecha := COALESCE(v_nueva_fecha, v_fecha_visita + 1);
@@ -595,7 +570,6 @@ BEGIN
                     ELSE
                         v_nombre_contenido := 'DESCONOCIDO';
                     END IF;
-                    v_id_contenido := bal_id_estado_contenido(v_nombre_contenido);
                 END IF;
             ELSE
                 v_cantidad_restante := NULL;
@@ -624,7 +598,6 @@ BEGIN
                 UPDATE bal_recojo_detalle
                 SET
                     id_resultado = v_id_resultado,
-                    id_estado_contenido = COALESCE(v_id_contenido, id_estado_contenido),
                     cantidad_restante = CASE
                         WHEN v_resultado = 'RECOGIDO' THEN v_cantidad_restante
                         ELSE cantidad_restante
@@ -684,17 +657,24 @@ BEGIN
                                 p_id_usuario_auditoria => p_id_usuario_auditoria
                             );
 
-                            IF v_id_tipo_entrada_llenado IS NOT NULL AND v_id_tipo_doc_ref IS NOT NULL THEN
-                                v_dev := bal_crear_movimiento(
-                                    p_id_balon              => v_id_balon,
-                                    p_id_tipo_movimiento    => v_id_tipo_entrada_llenado,
-                                    p_id_documento_ref      => v_id_documento_ref,
-                                    p_id_tipo_documento_ref => v_id_tipo_doc_ref,
-                                    p_id_cliente            => v_id_cliente,
-                                    p_id_almacen_destino    => v_id_almacen,
-                                    p_observacion           => 'Entrada por recojo de recarga en planta (orden #'
+                            IF v_id_recarga_planta IS NOT NULL THEN
+                                SELECT id_producto_gas INTO v_id_producto_gas_recojo
+                                FROM bal_balon WHERE id = v_id_balon;
+
+                                v_dev := inv_registrar_movimiento(
+                                    p_naturaleza                => 'BALON',
+                                    p_codigo_tipo_movimiento    => 'ENTRADA_LLENADO',
+                                    p_fecha                     => NOW(),
+                                    p_id_producto               => v_id_producto_gas_recojo,
+                                    p_id_balon                  => v_id_balon,
+                                    p_cantidad                  => COALESCE(v_cantidad_restante, NULLIF(v_capacidad_tipo, 0), 1),
+                                    p_id_almacen_destino        => v_id_almacen,
+                                    p_id_cliente                => v_id_cliente,
+                                    p_codigo_tipo_documento_origen => 'RECARGA',
+                                    p_id_documento_origen       => v_id_recarga_planta,
+                                    p_glosa                     => 'Entrada por recojo de recarga en planta (orden #'
                                         || v_id_recarga_planta || ')',
-                                    p_id_usuario_auditoria  => p_id_usuario_auditoria
+                                    p_id_usuario_auditoria      => p_id_usuario_auditoria
                                 );
                                 IF v_dev->>'error' IS NOT NULL THEN
                                     RAISE EXCEPTION 'No se pudo registrar el movimiento de entrada del balón %: %',
@@ -712,42 +692,7 @@ BEGIN
                         OR v_lb_restante IS NOT NULL
                         OR v_cantidad_restante IS NOT NULL
                     ) THEN
-                        IF v_peso_bruto_lb IS NOT NULL THEN
-                            v_sync := bal_sync_capacidad_restante(
-                                v_id_balon,
-                                NULL,
-                                NULL,
-                                v_presion_psi,
-                                'FROM_BRUTO_LB',
-                                v_peso_bruto_lb,
-                                p_id_usuario_auditoria
-                            );
-                        ELSIF v_lb_restante IS NOT NULL THEN
-                            v_sync := bal_sync_capacidad_restante(
-                                v_id_balon,
-                                NULL,
-                                v_lb_restante,
-                                v_presion_psi,
-                                'FROM_LB',
-                                NULL,
-                                p_id_usuario_auditoria
-                            );
-                        ELSE
-                            v_sync := bal_sync_capacidad_restante(
-                                v_id_balon,
-                                v_cantidad_restante,
-                                NULL,
-                                v_presion_psi,
-                                'FROM_M3',
-                                NULL,
-                                p_id_usuario_auditoria
-                            );
-                        END IF;
-
-                        IF COALESCE((v_sync->>'ok')::BOOLEAN, FALSE) IS NOT TRUE THEN
-                            RAISE EXCEPTION '%',
-                                COALESCE(v_sync->>'error', 'No se pudo sincronizar capacidad residual');
-                        END IF;
+                        NULL;
                     END IF;
                 ELSIF v_resultado = 'EXTENDIDO' THEN
                     IF v_id_pd IS NOT NULL THEN

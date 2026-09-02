@@ -12,10 +12,7 @@ DECLARE
     v_detalle             RECORD;
     v_serie               VARCHAR;
     v_numero              VARCHAR;
-    v_id_tipo_salida      INTEGER;
-    v_id_tipo_doc_ref     INTEGER;
     v_result_movimiento   JSON;
-    v_stock_actual        NUMERIC(12,4);
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -42,56 +39,18 @@ BEGIN
     v_numero := v_detalle.numero;
 
     IF v_detalle.afecta_stock THEN
-        SELECT stock INTO v_stock_actual
-        FROM pro_stock
-        WHERE id_producto = v_detalle.id_producto
-          AND id_almacen = v_detalle.id_almacen
-          AND estado = 1
-        FOR UPDATE;
-
-        v_stock_actual := COALESCE(v_stock_actual, 0);
-
-        IF v_stock_actual < v_detalle.cantidad THEN
-            RETURN json_build_object(
-                'eliminado', FALSE,
-                'id', p_id_detalle,
-                'error', format(
-                    'No se puede quitar la línea: stock insuficiente para revertir el ingreso (disponible %s, requiere %s).',
-                    v_stock_actual,
-                    v_detalle.cantidad
-                )
-            );
-        END IF;
-
-        SELECT glo.id INTO v_id_tipo_salida
-        FROM gen_lista_opciones glo
-        JOIN gen_lista gl ON gl.id = glo.id_lista
-        WHERE gl.nombre = 'TipoMovInv' AND glo.nombre = 'SALIDA' AND glo.estado = 1;
-
-        SELECT glo.id INTO v_id_tipo_doc_ref
-        FROM gen_lista_opciones glo
-        JOIN gen_lista gl ON gl.id = glo.id_lista
-        WHERE gl.nombre = 'TipoDocumentoRef' AND glo.nombre = 'DEVOLUCION' AND glo.estado = 1;
-
-        IF v_id_tipo_salida IS NULL OR v_id_tipo_doc_ref IS NULL THEN
-            RETURN json_build_object(
-                'eliminado', FALSE,
-                'id', p_id_detalle,
-                'error', 'Faltan configurar las opciones SALIDA (TipoMovInv) o DEVOLUCION (TipoDocumentoRef)'
-            );
-        END IF;
-
-        v_result_movimiento := pro_crear_movimiento(
-            p_fecha                 => CURRENT_DATE,
-            p_id_producto           => v_detalle.id_producto,
-            p_id_almacen            => v_detalle.id_almacen,
-            p_id_tipo_movimiento    => v_id_tipo_salida,
-            p_cantidad              => v_detalle.cantidad,
-            p_id_documento_ref      => v_detalle.id,
-            p_id_tipo_documento_ref => v_id_tipo_doc_ref,
-            p_glosa                 => 'Reversa por eliminación de línea compra ' || v_serie || '-' || v_numero,
-            p_id_usuario_auditoria  => p_id_usuario_auditoria,
-            p_forzar_ajuste_stock   => TRUE
+        v_result_movimiento := inv_registrar_movimiento(
+            p_naturaleza                => 'PRODUCTO',
+            p_codigo_tipo_movimiento    => 'SALIDA',
+            p_fecha                     => CURRENT_DATE,
+            p_id_producto               => v_detalle.id_producto,
+            p_cantidad                  => v_detalle.cantidad,
+            p_id_almacen_origen         => v_detalle.id_almacen,
+            p_codigo_tipo_documento_origen => 'DEVOLUCION',
+            p_id_documento_origen       => v_detalle.id,
+            p_glosa                     => 'Reversa por eliminación de línea compra ' || v_serie || '-' || v_numero,
+            p_id_usuario_auditoria      => p_id_usuario_auditoria,
+            p_forzar                    => TRUE
         );
 
         IF (v_result_movimiento->>'error') IS NOT NULL THEN

@@ -140,8 +140,6 @@ BEGIN
             rd.id_resultado,
             res.nombre AS nombre_resultado,
             res.descripcion AS descripcion_resultado,
-            rd.id_estado_contenido,
-            ec.nombre AS nombre_estado_contenido,
             rd.cantidad_restante,
             rd.nueva_fecha_retorno,
             rd.id_almacen_destino,
@@ -163,7 +161,6 @@ BEGIN
         LEFT JOIN gen_lista_opciones um_prod ON um_prod.id = pg.id_unidad_medida
         LEFT JOIN gen_lista_opciones um_tipo ON um_tipo.id = tb.id_unidad_medida
         LEFT JOIN gen_lista_opciones res ON res.id = rd.id_resultado
-        LEFT JOIN gen_lista_opciones ec ON ec.id = rd.id_estado_contenido
         LEFT JOIN gen_almacen a ON a.id = rd.id_almacen_destino
         WHERE rd.id_recojo = p_id AND rd.estado = 1
     ) d;

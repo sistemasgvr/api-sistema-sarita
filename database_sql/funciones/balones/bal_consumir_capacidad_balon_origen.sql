@@ -10,7 +10,6 @@ AS $function$
 DECLARE
     v_disponible NUMERIC;
     v_nuevo NUMERIC;
-    v_sync JSON;
 BEGIN
     IF p_id_balon IS NULL THEN
         RETURN json_build_object('error', 'El balón origen es obligatorio');
@@ -35,27 +34,9 @@ BEGIN
 
     v_nuevo := GREATEST(v_disponible - p_cantidad, 0);
 
-    v_sync := bal_sync_capacidad_restante(
-        p_id_balon,
-        v_nuevo,
-        NULL,
-        NULL,
-        'FROM_M3',
-        NULL,
-        p_id_usuario_auditoria
-    );
-
-    IF COALESCE((v_sync->>'ok')::BOOLEAN, FALSE) IS NOT TRUE THEN
-        RETURN json_build_object(
-            'error',
-            COALESCE(v_sync->>'error', 'No se pudo actualizar el balón origen')
-        );
-    END IF;
-
     RETURN json_build_object(
         'ok', TRUE,
-        'capacidad_restante', GREATEST(v_nuevo, 0),
-        'capacidad_restante_lb', v_sync->'capacidad_restante_lb',
+        'consumido', p_cantidad,
         'quedo_vacio', v_nuevo <= 0
     );
 END;

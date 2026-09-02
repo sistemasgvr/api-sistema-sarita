@@ -37,7 +37,6 @@ BEGIN
             tb.nombre AS nombre_tipo_balon,
             tb.capacidad AS capacidad_tipo,
             bal_capacidad_disponible_balon(b.id) AS capacidad_disponible,
-            b.capacidad_restante,
             b.fecha_creacion
         FROM bal_balon b
         LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
@@ -45,11 +44,9 @@ BEGIN
         LEFT JOIN pro_producto p ON p.id = b.id_producto_gas
         LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
         LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
-        LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
         WHERE b.estado = 1
           AND COALESCE(prop.nombre, '') IN ('EMPRESA', 'PROPIA')
           AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
-          AND COALESCE(ec.nombre, '') = 'LLENO'
           AND b.id_producto_gas = p_id_producto_gas
           AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
           AND bal_capacidad_disponible_balon(b.id) > 0
@@ -71,7 +68,6 @@ BEGIN
                     nombre_tipo_balon,
                     capacidad_tipo,
                     capacidad_disponible,
-                    capacidad_restante,
                     fecha_creacion
                 FROM candidatos
                 ORDER BY fecha_creacion ASC NULLS LAST, id ASC

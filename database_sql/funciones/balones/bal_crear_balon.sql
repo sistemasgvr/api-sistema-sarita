@@ -1,3 +1,13 @@
+-- Firma anterior (incluía p_id_estado_contenido, retirado en Fase 1: el contenido del
+-- balón ya no se rastrea aquí; sin este DROP, CREATE OR REPLACE crea un overload nuevo
+-- y deja el viejo activo, así que el caller (que aún mandaba 31 args) seguía cayendo ahí.
+DROP FUNCTION IF EXISTS bal_crear_balon(
+    VARCHAR, VARCHAR, INTEGER, DATE, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER,
+    INTEGER, INTEGER, DATE, INTEGER, DATE, DATE, VARCHAR, NUMERIC, VARCHAR, VARCHAR,
+    INTEGER, INTEGER, BOOLEAN, SMALLINT, SMALLINT, INTEGER, INTEGER, VARCHAR, NUMERIC, VARCHAR,
+    INTEGER
+);
+
 CREATE OR REPLACE FUNCTION bal_crear_balon(
     p_codigo_balon VARCHAR,
     p_libro_cilindro VARCHAR DEFAULT NULL,
@@ -25,7 +35,6 @@ CREATE OR REPLACE FUNCTION bal_crear_balon(
     p_anio_fabricacion SMALLINT DEFAULT NULL,
     p_mes_fabricacion SMALLINT DEFAULT NULL,
     p_id_planta INTEGER DEFAULT NULL,
-    p_id_estado_contenido INTEGER DEFAULT NULL,
     p_tipo_valvula VARCHAR DEFAULT NULL,
     p_peso_aproximado_kg NUMERIC DEFAULT NULL,
     p_sello_inspeccion VARCHAR DEFAULT NULL,
@@ -43,7 +52,6 @@ DECLARE
     v_vigencia_ph INTEGER;
     v_fecha_ultima_ph DATE;
     v_fecha_proxima_ph DATE;
-    v_id_estado_contenido INTEGER;
     v_prop_nombre VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -188,17 +196,11 @@ BEGIN
         END
     );
 
-    -- Nuevo cilindro: VACIO por defecto si no se indica contenido.
-    v_id_estado_contenido := COALESCE(
-        p_id_estado_contenido,
-        bal_id_estado_contenido('VACIO')
-    );
-
     INSERT INTO bal_balon (
         codigo_balon, numero_serie, libro_cilindro, pagina_libro, fecha_registro,
         id_almacen, id_cliente_ubicacion, id_propietario, id_cliente_propietario,
         id_referencia, id_marca_cilindro, id_organo_inspector, organo_inspector_no_aplica,
-        id_tipo_balon, id_producto_gas, id_estado_balon, id_estado_contenido, id_planta,
+        id_tipo_balon, id_producto_gas, id_estado_balon, id_planta,
         fecha_ultima_prueba_hidrostatica, vigencia_prueba_hidrostatica_anios,
         fecha_proxima_prueba_hidrostatica, fecha_fabricacion, anio_fabricacion, mes_fabricacion,
         numero_recepcion, presion_actual, observacion, tipo_valvula,
@@ -211,7 +213,7 @@ BEGIN
         p_id_almacen, p_id_cliente_ubicacion, p_id_propietario, p_id_cliente_propietario,
         p_id_referencia, p_id_marca_cilindro, p_id_organo_inspector,
         COALESCE(p_organo_inspector_no_aplica, FALSE),
-        p_id_tipo_balon, p_id_producto_gas, p_id_estado_balon, v_id_estado_contenido, p_id_planta,
+        p_id_tipo_balon, p_id_producto_gas, p_id_estado_balon, p_id_planta,
         v_fecha_ultima_ph, v_vigencia_ph,
         v_fecha_proxima_ph, v_fecha_fabricacion, v_anio_fabricacion, v_mes_fabricacion,
         p_numero_recepcion, p_presion_actual, p_observacion,

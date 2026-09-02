@@ -1,5 +1,9 @@
--- Asigna balones EMPRESA LLENOS (FIFO) para cubrir una capacidad.
--- Si el primero solo tiene 2 m³ y se piden 5, toma 2 + el resto del siguiente.
+-- Valida disponibilidad de gas para una recarga y sugiere balón(es) de referencia.
+-- Fase 1: el gas es stock de producto por almacén (pro_stock), no se rastrea m³ por
+-- cilindro individual. Este check de disponibilidad ahora es real (contra pro_stock);
+-- el "origen" que se registra en bal_movimiento_recarga_origen es solo una referencia
+-- informativa de qué cilindro físico se usó (si se indicó uno) o el más antiguo
+-- disponible del mismo gas, no un reparto exacto de m³ por cilindro (eso ya no existe).
 CREATE OR REPLACE FUNCTION bal_asignar_origenes_recarga(
     p_id_producto_gas INTEGER,
     p_capacidad_requerida NUMERIC,
@@ -8,16 +12,13 @@ CREATE OR REPLACE FUNCTION bal_asignar_origenes_recarga(
 )
 RETURNS JSON
 LANGUAGE plpgsql
-VOLATILE
 AS $function$
 DECLARE
     v_requerida NUMERIC;
-    v_faltante NUMERIC;
-    v_origenes JSONB := '[]'::JSONB;
     v_total_disponible NUMERIC := 0;
-    r RECORD;
-    v_tomar NUMERIC;
-    v_orden INT := 0;
+    v_origenes JSONB := '[]'::JSONB;
+    v_id_balon_origen INTEGER;
+    v_codigo_balon_origen VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -30,25 +31,17 @@ BEGIN
         RETURN json_build_object('error', 'La capacidad requerida debe ser mayor a cero', 'origenes', '[]'::JSON);
     END IF;
 
-    SELECT COALESCE(SUM(bal_capacidad_disponible_balon(b.id)), 0)
-    INTO v_total_disponible
-    FROM bal_balon b
-    LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
-    LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
-    LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
-    WHERE b.estado = 1
-      AND COALESCE(prop.nombre, '') IN ('EMPRESA', 'PROPIA')
-      AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
-      AND COALESCE(ec.nombre, '') = 'LLENO'
-      AND b.id_producto_gas = p_id_producto_gas
-      AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
-      AND bal_capacidad_disponible_balon(b.id) > 0;
+    IF p_id_almacen IS NULL THEN
+        RETURN json_build_object('error', 'El almacén es obligatorio para validar el stock de gas', 'origenes', '[]'::JSON);
+    END IF;
+
+    v_total_disponible := inv_stock_producto(p_id_producto_gas, p_id_almacen);
 
     IF v_total_disponible < v_requerida THEN
         RETURN json_build_object(
             'error',
             format(
-                'Stock insuficiente de gas en balones empresa (disponible: %s m³, requerido: %s m³)',
+                'Stock insuficiente de gas en almacén (disponible: %s m³, requerido: %s m³)',
                 TRIM(TO_CHAR(v_total_disponible, 'FM999999990.####')),
                 TRIM(TO_CHAR(v_requerida, 'FM999999990.####'))
             ),
@@ -58,84 +51,49 @@ BEGIN
         );
     END IF;
 
-    v_faltante := v_requerida;
+    -- Balón de referencia: el preferido si es válido, si no el EMPRESA/EN_ALMACEN más
+    -- antiguo del mismo gas (solo para trazabilidad, no reparte m³ real por cilindro).
+    IF p_id_balon_preferido IS NOT NULL THEN
+        SELECT b.id, b.codigo_balon INTO v_id_balon_origen, v_codigo_balon_origen
+        FROM bal_balon b
+        WHERE b.id = p_id_balon_preferido AND b.estado = 1;
+    END IF;
 
-    FOR r IN
-        WITH base AS (
-            SELECT
-                b.id,
-                b.codigo_balon,
-                bal_capacidad_disponible_balon(b.id) AS capacidad_disponible,
-                tb.capacidad AS capacidad_tipo,
-                a.nombre AS nombre_almacen,
-                b.fecha_creacion,
-                CASE
-                    WHEN p_id_balon_preferido IS NOT NULL AND b.id = p_id_balon_preferido THEN 0
-                    ELSE 1
-                END AS prioridad
-            FROM bal_balon b
-            LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
-            LEFT JOIN gen_almacen a ON a.id = b.id_almacen
-            LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
-            LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
-            LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
-            WHERE b.estado = 1
-              AND COALESCE(prop.nombre, '') IN ('EMPRESA', 'PROPIA')
-              AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
-              AND COALESCE(ec.nombre, '') = 'LLENO'
-              AND b.id_producto_gas = p_id_producto_gas
-              AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
-              AND bal_capacidad_disponible_balon(b.id) > 0
-        )
-        SELECT *
-        FROM base
-        ORDER BY prioridad ASC, fecha_creacion ASC NULLS LAST, id ASC
-    LOOP
-        EXIT WHEN v_faltante <= 0;
+    IF v_id_balon_origen IS NULL THEN
+        SELECT b.id, b.codigo_balon INTO v_id_balon_origen, v_codigo_balon_origen
+        FROM bal_balon b
+        LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
+        LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+        WHERE b.estado = 1
+          AND COALESCE(prop.nombre, '') IN ('EMPRESA', 'PROPIA')
+          AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
+          AND b.id_producto_gas = p_id_producto_gas
+          AND b.id_almacen = p_id_almacen
+        ORDER BY b.fecha_creacion ASC NULLS LAST, b.id ASC
+        LIMIT 1;
+    END IF;
 
-        v_tomar := LEAST(r.capacidad_disponible, v_faltante);
-        IF v_tomar <= 0 THEN
-            CONTINUE;
-        END IF;
-
-        v_orden := v_orden + 1;
-        v_origenes := v_origenes || jsonb_build_array(
+    IF v_id_balon_origen IS NOT NULL THEN
+        v_origenes := jsonb_build_array(
             jsonb_build_object(
-                'id_balon', r.id,
-                'codigo_balon', r.codigo_balon,
-                'cantidad', v_tomar,
-                'capacidad_disponible', r.capacidad_disponible,
-                'capacidad_tipo', r.capacidad_tipo,
-                'nombre_almacen', r.nombre_almacen,
-                'orden', v_orden
+                'id_balon', v_id_balon_origen,
+                'codigo_balon', v_codigo_balon_origen,
+                'cantidad', v_requerida,
+                'orden', 1
             )
-        );
-        v_faltante := v_faltante - v_tomar;
-    END LOOP;
-
-    IF v_faltante > 0 THEN
-        RETURN json_build_object(
-            'error',
-            format(
-                'No se pudo completar la asignación (faltan %s m³)',
-                TRIM(TO_CHAR(v_faltante, 'FM999999990.####'))
-            ),
-            'origenes', '[]'::JSON
         );
     END IF;
 
     RETURN json_build_object(
         'origenes', v_origenes,
         'requerido', v_requerida,
-        'id_balon_origen_principal', (v_origenes->0->>'id_balon')::INTEGER,
-        'etiqueta', (
-            SELECT string_agg(
-                (o->>'codigo_balon') || ' (' || TRIM(TO_CHAR((o->>'cantidad')::NUMERIC, 'FM999999990.####')) || ' m³)',
-                ' + '
-                ORDER BY (o->>'orden')::INT
-            )
-            FROM jsonb_array_elements(v_origenes) o
-        )
+        'total_disponible', v_total_disponible,
+        'id_balon_origen_principal', v_id_balon_origen,
+        'etiqueta', CASE
+            WHEN v_codigo_balon_origen IS NOT NULL THEN
+                v_codigo_balon_origen || ' (' || TRIM(TO_CHAR(v_requerida, 'FM999999990.####')) || ' m³)'
+            ELSE NULL
+        END
     );
 END;
 $function$;

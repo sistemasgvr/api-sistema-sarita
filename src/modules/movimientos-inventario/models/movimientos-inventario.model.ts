@@ -61,12 +61,11 @@ export class MovimientosInventarioModel {
     fecha: string,
     idAlmacen: number,
     idAlmacenDestino: number,
-    idTipoMovimiento: number,
     detalles: Array<{ idProducto: number; cantidad: number }>,
     glosa: string | null,
     idUsuarioAuditoria?: number,
     idDocumentoRef?: number | null,
-    idTipoDocumentoRef?: number | null,
+    codigoDocumentoRef?: string | null,
   ) {
     return this.db.callFunctionJson<{
       error?: string | null;
@@ -76,12 +75,11 @@ export class MovimientosInventarioModel {
       fecha,
       idAlmacen,
       idAlmacenDestino,
-      idTipoMovimiento,
       JSON.stringify(detalles),
       glosa,
       idUsuarioAuditoria ?? null,
       idDocumentoRef ?? null,
-      idTipoDocumentoRef ?? null,
+      codigoDocumentoRef ?? null,
     ]);
   }
 

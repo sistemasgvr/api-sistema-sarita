@@ -1,6 +1,6 @@
--- Stock de gas físico = residuales de balones EMPRESA/PROPIA en EN_ALMACEN con gas útil
--- (LLENO o DESCONOCIDO/parcial con capacidad_restante > 0).
--- Lista todos los productos gas del catálogo (aunque el stock sea 0).
+-- Stock de gas = pro_stock unificado (Fase 1, hito 4).
+-- Reemplaza la lógica anterior que sumaba capacidad_restante de bal_balon.
+-- Cada producto gas tiene su propio stock en pro_stock por almacén.
 
 CREATE OR REPLACE FUNCTION bal_listar_stock_gas(
     p_busqueda VARCHAR DEFAULT '',
@@ -19,150 +19,31 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    WITH gases AS (
+    WITH filtrado AS (
         SELECT
             p.id AS id_producto_gas,
             p.codigo AS codigo_producto,
             p.nombre AS nombre_producto,
-            um.nombre AS nombre_unidad_medida
+            um.nombre AS nombre_unidad_medida,
+            s.id_almacen,
+            al.nombre AS nombre_almacen,
+            COALESCE(s.stock, 0) AS capacidad_disponible,
+            COALESCE(s.stock_minimo, 0) AS stock_minimo,
+            (COALESCE(s.stock, 0) <= COALESCE(s.stock_minimo, 0)) AS bajo_minimo
         FROM pro_producto p
         LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
+        INNER JOIN pro_stock s ON s.id_producto = p.id AND s.estado = 1
+        INNER JOIN gen_almacen al ON al.id = s.id_almacen AND al.estado = 1
         WHERE p.estado = 1
           AND COALESCE(p.es_gas, FALSE) = TRUE
           AND (p_id_producto_gas IS NULL OR p.id = p_id_producto_gas)
-    ),
-    base AS (
-        SELECT
-            b.id_producto_gas,
-            b.id_almacen,
-            COALESCE(ec.nombre, 'DESCONOCIDO') AS nombre_contenido,
-            COALESCE(eb.nombre, '') AS nombre_estado_balon,
-            CASE
-                WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'VACIO' THEN 0::NUMERIC
-                WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'LLENO'
-                    THEN COALESCE(b.capacidad_restante, tb.capacidad, 0)::NUMERIC
-                -- Parcial / desconocido: solo cuenta lo medido al recojo/devolución
-                ELSE COALESCE(b.capacidad_restante, 0)::NUMERIC
-            END AS capacidad,
-            CASE
-                WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'VACIO' THEN 0::NUMERIC
-                WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'LLENO'
-                    THEN COALESCE(
-                        b.capacidad_restante_lb,
-                        tb.capacidad_lb,
-                        CASE
-                            WHEN bal_factor_lb_m3(b.id_tipo_balon, b.id_producto_gas) > 0
-                                THEN ROUND(
-                                    COALESCE(b.capacidad_restante, tb.capacidad, 0)
-                                    / bal_factor_lb_m3(b.id_tipo_balon, b.id_producto_gas),
-                                    4
-                                )
-                            ELSE 0
-                        END,
-                        0
-                    )::NUMERIC
-                ELSE COALESCE(b.capacidad_restante_lb, 0)::NUMERIC
-            END AS capacidad_lb
-        FROM bal_balon b
-        LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
-        LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
-        LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
-        LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
-        WHERE b.estado = 1
-          -- EMPRESA y legado PROPIA = stock propio (alineado al POS)
-          AND COALESCE(prop.nombre, '') IN ('EMPRESA', 'PROPIA')
-          AND COALESCE(eb.nombre, '') NOT IN ('DADO_DE_BAJA', 'ROBO')
-          AND b.id_producto_gas IS NOT NULL
-          AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
-          AND (p_id_producto_gas IS NULL OR b.id_producto_gas = p_id_producto_gas)
-    ),
-    agrupado AS (
-        SELECT
-            b.id_producto_gas,
-            b.id_almacen,
-            COUNT(*) FILTER (
-                WHERE b.nombre_estado_balon = 'EN_ALMACEN'
-                  AND b.capacidad > 0
-            ) AS balones_llenos,
-            COALESCE(SUM(b.capacidad) FILTER (
-                WHERE b.nombre_estado_balon = 'EN_ALMACEN'
-                  AND b.capacidad > 0
-            ), 0) AS capacidad_disponible,
-            COALESCE(SUM(b.capacidad_lb) FILTER (
-                WHERE b.nombre_estado_balon = 'EN_ALMACEN'
-                  AND b.capacidad > 0
-            ), 0) AS capacidad_disponible_lb,
-            COUNT(*) FILTER (
-                WHERE b.nombre_contenido = 'VACIO'
-                  AND b.nombre_estado_balon = 'EN_ALMACEN'
-            ) AS balones_vacios,
-            COUNT(*) FILTER (
-                WHERE b.capacidad > 0
-                  AND b.nombre_estado_balon <> 'EN_ALMACEN'
-            ) AS balones_llenos_fuera
-        FROM base b
-        GROUP BY b.id_producto_gas, b.id_almacen
-    ),
-    -- Una fila por gas+almacén con movimiento; si no hay balones, una fila con ceros.
-    expandido AS (
-        SELECT
-            g.id_producto_gas,
-            g.codigo_producto,
-            g.nombre_producto,
-            g.nombre_unidad_medida,
-            a.id_almacen,
-            a.balones_llenos,
-            a.capacidad_disponible,
-            a.capacidad_disponible_lb,
-            a.balones_vacios,
-            a.balones_llenos_fuera,
-            (a.balones_llenos > 0) AS tiene_stock_disponible
-        FROM gases g
-        INNER JOIN agrupado a ON a.id_producto_gas = g.id_producto_gas
-        WHERE p_id_almacen IS NULL OR a.id_almacen = p_id_almacen
-
-        UNION ALL
-
-        SELECT
-            g.id_producto_gas,
-            g.codigo_producto,
-            g.nombre_producto,
-            g.nombre_unidad_medida,
-            NULL::INTEGER AS id_almacen,
-            0::BIGINT AS balones_llenos,
-            0::NUMERIC AS capacidad_disponible,
-            0::NUMERIC AS capacidad_disponible_lb,
-            0::BIGINT AS balones_vacios,
-            0::BIGINT AS balones_llenos_fuera,
-            FALSE AS tiene_stock_disponible
-        FROM gases g
-        WHERE NOT EXISTS (
-            SELECT 1 FROM agrupado a WHERE a.id_producto_gas = g.id_producto_gas
-        )
-          AND p_id_almacen IS NULL
-    ),
-    filtrado AS (
-        SELECT
-            e.id_producto_gas,
-            e.codigo_producto,
-            e.nombre_producto,
-            e.nombre_unidad_medida,
-            e.id_almacen,
-            al.nombre AS nombre_almacen,
-            e.balones_llenos,
-            e.capacidad_disponible,
-            e.capacidad_disponible_lb,
-            e.balones_vacios,
-            e.balones_llenos_fuera,
-            e.tiene_stock_disponible
-        FROM expandido e
-        LEFT JOIN gen_almacen al ON al.id = e.id_almacen
-        WHERE (
-            p_busqueda = ''
-            OR gen_texto_coincide(COALESCE(e.codigo_producto, ''), p_busqueda)
-            OR gen_texto_coincide(COALESCE(e.nombre_producto, ''), p_busqueda)
-            OR gen_texto_coincide(COALESCE(al.nombre, ''), p_busqueda)
-        )
+          AND (p_id_almacen IS NULL OR s.id_almacen = p_id_almacen)
+          AND (
+              p_busqueda = ''
+              OR gen_texto_coincide(COALESCE(p.codigo, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(p.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(al.nombre, ''), p_busqueda)
+          )
     )
     SELECT
         (SELECT COUNT(*) FROM filtrado),
@@ -181,11 +62,9 @@ BEGIN
         ),
         (
             SELECT json_build_object(
-                'balones_llenos', COALESCE(SUM(balones_llenos), 0),
+                'total_productos', COUNT(*),
                 'capacidad_disponible', COALESCE(SUM(capacidad_disponible), 0),
-                'capacidad_disponible_lb', COALESCE(SUM(capacidad_disponible_lb), 0),
-                'balones_vacios', COALESCE(SUM(balones_vacios), 0),
-                'balones_llenos_fuera', COALESCE(SUM(balones_llenos_fuera), 0)
+                'bajo_minimo', COUNT(*) FILTER (WHERE bajo_minimo)
             )
             FROM filtrado
         )

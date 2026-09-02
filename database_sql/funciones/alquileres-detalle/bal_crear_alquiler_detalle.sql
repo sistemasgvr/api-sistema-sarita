@@ -10,8 +10,6 @@ DECLARE
     v_id INTEGER;
     v_id_cliente INTEGER;
     v_id_almacen INTEGER;
-    v_id_tipo_movimiento INTEGER;
-    v_id_tipo_documento_ref INTEGER;
     v_id_estado_alquilado INTEGER;
     v_mov_result JSON;
 BEGIN
@@ -88,18 +86,6 @@ BEGIN
     FROM bal_alquiler
     WHERE id = p_id_alquiler AND estado = 1;
 
-    SELECT lo.id INTO v_id_tipo_movimiento
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'SALIDA_ALQUILER' AND lo.estado = 1
-    LIMIT 1;
-
-    SELECT lo.id INTO v_id_tipo_documento_ref
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'ALQUILER' AND lo.estado = 1
-    LIMIT 1;
-
     SELECT lo.id INTO v_id_estado_alquilado
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id
@@ -125,23 +111,22 @@ BEGIN
     )
     RETURNING id INTO v_id;
 
-    IF v_id_tipo_movimiento IS NOT NULL THEN
-        v_mov_result := bal_crear_movimiento(
-            p_id_balon,
-            v_id_tipo_movimiento,
-            p_id_alquiler,
-            v_id_tipo_documento_ref,
-            v_id_cliente,
-            v_id_almacen,
-            NULL::INTEGER,
-            NOW()::TIMESTAMP,
-            'Salida por alquiler'::VARCHAR,
-            p_id_usuario_auditoria
-        );
+    v_mov_result := inv_registrar_movimiento(
+        p_naturaleza                => 'BALON',
+        p_codigo_tipo_movimiento    => 'SALIDA_ALQUILER',
+        p_fecha                     => NOW(),
+        p_id_balon                  => p_id_balon,
+        p_cantidad                  => 1,
+        p_id_almacen_origen         => v_id_almacen,
+        p_id_cliente                => v_id_cliente,
+        p_codigo_tipo_documento_origen => 'ALQUILER',
+        p_id_documento_origen       => p_id_alquiler,
+        p_glosa                     => 'Salida por alquiler',
+        p_id_usuario_auditoria      => p_id_usuario_auditoria
+    );
 
-        IF v_mov_result->>'error' IS NOT NULL THEN
-            RAISE EXCEPTION '%', v_mov_result->>'error';
-        END IF;
+    IF v_mov_result->>'error' IS NOT NULL THEN
+        RAISE EXCEPTION '%', v_mov_result->>'error';
     END IF;
 
     -- En cliente no sabemos si consume el gas → contenido DESCONOCIDO.
@@ -150,20 +135,9 @@ BEGIN
         id_cliente_ubicacion = v_id_cliente,
         id_almacen = NULL,
         id_estado_balon = v_id_estado_alquilado,
-        id_estado_contenido = COALESCE(bal_id_estado_contenido('DESCONOCIDO'), id_estado_contenido),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id_balon AND estado = 1;
-
-    PERFORM bal_sync_capacidad_restante(
-        p_id_balon,
-        NULL,
-        NULL,
-        NULL,
-        'CLEAR',
-        NULL,
-        p_id_usuario_auditoria
-    );
 
     RETURN bal_obtener_alquiler_detalle(v_id);
 END;

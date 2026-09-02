@@ -106,10 +106,6 @@ BEGIN
             WHEN v_limpiar_almacen THEN NULL
             ELSE v_almacen
         END,
-        id_estado_contenido = CASE
-            WHEN v_contenido IS NOT NULL THEN COALESCE(bal_id_estado_contenido(v_contenido), id_estado_contenido)
-            ELSE id_estado_contenido
-        END,
         id_usuario_modificacion = p_id_usuario,
         fecha_modificacion = NOW()
     WHERE id = v_mov.id_balon AND estado = 1;

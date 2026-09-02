@@ -267,8 +267,6 @@ BEGIN
             m.observacion,
             m.id_estado_balon,
             eb_snap.nombre AS nombre_estado_balon,
-            m.id_estado_contenido,
-            ec_snap.nombre AS nombre_estado_contenido,
             m.id_almacen_ubicacion,
             au_snap.nombre AS nombre_almacen_ubicacion,
             m.id_cliente_ubicacion,
@@ -292,7 +290,6 @@ BEGIN
         LEFT JOIN gen_almacen ao ON m.id_almacen_origen = ao.id
         LEFT JOIN gen_almacen ad ON m.id_almacen_destino = ad.id
         LEFT JOIN gen_lista_opciones eb_snap ON eb_snap.id = m.id_estado_balon
-        LEFT JOIN gen_lista_opciones ec_snap ON ec_snap.id = m.id_estado_contenido
         LEFT JOIN gen_almacen au_snap ON au_snap.id = m.id_almacen_ubicacion
         LEFT JOIN cli_clientes cu_snap ON cu_snap.id = m.id_cliente_ubicacion
         LEFT JOIN auth_usuarios uc ON m.id_usuario_creacion = uc.id

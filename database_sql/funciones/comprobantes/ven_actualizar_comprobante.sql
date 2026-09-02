@@ -63,7 +63,6 @@ DECLARE
     v_afecta_stock BOOLEAN;
     v_id_tipo_mov_salida INTEGER;
     v_id_tipo_mov_ingreso INTEGER;
-    v_id_tipo_documento_ref INTEGER;
     v_nombre_tipo_venta VARCHAR;
     v_qty_antigua NUMERIC(12,4);
     v_qty_nueva NUMERIC(12,4);
@@ -260,21 +259,6 @@ BEGIN
             FROM gen_lista_opciones lo
             WHERE lo.id = v_id_tipo_venta;
 
-            SELECT lo.id INTO v_id_tipo_documento_ref
-            FROM gen_lista_opciones lo
-            INNER JOIN gen_lista l ON lo.id_lista = l.id
-            WHERE l.nombre = 'TipoDocumentoRef'
-              AND lo.nombre = CASE
-                WHEN v_nombre_tipo_venta = 'VENTA_GAS' THEN 'RECARGA'
-                WHEN v_codigo_tipo = '01' THEN 'FACTURA'
-                WHEN v_codigo_tipo = '03' THEN 'BOLETA'
-                WHEN v_codigo_tipo = '07' THEN 'NOTA_CREDITO'
-                WHEN v_codigo_tipo IN ('NV', 'VSD') THEN 'NOTA_VENTA'
-                ELSE 'FACTURA'
-              END
-              AND lo.estado = 1
-            LIMIT 1;
-
             IF p_detalles IS NULL THEN
                 -- Solo cambia almacén: revertir en el anterior y aplicar en el nuevo
                 IF v_id_almacen_actual IS DISTINCT FROM v_id_almacen_nuevo THEN
@@ -294,14 +278,18 @@ BEGIN
                             v_id_tipo_mov_aplicar := v_id_tipo_mov_ingreso;
                         END IF;
 
-                        v_mov_result := pro_crear_movimiento(
+                        v_mov_result := inv_registrar_movimiento(
+                            'PRODUCTO',
+                            CASE WHEN v_es_nota_credito THEN 'SALIDA' ELSE 'INGRESO' END,
                             v_fecha,
                             v_id_producto,
-                            v_id_almacen_actual,
-                            v_id_tipo_mov_aplicar,
+                            NULL,
                             v_qty_antigua,
+                            v_id_almacen_actual,
+                            NULL,
+                            NULL,
+                            ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                             p_id,
-                            v_id_tipo_documento_ref,
                             format('Cambio almacén %s-%s (revertir)', v_serie, v_numero),
                             p_id_usuario_auditoria
                         );
@@ -335,14 +323,18 @@ BEGIN
                             v_id_tipo_mov_aplicar := v_id_tipo_mov_salida;
                         END IF;
 
-                        v_mov_result := pro_crear_movimiento(
+                        v_mov_result := inv_registrar_movimiento(
+                            'PRODUCTO',
+                            CASE WHEN v_es_nota_credito THEN 'INGRESO' ELSE 'SALIDA' END,
                             v_fecha,
                             v_id_producto,
-                            v_id_almacen_nuevo,
-                            v_id_tipo_mov_aplicar,
+                            NULL,
                             v_qty_antigua,
+                            v_id_almacen_nuevo,
+                            NULL,
+                            NULL,
+                            ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                             p_id,
-                            v_id_tipo_documento_ref,
                             format('Cambio almacén %s-%s (aplicar)', v_serie, v_numero),
                             p_id_usuario_auditoria
                         );
@@ -368,14 +360,18 @@ BEGIN
                         v_id_tipo_mov_aplicar := v_id_tipo_mov_ingreso;
                     END IF;
 
-                    v_mov_result := pro_crear_movimiento(
+                    v_mov_result := inv_registrar_movimiento(
+                        'PRODUCTO',
+                        CASE WHEN v_es_nota_credito THEN 'SALIDA' ELSE 'INGRESO' END,
                         v_fecha,
                         v_id_producto,
-                        v_id_almacen_actual,
-                        v_id_tipo_mov_aplicar,
+                        NULL,
                         v_qty_antigua,
+                        v_id_almacen_actual,
+                        NULL,
+                        NULL,
+                        ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                         p_id,
-                        v_id_tipo_documento_ref,
                         format('Cambio almacén %s-%s (revertir)', v_serie, v_numero),
                         p_id_usuario_auditoria
                     );
@@ -421,14 +417,18 @@ BEGIN
                         v_id_tipo_mov_aplicar := v_id_tipo_mov_salida;
                     END IF;
 
-                    v_mov_result := pro_crear_movimiento(
+                    v_mov_result := inv_registrar_movimiento(
+                        'PRODUCTO',
+                        CASE WHEN v_es_nota_credito THEN 'INGRESO' ELSE 'SALIDA' END,
                         v_fecha,
                         v_id_producto,
-                        v_id_almacen_nuevo,
-                        v_id_tipo_mov_aplicar,
+                        NULL,
                         v_qty_nueva,
+                        v_id_almacen_nuevo,
+                        NULL,
+                        NULL,
+                        ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                         p_id,
-                        v_id_tipo_documento_ref,
                         format('Ajuste edición %s-%s', v_serie, v_numero),
                         p_id_usuario_auditoria
                     );
@@ -506,14 +506,18 @@ BEGIN
                         END IF;
                     END IF;
 
-                    v_mov_result := pro_crear_movimiento(
+                    v_mov_result := inv_registrar_movimiento(
+                        'PRODUCTO',
+                        CASE WHEN v_id_tipo_mov_aplicar = v_id_tipo_mov_salida THEN 'SALIDA' ELSE 'INGRESO' END,
                         v_fecha,
                         v_id_producto,
-                        v_id_almacen_nuevo,
-                        v_id_tipo_mov_aplicar,
+                        NULL,
                         v_cantidad_aplicar,
+                        v_id_almacen_nuevo,
+                        NULL,
+                        NULL,
+                        ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                         p_id,
-                        v_id_tipo_documento_ref,
                         format('Ajuste edición %s-%s', v_serie, v_numero),
                         p_id_usuario_auditoria
                     );

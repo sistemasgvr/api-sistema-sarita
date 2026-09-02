@@ -10,29 +10,19 @@ DECLARE
     v_prestamo RECORD;
     v_detalle RECORD;
     v_recarga RECORD;
-    v_origen RECORD;
     v_alquiler RECORD;
     v_alq_det RECORD;
     v_guia RECORD;
     v_mant RECORD;
     v_result JSON;
-    v_disp NUMERIC;
-    v_sync JSON;
     v_id_en_almacen INTEGER;
     v_id_estado_final INTEGER;
-    v_id_tipo_doc_recarga INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
     IF p_id_comprobante IS NULL THEN
         RETURN;
     END IF;
-
-    SELECT lo.id INTO v_id_tipo_doc_recarga
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'RECARGA' AND lo.estado = 1
-    LIMIT 1;
 
     -- Préstamos: devolver cilindros pendientes y cerrar cabecera
     FOR v_prestamo IN
@@ -55,37 +45,14 @@ BEGIN
         END LOOP;
     END LOOP;
 
-    -- Recargas mostrador: devolver m³ a orígenes y dar de baja el movimiento
+    -- Recargas mostrador: devolver el gas a pro_stock y soltar el balón (inv_movimiento)
     FOR v_recarga IN
         SELECT id, id_balon
         FROM bal_movimiento_recarga
         WHERE estado = 1 AND id_comprobante = p_id_comprobante
     LOOP
-        FOR v_origen IN
-            SELECT id_balon, cantidad
-            FROM bal_movimiento_recarga_origen
-            WHERE id_movimiento_recarga = v_recarga.id AND estado = 1
-        LOOP
-            v_disp := COALESCE(bal_capacidad_disponible_balon(v_origen.id_balon), 0);
-            v_sync := bal_sync_capacidad_restante(
-                v_origen.id_balon,
-                v_disp + COALESCE(v_origen.cantidad, 0),
-                NULL,
-                NULL,
-                'FROM_M3',
-                NULL,
-                p_id_usuario
-            );
-            IF COALESCE((v_sync->>'ok')::BOOLEAN, FALSE) IS NOT TRUE THEN
-                RAISE EXCEPTION '%', COALESCE(v_sync->>'error', 'No se pudo devolver la capacidad de recarga');
-            END IF;
-        END LOOP;
-
-        UPDATE bal_movimiento
-        SET estado = 0, id_usuario_modificacion = p_id_usuario, fecha_modificacion = NOW()
-        WHERE estado = 1
-          AND id_documento_ref = v_recarga.id
-          AND (v_id_tipo_doc_recarga IS NULL OR id_tipo_documento_ref = v_id_tipo_doc_recarga);
+        v_result := inv_revertir_por_documento('RECARGA', v_recarga.id, p_id_usuario);
+        PERFORM ven_raise_si_error(v_result);
 
         UPDATE bal_movimiento_recarga
         SET estado = 0, id_usuario_modificacion = p_id_usuario, fecha_modificacion = NOW()

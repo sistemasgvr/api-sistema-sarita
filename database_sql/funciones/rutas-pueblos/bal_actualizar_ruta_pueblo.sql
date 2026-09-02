@@ -117,22 +117,7 @@ BEGIN
                         fecha_modificacion = NOW()
                     WHERE id = v_det.id_balon AND estado = 1;
 
-                    -- Gas que salió aún está en el envase (viaje abortado)
-                    v_sync := bal_sync_capacidad_restante(
-                        v_det.id_balon,
-                        NULL,
-                        v_det.lb_salida,
-                        NULL,
-                        'FROM_LB',
-                        NULL,
-                        p_id_usuario_auditoria
-                    );
 
-                    IF COALESCE((v_sync->>'ok')::BOOLEAN, FALSE) IS NOT TRUE THEN
-                        RAISE EXCEPTION 'Cilindro %: %',
-                            v_det.id_balon,
-                            COALESCE(v_sync->>'error', 'No se pudo restaurar capacidad residual');
-                    END IF;
                 END IF;
             END LOOP;
         END IF;

@@ -74,7 +74,6 @@ DECLARE
     v_id_almacen_origen INTEGER;
     v_id_tipo_mov_inv INTEGER;
     v_id_tipo_mov_ingreso INTEGER;
-    v_id_tipo_documento_ref INTEGER;
     v_nombre_tipo_venta VARCHAR;
     v_stock_disponible NUMERIC(12,4);
     v_mov_result JSON;
@@ -445,22 +444,6 @@ BEGIN
         FROM gen_lista_opciones lo
         WHERE lo.id = p_id_tipo_venta;
 
-        SELECT lo.id INTO v_id_tipo_documento_ref
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoDocumentoRef'
-          AND lo.nombre = CASE
-            WHEN v_nombre_tipo_venta = 'VENTA_GAS' THEN 'RECARGA'
-            WHEN v_codigo_tipo = '01' THEN 'FACTURA'
-            WHEN v_codigo_tipo = '03' THEN 'BOLETA'
-            WHEN v_codigo_tipo = '07' THEN 'NOTA_CREDITO'
-            WHEN v_codigo_tipo = '08' THEN 'NOTA_DEBITO'
-            WHEN v_codigo_tipo IN ('NV', 'VSD') THEN 'NOTA_VENTA'
-            ELSE 'FACTURA'
-          END
-          AND lo.estado = 1
-        LIMIT 1;
-
         -- Validar disponibilidad solo cuando se descuenta (no en NC)
         IF NOT v_es_nota_credito THEN
             FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
@@ -534,29 +517,18 @@ BEGIN
                 );
             END IF;
 
-            SELECT COALESCE(SUM(capacidad), 0)
+            SELECT COALESCE(SUM(tb.capacidad), 0)
             INTO v_stock_disponible
-            FROM (
-                SELECT
-                    CASE
-                        WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'VACIO' THEN 0::NUMERIC
-                        WHEN COALESCE(ec.nombre, 'DESCONOCIDO') = 'LLENO'
-                            THEN COALESCE(b.capacidad_restante, tb.capacidad, 0)::NUMERIC
-                        ELSE COALESCE(b.capacidad_restante, 0)::NUMERIC
-                    END AS capacidad
-                FROM bal_balon b
-                LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
-                LEFT JOIN gen_lista_opciones ec ON ec.id = b.id_estado_contenido
-                LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
-                LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
-                WHERE b.estado = 1
-                  AND COALESCE(prop.nombre, '') = 'EMPRESA'
-                  AND COALESCE(eb.nombre, '') NOT IN ('DADO_DE_BAJA', 'ROBO')
-                  AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
-                  AND b.id_producto_gas = v_id_producto
-                  AND b.id_almacen = p_id_almacen
-            ) t
-            WHERE t.capacidad > 0;
+            FROM bal_balon b
+            LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+            LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+            LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
+            WHERE b.estado = 1
+              AND COALESCE(prop.nombre, '') = 'EMPRESA'
+              AND COALESCE(eb.nombre, '') NOT IN ('DADO_DE_BAJA', 'ROBO')
+              AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
+              AND b.id_producto_gas = v_id_producto
+              AND b.id_almacen = p_id_almacen;
 
             IF COALESCE(v_stock_disponible, 0) < v_cantidad THEN
                 RETURN json_build_object(
@@ -661,46 +633,21 @@ BEGIN
         FROM gen_lista_opciones lo
         WHERE lo.id = p_id_tipo_venta;
 
-        SELECT lo.id INTO v_id_tipo_documento_ref
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoDocumentoRef'
-          AND lo.nombre = CASE
-            WHEN v_nombre_tipo_venta = 'VENTA_GAS' THEN 'RECARGA'
-            WHEN v_codigo_tipo = '01' THEN 'FACTURA'
-            WHEN v_codigo_tipo = '03' THEN 'BOLETA'
-            ELSE 'FACTURA'
-          END
-          AND lo.estado = 1
-        LIMIT 1;
-
-        SELECT lo.id INTO v_id_tipo_mov_inv
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoMovInv' AND lo.nombre = 'SALIDA' AND lo.estado = 1
-        LIMIT 1;
-
-        SELECT lo.id INTO v_id_tipo_mov_ingreso
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'TipoMovInv' AND lo.nombre = 'INGRESO' AND lo.estado = 1
-        LIMIT 1;
-
-        IF v_id_tipo_mov_inv IS NULL OR v_id_tipo_mov_ingreso IS NULL THEN
-            RAISE EXCEPTION 'No se encontraron tipos de movimiento SALIDA/INGRESO para la conversión';
-        END IF;
-
-        UPDATE pro_movimientos
-        SET id_documento_ref = v_id,
-            id_tipo_documento_ref = COALESCE(v_id_tipo_documento_ref, id_tipo_documento_ref),
-            glosa = COALESCE(
+        v_mov_result := inv_repuntar_documento(
+            p_codigo_tipo_documento_origen_actual => ven_resolver_tipo_documento_ref(v_codigo_tipo_origen, v_nombre_tipo_venta),
+            p_id_documento_origen_actual          => p_id_comprobante_origen,
+            p_codigo_tipo_documento_origen_nuevo  => ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
+            p_id_documento_origen_nuevo           => v_id,
+            p_glosa                               => COALESCE(
                 NULLIF(TRIM(p_glosa), ''),
                 format('Salida por comprobante %s-%s (desde venta sin documento)', v_serie, v_numero)
             ),
-            id_usuario_modificacion = p_id_usuario_auditoria,
-            fecha_modificacion = NOW()
-        WHERE id_documento_ref = p_id_comprobante_origen
-          AND estado = 1;
+            p_id_usuario_auditoria                => p_id_usuario_auditoria
+        );
+
+        IF v_mov_result->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_mov_result->>'error';
+        END IF;
 
         FOR v_id_producto, v_qty_origen, v_qty_nueva IN
             SELECT
@@ -747,26 +694,34 @@ BEGIN
                         v_delta_stock;
                 END IF;
 
-                v_mov_result := pro_crear_movimiento(
+                v_mov_result := inv_registrar_movimiento(
+                    'PRODUCTO',
+                    'SALIDA',
                     p_fecha,
                     v_id_producto,
-                    p_id_almacen,
-                    v_id_tipo_mov_inv,
+                    NULL,
                     v_delta_stock,
+                    p_id_almacen,
+                    NULL,
+                    NULL,
+                    ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                     v_id,
-                    v_id_tipo_documento_ref,
                     format('Ajuste conversión %s-%s (+)', v_serie, v_numero),
                     p_id_usuario_auditoria
                 );
             ELSE
-                v_mov_result := pro_crear_movimiento(
+                v_mov_result := inv_registrar_movimiento(
+                    'PRODUCTO',
+                    'INGRESO',
                     p_fecha,
                     v_id_producto,
-                    p_id_almacen,
-                    v_id_tipo_mov_ingreso,
+                    NULL,
                     ABS(v_delta_stock),
+                    p_id_almacen,
+                    NULL,
+                    NULL,
+                    ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                     v_id,
-                    v_id_tipo_documento_ref,
                     format('Ajuste conversión %s-%s (-)', v_serie, v_numero),
                     p_id_usuario_auditoria
                 );
@@ -802,14 +757,18 @@ BEGIN
                 CONTINUE;
             END IF;
 
-            v_mov_result := pro_crear_movimiento(
+            v_mov_result := inv_registrar_movimiento(
+                'PRODUCTO',
+                CASE WHEN v_es_nota_credito THEN 'INGRESO' ELSE 'SALIDA' END,
                 p_fecha,
                 v_id_producto,
-                p_id_almacen,
-                v_id_tipo_mov_inv,
+                NULL,
                 v_cantidad,
+                p_id_almacen,
+                NULL,
+                NULL,
+                ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                 v_id,
-                v_id_tipo_documento_ref,
                 v_glosa_mov,
                 p_id_usuario_auditoria
             );

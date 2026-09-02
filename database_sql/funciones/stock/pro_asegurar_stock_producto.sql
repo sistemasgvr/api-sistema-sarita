@@ -12,14 +12,13 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Solo accesorios con afecta_stock (nunca gases ni servicios).
+    -- Cualquier producto con afecta_stock (accesorios y, desde Fase 1, también gas). Nunca servicios.
     IF NOT EXISTS (
         SELECT 1
         FROM pro_producto p
         WHERE p.id = p_id_producto
           AND p.estado = 1
           AND COALESCE(p.afecta_stock, FALSE) = TRUE
-          AND COALESCE(p.es_gas, FALSE) = FALSE
           AND COALESCE(p.es_servicio, FALSE) = FALSE
     ) THEN
         RETURN;

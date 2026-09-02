@@ -41,7 +41,6 @@ BEGIN
             jsonb_build_object(
                 'id_balon', (o->>'id_balon')::INTEGER,
                 'cantidad', (o->>'cantidad')::NUMERIC,
-                'capacidad_restante', v_consumo->'capacidad_restante',
                 'quedo_vacio', v_consumo->'quedo_vacio'
             )
         );

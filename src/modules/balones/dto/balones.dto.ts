@@ -91,13 +91,6 @@ export class FiltroBalonesDto extends FiltroPaginacionDto {
   @IsNumber()
   idEstadoBalon?: number;
 
-  @ApiPropertyOptional({
-    description: 'Lista EstadoContenidoBalon: LLENO / VACIO / DESCONOCIDO',
-  })
-  @Type(() => Number)
-  @IsOptional()
-  @IsNumber()
-  idEstadoContenido?: number;
 
   @ApiPropertyOptional()
   @Type(() => Number)
@@ -260,13 +253,6 @@ export class CreateBalonesDto extends AuditoriaDto {
   @IsNumber()
   idEstadoBalon?: number;
 
-  @ApiPropertyOptional({
-    description: 'Lista EstadoContenidoBalon: LLENO / VACIO / DESCONOCIDO',
-  })
-  @Type(() => Number)
-  @IsOptional()
-  @IsNumber()
-  idEstadoContenido?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -441,13 +427,6 @@ export class UpdateBalonesDto extends AuditoriaDto {
   @IsNumber()
   idEstadoBalon?: number;
 
-  @ApiPropertyOptional({
-    description: 'Lista EstadoContenidoBalon: LLENO / VACIO / DESCONOCIDO',
-  })
-  @Type(() => Number)
-  @IsOptional()
-  @IsNumber()
-  idEstadoContenido?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
