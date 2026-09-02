@@ -42,13 +42,11 @@ import { CategoriasProductoModule } from './modules/categorias-producto/categori
 import { SubCategoriasProductoModule } from './modules/sub-categorias-producto/sub-categorias-producto.module';
 import { CatalogoPreciosModule } from './modules/catalogo-precios/catalogo-precios.module';
 import { StockProductoModule } from './modules/stock-producto/stock-producto.module';
-import { MovimientosInventarioModule } from './modules/movimientos-inventario/movimientos-inventario.module';
 import { InventarioMovimientosModule } from './modules/inventario-movimientos/inventario-movimientos.module';
 import { ProductoImagenesModule } from './modules/producto-imagenes/producto-imagenes.module';
 import { ProductosModule } from './modules/productos/productos.module';
 import { TiposBalonModule } from './modules/tipos-balon/tipos-balon.module';
 import { BalonesModule } from './modules/balones/balones.module';
-import { MovimientosBalonModule } from './modules/movimientos-balon/movimientos-balon.module';
 import { MovimientosRecargaModule } from './modules/movimientos-recarga/movimientos-recarga.module';
 import { RecargasPlantaModule } from './modules/recargas-planta/recargas-planta.module';
 import { PrestamosBalonModule } from './modules/prestamos-balon/prestamos-balon.module';
@@ -120,12 +118,10 @@ import { CajaModule } from './modules/caja/caja.module';
     SubCategoriasProductoModule,
     CatalogoPreciosModule,
     StockProductoModule,
-    MovimientosInventarioModule,
     InventarioMovimientosModule,
     ProductoImagenesModule,
     ProductosModule,
     TiposBalonModule,
-    MovimientosBalonModule,
     MovimientosRecargaModule,
     RecargasPlantaModule,
     PrestamosBalonModule,

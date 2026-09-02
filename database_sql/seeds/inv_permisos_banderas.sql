@@ -14,13 +14,14 @@ WHERE NOT EXISTS (
     SELECT 1 FROM auth_permisos p WHERE p.nombre = v.nombre
 );
 
--- Asignar los nuevos permisos al rol Administrador.
+-- Asignar permisos a Administrador + roles operativos que ya tenían movimientos.*.
 INSERT INTO auth_roles_permisos (id_rol, id_permiso)
 SELECT r.id, p.id
 FROM auth_roles r
 CROSS JOIN auth_permisos p
-WHERE r.nombre = 'Administrador'
+WHERE r.estado = TRUE
   AND p.estado = TRUE
+  AND r.nombre IN ('Administrador', 'Operario', 'Supervisor')
   AND p.nombre IN (
       'inventario_movimientos.listar',
       'inventario_movimientos.ver',

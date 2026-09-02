@@ -31,12 +31,9 @@ DECLARE
     v_fecha_ph DATE;
     v_serie_factura VARCHAR;
     v_numero_factura VARCHAR;
-    v_id_tipo_doc_compra INTEGER;
-    v_id_tipo_doc_recarga INTEGER;
-    v_id_tipo_entrada_llenado INTEGER;
-    v_id_tipo_entrada_planta INTEGER;
     v_id_almacen_orden INTEGER;
     v_id_guia_retorno INTEGER;
+    v_repuntar JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -203,65 +200,39 @@ BEGIN
         END LOOP;
     END IF;
 
-    -- Si se vincula compra, los movimientos de entrada del kardex deben apuntar a COMPRA.
+    -- Si se vincula compra, el kardex unificado (inv_movimiento) debe apuntar a COMPRA.
+    -- ENTRADA_LLENADO suele referenciar la orden; ENTRADA_PLANTA_EXTERNA el movimiento_recarga
+    -- (bal_actualizar_movimiento_recarga también repunta, idempotente si ya quedó en COMPRA).
     IF p_id_comprobante_compra IS NOT NULL THEN
-        SELECT lo.id INTO v_id_tipo_doc_compra
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON l.id = lo.id_lista
-        WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'COMPRA' AND lo.estado = 1
-        LIMIT 1;
-
-        SELECT lo.id INTO v_id_tipo_doc_recarga
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON l.id = lo.id_lista
-        WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'RECARGA' AND lo.estado = 1
-        LIMIT 1;
-
-        SELECT lo.id INTO v_id_tipo_entrada_llenado
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON l.id = lo.id_lista
-        WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_LLENADO' AND lo.estado = 1
-        LIMIT 1;
-
-        SELECT lo.id INTO v_id_tipo_entrada_planta
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON l.id = lo.id_lista
-        WHERE l.nombre = 'TipoMovBalon' AND lo.nombre = 'ENTRADA_PLANTA_EXTERNA' AND lo.estado = 1
-        LIMIT 1;
-
-        IF v_id_tipo_doc_compra IS NOT NULL AND v_id_tipo_doc_recarga IS NOT NULL THEN
-            IF v_id_tipo_entrada_llenado IS NOT NULL THEN
-                UPDATE bal_movimiento m
-                SET
-                    id_documento_ref = p_id_comprobante_compra,
-                    id_tipo_documento_ref = v_id_tipo_doc_compra,
-                    id_usuario_modificacion = p_id_usuario_auditoria,
-                    fecha_modificacion = NOW()
-                WHERE m.estado = 1
-                  AND m.id_tipo_movimiento = v_id_tipo_entrada_llenado
-                  AND m.id_tipo_documento_ref = v_id_tipo_doc_recarga
-                  AND m.id_documento_ref = p_id;
-            END IF;
-
-            IF v_id_tipo_entrada_planta IS NOT NULL THEN
-                UPDATE bal_movimiento m
-                SET
-                    id_documento_ref = p_id_comprobante_compra,
-                    id_tipo_documento_ref = v_id_tipo_doc_compra,
-                    id_usuario_modificacion = p_id_usuario_auditoria,
-                    fecha_modificacion = NOW()
-                WHERE m.estado = 1
-                  AND m.id_tipo_movimiento = v_id_tipo_entrada_planta
-                  AND m.id_tipo_documento_ref = v_id_tipo_doc_recarga
-                  AND m.id_documento_ref IN (
-                      SELECT d.id_movimiento_recarga
-                      FROM bal_recarga_planta_detalle d
-                      WHERE d.id_recarga_planta = p_id
-                        AND d.estado = 1
-                        AND d.id_movimiento_recarga IS NOT NULL
-                  );
-            END IF;
+        v_repuntar := inv_repuntar_documento(
+            p_codigo_tipo_documento_origen_actual => 'RECARGA',
+            p_id_documento_origen_actual          => p_id,
+            p_codigo_tipo_documento_origen_nuevo  => 'COMPRA',
+            p_id_documento_origen_nuevo           => p_id_comprobante_compra,
+            p_id_usuario_auditoria                => p_id_usuario_auditoria
+        );
+        IF v_repuntar->>'error' IS NOT NULL THEN
+            RETURN json_build_object('error', v_repuntar->>'error', 'registro', NULL);
         END IF;
+
+        FOR v_det IN
+            SELECT d.id_movimiento_recarga
+            FROM bal_recarga_planta_detalle d
+            WHERE d.id_recarga_planta = p_id
+              AND d.estado = 1
+              AND d.id_movimiento_recarga IS NOT NULL
+        LOOP
+            v_repuntar := inv_repuntar_documento(
+                p_codigo_tipo_documento_origen_actual => 'RECARGA',
+                p_id_documento_origen_actual          => v_det.id_movimiento_recarga,
+                p_codigo_tipo_documento_origen_nuevo  => 'COMPRA',
+                p_id_documento_origen_nuevo           => p_id_comprobante_compra,
+                p_id_usuario_auditoria                => p_id_usuario_auditoria
+            );
+            IF v_repuntar->>'error' IS NOT NULL THEN
+                RETURN json_build_object('error', v_repuntar->>'error', 'registro', NULL);
+            END IF;
+        END LOOP;
     END IF;
 
     -- Protocolo planta al retorno (o corrección en órdenes ya retornadas/cerradas).

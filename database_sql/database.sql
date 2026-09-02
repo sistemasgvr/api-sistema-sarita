@@ -747,26 +747,7 @@ CREATE TABLE pro_stock (
     UNIQUE(id_almacen, id_producto)
 );
 
--- Kardex / movimientos de inventario
-CREATE TABLE pro_movimientos (
-    id                  SERIAL PRIMARY KEY,
-    fecha               DATE NOT NULL,
-    id_producto          INT NOT NULL REFERENCES pro_producto(id),
-    id_almacen           INT NOT NULL REFERENCES gen_almacen(id),
-    id_almacen_destino    INT REFERENCES gen_almacen(id),
-    id_tipo_movimiento    INT REFERENCES gen_lista_opciones(id), -- INGRESO, SALIDA, TRASLADO...
-    cantidad            NUMERIC(12,4) NOT NULL,
-    stock_anterior       NUMERIC(12,4),
-    stock_nuevo          NUMERIC(12,4),
-    id_documento_ref      INT,                                              -- ID del documento origen (polimórfico)
-    id_tipo_documento_ref  INT REFERENCES gen_lista_opciones(id),            -- (gen_lista: TipoDocumentoRef)
-    glosa               varchar(255),
-    estado              INT NOT NULL DEFAULT 1,
-    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
-    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
-    fecha_creacion       TIMESTAMP DEFAULT NOW(),
-    fecha_modificacion   TIMESTAMP DEFAULT NOW()
-);
+-- (Kardex unificado inv_movimiento se define tras bal_balon — ver más abajo)
 
 
 -- ============================================================
@@ -811,10 +792,8 @@ CREATE TABLE bal_balon (
     -- Gas / producto actual en el cilindro
     id_tipo_balon         INT NOT NULL REFERENCES bal_tipo_balon(id),
     id_producto_gas       INT REFERENCES pro_producto(id),
-    -- Estado actual del balón (ubicación / custodia)
+    -- Estado actual del balón (ubicación / custodia operativa del envase)
     id_estado_balon       INT REFERENCES gen_lista_opciones(id),
-    -- Contenido físico (lleno / vacío); lista EstadoContenidoBalon — ortogonal a id_estado_balon
-    id_estado_contenido   INT REFERENCES gen_lista_opciones(id),
     -- Prueba hidrostática (snapshot vigente)
     fecha_ultima_prueba_hidrostatica   DATE,
     vigencia_prueba_hidrostatica_anios INT DEFAULT 5,
@@ -825,8 +804,8 @@ CREATE TABLE bal_balon (
     mes_fabricacion      SMALLINT,                    -- mes de fabricación grabado en el lomo (1-12)
     id_planta            INT REFERENCES cli_clientes(id), -- planta proveedora asociada
     numero_recepcion     varchar(30),
+    -- Lectura opcional de control de calidad (no es saldo de gas)
     presion_actual       NUMERIC(8,2),
-    capacidad_restante   NUMERIC(10,4),               -- residual de gas (recarga CLIENTE / origen)
     observacion         varchar(500),
     tipo_valvula        varchar(100),                 -- tipo de válvula (texto libre en ficha)
     peso_aproximado_kg  NUMERIC(10,4),                -- peso guía (kg); si NULL usa peso del tipo
@@ -838,30 +817,35 @@ CREATE TABLE bal_balon (
     fecha_modificacion   TIMESTAMP DEFAULT NOW()
 );
 
--- Historial de movimientos/estados del balón (trazabilidad completa)
-CREATE TABLE bal_movimiento (
-    id                  SERIAL PRIMARY KEY,
-    id_balon             INT NOT NULL REFERENCES bal_balon(id),
-    id_tipo_movimiento    INT REFERENCES gen_lista_opciones(id),
-    -- Tipos: SALIDA_VENTA, SALIDA_PRESTAMO, SALIDA_ALQUILER, SALIDA_MANTENIMIENTO,
-    --        ENTRADA_DEVOLUCION, ENTRADA_MANTENIMIENTO, ENTRADA_LLENADO, TRASLADO_LIMA, RETORNO_LIMA
-    id_documento_ref      INT,                                              -- ID del documento asociado (polimórfico)
-    id_tipo_documento_ref  INT REFERENCES gen_lista_opciones(id),            -- (gen_lista: TipoDocumentoRef)
-    id_cliente           INT REFERENCES cli_clientes(id),
-    id_almacen_origen     INT REFERENCES gen_almacen(id),
-    id_almacen_destino    INT REFERENCES gen_almacen(id),
-    fecha_movimiento     TIMESTAMP NOT NULL DEFAULT NOW(),
-    observacion         varchar(500),
-    -- Custodia del cilindro *después* de este movimiento (no el estado actual)
-    id_estado_balon      INT REFERENCES gen_lista_opciones(id),
-    id_estado_contenido  INT REFERENCES gen_lista_opciones(id),
-    id_almacen_ubicacion INT REFERENCES gen_almacen(id),
-    id_cliente_ubicacion INT REFERENCES cli_clientes(id),
-    estado              INT NOT NULL DEFAULT 1,
-    id_usuario_creacion    INT REFERENCES auth_usuarios(id),
-    id_usuario_modificacion INT REFERENCES auth_usuarios(id),
-    fecha_creacion       TIMESTAMP DEFAULT NOW(),
-    fecha_modificacion   TIMESTAMP DEFAULT NOW()
+-- Kardex unificado (producto + balón) — Fase 1
+CREATE TABLE inv_movimiento (
+    id SERIAL PRIMARY KEY,
+    fecha TIMESTAMP NOT NULL DEFAULT NOW(),
+    id_tipo_movimiento INTEGER NOT NULL REFERENCES gen_lista_opciones(id),
+    naturaleza VARCHAR(10) NOT NULL CHECK (naturaleza IN ('PRODUCTO', 'BALON')),
+    id_producto INTEGER REFERENCES pro_producto(id),
+    id_balon INTEGER REFERENCES bal_balon(id),
+    cantidad NUMERIC(12,4) NOT NULL DEFAULT 0,
+    id_unidad_medida INTEGER REFERENCES gen_lista_opciones(id),
+    id_almacen_origen INTEGER REFERENCES gen_almacen(id),
+    id_almacen_destino INTEGER REFERENCES gen_almacen(id),
+    id_cliente INTEGER REFERENCES cli_clientes(id),
+    id_documento_origen INTEGER,
+    id_tipo_documento_origen INTEGER REFERENCES gen_lista_opciones(id),
+    id_movimiento_padre INTEGER REFERENCES inv_movimiento(id),
+    stock_anterior NUMERIC(12,4),
+    stock_nuevo NUMERIC(12,4),
+    id_estado_balon_snapshot INTEGER REFERENCES gen_lista_opciones(id),
+    glosa VARCHAR(300),
+    estado INTEGER NOT NULL DEFAULT 1,
+    id_usuario_creacion INTEGER REFERENCES auth_usuarios(id),
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT NOW(),
+    id_usuario_modificacion INTEGER REFERENCES auth_usuarios(id),
+    fecha_modificacion TIMESTAMP,
+    CONSTRAINT chk_inv_movimiento_naturaleza CHECK (
+        (naturaleza = 'PRODUCTO' AND id_producto IS NOT NULL AND id_balon IS NULL)
+        OR (naturaleza = 'BALON' AND id_balon IS NOT NULL)
+    )
 );
 
 -- Recarga de cilindro: CLIENTE (mostrador) o PLANTA_EXTERNA (hijo de orden planta)
@@ -1178,7 +1162,7 @@ CREATE TABLE bal_baja_balon (
     serie_comprobante        varchar(10),
     numero_comprobante       varchar(15),
     monto_venta              NUMERIC(12,4),
-    id_movimiento            INT REFERENCES bal_movimiento(id),
+    id_movimiento            INT REFERENCES inv_movimiento(id),
     observacion             varchar(500),
     estado                  INT NOT NULL DEFAULT 1,
     id_usuario_creacion           INT REFERENCES auth_usuarios(id),
@@ -1925,7 +1909,6 @@ CREATE INDEX idx_bal_balon_libro ON bal_balon(libro_cilindro, pagina_libro);
 CREATE INDEX idx_bal_balon_cliente_ubic ON bal_balon(id_cliente_ubicacion);
 CREATE INDEX idx_bal_balon_ph_vence ON bal_balon(fecha_proxima_prueba_hidrostatica);
 CREATE INDEX idx_bal_balon_estado ON bal_balon(id_estado_balon);
-CREATE INDEX idx_bal_balon_estado_contenido ON bal_balon(id_estado_contenido);
 CREATE INDEX idx_bal_balon_cliente ON bal_balon(id_cliente_propietario);
 CREATE INDEX idx_bal_balon_marca ON bal_balon(id_marca_cilindro);
 CREATE INDEX idx_bal_balon_anio_fabricacion ON bal_balon(anio_fabricacion);
@@ -1936,8 +1919,10 @@ CREATE UNIQUE INDEX idx_bal_baja_balon_pendiente ON bal_baja_balon(id_balon) WHE
 CREATE UNIQUE INDEX idx_bal_baja_balon_aprobada ON bal_baja_balon(id_balon) WHERE estado = 1 AND estado_aprobacion = 'APROBADA';
 CREATE INDEX idx_bal_estado_historial_balon ON bal_balon_estado_historial(id_balon, fecha_evento DESC);
 CREATE INDEX idx_bal_estado_historial_tipo ON bal_balon_estado_historial(tipo_evento);
-CREATE INDEX idx_bal_movimiento_balon ON bal_movimiento(id_balon);
-CREATE INDEX idx_bal_movimiento_fecha ON bal_movimiento(fecha_movimiento);
+CREATE INDEX idx_inv_movimiento_balon ON inv_movimiento(id_balon, fecha);
+CREATE INDEX idx_inv_movimiento_producto ON inv_movimiento(id_producto, id_almacen_origen, fecha);
+CREATE INDEX idx_inv_movimiento_documento ON inv_movimiento(id_tipo_documento_origen, id_documento_origen);
+CREATE INDEX idx_inv_movimiento_padre ON inv_movimiento(id_movimiento_padre);
 CREATE INDEX idx_bal_movimiento_recarga_balon ON bal_movimiento_recarga(id_balon);
 CREATE INDEX idx_bal_movimiento_recarga_fecha ON bal_movimiento_recarga(fecha_salida_almacen);
 CREATE INDEX idx_bal_prestamo_cliente ON bal_prestamo(id_cliente);
@@ -1990,9 +1975,8 @@ CREATE INDEX idx_gre_cliente ON gre_guia_remision(id_cliente);
 CREATE INDEX idx_gre_doc_ref_comprobante ON gre_documentos_referencia(id_comprobante);
 CREATE INDEX idx_gre_rango_responsable ON gre_rango_numeracion(responsable);
 
--- Stock y movimientos
+-- Stock y movimientos unificados
 CREATE INDEX idx_pro_stock_almacen ON pro_stock(id_almacen, id_producto);
-CREATE INDEX idx_pro_movimientos_producto ON pro_movimientos(id_producto, fecha);
 CREATE INDEX idx_pro_catalogo_precio ON pro_catalogo_precio(id_tipo_catalogo, periodo);
 CREATE INDEX idx_pro_catalogo_nombre ON pro_catalogo_precio(nombre_item);
 

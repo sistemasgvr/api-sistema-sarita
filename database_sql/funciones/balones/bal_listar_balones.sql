@@ -233,7 +233,7 @@ BEGIN
                     WHERE bb.id_balon = b.id AND bb.estado = 1
                       AND bb.estado_aprobacion IN ('PENDIENTE', 'APROBADA')
                 )
-                OR EXISTS (SELECT 1 FROM bal_movimiento m WHERE m.id_balon = b.id AND m.estado = 1)
+                OR EXISTS (SELECT 1 FROM inv_movimiento m WHERE m.id_balon = b.id AND m.estado = 1)
                 OR EXISTS (SELECT 1 FROM bal_movimiento_recarga mr WHERE mr.id_balon = b.id AND mr.estado = 1)
                 OR EXISTS (SELECT 1 FROM bal_prestamo_detalle pd WHERE pd.id_balon = b.id AND pd.estado = 1)
                 OR EXISTS (SELECT 1 FROM bal_alquiler_detalle ad WHERE ad.id_balon = b.id AND ad.estado = 1)

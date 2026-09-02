@@ -6,6 +6,7 @@ import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   CreateInventarioMovimientoDto,
+  CreateTrasladoLoteInventarioDto,
   FiltroInventarioMovimientosDto,
 } from '../dto/inventario-movimientos.dto';
 import { InventarioMovimientosLogic } from '../logic/inventario-movimientos.logic';
@@ -24,9 +25,16 @@ export class InventarioMovimientosController {
 
   @Post()
   @Permisos(PermisoBanderas.INVENTARIO_MOVIMIENTOS_CREAR)
-  @ApiOperation({ summary: 'Registrar movimiento de inventario (ajuste manual)' })
+  @ApiOperation({ summary: 'Registrar movimiento de inventario (ajuste / traslado / manual)' })
   crear(@Body() dto: CreateInventarioMovimientoDto) {
     return this.inventarioMovimientosLogic.crear(dto);
+  }
+
+  @Post('traslado-lote')
+  @Permisos(PermisoBanderas.INVENTARIO_MOVIMIENTOS_CREAR)
+  @ApiOperation({ summary: 'Registrar traslado multi-línea (atómico) vía inv_movimiento' })
+  crearTrasladoLote(@Body() dto: CreateTrasladoLoteInventarioDto) {
+    return this.inventarioMovimientosLogic.crearTrasladoLote(dto);
   }
 
   @Get(':id')

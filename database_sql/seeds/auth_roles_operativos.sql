@@ -135,6 +135,10 @@ WHERE r.nombre = 'Operario'
           'movimientos.listar',
           'movimientos.ver',
           'movimientos.crear',
+          'inventario_movimientos.listar',
+          'inventario_movimientos.ver',
+          'inventario_movimientos.crear',
+          'inventario_movimientos.eliminar',
           'catalogo_precios.listar',
           'catalogo_precios.ver',
           'tipos_balon.listar',
@@ -208,6 +212,10 @@ WHERE r.nombre = 'Supervisor'
           'movimientos.listar',
           'movimientos.ver',
           'movimientos.crear',
+          'inventario_movimientos.listar',
+          'inventario_movimientos.ver',
+          'inventario_movimientos.crear',
+          'inventario_movimientos.eliminar',
           'tipos_balon.listar',
           'tipos_balon.ver'
       )

@@ -7,6 +7,7 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import {
   CreateInventarioMovimientoDto,
+  CreateTrasladoLoteInventarioDto,
   FiltroInventarioMovimientosDto,
 } from '../dto/inventario-movimientos.dto';
 
@@ -52,11 +53,33 @@ export class InventarioMovimientosModel {
         dto.idDocumentoOrigen ?? null,
         dto.glosa ?? null,
         dto.idUsuarioAuditoria ?? null,
-        null, // idMovimientoPadre: no expuesto por API en este hito
+        null,
         dto.sentidoAjuste ?? null,
-        false, // forzar: no expuesto por API en este hito
+        false,
       ],
     );
+  }
+
+  crearTrasladoLote(dto: CreateTrasladoLoteInventarioDto) {
+    return this.db.callFunctionJson<{
+      error?: string | null;
+      registros: unknown[] | null;
+      total?: number;
+    }>('pro_crear_traslado_lote', [
+      dto.fecha,
+      dto.idAlmacen,
+      dto.idAlmacenDestino,
+      JSON.stringify(
+        dto.detalles.map((d) => ({
+          idProducto: d.idProducto,
+          cantidad: d.cantidad,
+        })),
+      ),
+      dto.glosa ?? null,
+      dto.idUsuarioAuditoria ?? null,
+      dto.idDocumentoRef ?? null,
+      dto.codigoDocumentoRef ?? null,
+    ]);
   }
 
   eliminar(id: number, idUsuarioAuditoria?: number) {

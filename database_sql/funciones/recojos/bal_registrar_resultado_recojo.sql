@@ -408,9 +408,7 @@ BEGIN
             );
             v_lb_restante := COALESCE(
                 NULLIF(v_item->>'lbRetorno', '')::NUMERIC,
-                NULLIF(v_item->>'lb_retorno', '')::NUMERIC,
-                NULLIF(v_item->>'capacidadRestanteLb', '')::NUMERIC,
-                NULLIF(v_item->>'capacidad_restante_lb', '')::NUMERIC
+                NULLIF(v_item->>'lb_retorno', '')::NUMERIC
             );
             v_peso_bruto_lb := COALESCE(
                 NULLIF(v_item->>'pesoBrutoLb', '')::NUMERIC,

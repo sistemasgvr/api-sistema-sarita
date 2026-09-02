@@ -9,7 +9,6 @@ DECLARE
     v_id_balon INTEGER;
     v_fecha_llegada DATE;
     v_id_estado_en_almacen INTEGER;
-    v_id_tipo_doc_recarga INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -44,32 +43,8 @@ BEGIN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id);
     END IF;
 
-    SELECT lo.id INTO v_id_tipo_doc_recarga
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'RECARGA' AND lo.estado = 1
-    LIMIT 1;
-
-    -- Soft-delete movimientos del libro vinculados a esta recarga.
-    UPDATE bal_movimiento
-    SET
-        estado = 0,
-        id_usuario_modificacion = p_id_usuario_auditoria,
-        fecha_modificacion = NOW()
-    WHERE estado = 1
-      AND id_documento_ref = p_id
-      AND (
-          v_id_tipo_doc_recarga IS NULL
-          OR id_tipo_documento_ref = v_id_tipo_doc_recarga
-          OR id_tipo_movimiento IN (
-              SELECT lo.id
-              FROM gen_lista_opciones lo
-              INNER JOIN gen_lista l ON lo.id_lista = l.id
-              WHERE l.nombre = 'TipoMovBalon'
-                AND lo.nombre IN ('SALIDA_PLANTA_EXTERNA', 'ENTRADA_PLANTA_EXTERNA')
-                AND lo.estado = 1
-          )
-      );
+    -- Revertir kardex unificado ligado a este documento de recarga.
+    PERFORM inv_revertir_por_documento('RECARGA', p_id, p_id_usuario_auditoria);
 
     UPDATE bal_movimiento_recarga
     SET estado = 0,

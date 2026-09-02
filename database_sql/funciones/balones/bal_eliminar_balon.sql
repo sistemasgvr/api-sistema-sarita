@@ -48,7 +48,7 @@ BEGIN
         );
     END IF;
 
-    IF EXISTS (SELECT 1 FROM bal_movimiento WHERE id_balon = p_id AND estado = 1) THEN
+    IF EXISTS (SELECT 1 FROM inv_movimiento WHERE id_balon = p_id AND estado = 1) THEN
         RETURN json_build_object(
             'eliminado', FALSE, 'id', p_id,
             'error', 'No se puede eliminar el balón porque tiene movimientos. Solicite baja si corresponde.'

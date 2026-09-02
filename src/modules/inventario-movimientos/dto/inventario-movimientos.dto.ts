@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  ArrayMinSize,
+  IsArray,
   IsDateString,
   IsIn,
   IsInt,
@@ -10,6 +12,7 @@ import {
   MaxLength,
   Min,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
@@ -100,13 +103,19 @@ export class CreateInventarioMovimientoDto extends AuditoriaDto {
   cantidad!: number;
 
   @ApiPropertyOptional({ example: 1 })
-  @IsOptional()
+  @ValidateIf(
+    (o: CreateInventarioMovimientoDto) =>
+      o.codigoTipoMovimiento === 'TRASLADO' || o.idAlmacenOrigen !== undefined,
+  )
   @Type(() => Number)
   @IsInt()
   idAlmacenOrigen?: number;
 
   @ApiPropertyOptional({ example: 2, description: 'Obligatorio si el tipo es TRASLADO' })
-  @IsOptional()
+  @ValidateIf(
+    (o: CreateInventarioMovimientoDto) =>
+      o.codigoTipoMovimiento === 'TRASLADO' || o.idAlmacenDestino !== undefined,
+  )
   @Type(() => Number)
   @IsInt()
   idAlmacenDestino?: number;
@@ -141,4 +150,57 @@ export class CreateInventarioMovimientoDto extends AuditoriaDto {
   @IsOptional()
   @IsIn(['MAS', 'MENOS'])
   sentidoAjuste?: 'MAS' | 'MENOS';
+}
+
+export class TrasladoLoteDetalleDto {
+  @ApiProperty({ example: 1 })
+  @Type(() => Number)
+  @IsInt()
+  idProducto!: number;
+
+  @ApiProperty({ example: 2 })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.0001)
+  cantidad!: number;
+}
+
+export class CreateTrasladoLoteInventarioDto extends AuditoriaDto {
+  @ApiProperty({ example: '2026-09-01' })
+  @IsDateString()
+  fecha!: string;
+
+  @ApiProperty({ example: 1 })
+  @Type(() => Number)
+  @IsInt()
+  idAlmacen!: number;
+
+  @ApiProperty({ example: 2 })
+  @Type(() => Number)
+  @IsInt()
+  idAlmacenDestino!: number;
+
+  @ApiProperty({ type: [TrasladoLoteDetalleDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => TrasladoLoteDetalleDto)
+  detalles!: TrasladoLoteDetalleDto[];
+
+  @ApiPropertyOptional({ maxLength: 255 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  glosa?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idDocumentoRef?: number;
+
+  @ApiPropertyOptional({ example: 'AJUSTE_MANUAL' })
+  @IsOptional()
+  @IsString()
+  codigoDocumentoRef?: string;
 }
