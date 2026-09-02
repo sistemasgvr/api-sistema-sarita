@@ -114,6 +114,7 @@ function normalizeDef(def, identityArgs) {
   sql = sql.replace(/CREATE OR REPLACE FUNCTION\s+public\./i, 'CREATE OR REPLACE FUNCTION ')
   const name = extractPrimaryName(sql)
   const drop = `DROP FUNCTION IF EXISTS ${name}(${identityArgs});`
+  if (!sql.endsWith(';')) sql += ';'
   return `${drop}\n\n${sql}\n`
 }
 

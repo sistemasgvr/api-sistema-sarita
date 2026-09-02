@@ -4,6 +4,9 @@
 -- Descripción: Después de migrar todos los llamadores a inv_registrar_movimiento,
 --              se eliminan las tablas pro_movimientos y bal_movimiento,
 --              las columnas legacy de bal_balon, las funciones legadas y el trigger.
+-- NO reejecutar en cadena con 20260901_inv_movimiento_fundamento.sql:
+-- dropea columnas que esa migración aún referencia. Reconstrucción desde 0:
+-- node database_sql/scripts/rebuild-schema-from-repo.js --full --wipe
 -- =============================================================================
 
 BEGIN;

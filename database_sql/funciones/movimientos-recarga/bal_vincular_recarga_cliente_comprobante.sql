@@ -91,11 +91,11 @@ BEGIN
         );
     END IF;
 
+    -- Capacidad del tipo convertida a la unidad del producto-gas (canónica de pro_stock).
     SELECT
-        COALESCE(tb.capacidad, p_capacidad, 0)
+        COALESCE(bal_capacidad_balon_en_unidad_gas(b.id), p_capacidad, 0)
     INTO v_capacidad_destino
     FROM bal_balon b
-    LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
     WHERE b.id = p_id_balon;
 
     v_capacidad := COALESCE(NULLIF(p_capacidad, 0), v_capacidad_destino, 0);

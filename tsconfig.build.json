@@ -1,4 +1,25 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "e2e-api", "**/*spec.ts"]
+  "compilerOptions": {
+    // Sin rootDir explícito, TypeScript deduce la raíz común de los archivos de
+    // entrada. Al quedar `playwright.config.ts` (en la raíz del proyecto) dentro de
+    // la compilación, esa raíz pasó de `src/` a la raíz del repo y el build empezó a
+    // emitir en `dist/src/...` en vez de `dist/...`. Como `deleteOutDir` es false y
+    // `start:prod` ejecuta `node dist/main`, el servidor seguía levantando un build
+    // viejo sin que `nest build` diera ningún error.
+    "rootDir": "./src",
+    // El build de producción no usa estado incremental: con él, tsc terminaba con
+    // código 0 escribiendo solo el .tsbuildinfo y sin emitir un solo .js, dejando
+    // `dist/` obsoleto en silencio. El watch de desarrollo (tsconfig.json) sí lo
+    // conserva, que es donde aporta velocidad.
+    "incremental": false
+  },
+  "exclude": [
+    "node_modules",
+    "test",
+    "dist",
+    "e2e-api",
+    "playwright.config.ts",
+    "**/*spec.ts"
+  ]
 }

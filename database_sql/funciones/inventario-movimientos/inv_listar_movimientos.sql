@@ -21,8 +21,8 @@ BEGIN
             'total', COUNT(*),
             'producto', COUNT(*) FILTER (WHERE m.naturaleza = 'PRODUCTO'),
             'balon', COUNT(*) FILTER (WHERE m.naturaleza = 'BALON'),
-            'salidas', COUNT(*) FILTER (WHERE tm.nombre ILIKE '%SALIDA%'),
-            'entradas', COUNT(*) FILTER (WHERE tm.nombre ILIKE '%ENTRADA%' OR tm.nombre = 'INGRESO')
+            'salidas', COUNT(*) FILTER (WHERE COALESCE(inv_signo_tipo_movimiento(m.id_tipo_movimiento), 0) < 0),
+            'entradas', COUNT(*) FILTER (WHERE COALESCE(inv_signo_tipo_movimiento(m.id_tipo_movimiento), 0) > 0)
         )
     INTO v_total, v_resumen
     FROM inv_movimiento m
@@ -81,6 +81,7 @@ BEGIN
             m.id_documento_origen,
             m.id_tipo_documento_origen,
             tdo.nombre AS nombre_tipo_documento_origen,
+            m.id_documento_detalle,
             m.id_movimiento_padre,
             (m.id_documento_origen IS NULL) AS puede_anular,
             m.glosa,

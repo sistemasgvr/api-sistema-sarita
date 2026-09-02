@@ -43,6 +43,7 @@ BEGIN
             m.id_documento_origen,
             m.id_tipo_documento_origen,
             tdo.nombre AS nombre_tipo_documento_origen,
+            m.id_documento_detalle,
             m.id_movimiento_padre,
             m.stock_anterior,
             m.stock_nuevo,

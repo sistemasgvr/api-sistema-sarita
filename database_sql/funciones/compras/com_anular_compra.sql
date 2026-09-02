@@ -116,34 +116,14 @@ BEGIN
     END IF;
 
     -- ---------- PASO 2: REVERSA REAL (ya validado que hay stock suficiente) ----------
-    FOR v_detalle IN
-        SELECT id, id_producto, cantidad, COALESCE(id_almacen, v_id_almacen_default) AS id_almacen
-        FROM com_comprobante_compra_detalle
-        WHERE id_comprobante = p_id_comprobante
-          AND afecta_stock = TRUE
-          AND estado = 1
-    LOOP
-        v_result_movimiento := inv_registrar_movimiento(
-            p_naturaleza                => 'PRODUCTO',
-            p_codigo_tipo_movimiento    => 'SALIDA',
-            p_fecha                     => CURRENT_DATE,
-            p_id_producto               => v_detalle.id_producto,
-            p_id_balon                  => NULL,
-            p_cantidad                  => v_detalle.cantidad,
-            p_id_almacen_origen         => v_detalle.id_almacen,
-            p_id_almacen_destino        => NULL,
-            p_id_cliente                => NULL,
-            p_codigo_tipo_documento_origen => 'DEVOLUCION',
-            p_id_documento_origen       => v_detalle.id,
-            p_glosa                     => 'Reversa por anulación de compra ' || v_serie || '-' || v_numero,
-            p_id_usuario_auditoria      => p_id_usuario_auditoria,
-            p_forzar                    => TRUE
-        );
-
-        IF (v_result_movimiento->>'error') IS NOT NULL THEN
-            RAISE EXCEPTION 'No se pudo anular: %', v_result_movimiento->>'error';
-        END IF;
-    END LOOP;
+    v_result_movimiento := inv_revertir_por_documento(
+        'COMPRA',
+        p_id_comprobante,
+        p_id_usuario_auditoria
+    );
+    IF (v_result_movimiento->>'error') IS NOT NULL THEN
+        RAISE EXCEPTION 'No se pudo anular: %', v_result_movimiento->>'error';
+    END IF;
 
     UPDATE com_comprobante_compra
     SET estado = 0,

@@ -111,6 +111,7 @@ export class ProductosModel {
     factorKgM3?: number | null,
     factorLbM3?: number | null,
     esMantenimiento?: boolean | null,
+    convertirStock?: boolean | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('pro_actualizar_producto', [
       id,
@@ -133,6 +134,7 @@ export class ProductosModel {
       factorKgM3 ?? null,
       factorLbM3 ?? null,
       esMantenimiento ?? null,
+      convertirStock ?? false,
     ]);
   }
 

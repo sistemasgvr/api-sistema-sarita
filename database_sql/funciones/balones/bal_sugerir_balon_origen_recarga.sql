@@ -56,7 +56,6 @@ BEGIN
             SELECT
                 b.id,
                 b.codigo_balon,
-                bal_capacidad_disponible_balon(b.id) AS capacidad_disponible,
                 tb.capacidad AS capacidad_tipo,
                 a.nombre AS nombre_almacen
             FROM bal_balon b
@@ -69,7 +68,8 @@ BEGIN
               AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
               AND b.id_producto_gas = p_id_producto_gas
               AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
-              AND bal_capacidad_disponible_balon(b.id) > 0
+            -- Sin filtro por capacidad: el balón origen es solo trazabilidad; la
+            -- disponibilidad real la valida bal_asignar_origenes_recarga contra pro_stock.
             ORDER BY b.fecha_creacion ASC NULLS LAST, b.id ASC
             LIMIT 1
         ) t

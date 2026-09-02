@@ -34,13 +34,13 @@ BEGIN
         RETURN json_build_object('error', 'El balón indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
+    -- Capacidad del tipo convertida a la unidad del producto-gas (canónica de pro_stock).
     SELECT
         COALESCE(prop.nombre, '') = 'EMPRESA',
-        COALESCE(tb.capacidad, p_capacidad, 0)
+        COALESCE(bal_capacidad_balon_en_unidad_gas(b.id), p_capacidad, 0)
     INTO v_es_empresa, v_capacidad_tipo
     FROM bal_balon b
     LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
-    LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
     WHERE b.id = p_id_balon;
 
     IF NOT COALESCE(v_es_empresa, FALSE) THEN

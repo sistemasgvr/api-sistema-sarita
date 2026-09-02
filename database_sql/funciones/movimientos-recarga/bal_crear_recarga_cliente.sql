@@ -152,10 +152,12 @@ BEGIN
     FROM pro_producto
     WHERE id = p_id_producto;
 
-    SELECT COALESCE(tb.capacidad, p_capacidad, p_cantidad, 0)
+    -- La capacidad del tipo puede estar catalogada en otra unidad que el gas
+    -- (p.ej. tipo en MT3 con gas en KG): se convierte a la unidad del producto,
+    -- que es la canónica de pro_stock.
+    SELECT COALESCE(bal_capacidad_balon_en_unidad_gas(b.id), p_capacidad, p_cantidad, 0)
     INTO v_capacidad_destino
     FROM bal_balon b
-    LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
     WHERE b.id = p_id_balon;
 
     v_capacidad := COALESCE(NULLIF(p_capacidad, 0), v_capacidad_destino, p_cantidad);

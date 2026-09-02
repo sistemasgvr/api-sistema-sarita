@@ -3,8 +3,9 @@
 -- Overloads: 1
 -- Generated: 2026-09-02T21:31:03.764Z
 DROP FUNCTION IF EXISTS inv_revertir_por_documento(p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_id_usuario_auditoria integer);
+DROP FUNCTION IF EXISTS inv_revertir_por_documento(p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_id_usuario_auditoria integer, p_id_documento_detalle integer);
 
-CREATE OR REPLACE FUNCTION inv_revertir_por_documento(p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION inv_revertir_por_documento(p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_documento_detalle integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -47,15 +48,18 @@ BEGIN
         WHERE estado = 1
           AND id_tipo_documento_origen = v_id_tipo_doc
           AND id_documento_origen = p_id_documento_origen
-        ORDER BY id
+          AND (p_id_documento_detalle IS NULL OR id_documento_detalle = p_id_documento_detalle)
+        ORDER BY id DESC
         FOR UPDATE
     LOOP
         SELECT nombre INTO v_nombre_tipo_mov FROM gen_lista_opciones WHERE id = v_mov.id_tipo_movimiento;
-        v_es_salida := (v_mov.stock_nuevo IS NOT NULL AND v_mov.stock_anterior IS NOT NULL AND v_mov.stock_nuevo < v_mov.stock_anterior)
-                       OR (v_nombre_tipo_mov ILIKE '%SALIDA%');
         v_es_traslado := (v_mov.naturaleza = 'PRODUCTO' AND UPPER(COALESCE(v_nombre_tipo_mov, '')) = 'TRASLADO');
         IF v_es_traslado THEN
             v_es_salida := TRUE;
+        ELSIF v_mov.stock_nuevo IS NOT NULL AND v_mov.stock_anterior IS NOT NULL THEN
+            v_es_salida := v_mov.stock_nuevo < v_mov.stock_anterior;
+        ELSE
+            v_es_salida := COALESCE(inv_signo_tipo_movimiento(v_mov.id_tipo_movimiento), 1) < 0;
         END IF;
 
         -- Revertir stock (producto, o gas cargado por un movimiento de balón).
@@ -103,7 +107,7 @@ BEGIN
             END IF;
         END IF;
 
-        -- Revertir custodia de balón a EN_ALMACEN.
+        -- Restaurar custodia previa del balón (no forzar EN_ALMACEN a ciegas).
         IF v_mov.naturaleza = 'BALON' AND v_mov.id_balon IS NOT NULL THEN
             SELECT lo.id INTO v_id_estado_en_almacen
             FROM gen_lista_opciones lo
@@ -111,16 +115,22 @@ BEGIN
             WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
             LIMIT 1;
 
-            IF v_id_estado_en_almacen IS NOT NULL THEN
-                UPDATE bal_balon
-                SET
-                    id_estado_balon = v_id_estado_en_almacen,
-                    id_cliente_ubicacion = NULL,
-                    id_almacen = COALESCE(v_mov.id_almacen_origen, v_mov.id_almacen_destino, id_almacen),
-                    id_usuario_modificacion = p_id_usuario_auditoria,
-                    fecha_modificacion = NOW()
-                WHERE id = v_mov.id_balon AND estado = 1;
-            END IF;
+            UPDATE bal_balon
+            SET
+                id_estado_balon = COALESCE(v_mov.id_estado_balon_anterior, v_id_estado_en_almacen, id_estado_balon),
+                id_cliente_ubicacion = CASE
+                    WHEN v_mov.id_estado_balon_anterior IS NOT NULL THEN v_mov.id_cliente_ubicacion_anterior
+                    ELSE NULL
+                END,
+                id_almacen = COALESCE(
+                    v_mov.id_almacen_anterior,
+                    v_mov.id_almacen_origen,
+                    v_mov.id_almacen_destino,
+                    id_almacen
+                ),
+                id_usuario_modificacion = p_id_usuario_auditoria,
+                fecha_modificacion = NOW()
+            WHERE id = v_mov.id_balon AND estado = 1;
         END IF;
 
         UPDATE inv_movimiento

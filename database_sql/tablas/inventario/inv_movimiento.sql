@@ -16,10 +16,14 @@ CREATE TABLE inv_movimiento (
     id_cliente integer,
     id_documento_origen integer,
     id_tipo_documento_origen integer,
+    id_documento_detalle integer,
     id_movimiento_padre integer,
     stock_anterior numeric(12,4),
     stock_nuevo numeric(12,4),
     id_estado_balon_snapshot integer,
+    id_estado_balon_anterior integer,
+    id_cliente_ubicacion_anterior integer,
+    id_almacen_anterior integer,
     glosa character varying(300),
     estado integer DEFAULT 1 NOT NULL,
     id_usuario_creacion integer,
@@ -49,6 +53,8 @@ CREATE INDEX idx_inv_movimiento_balon ON inv_movimiento USING btree (id_balon, f
 
 CREATE INDEX idx_inv_movimiento_doc ON inv_movimiento USING btree (id_tipo_documento_origen, id_documento_origen);
 
+CREATE INDEX idx_inv_movimiento_doc_detalle ON inv_movimiento USING btree (id_tipo_documento_origen, id_documento_origen, id_documento_detalle);
+
 CREATE INDEX idx_inv_movimiento_padre ON inv_movimiento USING btree (id_movimiento_padre);
 
 CREATE INDEX idx_inv_movimiento_producto ON inv_movimiento USING btree (id_producto, id_almacen_origen, fecha);
@@ -67,6 +73,12 @@ ALTER TABLE inv_movimiento
 
 ALTER TABLE inv_movimiento
     ADD CONSTRAINT inv_movimiento_id_estado_balon_snapshot_fkey FOREIGN KEY (id_estado_balon_snapshot) REFERENCES public.gen_lista_opciones(id);
+
+ALTER TABLE inv_movimiento
+    ADD CONSTRAINT inv_movimiento_id_estado_balon_anterior_fkey FOREIGN KEY (id_estado_balon_anterior) REFERENCES public.gen_lista_opciones(id);
+
+ALTER TABLE inv_movimiento
+    ADD CONSTRAINT inv_movimiento_id_almacen_anterior_fkey FOREIGN KEY (id_almacen_anterior) REFERENCES public.gen_almacen(id);
 
 ALTER TABLE inv_movimiento
     ADD CONSTRAINT inv_movimiento_id_movimiento_padre_fkey FOREIGN KEY (id_movimiento_padre) REFERENCES public.inv_movimiento(id);

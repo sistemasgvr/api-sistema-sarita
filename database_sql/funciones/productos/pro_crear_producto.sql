@@ -104,8 +104,11 @@ BEGIN
             THEN COALESCE(p_es_mantenimiento, FALSE)
             ELSE FALSE
         END,
+        -- Desde la Fase 1 el gas ES un producto con stock (pro_stock); solo los
+        -- servicios quedan sin stock.
         CASE
-            WHEN COALESCE(p_es_gas, FALSE) OR COALESCE(p_es_servicio, FALSE) THEN FALSE
+            WHEN COALESCE(p_es_servicio, FALSE) THEN FALSE
+            WHEN COALESCE(p_es_gas, FALSE) THEN TRUE
             ELSE COALESCE(p_afecta_stock, TRUE)
         END,
         COALESCE(p_precio, 0),

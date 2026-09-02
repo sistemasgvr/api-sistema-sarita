@@ -56,6 +56,7 @@ export class InventarioMovimientosModel {
         null,
         dto.sentidoAjuste ?? null,
         false,
+        dto.idDocumentoDetalle ?? null,
       ],
     );
   }

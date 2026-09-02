@@ -137,6 +137,15 @@ export class CreateInventarioMovimientoDto extends AuditoriaDto {
   @IsInt()
   idDocumentoOrigen?: number;
 
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Línea de detalle del documento origen (idempotencia por línea)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idDocumentoDetalle?: number;
+
   @ApiPropertyOptional({ maxLength: 300 })
   @IsOptional()
   @IsString()

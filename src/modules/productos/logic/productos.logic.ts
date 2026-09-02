@@ -174,7 +174,33 @@ export class ProductosLogic {
       dto.factorKgM3 ?? null,
       dto.factorLbM3 ?? null,
       dto.esMantenimiento ?? null,
+      dto.convertirStock ?? false,
     );
+
+    // Cambio de unidad de medida sobre un producto con stock: la función SQL lo
+    // rechaza y devuelve el detalle para que el frontend pueda ofrecer la conversión.
+    const conConfirmacion = result as typeof result & {
+      requiere_confirmacion?: boolean;
+      stock_total?: number | string;
+      almacenes_con_stock?: number;
+      unidad_actual?: string | null;
+      unidad_nueva?: string | null;
+    };
+
+    if (result.error && conConfirmacion.requiere_confirmacion) {
+      throw new BadRequestException({
+        message: result.error,
+        detalle: {
+          requiereConfirmacion: true,
+          motivo: 'CAMBIO_UNIDAD_MEDIDA',
+          stockTotal: Number(conConfirmacion.stock_total ?? 0),
+          almacenesConStock: Number(conConfirmacion.almacenes_con_stock ?? 0),
+          unidadActual: conConfirmacion.unidad_actual ?? null,
+          unidadNueva: conConfirmacion.unidad_nueva ?? null,
+        },
+      });
+    }
+
     return mapSingleResult(result, `Producto ${id} no encontrado`);
   }
 

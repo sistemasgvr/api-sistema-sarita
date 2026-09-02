@@ -366,6 +366,16 @@ export class UpdateProductoDto extends AuditoriaDto {
   @IsBoolean()
   afectaStock?: boolean;
 
+  @ApiPropertyOptional({
+    description:
+      'Confirma la conversión del saldo de stock al cambiar la unidad de medida. ' +
+      'Sin esta bandera, cambiar la unidad de un producto con stock o movimientos es rechazado ' +
+      'para no reinterpretar el saldo (pro_stock no guarda unidad propia).',
+  })
+  @IsOptional()
+  @IsBoolean()
+  convertirStock?: boolean;
+
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)

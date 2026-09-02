@@ -82,7 +82,8 @@ BEGIN
             p_cantidad                  => p_cantidad,
             p_id_almacen_origen         => v_id_almacen_linea,
             p_codigo_tipo_documento_origen => 'COMPRA',
-            p_id_documento_origen       => v_id_detalle,
+            p_id_documento_origen       => p_id_comprobante,
+            p_id_documento_detalle      => v_id_detalle,
             p_glosa                     => 'Ingreso por compra ' || v_serie || '-' || v_numero,
             p_id_usuario_auditoria      => p_id_usuario_auditoria
         );

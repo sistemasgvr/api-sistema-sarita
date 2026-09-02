@@ -209,7 +209,8 @@ BEGIN
                 p_id_almacen_destino        => NULL,
                 p_id_cliente                => NULL,
                 p_codigo_tipo_documento_origen => 'COMPRA',
-                p_id_documento_origen       => v_id_detalle,
+                p_id_documento_origen       => v_id_compra,
+                p_id_documento_detalle      => v_id_detalle,
                 p_glosa                     => 'Ingreso por compra ' || p_serie || '-' || p_numero,
                 p_id_usuario_auditoria      => p_id_usuario_auditoria
             );

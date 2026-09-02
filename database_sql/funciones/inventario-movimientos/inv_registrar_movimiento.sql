@@ -3,8 +3,9 @@
 -- Overloads: 1
 -- Generated: 2026-09-02T21:31:03.763Z
 DROP FUNCTION IF EXISTS inv_registrar_movimiento(p_naturaleza character varying, p_codigo_tipo_movimiento character varying, p_fecha timestamp without time zone, p_id_producto integer, p_id_balon integer, p_cantidad numeric, p_id_almacen_origen integer, p_id_almacen_destino integer, p_id_cliente integer, p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_glosa character varying, p_id_usuario_auditoria integer, p_id_movimiento_padre integer, p_sentido_ajuste character varying, p_forzar boolean);
+DROP FUNCTION IF EXISTS inv_registrar_movimiento(p_naturaleza character varying, p_codigo_tipo_movimiento character varying, p_fecha timestamp without time zone, p_id_producto integer, p_id_balon integer, p_cantidad numeric, p_id_almacen_origen integer, p_id_almacen_destino integer, p_id_cliente integer, p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_glosa character varying, p_id_usuario_auditoria integer, p_id_movimiento_padre integer, p_sentido_ajuste character varying, p_forzar boolean, p_id_documento_detalle integer);
 
-CREATE OR REPLACE FUNCTION inv_registrar_movimiento(p_naturaleza character varying, p_codigo_tipo_movimiento character varying, p_fecha timestamp without time zone DEFAULT now(), p_id_producto integer DEFAULT NULL::integer, p_id_balon integer DEFAULT NULL::integer, p_cantidad numeric DEFAULT 0, p_id_almacen_origen integer DEFAULT NULL::integer, p_id_almacen_destino integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_codigo_tipo_documento_origen character varying DEFAULT NULL::character varying, p_id_documento_origen integer DEFAULT NULL::integer, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_movimiento_padre integer DEFAULT NULL::integer, p_sentido_ajuste character varying DEFAULT NULL::character varying, p_forzar boolean DEFAULT false)
+CREATE OR REPLACE FUNCTION inv_registrar_movimiento(p_naturaleza character varying, p_codigo_tipo_movimiento character varying, p_fecha timestamp without time zone DEFAULT now(), p_id_producto integer DEFAULT NULL::integer, p_id_balon integer DEFAULT NULL::integer, p_cantidad numeric DEFAULT 0, p_id_almacen_origen integer DEFAULT NULL::integer, p_id_almacen_destino integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_codigo_tipo_documento_origen character varying DEFAULT NULL::character varying, p_id_documento_origen integer DEFAULT NULL::integer, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_movimiento_padre integer DEFAULT NULL::integer, p_sentido_ajuste character varying DEFAULT NULL::character varying, p_forzar boolean DEFAULT false, p_id_documento_detalle integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -17,6 +18,7 @@ DECLARE
     v_cantidad NUMERIC(12,4);
     v_es_salida BOOLEAN;
     v_es_traslado BOOLEAN;
+    v_signo INTEGER;
     v_id INTEGER;
     -- rama PRODUCTO
     v_afecta_stock BOOLEAN;
@@ -34,6 +36,9 @@ DECLARE
     v_codigo_contenido VARCHAR;
     v_id_estado_balon INTEGER;
     v_id_almacen_balon INTEGER;
+    v_id_estado_anterior INTEGER;
+    v_id_cliente_anterior INTEGER;
+    v_id_almacen_anterior INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -86,7 +91,7 @@ BEGIN
         END IF;
     END IF;
 
-    -- Anti-duplicación: mismo documento + mismo tipo + mismo producto/balón ya registrado.
+    -- Anti-duplicación: cabecera + detalle opcional + tipo + producto/balón.
     IF p_id_documento_origen IS NOT NULL AND v_id_tipo_doc IS NOT NULL AND NOT COALESCE(p_forzar, FALSE) THEN
         SELECT m.id INTO v_id_existente
         FROM inv_movimiento m
@@ -94,6 +99,7 @@ BEGIN
           AND m.naturaleza = v_naturaleza
           AND m.id_tipo_documento_origen = v_id_tipo_doc
           AND m.id_documento_origen = p_id_documento_origen
+          AND COALESCE(m.id_documento_detalle, -1) = COALESCE(p_id_documento_detalle, -1)
           AND m.id_tipo_movimiento = v_id_tipo_mov
           AND (v_naturaleza <> 'PRODUCTO' OR m.id_producto = p_id_producto)
           AND (v_naturaleza <> 'BALON' OR m.id_balon = p_id_balon)
@@ -107,11 +113,20 @@ BEGIN
 
     v_cantidad := ABS(COALESCE(p_cantidad, 0));
     v_es_traslado := (v_naturaleza = 'PRODUCTO' AND UPPER(v_nombre_tipo_mov) = 'TRASLADO');
-    -- RECARGA_CLIENTE no lleva el prefijo SALIDA_ pero sí es salida de gas hacia el cliente.
-    v_es_salida := v_nombre_tipo_mov ILIKE '%SALIDA%' OR UPPER(v_nombre_tipo_mov) = 'RECARGA_CLIENTE';
+    v_signo := inv_signo_tipo_movimiento(v_id_tipo_mov);
 
-    IF UPPER(v_nombre_tipo_mov) = 'AJUSTE' AND UPPER(TRIM(COALESCE(p_sentido_ajuste, ''))) = 'MENOS' THEN
-        v_es_salida := TRUE;
+    IF UPPER(v_nombre_tipo_mov) = 'AJUSTE' THEN
+        IF UPPER(TRIM(COALESCE(p_sentido_ajuste, ''))) NOT IN ('MAS', 'MENOS') THEN
+            RETURN json_build_object('error', 'El ajuste requiere sentido MAS o MENOS', 'registro', NULL);
+        END IF;
+        v_es_salida := UPPER(TRIM(p_sentido_ajuste)) = 'MENOS';
+    ELSIF v_signo IS NULL THEN
+        RETURN json_build_object(
+            'error', format('Tipo de movimiento %s no tiene signo configurado', v_nombre_tipo_mov),
+            'registro', NULL
+        );
+    ELSE
+        v_es_salida := v_signo < 0 OR v_es_traslado;
     END IF;
 
     IF v_naturaleza = 'PRODUCTO' THEN
@@ -196,14 +211,14 @@ BEGIN
         INSERT INTO inv_movimiento (
             fecha, id_tipo_movimiento, naturaleza, id_producto, cantidad, id_unidad_medida,
             id_almacen_origen, id_almacen_destino, id_cliente,
-            id_documento_origen, id_tipo_documento_origen, id_movimiento_padre,
+            id_documento_origen, id_tipo_documento_origen, id_documento_detalle, id_movimiento_padre,
             stock_anterior, stock_nuevo, glosa,
             id_usuario_creacion, id_usuario_modificacion
         )
         VALUES (
             COALESCE(p_fecha, NOW()), v_id_tipo_mov, 'PRODUCTO', p_id_producto, v_cantidad, v_id_unidad_medida,
             p_id_almacen_origen, p_id_almacen_destino, p_id_cliente,
-            p_id_documento_origen, v_id_tipo_doc, p_id_movimiento_padre,
+            p_id_documento_origen, v_id_tipo_doc, p_id_documento_detalle, p_id_movimiento_padre,
             CASE WHEN v_afecta_stock THEN v_stock_anterior ELSE NULL END,
             CASE WHEN v_afecta_stock THEN v_stock_nuevo ELSE NULL END,
             p_glosa, p_id_usuario_auditoria, p_id_usuario_auditoria
@@ -215,8 +230,8 @@ BEGIN
 
     -- ============== naturaleza = BALON ==============
 
-    SELECT eb.nombre, b.id_almacen
-    INTO v_nombre_estado_actual, v_id_almacen_balon
+    SELECT eb.nombre, b.id_almacen, b.id_estado_balon, b.id_cliente_ubicacion
+    INTO v_nombre_estado_actual, v_id_almacen_balon, v_id_estado_anterior, v_id_cliente_anterior
     FROM bal_balon b
     LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
     WHERE b.id = p_id_balon AND b.estado = 1
@@ -232,6 +247,8 @@ BEGIN
             'registro', NULL
         );
     END IF;
+
+    v_id_almacen_anterior := v_id_almacen_balon;
 
     -- Mismo mapeo tipo→estado que bal_aplicar_custodia_tipo_movimiento (custodia "Libro").
     v_limpiar_almacen := FALSE;
@@ -332,16 +349,18 @@ BEGIN
     INSERT INTO inv_movimiento (
         fecha, id_tipo_movimiento, naturaleza, id_producto, id_balon, cantidad, id_unidad_medida,
         id_almacen_origen, id_almacen_destino, id_cliente,
-        id_documento_origen, id_tipo_documento_origen, id_movimiento_padre,
-        stock_anterior, stock_nuevo, id_estado_balon_snapshot, glosa,
-        id_usuario_creacion, id_usuario_modificacion
+        id_documento_origen, id_tipo_documento_origen, id_documento_detalle, id_movimiento_padre,
+        stock_anterior, stock_nuevo, id_estado_balon_snapshot,
+        id_estado_balon_anterior, id_cliente_ubicacion_anterior, id_almacen_anterior,
+        glosa, id_usuario_creacion, id_usuario_modificacion
     )
     VALUES (
         COALESCE(p_fecha, NOW()), v_id_tipo_mov, 'BALON', p_id_producto, p_id_balon, v_cantidad, v_id_unidad_medida,
         p_id_almacen_origen, p_id_almacen_destino, COALESCE(v_cliente_destino, p_id_cliente),
-        p_id_documento_origen, v_id_tipo_doc, p_id_movimiento_padre,
-        v_stock_anterior, v_stock_nuevo, v_id_estado_balon, p_glosa,
-        p_id_usuario_auditoria, p_id_usuario_auditoria
+        p_id_documento_origen, v_id_tipo_doc, p_id_documento_detalle, p_id_movimiento_padre,
+        v_stock_anterior, v_stock_nuevo, v_id_estado_balon,
+        v_id_estado_anterior, v_id_cliente_anterior, v_id_almacen_anterior,
+        p_glosa, p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;
 

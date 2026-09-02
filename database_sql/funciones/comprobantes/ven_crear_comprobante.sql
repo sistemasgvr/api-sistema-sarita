@@ -10,6 +10,7 @@ CREATE OR REPLACE FUNCTION ven_crear_comprobante(p_id_tipo_comprobante integer, 
 AS $function$
 DECLARE
     v_id INTEGER;
+    v_id_detalle INTEGER;
     v_serie VARCHAR;
     v_numero VARCHAR;
     v_detalle JSON;
@@ -415,17 +416,16 @@ BEGIN
         FROM gen_lista_opciones lo
         WHERE lo.id = p_id_tipo_venta;
 
-        -- Validar disponibilidad solo cuando se descuenta (no en NC)
+        -- Validar disponibilidad agrupando por producto (varias líneas del mismo gas).
         IF NOT v_es_nota_credito THEN
-            FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
+            FOR v_id_producto, v_cantidad IN
+                SELECT
+                    (value->>'id_producto')::INTEGER,
+                    SUM(COALESCE((value->>'cantidad')::NUMERIC, 0))
+                FROM json_array_elements(p_detalles)
+                GROUP BY 1
             LOOP
-                v_id_producto := (v_detalle->>'id_producto')::INTEGER;
-                v_cantidad := COALESCE((v_detalle->>'cantidad')::NUMERIC, 0);
-
-                IF NOT ven_producto_mueve_kardex_venta(
-                    v_id_producto,
-                    v_detalle->>'descripcion'
-                ) THEN
+                IF NOT ven_producto_mueve_kardex_venta(v_id_producto, NULL) THEN
                     CONTINUE;
                 END IF;
 
@@ -436,17 +436,13 @@ BEGIN
                   AND s.id_producto = v_id_producto
                   AND s.estado = 1;
 
-                IF v_stock_disponible IS NULL THEN
-                    v_stock_disponible := 0;
-                END IF;
-
-                IF v_stock_disponible < v_cantidad THEN
+                IF COALESCE(v_stock_disponible, 0) < v_cantidad THEN
                     RETURN json_build_object(
                         'error',
                         format(
                             'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
                             COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
-                            v_stock_disponible,
+                            COALESCE(v_stock_disponible, 0),
                             v_cantidad
                         ),
                         'registro',
@@ -457,65 +453,7 @@ BEGIN
         END IF;
     END IF;
 
-    -- Gas: capacidad de cilindros EMPRESA en almacén (no pro_stock).
-    IF NOT v_es_nota_credito AND NOT v_es_conversion_vsd AND v_codigo_tipo <> '08' THEN
-        FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
-        LOOP
-            v_id_producto := (v_detalle->>'id_producto')::INTEGER;
-            v_cantidad := COALESCE((v_detalle->>'cantidad')::NUMERIC, 0);
-
-            IF v_detalle->>'descripcion' IS NOT NULL
-               AND BTRIM(v_detalle->>'descripcion') ~* 'garant[ií]a'
-            THEN
-                CONTINUE;
-            END IF;
-
-            SELECT COALESCE(p.es_gas, FALSE)
-            INTO v_es_gas
-            FROM pro_producto p
-            WHERE p.id = v_id_producto;
-
-            IF NOT COALESCE(v_es_gas, FALSE) THEN
-                CONTINUE;
-            END IF;
-
-            IF p_id_almacen IS NULL THEN
-                RETURN json_build_object(
-                    'error',
-                    'Debe indicar el almacén para verificar el stock de gas',
-                    'registro',
-                    NULL
-                );
-            END IF;
-
-            SELECT COALESCE(SUM(tb.capacidad), 0)
-            INTO v_stock_disponible
-            FROM bal_balon b
-            LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
-            LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
-            LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
-            WHERE b.estado = 1
-              AND COALESCE(prop.nombre, '') = 'EMPRESA'
-              AND COALESCE(eb.nombre, '') NOT IN ('DADO_DE_BAJA', 'ROBO')
-              AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
-              AND b.id_producto_gas = v_id_producto
-              AND b.id_almacen = p_id_almacen;
-
-            IF COALESCE(v_stock_disponible, 0) < v_cantidad THEN
-                RETURN json_build_object(
-                    'error',
-                    format(
-                        'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
-                        COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
-                        COALESCE(v_stock_disponible, 0),
-                        v_cantidad
-                    ),
-                    'registro',
-                    NULL
-                );
-            END IF;
-        END LOOP;
-    END IF;
+    -- Gas también se valida contra pro_stock (bloque de capacidad de cilindros eliminado en F1).
 
     INSERT INTO ven_comprobante (
         id_tipo_comprobante, serie, numero,
@@ -666,35 +604,31 @@ BEGIN
                 END IF;
 
                 v_mov_result := inv_registrar_movimiento(
-                    'PRODUCTO',
-                    'SALIDA',
-                    p_fecha,
-                    v_id_producto,
-                    NULL,
-                    v_delta_stock,
-                    p_id_almacen,
-                    NULL,
-                    NULL,
-                    ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
-                    v_id,
-                    format('Ajuste conversión %s-%s (+)', v_serie, v_numero),
-                    p_id_usuario_auditoria
+                    p_naturaleza => 'PRODUCTO',
+                    p_codigo_tipo_movimiento => 'SALIDA',
+                    p_fecha => p_fecha,
+                    p_id_producto => v_id_producto,
+                    p_cantidad => v_delta_stock,
+                    p_id_almacen_origen => p_id_almacen,
+                    p_codigo_tipo_documento_origen => ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
+                    p_id_documento_origen => v_id,
+                    p_glosa => format('Ajuste conversión %s-%s (+)', v_serie, v_numero),
+                    p_id_usuario_auditoria => p_id_usuario_auditoria,
+                    p_forzar => TRUE
                 );
             ELSE
                 v_mov_result := inv_registrar_movimiento(
-                    'PRODUCTO',
-                    'INGRESO',
-                    p_fecha,
-                    v_id_producto,
-                    NULL,
-                    ABS(v_delta_stock),
-                    p_id_almacen,
-                    NULL,
-                    NULL,
-                    ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
-                    v_id,
-                    format('Ajuste conversión %s-%s (-)', v_serie, v_numero),
-                    p_id_usuario_auditoria
+                    p_naturaleza => 'PRODUCTO',
+                    p_codigo_tipo_movimiento => 'INGRESO',
+                    p_fecha => p_fecha,
+                    p_id_producto => v_id_producto,
+                    p_cantidad => ABS(v_delta_stock),
+                    p_id_almacen_origen => p_id_almacen,
+                    p_codigo_tipo_documento_origen => ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
+                    p_id_documento_origen => v_id,
+                    p_glosa => format('Ajuste conversión %s-%s (-)', v_serie, v_numero),
+                    p_id_usuario_auditoria => p_id_usuario_auditoria,
+                    p_forzar => TRUE
                 );
             END IF;
 
@@ -713,15 +647,13 @@ BEGIN
             END
         );
 
-        FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
+        FOR v_id_detalle, v_id_producto, v_cantidad, v_detalle IN
+            SELECT d.id, d.id_producto, d.cantidad, to_json(d.*)
+            FROM ven_comprobante_detalle d
+            WHERE d.id_comprobante = v_id AND d.estado = 1
+            ORDER BY d.id
         LOOP
-            v_id_producto := (v_detalle->>'id_producto')::INTEGER;
-            v_cantidad := COALESCE((v_detalle->>'cantidad')::NUMERIC, 0);
-
-            SELECT ven_producto_mueve_kardex_venta(
-                v_id_producto,
-                v_detalle->>'descripcion'
-            )
+            SELECT ven_producto_mueve_kardex_venta(v_id_producto, v_detalle->>'descripcion')
             INTO v_afecta_stock;
 
             IF NOT v_afecta_stock THEN
@@ -729,23 +661,24 @@ BEGIN
             END IF;
 
             v_mov_result := inv_registrar_movimiento(
-                'PRODUCTO',
-                CASE WHEN v_es_nota_credito THEN 'INGRESO' ELSE 'SALIDA' END,
-                p_fecha,
-                v_id_producto,
-                NULL,
-                v_cantidad,
-                p_id_almacen,
-                NULL,
-                NULL,
-                ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
-                v_id,
-                v_glosa_mov,
-                p_id_usuario_auditoria
+                p_naturaleza => 'PRODUCTO',
+                p_codigo_tipo_movimiento => CASE WHEN v_es_nota_credito THEN 'INGRESO' ELSE 'SALIDA' END,
+                p_fecha => p_fecha,
+                p_id_producto => v_id_producto,
+                p_cantidad => v_cantidad,
+                p_id_almacen_origen => p_id_almacen,
+                p_codigo_tipo_documento_origen => ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
+                p_id_documento_origen => v_id,
+                p_glosa => v_glosa_mov,
+                p_id_usuario_auditoria => p_id_usuario_auditoria,
+                p_id_documento_detalle => v_id_detalle
             );
 
             IF v_mov_result->>'error' IS NOT NULL THEN
                 RAISE EXCEPTION '%', v_mov_result->>'error';
+            END IF;
+            IF COALESCE((v_mov_result->>'creado')::boolean, TRUE) IS NOT TRUE THEN
+                RAISE EXCEPTION 'No se registró el movimiento de stock (duplicado) para el producto %', v_id_producto;
             END IF;
         END LOOP;
     END IF;

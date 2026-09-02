@@ -51,8 +51,17 @@ BEGIN
             v_id_documento_ref := p_id_recarga_planta;
         END IF;
 
+        -- La capacidad del detalle viene en su propia unidad; se convierte a la del
+        -- producto-gas, que es la canónica de pro_stock.
         FOR v_det IN
-            SELECT d.id_balon, COALESCE(d.id_producto, b.id_producto_gas) AS id_producto, d.capacidad
+            SELECT
+                d.id_balon,
+                COALESCE(d.id_producto, b.id_producto_gas) AS id_producto,
+                inv_convertir_a_unidad_producto(
+                    COALESCE(d.id_producto, b.id_producto_gas),
+                    d.capacidad,
+                    d.id_unidad_medida
+                ) AS capacidad
             FROM bal_recarga_planta_detalle d
             LEFT JOIN bal_balon b ON b.id = d.id_balon
             WHERE d.id_recarga_planta = p_id_recarga_planta

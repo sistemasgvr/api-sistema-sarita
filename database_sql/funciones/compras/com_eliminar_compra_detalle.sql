@@ -39,18 +39,11 @@ BEGIN
     v_numero := v_detalle.numero;
 
     IF v_detalle.afecta_stock THEN
-        v_result_movimiento := inv_registrar_movimiento(
-            p_naturaleza                => 'PRODUCTO',
-            p_codigo_tipo_movimiento    => 'SALIDA',
-            p_fecha                     => CURRENT_DATE,
-            p_id_producto               => v_detalle.id_producto,
-            p_cantidad                  => v_detalle.cantidad,
-            p_id_almacen_origen         => v_detalle.id_almacen,
-            p_codigo_tipo_documento_origen => 'DEVOLUCION',
-            p_id_documento_origen       => v_detalle.id,
-            p_glosa                     => 'Reversa por eliminación de línea compra ' || v_serie || '-' || v_numero,
-            p_id_usuario_auditoria      => p_id_usuario_auditoria,
-            p_forzar                    => TRUE
+        v_result_movimiento := inv_revertir_por_documento(
+            'COMPRA',
+            v_detalle.id_comprobante,
+            p_id_usuario_auditoria,
+            v_detalle.id
         );
 
         IF (v_result_movimiento->>'error') IS NOT NULL THEN

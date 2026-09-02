@@ -19,4 +19,10 @@ export interface ApiErrorResponse {
   data: null;
   errors: string[] | null;
   statusCode: number;
+  /**
+   * Datos estructurados de un error accionable, para que el frontend pueda ofrecer
+   * una salida en vez de solo mostrar el mensaje. Se propaga cuando la excepción se
+   * lanza con `new BadRequestException({ message, detalle: { ... } })`.
+   */
+  detalle?: Record<string, unknown>;
 }

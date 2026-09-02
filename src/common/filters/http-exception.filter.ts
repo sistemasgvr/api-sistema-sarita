@@ -29,6 +29,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Error interno del servidor';
     let errors: string[] | null = null;
+    let detalle: Record<string, unknown> | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -46,6 +47,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
         } else if (typeof rawMessage === 'string') {
           message = rawMessage;
         }
+
+        // Errores accionables: el detalle estructurado llega al cliente para que
+        // pueda ofrecer una salida (p. ej. confirmar una conversión) y no solo
+        // mostrar el mensaje.
+        if (res.detalle && typeof res.detalle === 'object') {
+          detalle = res.detalle as Record<string, unknown>;
+        }
       }
     }
 
@@ -61,6 +69,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       data: null,
       errors,
       statusCode: status,
+      ...(detalle ? { detalle } : {}),
     };
 
     response.status(status).json(body);

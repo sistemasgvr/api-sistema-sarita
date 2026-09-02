@@ -271,7 +271,10 @@ BEGIN
                             ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                             p_id,
                             format('Cambio almacén %s-%s (revertir)', v_serie, v_numero),
-                            p_id_usuario_auditoria
+                            p_id_usuario_auditoria,
+                            NULL,
+                            NULL,
+                            TRUE
                         );
                         IF v_mov_result->>'error' IS NOT NULL THEN
                             RETURN json_build_object('error', v_mov_result->>'error', 'registro', NULL);
@@ -316,7 +319,10 @@ BEGIN
                             ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                             p_id,
                             format('Cambio almacén %s-%s (aplicar)', v_serie, v_numero),
-                            p_id_usuario_auditoria
+                            p_id_usuario_auditoria,
+                            NULL,
+                            NULL,
+                            TRUE
                         );
                         IF v_mov_result->>'error' IS NOT NULL THEN
                             RETURN json_build_object('error', v_mov_result->>'error', 'registro', NULL);
@@ -353,7 +359,10 @@ BEGIN
                         ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                         p_id,
                         format('Cambio almacén %s-%s (revertir)', v_serie, v_numero),
-                        p_id_usuario_auditoria
+                        p_id_usuario_auditoria,
+                        NULL,
+                        NULL,
+                        TRUE
                     );
                     IF v_mov_result->>'error' IS NOT NULL THEN
                         RETURN json_build_object('error', v_mov_result->>'error', 'registro', NULL);
@@ -410,7 +419,10 @@ BEGIN
                         ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                         p_id,
                         format('Ajuste edición %s-%s', v_serie, v_numero),
-                        p_id_usuario_auditoria
+                        p_id_usuario_auditoria,
+                        NULL,
+                        NULL,
+                        TRUE
                     );
                     IF v_mov_result->>'error' IS NOT NULL THEN
                         RETURN json_build_object('error', v_mov_result->>'error', 'registro', NULL);
@@ -499,7 +511,10 @@ BEGIN
                         ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                         p_id,
                         format('Ajuste edición %s-%s', v_serie, v_numero),
-                        p_id_usuario_auditoria
+                        p_id_usuario_auditoria,
+                        NULL,
+                        NULL,
+                        TRUE
                     );
                     IF v_mov_result->>'error' IS NOT NULL THEN
                         RETURN json_build_object('error', v_mov_result->>'error', 'registro', NULL);

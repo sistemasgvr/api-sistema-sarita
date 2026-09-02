@@ -1,6 +1,11 @@
 -- Fase 1 (hito 1) — Fundamento de inv_movimiento unificado + habilitar gas en pro_stock.
 -- Aditivo: no toca pro_movimientos ni bal_movimiento. Ver docs/plan-reestructuracion-oxigeno-sarita.md
 -- y el hito 1 registrado en el plan de implementación (roadmap hitos 2-5 pendientes).
+--
+-- NO reejecutar este archivo para reconstruir. El cuerpo incrusta una versión
+-- antigua de inv_registrar_movimiento (usa columnas ya dropeadas). Para un
+-- esquema desde 0: node database_sql/scripts/rebuild-schema-from-repo.js --full --wipe
+-- (tablas/ + funciones/ actuales + seeds/). En DEV vivo usar --functions.
 
 -- ============================================================
 -- CATALOGO: TipoMovInvUnificado (union de TipoMovInv + TipoMovBalon)

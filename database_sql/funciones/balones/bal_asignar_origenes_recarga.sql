@@ -14,6 +14,7 @@ DECLARE
     v_origenes JSONB := '[]'::JSONB;
     v_id_balon_origen INTEGER;
     v_codigo_balon_origen VARCHAR;
+    v_unidad_gas VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -32,13 +33,22 @@ BEGIN
 
     v_total_disponible := inv_stock_producto(p_id_producto_gas, p_id_almacen);
 
+    -- La unidad la define el producto (decisión 3 del plan), no se asume m³.
+    SELECT UPPER(TRIM(COALESCE(um.nombre, '')))
+    INTO v_unidad_gas
+    FROM pro_producto p
+    LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
+    WHERE p.id = p_id_producto_gas;
+
     IF v_total_disponible < v_requerida THEN
         RETURN json_build_object(
             'error',
             format(
-                'Stock insuficiente de gas en almacén (disponible: %s m³, requerido: %s m³)',
-                TRIM(TO_CHAR(v_total_disponible, 'FM999999990.####')),
-                TRIM(TO_CHAR(v_requerida, 'FM999999990.####'))
+                'Stock insuficiente de gas en almacén (disponible: %s %s, requerido: %s %s)',
+                gen_formato_cantidad(v_total_disponible),
+                COALESCE(NULLIF(v_unidad_gas, ''), 'UND'),
+                gen_formato_cantidad(v_requerida),
+                COALESCE(NULLIF(v_unidad_gas, ''), 'UND')
             ),
             'origenes', '[]'::JSON,
             'total_disponible', v_total_disponible,
@@ -86,7 +96,8 @@ BEGIN
         'id_balon_origen_principal', v_id_balon_origen,
         'etiqueta', CASE
             WHEN v_codigo_balon_origen IS NOT NULL THEN
-                v_codigo_balon_origen || ' (' || TRIM(TO_CHAR(v_requerida, 'FM999999990.####')) || ' m³)'
+                v_codigo_balon_origen || ' (' || gen_formato_cantidad(v_requerida)
+                || ' ' || COALESCE(NULLIF(v_unidad_gas, ''), 'UND') || ')'
             ELSE NULL
         END
     );

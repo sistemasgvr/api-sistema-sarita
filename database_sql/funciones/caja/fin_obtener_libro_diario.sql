@@ -52,7 +52,7 @@ BEGIN
             (
                 SELECT string_agg(
                     COALESCE(d.descripcion, pr.nombre)
-                    || CASE WHEN d.cantidad IS NOT NULL THEN ' × ' || TRIM(TO_CHAR(d.cantidad, 'FM999999990.####')) ELSE '' END
+                    || CASE WHEN d.cantidad IS NOT NULL THEN ' × ' || gen_formato_cantidad(d.cantidad) ELSE '' END
                     || CASE WHEN um.nombre IS NOT NULL THEN ' ' || um.nombre ELSE '' END,
                     '; '
                 )

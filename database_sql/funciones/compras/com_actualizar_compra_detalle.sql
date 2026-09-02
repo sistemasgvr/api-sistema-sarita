@@ -62,36 +62,29 @@ BEGIN
     v_delta := v_nueva_cantidad - v_detalle.cantidad;
 
     IF v_detalle.afecta_stock AND v_delta <> 0 THEN
-        IF v_delta > 0 THEN
-            v_result_movimiento := inv_registrar_movimiento(
-                p_naturaleza                => 'PRODUCTO',
-                p_codigo_tipo_movimiento    => 'INGRESO',
-                p_fecha                     => v_detalle.fecha,
-                p_id_producto               => v_detalle.id_producto,
-                p_cantidad                  => v_delta,
-                p_id_almacen_origen         => v_detalle.id_almacen,
-                p_codigo_tipo_documento_origen => 'COMPRA',
-                p_id_documento_origen       => v_detalle.id,
-                p_glosa                     => 'Ajuste (+) compra ' || v_detalle.serie || '-' || v_detalle.numero,
-                p_id_usuario_auditoria      => p_id_usuario_auditoria,
-                p_forzar                    => TRUE
-            );
-        ELSE
-            v_result_movimiento := inv_registrar_movimiento(
-                p_naturaleza                => 'PRODUCTO',
-                p_codigo_tipo_movimiento    => 'SALIDA',
-                p_fecha                     => CURRENT_DATE,
-                p_id_producto               => v_detalle.id_producto,
-                p_cantidad                  => ABS(v_delta),
-                p_id_almacen_origen         => v_detalle.id_almacen,
-                p_codigo_tipo_documento_origen => 'DEVOLUCION',
-                p_id_documento_origen       => v_detalle.id,
-                p_glosa                     => 'Ajuste (-) compra ' || v_detalle.serie || '-' || v_detalle.numero,
-                p_id_usuario_auditoria      => p_id_usuario_auditoria,
-                p_forzar                    => TRUE
-            );
+        v_result_movimiento := inv_revertir_por_documento(
+            'COMPRA',
+            v_detalle.id_comprobante,
+            p_id_usuario_auditoria,
+            v_detalle.id
+        );
+        IF (v_result_movimiento->>'error') IS NOT NULL THEN
+            RETURN json_build_object('error', v_result_movimiento->>'error', 'registro', NULL);
         END IF;
 
+        v_result_movimiento := inv_registrar_movimiento(
+            p_naturaleza                => 'PRODUCTO',
+            p_codigo_tipo_movimiento    => 'INGRESO',
+            p_fecha                     => v_detalle.fecha,
+            p_id_producto               => v_detalle.id_producto,
+            p_cantidad                  => v_nueva_cantidad,
+            p_id_almacen_origen         => v_detalle.id_almacen,
+            p_codigo_tipo_documento_origen => 'COMPRA',
+            p_id_documento_origen       => v_detalle.id_comprobante,
+            p_id_documento_detalle      => v_detalle.id,
+            p_glosa                     => 'Ingreso por compra ' || v_detalle.serie || '-' || v_detalle.numero,
+            p_id_usuario_auditoria      => p_id_usuario_auditoria
+        );
         IF (v_result_movimiento->>'error') IS NOT NULL THEN
             RETURN json_build_object('error', v_result_movimiento->>'error', 'registro', NULL);
         END IF;
