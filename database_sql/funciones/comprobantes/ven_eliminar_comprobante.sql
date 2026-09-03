@@ -2,19 +2,35 @@
 -- Function: ven_eliminar_comprobante
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.966Z
+--
+-- Fase 2 — al anular la venta, cascada a su orden de salida vigente
+-- (doc_salida.id_venta): el detalle de un doc_salida ORDEN_SALIDA_VENTA se
+-- toma por JOIN de ven_comprobante_detalle (principio "detalle no
+-- duplicado"), que este mismo procedimiento deja en estado=0 más abajo — sin
+-- esta cascada, el documento quedaba "activo" pero sin ítems, indistinguible
+-- de un bug. doc_anular_salida ya es seguro de llamar aquí: para documentos
+-- con id_venta NO revierte inventario (lo movió la venta, no el documento),
+-- solo cambia su estado de ciclo a ANULADA. Ver también doc_obtener_salida.sql
+-- (ahora sigue mostrando el detalle de una venta anulada, en vez de vaciarlo).
+--
+-- ⚠️ NO EJECUTAR sin revisión — dejar aplicado a mano con apply-migration.js
+-- cuando el usuario lo confirme.
 DROP FUNCTION IF EXISTS ven_eliminar_comprobante(p_id integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION ven_eliminar_comprobante(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION public.ven_eliminar_comprobante(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_estado_sunat VARCHAR;
     v_rev JSON;
+    v_serie VARCHAR;
+    v_numero VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT es.nombre INTO v_estado_sunat
+    SELECT es.nombre, c.serie, c.numero
+    INTO v_estado_sunat, v_serie, v_numero
     FROM ven_comprobante c
     LEFT JOIN gen_lista_opciones es ON c.id_estado_sunat = es.id
     WHERE c.id = p_id AND c.estado = 1;
@@ -76,6 +92,20 @@ BEGIN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id);
     END IF;
 
+    -- Cascada: cualquier documento de salida vigente originado en esta venta
+    -- queda anulado también (no mueve inventario propio: solo cambia estado).
+    PERFORM doc_anular_salida(
+        d.id,
+        format('Venta %s-%s anulada', COALESCE(v_serie, ''), COALESCE(v_numero, p_id::text)),
+        p_id_usuario_auditoria
+    )
+    FROM doc_salida d
+    JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
+    WHERE d.id_venta = p_id
+      AND d.estado = 1
+      AND ec.nombre <> 'ANULADA';
+
     RETURN json_build_object('eliminado', TRUE, 'id', p_id);
 END;
-$function$;
+$function$
+;

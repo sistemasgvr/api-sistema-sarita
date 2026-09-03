@@ -106,6 +106,7 @@ export class ComprobantesModel {
       filtros.fechaDesde ?? null,
       filtros.fechaHasta ?? null,
       filtros.serie ?? null,
+      filtros.soloActivos ?? 1,
     ]);
   }
 

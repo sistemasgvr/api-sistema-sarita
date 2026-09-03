@@ -71,7 +71,7 @@ BEGIN
             CASE
                 WHEN d.id_venta IS NOT NULL THEN (
                     SELECT COUNT(*) FROM ven_comprobante_detalle vd
-                    WHERE vd.id_comprobante = d.id_venta AND vd.estado = 1
+                    WHERE vd.id_comprobante = d.id_venta AND (vd.estado = 1 OR vc.estado = 0)
                 )
                 ELSE (
                     SELECT COUNT(*) FROM doc_salida_detalle dd

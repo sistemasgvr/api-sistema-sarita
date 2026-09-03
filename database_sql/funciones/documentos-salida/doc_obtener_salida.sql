@@ -11,6 +11,7 @@ AS $function$
 DECLARE
     v_registro JSON;
     v_id_venta INTEGER;
+    v_venta_anulada BOOLEAN;
     v_detalle JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -22,6 +23,12 @@ BEGIN
     END IF;
 
     IF v_id_venta IS NOT NULL THEN
+        SELECT (vc.estado = 0) INTO v_venta_anulada FROM ven_comprobante vc WHERE vc.id = v_id_venta;
+
+        -- Si la venta fue anulada, sus líneas también quedaron en estado=0
+        -- (ven_eliminar_comprobante). El detalle de este documento se toma
+        -- por JOIN (principio "detalle no duplicado"), así que sin este
+        -- OR se vería vacío en vez de mostrar qué se vendió originalmente.
         SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.item), '[]'::JSON) INTO v_detalle
         FROM (
             SELECT
@@ -44,7 +51,8 @@ BEGIN
             LEFT JOIN pro_producto p ON p.id = vd.id_producto
             LEFT JOIN bal_balon b ON b.id = vd.id_balon
             LEFT JOIN gen_lista_opciones um ON um.id = vd.id_unidad_medida
-            WHERE vd.id_comprobante = v_id_venta AND vd.estado = 1
+            WHERE vd.id_comprobante = v_id_venta
+              AND (vd.estado = 1 OR v_venta_anulada)
         ) t;
     ELSE
         SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.item), '[]'::JSON) INTO v_detalle
@@ -114,11 +122,20 @@ BEGIN
             d.peso_bruto, d.numero_bultos,
             d.direccion_origen, d.id_distrito_origen,
             disto.codigo_ubigeo AS ubigeo_origen,
+            disto.id_provincia AS id_provincia_origen,
+            provo.id_departamento AS id_departamento_origen,
+            depo.id_pais AS id_pais_origen,
             d.direccion_llegada, d.id_distrito_llegada,
             distl.codigo_ubigeo AS ubigeo_llegada,
+            distl.id_provincia AS id_provincia_llegada,
+            provl.id_departamento AS id_departamento_llegada,
+            depl.id_pais AS id_pais_llegada,
             d.direccion_entrega, d.referencia_entrega, d.latitud, d.longitud,
             d.id_distrito_entrega, distent.nombre AS nombre_distrito_entrega,
             distent.codigo_ubigeo AS ubigeo_entrega,
+            distent.id_provincia AS id_provincia_entrega,
+            propent.id_departamento AS id_departamento_entrega,
+            depent.id_pais AS id_pais_entrega,
             d.id_direccion_cliente,
             d.id_transportista,
             COALESCE(NULLIF(TRIM(trans.razon_social), ''),
@@ -142,6 +159,7 @@ BEGIN
             d.estado, d.fecha_creacion, d.fecha_modificacion,
             d.id_usuario_creacion, uc.nombre AS nombre_usuario_creacion,
             (d.id_venta IS NOT NULL) AS detalle_desde_venta,
+            COALESCE(v_venta_anulada, FALSE) AS venta_anulada,
             v_detalle AS detalle,
             (
                 SELECT COALESCE(json_agg(row_to_json(r)), '[]'::JSON)
@@ -169,8 +187,14 @@ BEGIN
         LEFT JOIN gen_vehiculo veh ON veh.id = d.id_vehiculo
         LEFT JOIN gen_lista_opciones umd ON umd.id = d.id_unidad_medida
         LEFT JOIN gen_distrito disto ON disto.id = d.id_distrito_origen
+        LEFT JOIN gen_provincia provo ON provo.id = disto.id_provincia
+        LEFT JOIN gen_departamento depo ON depo.id = provo.id_departamento
         LEFT JOIN gen_distrito distl ON distl.id = d.id_distrito_llegada
+        LEFT JOIN gen_provincia provl ON provl.id = distl.id_provincia
+        LEFT JOIN gen_departamento depl ON depl.id = provl.id_departamento
         LEFT JOIN gen_distrito distent ON distent.id = d.id_distrito_entrega
+        LEFT JOIN gen_provincia propent ON propent.id = distent.id_provincia
+        LEFT JOIN gen_departamento depent ON depent.id = propent.id_departamento
         LEFT JOIN cli_clientes trans ON trans.id = d.id_transportista
         LEFT JOIN cli_clientes dest ON dest.id = d.id_destinatario
         LEFT JOIN gen_chofer cho ON cho.id = d.id_chofer

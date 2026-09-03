@@ -1,40 +1,119 @@
--- Fase 2 — dirección de entrega y geolocalización para doc_salida.
+-- Fase 2 — al anular una venta, su orden de salida (doc_salida.id_venta)
+-- quedaba "activa" en el ciclo pero sin ítems: el detalle de un documento
+-- ORDEN_SALIDA_VENTA se toma por JOIN de ven_comprobante_detalle (principio
+-- "detalle no duplicado" del plan maestro), y al anular la venta
+-- (ven_eliminar_comprobante) esas líneas quedan en estado=0, así que el JOIN
+-- dejaba de traer nada — visualmente indistinguible de un bug.
 --
--- Hoy `doc_salida` solo tiene direccion_llegada/id_distrito_llegada, que son
--- parte del "Bloque GRE" y se llenan recién al convertir el documento en
--- guía de remisión (doc_convertir_a_gre). Falta poder capturar la dirección
--- de entrega ANTES de eso — apenas se genera la orden desde una venta — con
--- coordenadas GPS para el mapa. Se agregan columnas dedicadas en vez de
--- reutilizar direccion_llegada/id_distrito_llegada para no mezclar "dónde
--- entrega el pedido" (dato operativo, capturado temprano) con el bloque
--- SUNAT (que se llena después y solo si el documento se convierte en GRE).
+-- Dos cambios, ambos necesarios:
+-- 1. ven_eliminar_comprobante ahora anula en cascada cualquier doc_salida
+--    vigente de esa venta (solo cambia su estado de ciclo — doc_anular_salida
+--    ya no revierte inventario cuando id_venta IS NOT NULL, porque ese
+--    inventario lo movió la venta, no el documento).
+-- 2. doc_obtener_salida ahora sigue mostrando el detalle histórico de una
+--    venta anulada en vez de vaciarlo, y agrega `venta_anulada` al registro
+--    para que el frontend pueda avisarlo explícitamente.
 --
 -- ⚠️ NO EJECUTAR sin revisión — dejar aplicado a mano con apply-migration.js
 -- cuando el usuario lo confirme.
 
--- 1) Columnas nuevas en doc_salida
-ALTER TABLE doc_salida
-    ADD COLUMN IF NOT EXISTS direccion_entrega character varying(255),
-    ADD COLUMN IF NOT EXISTS referencia_entrega character varying(300),
-    ADD COLUMN IF NOT EXISTS latitud numeric(10,7),
-    ADD COLUMN IF NOT EXISTS longitud numeric(10,7),
-    ADD COLUMN IF NOT EXISTS id_distrito_entrega integer,
-    ADD COLUMN IF NOT EXISTS id_direccion_cliente integer;
+-- ===== database_sql/funciones/comprobantes/ven_eliminar_comprobante.sql =====
+DROP FUNCTION IF EXISTS ven_eliminar_comprobante(p_id integer, p_id_usuario_auditoria integer);
 
-ALTER TABLE doc_salida
-    ADD CONSTRAINT doc_salida_id_distrito_entrega_fkey
-    FOREIGN KEY (id_distrito_entrega) REFERENCES public.gen_distrito(id);
+CREATE OR REPLACE FUNCTION public.ven_eliminar_comprobante(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_estado_sunat VARCHAR;
+    v_rev JSON;
+    v_serie VARCHAR;
+    v_numero VARCHAR;
+BEGIN
+    SET TIME ZONE 'America/Lima';
 
-ALTER TABLE doc_salida
-    ADD CONSTRAINT doc_salida_id_direccion_cliente_fkey
-    FOREIGN KEY (id_direccion_cliente) REFERENCES public.cli_direcciones(id);
+    SELECT es.nombre, c.serie, c.numero
+    INTO v_estado_sunat, v_serie, v_numero
+    FROM ven_comprobante c
+    LEFT JOIN gen_lista_opciones es ON c.id_estado_sunat = es.id
+    WHERE c.id = p_id AND c.estado = 1;
 
--- 2) ===== database_sql/funciones/documentos-salida/doc_obtener_salida.sql =====
--- (agrega direccion_entrega/referencia_entrega/latitud/longitud/id_distrito_entrega/
--- nombre_distrito_entrega/ubigeo_entrega/id_direccion_cliente al registro, y la
--- cadena provincia/departamento/país de id_distrito_origen, id_distrito_llegada
--- e id_distrito_entrega — necesaria para precargar los selects en cascada del
--- modal de conversión a GRE)
+    IF v_estado_sunat IS NULL THEN
+        RETURN json_build_object('eliminado', FALSE, 'id', p_id);
+    END IF;
+
+    IF v_estado_sunat = 'ACEPTADO' THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede eliminar un comprobante ya aceptado por SUNAT. Use nota de crédito o comunicación de baja.'
+        );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM ven_comprobante
+        WHERE id_comprobante_origen = p_id
+          AND estado = 1
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede eliminar el comprobante porque tiene documentos derivados (boleta/factura/nota)'
+        );
+    END IF;
+
+    -- Revertir stock, CxC impaga y custodia (préstamo/recarga/alquiler/GRE)
+    v_rev := ven_revertir_efectos_comprobante(p_id, p_id_usuario_auditoria, TRUE);
+    IF COALESCE(v_rev->>'ok', 'false') <> 'true' THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', COALESCE(v_rev->>'error', 'No se pudieron revertir los efectos del comprobante')
+        );
+    END IF;
+
+    UPDATE ven_comprobante_detalle
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_comprobante = p_id AND estado = 1;
+
+    UPDATE ven_cuotas
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_comprobante = p_id AND estado = 1;
+
+    UPDATE ven_comprobante
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id AND estado = 1;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('eliminado', FALSE, 'id', p_id);
+    END IF;
+
+    -- Cascada: cualquier documento de salida vigente originado en esta venta
+    -- queda anulado también (no mueve inventario propio: solo cambia estado).
+    PERFORM doc_anular_salida(
+        d.id,
+        format('Venta %s-%s anulada', COALESCE(v_serie, ''), COALESCE(v_numero, p_id::text)),
+        p_id_usuario_auditoria
+    )
+    FROM doc_salida d
+    JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
+    WHERE d.id_venta = p_id
+      AND d.estado = 1
+      AND ec.nombre <> 'ANULADA';
+
+    RETURN json_build_object('eliminado', TRUE, 'id', p_id);
+END;
+$function$
+;
+
+-- ===== database_sql/funciones/documentos-salida/doc_obtener_salida.sql =====
 DROP FUNCTION IF EXISTS doc_obtener_salida(p_id integer);
 
 CREATE OR REPLACE FUNCTION doc_obtener_salida(p_id integer)
@@ -44,6 +123,7 @@ AS $function$
 DECLARE
     v_registro JSON;
     v_id_venta INTEGER;
+    v_venta_anulada BOOLEAN;
     v_detalle JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -55,6 +135,12 @@ BEGIN
     END IF;
 
     IF v_id_venta IS NOT NULL THEN
+        SELECT (vc.estado = 0) INTO v_venta_anulada FROM ven_comprobante vc WHERE vc.id = v_id_venta;
+
+        -- Si la venta fue anulada, sus líneas también quedaron en estado=0
+        -- (ven_eliminar_comprobante). El detalle de este documento se toma
+        -- por JOIN (principio "detalle no duplicado"), así que sin este
+        -- OR se vería vacío en vez de mostrar qué se vendió originalmente.
         SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.item), '[]'::JSON) INTO v_detalle
         FROM (
             SELECT
@@ -77,7 +163,8 @@ BEGIN
             LEFT JOIN pro_producto p ON p.id = vd.id_producto
             LEFT JOIN bal_balon b ON b.id = vd.id_balon
             LEFT JOIN gen_lista_opciones um ON um.id = vd.id_unidad_medida
-            WHERE vd.id_comprobante = v_id_venta AND vd.estado = 1
+            WHERE vd.id_comprobante = v_id_venta
+              AND (vd.estado = 1 OR v_venta_anulada)
         ) t;
     ELSE
         SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.item), '[]'::JSON) INTO v_detalle
@@ -184,6 +271,7 @@ BEGIN
             d.estado, d.fecha_creacion, d.fecha_modificacion,
             d.id_usuario_creacion, uc.nombre AS nombre_usuario_creacion,
             (d.id_venta IS NOT NULL) AS detalle_desde_venta,
+            COALESCE(v_venta_anulada, FALSE) AS venta_anulada,
             v_detalle AS detalle,
             (
                 SELECT COALESCE(json_agg(row_to_json(r)), '[]'::JSON)
@@ -230,86 +318,5 @@ BEGIN
     ) t;
 
     RETURN json_build_object('registro', v_registro);
-END;
-$function$;
-
--- 3) ===== database_sql/funciones/documentos-salida/doc_registrar_direccion_entrega.sql =====
--- Registra o actualiza la dirección de entrega + coordenadas de un documento
--- de salida. Se puede llamar en cualquier momento del ciclo (BORRADOR o
--- GENERADA) — no mueve inventario ni cambia estado, solo guarda dónde
--- entregar. Si viene de una dirección guardada del cliente (p_id_direccion_cliente),
--- se copia el snapshot de esa fila; si es manual, se usan los parámetros tal cual.
-DROP FUNCTION IF EXISTS doc_registrar_direccion_entrega(p_id integer, p_direccion_entrega character varying, p_referencia_entrega character varying, p_latitud numeric, p_longitud numeric, p_id_distrito_entrega integer, p_id_direccion_cliente integer, p_id_usuario_auditoria integer);
-
-CREATE OR REPLACE FUNCTION doc_registrar_direccion_entrega(
-    p_id integer,
-    p_direccion_entrega character varying DEFAULT NULL::character varying,
-    p_referencia_entrega character varying DEFAULT NULL::character varying,
-    p_latitud numeric DEFAULT NULL::numeric,
-    p_longitud numeric DEFAULT NULL::numeric,
-    p_id_distrito_entrega integer DEFAULT NULL::integer,
-    p_id_direccion_cliente integer DEFAULT NULL::integer,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer
-)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-    v_doc RECORD;
-    v_direccion VARCHAR;
-    v_referencia VARCHAR;
-    v_latitud NUMERIC;
-    v_longitud NUMERIC;
-    v_id_distrito INTEGER;
-BEGIN
-    SET TIME ZONE 'America/Lima';
-
-    SELECT d.*, ec.nombre AS estado_ciclo
-    INTO v_doc
-    FROM doc_salida d
-    JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
-    WHERE d.id = p_id AND d.estado = 1;
-
-    IF NOT FOUND THEN
-        RETURN json_build_object('error', 'El documento de salida no existe o está anulado', 'registro', NULL);
-    END IF;
-
-    IF v_doc.estado_ciclo = 'ANULADA' THEN
-        RETURN json_build_object('error', 'El documento está anulado', 'registro', NULL);
-    END IF;
-
-    IF p_id_direccion_cliente IS NOT NULL THEN
-        SELECT cd.direccion, cd.referencia, cd.latitud, cd.longitud, cd.id_distrito
-        INTO v_direccion, v_referencia, v_latitud, v_longitud, v_id_distrito
-        FROM cli_direcciones cd
-        WHERE cd.id = p_id_direccion_cliente AND cd.estado = 1;
-
-        IF NOT FOUND THEN
-            RETURN json_build_object('error', 'La dirección del cliente indicada no existe o está inactiva', 'registro', NULL);
-        END IF;
-    ELSE
-        v_direccion := p_direccion_entrega;
-        v_referencia := p_referencia_entrega;
-        v_latitud := p_latitud;
-        v_longitud := p_longitud;
-        v_id_distrito := p_id_distrito_entrega;
-    END IF;
-
-    IF COALESCE(TRIM(v_direccion), '') = '' THEN
-        RETURN json_build_object('error', 'La dirección de entrega es obligatoria', 'registro', NULL);
-    END IF;
-
-    UPDATE doc_salida
-    SET direccion_entrega = v_direccion,
-        referencia_entrega = v_referencia,
-        latitud = v_latitud,
-        longitud = v_longitud,
-        id_distrito_entrega = v_id_distrito,
-        id_direccion_cliente = p_id_direccion_cliente,
-        id_usuario_modificacion = p_id_usuario_auditoria,
-        fecha_modificacion = NOW()
-    WHERE id = p_id;
-
-    RETURN doc_obtener_salida(p_id);
 END;
 $function$;

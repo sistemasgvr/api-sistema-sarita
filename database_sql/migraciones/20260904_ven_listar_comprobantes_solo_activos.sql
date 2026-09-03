@@ -1,4 +1,18 @@
+-- ⚠️ NO EJECUTAR sin revisión del usuario (apply-migration.js) — solo dejar el archivo listo.
+--
+-- Agrega el parámetro p_solo_activos a ven_listar_comprobantes para poder ver
+-- comprobantes anulados/eliminados desde el listado (hoy hardcodea WHERE c.estado = 1,
+-- sin forma de override). Sigue el mismo patrón usado en gen_listar_choferes:
+-- p_solo_activos IS NULL => todos (activos e inactivos), 1 => solo activos,
+-- 0 => solo inactivos. Default 1 para no cambiar el comportamiento de ningún
+-- llamador existente que no pase el parámetro.
+--
+-- Parámetro nuevo al final (posición 11) — la capa NestJS usa argumentos posicionales
+-- (DatabaseService.callFunctionJson), así que los llamadores actuales no se rompen.
 
+-- La versión en vivo hoy tiene 10 parámetros (sin p_solo_activos); hay que
+-- eliminarla explícitamente porque CREATE OR REPLACE con un parámetro nuevo
+-- crea un overload en paralelo en vez de reemplazarla.
 DROP FUNCTION IF EXISTS ven_listar_comprobantes(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_comprobante integer, p_id_cliente integer, p_id_estado integer, p_id_estado_sunat integer, p_fecha_desde date, p_fecha_hasta date, p_serie character varying);
 
 CREATE OR REPLACE FUNCTION ven_listar_comprobantes(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_tipo_comprobante integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer, p_id_estado_sunat integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_serie character varying DEFAULT NULL::character varying, p_solo_activos integer DEFAULT 1)

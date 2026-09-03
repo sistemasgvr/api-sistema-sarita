@@ -71,6 +71,14 @@ export class FiltroComprobantesDto extends FiltroPaginacionDto {
   @IsOptional()
   @IsString()
   serie?: string;
+
+  @ApiPropertyOptional({
+    description: '1 = solo activos (default), 0 = solo inactivos/anulados, omitir/null = todos',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  soloActivos?: number;
 }
 
 export class SiguienteNumeroQueryDto {
