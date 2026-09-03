@@ -77,7 +77,7 @@ BEGIN
             v_mov := inv_registrar_movimiento(
                 p_naturaleza                => 'BALON',
                 p_codigo_tipo_movimiento    => 'ENTRADA_LLENADO',
-                p_fecha                     => NOW(),
+                p_fecha                     => LOCALTIMESTAMP,
                 p_id_producto               => v_det.id_producto,
                 p_id_balon                  => v_det.id_balon,
                 p_cantidad                  => COALESCE(v_det.capacidad, 1),

@@ -44,7 +44,7 @@ BEGIN
     v_result := inv_registrar_movimiento(
         p_naturaleza                => 'BALON',
         p_codigo_tipo_movimiento    => p_codigo_tipo_mov,
-        p_fecha                     => NOW(),
+        p_fecha                     => LOCALTIMESTAMP,
         p_id_producto               => NULL,
         p_id_balon                  => p_id_balon,
         p_cantidad                  => 1,

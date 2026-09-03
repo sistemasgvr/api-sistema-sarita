@@ -195,7 +195,9 @@ BEGIN
             'id_afectacion_igv', v_id_afectacion_igv,
             'descripcion', 'Recarga ' || COALESCE(v_producto_nombre, 'gas'),
             'id_balon', p_id_balon,
-            'capacidad_cilindro', v_capacidad
+            'capacidad_cilindro', v_capacidad,
+            -- El gas lo descuenta el movimiento del balón (capacidad real), no esta línea.
+            'no_mueve_kardex', TRUE
         )
     );
 
@@ -307,7 +309,7 @@ BEGIN
         v_mov := inv_registrar_movimiento(
             p_naturaleza                => 'BALON',
             p_codigo_tipo_movimiento    => 'RECARGA_CLIENTE',
-            p_fecha                     => NOW(),
+            p_fecha                     => LOCALTIMESTAMP,
             p_id_producto               => p_id_producto,
             p_id_balon                  => p_id_balon,
             p_cantidad                  => v_capacidad,

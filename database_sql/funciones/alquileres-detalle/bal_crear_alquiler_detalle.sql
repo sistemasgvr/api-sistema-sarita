@@ -116,7 +116,7 @@ BEGIN
     v_mov_result := inv_registrar_movimiento(
         p_naturaleza                => 'BALON',
         p_codigo_tipo_movimiento    => 'SALIDA_ALQUILER',
-        p_fecha                     => NOW(),
+        p_fecha                     => LOCALTIMESTAMP,
         p_id_balon                  => p_id_balon,
         p_cantidad                  => 1,
         p_id_almacen_origen         => v_id_almacen,

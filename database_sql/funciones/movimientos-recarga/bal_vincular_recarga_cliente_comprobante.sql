@@ -220,7 +220,7 @@ BEGIN
         v_mov := inv_registrar_movimiento(
             p_naturaleza                => 'BALON',
             p_codigo_tipo_movimiento    => 'RECARGA_CLIENTE',
-            p_fecha                     => NOW(),
+            p_fecha                     => LOCALTIMESTAMP,
             p_id_producto               => p_id_producto,
             p_id_balon                  => p_id_balon,
             p_cantidad                  => v_capacidad,

@@ -13,6 +13,7 @@ DECLARE
     v_id_inactivo INTEGER;
     v_nombre_unidad VARCHAR;
     v_es_gas BOOLEAN;
+    v_mov JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -87,35 +88,57 @@ BEGIN
     LIMIT 1;
 
     IF v_id_inactivo IS NOT NULL THEN
+        -- Se reactiva SIEMPRE en 0; la cantidad entra abajo por movimiento.
         UPDATE pro_stock
         SET
-            stock = COALESCE(p_stock, 0),
+            stock = 0,
             stock_minimo = COALESCE(p_stock_minimo, 0),
             estado = 1,
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_id_inactivo;
 
-        RETURN pro_obtener_stock(v_id_inactivo);
+        v_id := v_id_inactivo;
+    ELSE
+        INSERT INTO pro_stock (
+            id_almacen,
+            id_producto,
+            stock,
+            stock_minimo,
+            id_usuario_creacion,
+            id_usuario_modificacion
+        )
+        VALUES (
+            p_id_almacen,
+            p_id_producto,
+            0,
+            COALESCE(p_stock_minimo, 0),
+            p_id_usuario_auditoria,
+            p_id_usuario_auditoria
+        )
+        RETURNING id INTO v_id;
     END IF;
 
-    INSERT INTO pro_stock (
-        id_almacen,
-        id_producto,
-        stock,
-        stock_minimo,
-        id_usuario_creacion,
-        id_usuario_modificacion
-    )
-    VALUES (
-        p_id_almacen,
-        p_id_producto,
-        COALESCE(p_stock, 0),
-        COALESCE(p_stock_minimo, 0),
-        p_id_usuario_auditoria,
-        p_id_usuario_auditoria
-    )
-    RETURNING id INTO v_id;
+    -- La fila nace en 0 y la cantidad inicial se aplica como AJUSTE, para que el
+    -- saldo SIEMPRE esté respaldado por el kardex. Antes se insertaba directo en
+    -- pro_stock, lo que permitía stock sin ningún inv_movimiento detrás y rompía
+    -- la reconciliación (inv_registrar_movimiento es el único punto de escritura).
+    IF COALESCE(p_stock, 0) <> 0 THEN
+        v_mov := inv_registrar_movimiento(
+            p_naturaleza             => 'PRODUCTO',
+            p_codigo_tipo_movimiento => 'AJUSTE',
+            p_id_producto            => p_id_producto,
+            p_cantidad               => ABS(p_stock),
+            p_id_almacen_origen      => p_id_almacen,
+            p_glosa                  => 'Carga inicial de stock',
+            p_id_usuario_auditoria   => p_id_usuario_auditoria,
+            p_sentido_ajuste         => CASE WHEN p_stock > 0 THEN 'MAS' ELSE 'MENOS' END
+        );
+
+        IF v_mov->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_mov->>'error';
+        END IF;
+    END IF;
 
     RETURN pro_obtener_stock(v_id);
 END;

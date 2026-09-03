@@ -660,7 +660,7 @@ BEGIN
                                 v_dev := inv_registrar_movimiento(
                                     p_naturaleza                => 'BALON',
                                     p_codigo_tipo_movimiento    => 'ENTRADA_LLENADO',
-                                    p_fecha                     => NOW(),
+                                    p_fecha                     => LOCALTIMESTAMP,
                                     p_id_producto               => v_id_producto_gas_recojo,
                                     p_id_balon                  => v_id_balon,
                                     p_cantidad                  => COALESCE(v_cantidad_restante, NULLIF(v_capacidad_tipo, 0), 1),

@@ -16,6 +16,7 @@ DECLARE
     v_detalle JSON;
     v_cuota JSON;
     v_item INTEGER;
+    v_items_sin_kardex INTEGER[];
     v_id_producto INTEGER;
     v_cantidad NUMERIC(12,4);
     v_precio_unitario NUMERIC(12,6);
@@ -484,9 +485,19 @@ BEGIN
     RETURNING id INTO v_id;
 
     v_item := 0;
+    v_items_sin_kardex := ARRAY[]::INTEGER[];
     FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
     LOOP
         v_item := v_item + 1;
+
+        -- Líneas cuyo inventario ya mueve otro proceso (recarga de mostrador: el gas
+        -- lo descuenta el movimiento del balón, con la capacidad real). El bucle de
+        -- stock lee las filas ya insertadas, así que la marca se propaga por N° de ítem.
+        IF COALESCE((v_detalle->>'no_mueve_kardex')::BOOLEAN, FALSE) THEN
+            v_items_sin_kardex := v_items_sin_kardex
+                || COALESCE(NULLIF((v_detalle->>'item')::INTEGER, 0), v_item);
+        END IF;
+
         v_id_producto := (v_detalle->>'id_producto')::INTEGER;
         v_cantidad := COALESCE((v_detalle->>'cantidad')::NUMERIC, 0);
         v_precio_unitario := COALESCE((v_detalle->>'precio_unitario')::NUMERIC, 0);
@@ -655,6 +666,14 @@ BEGIN
         LOOP
             SELECT ven_producto_mueve_kardex_venta(v_id_producto, v_detalle->>'descripcion')
             INTO v_afecta_stock;
+
+            -- Líneas marcadas como "no_mueve_kardex" en p_detalles: otro proceso ya
+            -- descuenta ese inventario (recarga de mostrador: el movimiento del balón
+            -- lleva la capacidad real). Sin esto la venta descontaba además su propia
+            -- cantidad y el gas salía del stock dos veces (apunte 1.c.iv.6).
+            IF (v_detalle->>'item')::INTEGER = ANY(v_items_sin_kardex) THEN
+                CONTINUE;
+            END IF;
 
             IF NOT v_afecta_stock THEN
                 CONTINUE;
