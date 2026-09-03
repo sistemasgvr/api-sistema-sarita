@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: inv_repuntar_documento
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.763Z
+-- Generated: 2026-09-03T16:50:38.964Z
 DROP FUNCTION IF EXISTS inv_repuntar_documento(p_codigo_tipo_documento_origen_actual character varying, p_id_documento_origen_actual integer, p_codigo_tipo_documento_origen_nuevo character varying, p_id_documento_origen_nuevo integer, p_glosa character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION inv_repuntar_documento(p_codigo_tipo_documento_origen_actual character varying, p_id_documento_origen_actual integer, p_codigo_tipo_documento_origen_nuevo character varying, p_id_documento_origen_nuevo integer, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -53,4 +53,4 @@ BEGIN
 
     RETURN json_build_object('repuntados', v_count);
 END;
-$function$
+$function$;

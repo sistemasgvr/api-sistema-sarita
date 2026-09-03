@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gre_listar_guias_pendientes_notificar
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.757Z
+-- Generated: 2026-09-03T16:50:38.963Z
 DROP FUNCTION IF EXISTS gre_listar_guias_pendientes_notificar(p_dias_min integer, p_fecha date);
 
 CREATE OR REPLACE FUNCTION gre_listar_guias_pendientes_notificar(p_dias_min integer DEFAULT 1, p_fecha date DEFAULT NULL::date)
@@ -23,7 +23,7 @@ BEGIN
         SELECT json_build_object(
             'id', g.id,
             'serie', g.serie,
-            'numero', g.numero,
+            'numero', g.numero_sunat,
             'fecha', g.fecha,
             'ticket_sunat', g.ticket_sunat,
             'dias_pendiente', (v_fecha - g.fecha),
@@ -31,7 +31,7 @@ BEGIN
         ) AS row_data,
         g.id,
         g.fecha
-        FROM gre_guia_remision g
+        FROM doc_salida g
         LEFT JOIN gen_lista_opciones es ON es.id = g.id_estado_sunat
         WHERE g.estado = 1
           AND COALESCE(es.nombre, '') = 'PENDIENTE'
@@ -42,4 +42,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros);
 END;
-$function$
+$function$;

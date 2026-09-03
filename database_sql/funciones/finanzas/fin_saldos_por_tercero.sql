@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_saldos_por_tercero
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.690Z
+-- Generated: 2026-09-03T16:50:38.960Z
 DROP FUNCTION IF EXISTS fin_saldos_por_tercero(p_tipo character varying, p_fecha_corte date, p_buscar character varying, p_solo_pendientes integer, p_limite integer, p_offset integer);
 
 CREATE OR REPLACE FUNCTION fin_saldos_por_tercero(p_tipo character varying DEFAULT 'COBRAR'::character varying, p_fecha_corte date DEFAULT CURRENT_DATE, p_buscar character varying DEFAULT NULL::character varying, p_solo_pendientes integer DEFAULT 1, p_limite integer DEFAULT 50, p_offset integer DEFAULT 0)
@@ -138,4 +138,4 @@ BEGIN
         )
     );
 END;
-$function$
+$function$;

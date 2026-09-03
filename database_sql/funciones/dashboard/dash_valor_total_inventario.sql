@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: dash_valor_total_inventario
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.660Z
+-- Generated: 2026-09-03T16:50:38.957Z
 DROP FUNCTION IF EXISTS dash_valor_total_inventario(p_id_almacen integer, p_limite integer, p_offset integer);
 
 CREATE OR REPLACE FUNCTION dash_valor_total_inventario(p_id_almacen integer DEFAULT NULL::integer, p_limite integer DEFAULT 20, p_offset integer DEFAULT 0)
@@ -53,4 +53,4 @@ BEGIN
         'registros', v_registros
     );
 END;
-$function$
+$function$;

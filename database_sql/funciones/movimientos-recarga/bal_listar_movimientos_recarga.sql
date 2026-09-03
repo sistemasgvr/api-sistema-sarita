@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_listar_movimientos_recarga
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.567Z
+-- Generated: 2026-09-03T16:50:38.947Z
 DROP FUNCTION IF EXISTS bal_listar_movimientos_recarga(p_busqueda character varying, p_limite integer, p_offset integer, p_id_balon integer, p_id_almacen integer, p_fecha_desde date, p_fecha_hasta date);
 
 CREATE OR REPLACE FUNCTION bal_listar_movimientos_recarga(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_balon integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date)
@@ -17,8 +17,8 @@ BEGIN
     SELECT COUNT(*) INTO v_total
     FROM bal_movimiento_recarga mr
     INNER JOIN bal_balon b ON mr.id_balon = b.id
-    LEFT JOIN bal_recarga_planta rp ON rp.id = mr.id_recarga_planta AND rp.estado = 1
-    LEFT JOIN gre_guia_remision grs ON grs.id = rp.id_guia_salida AND grs.estado = 1
+    LEFT JOIN doc_salida rp ON rp.id = mr.id_doc_salida AND rp.estado = 1
+    LEFT JOIN doc_salida grs ON grs.id = rp.id AND grs.estado = 1
     LEFT JOIN com_comprobante_compra cc ON cc.id = mr.id_comprobante_compra AND cc.estado = 1
     LEFT JOIN cli_clientes cli ON mr.id_cliente = cli.id
     LEFT JOIN gen_lista_opciones tr ON mr.id_tipo_recarga = tr.id
@@ -31,7 +31,7 @@ BEGIN
           p_busqueda = ''
           OR gen_texto_coincide(b.codigo_balon, p_busqueda)
           OR gen_texto_coincide(COALESCE(cli.razon_social, ''), p_busqueda)
-          OR gen_texto_coincide(COALESCE(mr.numero_guia_salida, rp.numero_guia_salida, grs.numero, ''), p_busqueda)
+          OR gen_texto_coincide(COALESCE(mr.numero_guia_salida, rp.numero_guia_salida, grs.numero_sunat, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(mr.numero_factura, cc.numero, rp.numero_factura, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(tr.nombre, ''), p_busqueda)
       );
@@ -53,11 +53,11 @@ BEGIN
             mr.id_producto,
             p.nombre AS nombre_producto,
             COALESCE(mr.capacidad, tb.capacidad) AS capacidad,
-            mr.id_recarga_planta,
+            mr.id_doc_salida,
             rp.numero AS numero_recarga_planta,
-            rp.id_guia_salida,
+            rp.id,
             COALESCE(mr.serie_guia_salida, rp.serie_guia_salida, grs.serie) AS serie_guia_salida,
-            COALESCE(mr.numero_guia_salida, rp.numero_guia_salida, grs.numero) AS numero_guia_salida,
+            COALESCE(mr.numero_guia_salida, rp.numero_guia_salida, grs.numero_sunat) AS numero_guia_salida,
             COALESCE(mr.serie_factura, cc.serie, rp.serie_factura) AS serie_factura,
             COALESCE(mr.numero_factura, cc.numero, rp.numero_factura) AS numero_factura,
             mr.id_comprobante,
@@ -75,8 +75,8 @@ BEGIN
         INNER JOIN bal_balon b ON mr.id_balon = b.id
         LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
         LEFT JOIN bal_balon bo ON mr.id_balon_origen = bo.id
-        LEFT JOIN bal_recarga_planta rp ON rp.id = mr.id_recarga_planta AND rp.estado = 1
-        LEFT JOIN gre_guia_remision grs ON grs.id = rp.id_guia_salida AND grs.estado = 1
+        LEFT JOIN doc_salida rp ON rp.id = mr.id_doc_salida AND rp.estado = 1
+        LEFT JOIN doc_salida grs ON grs.id = rp.id AND grs.estado = 1
         LEFT JOIN com_comprobante_compra cc ON cc.id = mr.id_comprobante_compra AND cc.estado = 1
         LEFT JOIN cli_clientes cli ON mr.id_cliente = cli.id
         LEFT JOIN gen_lista_opciones tr ON mr.id_tipo_recarga = tr.id
@@ -91,7 +91,7 @@ BEGIN
               p_busqueda = ''
               OR gen_texto_coincide(b.codigo_balon, p_busqueda)
               OR gen_texto_coincide(COALESCE(cli.razon_social, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(mr.numero_guia_salida, rp.numero_guia_salida, grs.numero, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(mr.numero_guia_salida, rp.numero_guia_salida, grs.numero_sunat, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(mr.numero_factura, cc.numero, rp.numero_factura, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(tr.nombre, ''), p_busqueda)
           )
@@ -102,4 +102,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;

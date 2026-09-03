@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_crear_recojo
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.538Z
+-- Generated: 2026-09-03T16:50:38.945Z
 DROP FUNCTION IF EXISTS bal_crear_recojo(p_id_cliente integer, p_id_prestamo integer, p_id_alquiler integer, p_id_recarga_planta integer, p_fecha_programada date, p_hora_estimada time without time zone, p_id_usuario_responsable integer, p_observacion character varying, p_detalles json, p_id_usuario_auditoria integer, p_marcar_balon_por_recoger boolean);
 
 CREATE OR REPLACE FUNCTION bal_crear_recojo(p_id_cliente integer, p_id_prestamo integer DEFAULT NULL::integer, p_id_alquiler integer DEFAULT NULL::integer, p_id_recarga_planta integer DEFAULT NULL::integer, p_fecha_programada date DEFAULT NULL::date, p_hora_estimada time without time zone DEFAULT NULL::time without time zone, p_id_usuario_responsable integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_detalles json DEFAULT '[]'::json, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_marcar_balon_por_recoger boolean DEFAULT true)
@@ -73,8 +73,8 @@ BEGIN
     IF p_id_recarga_planta IS NOT NULL THEN
         SELECT rp.id_proveedor, est.nombre
         INTO v_proveedor, v_rp_estado
-        FROM bal_recarga_planta rp
-        LEFT JOIN gen_lista_opciones est ON est.id = rp.id_estado
+        FROM doc_salida rp
+        LEFT JOIN gen_lista_opciones est ON est.id = rp.id_estado_ciclo
         WHERE rp.id = p_id_recarga_planta AND rp.estado = 1;
 
         IF v_proveedor IS NULL THEN
@@ -158,7 +158,7 @@ BEGIN
         id_cliente,
         id_prestamo,
         id_alquiler,
-        id_recarga_planta,
+        id_doc_salida,
         fecha_programada,
         hora_estimada,
         id_usuario_responsable,
@@ -319,7 +319,7 @@ BEGIN
             -- Origen recarga en planta externa: el balón permanece EN_RECARGA_EXTERNA
             -- hasta que se cierra el recojo (distribución manual de gas).
             IF p_id_recarga_planta IS NULL THEN
-                RAISE EXCEPTION 'El detalle por balón requiere id_recarga_planta';
+                RAISE EXCEPTION 'El detalle por balón requiere el documento de salida de la recarga';
             END IF;
 
             SELECT b.id, b.id_estado_balon
@@ -333,8 +333,8 @@ BEGIN
 
             IF NOT EXISTS (
                 SELECT 1
-                FROM bal_recarga_planta_detalle d
-                WHERE d.id_recarga_planta = p_id_recarga_planta
+                FROM doc_salida_detalle d
+                WHERE d.id_doc_salida = p_id_recarga_planta
                   AND d.id_balon = v_b
                   AND d.estado = 1
             ) THEN
@@ -387,4 +387,4 @@ EXCEPTION
         END IF;
         RETURN json_build_object('error', SQLERRM, 'registro', NULL);
 END;
-$function$
+$function$;

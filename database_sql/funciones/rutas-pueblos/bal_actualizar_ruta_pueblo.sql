@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_actualizar_ruta_pueblo
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.520Z
+-- Generated: 2026-09-03T16:50:38.944Z
 DROP FUNCTION IF EXISTS bal_actualizar_ruta_pueblo(p_id integer, p_fecha date, p_id_almacen integer, p_id_usuario_responsable integer, p_id_chofer integer, p_factor_lb_m3 numeric, p_tolerancia_m3 numeric, p_observacion character varying, p_estado_nombre character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_actualizar_ruta_pueblo(p_id integer, p_fecha date DEFAULT NULL::date, p_id_almacen integer DEFAULT NULL::integer, p_id_usuario_responsable integer DEFAULT NULL::integer, p_id_chofer integer DEFAULT NULL::integer, p_factor_lb_m3 numeric DEFAULT NULL::numeric, p_tolerancia_m3 numeric DEFAULT NULL::numeric, p_observacion character varying DEFAULT NULL::character varying, p_estado_nombre character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -137,4 +137,4 @@ BEGIN
 
     RETURN bal_obtener_ruta_pueblo(p_id);
 END;
-$function$
+$function$;

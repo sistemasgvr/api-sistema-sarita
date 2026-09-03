@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: dash_inventario_resumen
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.653Z
+-- Generated: 2026-09-03T16:50:38.956Z
 DROP FUNCTION IF EXISTS dash_inventario_resumen(p_id_almacen integer);
 
 CREATE OR REPLACE FUNCTION dash_inventario_resumen(p_id_almacen integer DEFAULT NULL::integer)
@@ -34,4 +34,4 @@ BEGIN
         'margenPromedio', COALESCE(v_margen_prom, 0)
     );
 END;
-$function$
+$function$;

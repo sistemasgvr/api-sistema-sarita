@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_listar_rutas_pueblo
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.576Z
+-- Generated: 2026-09-03T16:50:38.947Z
 DROP FUNCTION IF EXISTS bal_listar_rutas_pueblo(p_busqueda character varying, p_limite integer, p_offset integer, p_estado_nombre character varying, p_id_almacen integer, p_fecha_desde date, p_fecha_hasta date);
 
 CREATE OR REPLACE FUNCTION bal_listar_rutas_pueblo(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_estado_nombre character varying DEFAULT NULL::character varying, p_id_almacen integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date)
@@ -93,4 +93,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;

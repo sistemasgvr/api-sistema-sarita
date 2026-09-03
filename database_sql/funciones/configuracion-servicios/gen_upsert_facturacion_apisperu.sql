@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_upsert_facturacion_apisperu
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.754Z
+-- Generated: 2026-09-03T16:50:38.963Z
 DROP FUNCTION IF EXISTS gen_upsert_facturacion_apisperu(p_habilitado boolean, p_url character varying, p_token text, p_timeout_ms integer, p_client_id character varying, p_client_secret character varying, p_ruc_emisor character varying, p_usuario character varying, p_contrasena character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION gen_upsert_facturacion_apisperu(p_habilitado boolean DEFAULT true, p_url character varying DEFAULT NULL::character varying, p_token text DEFAULT NULL::text, p_timeout_ms integer DEFAULT NULL::integer, p_client_id character varying DEFAULT NULL::character varying, p_client_secret character varying DEFAULT NULL::character varying, p_ruc_emisor character varying DEFAULT NULL::character varying, p_usuario character varying DEFAULT NULL::character varying, p_contrasena character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -90,4 +90,4 @@ BEGIN
 
     RETURN gen_obtener_facturacion_apisperu();
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_crear_archivo
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.702Z
+-- Generated: 2026-09-03T16:50:38.961Z
 DROP FUNCTION IF EXISTS gen_crear_archivo(p_nombre_original character varying, p_nombre_almacenado character varying, p_ruta character varying, p_bucket character varying, p_mime_type character varying, p_extension character varying, p_tamanio_bytes bigint, p_id_empresa integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION gen_crear_archivo(p_nombre_original character varying, p_nombre_almacenado character varying, p_ruta character varying, p_bucket character varying, p_mime_type character varying DEFAULT NULL::character varying, p_extension character varying DEFAULT NULL::character varying, p_tamanio_bytes bigint DEFAULT NULL::bigint, p_id_empresa integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -54,4 +54,4 @@ BEGIN
 
     RETURN gen_obtener_archivo(v_id);
 END;
-$function$
+$function$;

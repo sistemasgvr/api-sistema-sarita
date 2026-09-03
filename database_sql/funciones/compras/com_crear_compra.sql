@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: com_crear_compra
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.634Z
+-- Generated: 2026-09-03T16:50:38.954Z
 DROP FUNCTION IF EXISTS com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer, p_id_recarga_planta integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_id_sucursal integer, p_id_moneda integer, p_id_condicion_pago integer, p_declarar_sunat boolean, p_glosa character varying, p_id_usuario_auditoria integer, p_registrar_retorno_balones boolean, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_id_guia_retorno integer, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb);
 
 CREATE OR REPLACE FUNCTION com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer DEFAULT NULL::integer, p_id_recarga_planta integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_declarar_sunat boolean DEFAULT false, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_registrar_retorno_balones boolean DEFAULT false, p_fecha_llegada_almacen date DEFAULT NULL::date, p_lote character varying DEFAULT NULL::character varying, p_fecha_vencimiento_lote date DEFAULT NULL::date, p_fecha_prueba_hidrostatica date DEFAULT NULL::date, p_id_guia_retorno integer DEFAULT NULL::integer, p_serie_guia_ingreso character varying DEFAULT NULL::character varying, p_numero_guia_ingreso character varying DEFAULT NULL::character varying, p_fecha_vencimiento_cxp date DEFAULT NULL::date, p_cuotas_cxp jsonb DEFAULT NULL::jsonb)
@@ -94,8 +94,8 @@ BEGIN
     IF p_id_recarga_planta IS NOT NULL THEN
         SELECT rp.id_comprobante_compra, est.nombre
         INTO v_recarga_id_comprobante, v_recarga_estado_nombre
-        FROM bal_recarga_planta rp
-        LEFT JOIN gen_lista_opciones est ON est.id = rp.id_estado
+        FROM doc_salida rp
+        LEFT JOIN gen_lista_opciones est ON est.id = rp.id_estado_ciclo
         WHERE rp.id = p_id_recarga_planta AND rp.estado = 1;
 
         IF NOT FOUND THEN
@@ -133,7 +133,7 @@ BEGIN
         id_tipo_comprobante, serie, numero, fecha, id_proveedor,
         id_tipo_registro, id_categoria_gasto, id_sucursal, id_almacen,
         id_moneda, id_condicion_pago, sub_total, igv, total_importe,
-        declarar_sunat, glosa, id_comprobante_referencia, id_recarga_planta,
+        declarar_sunat, glosa, id_comprobante_referencia, id_doc_salida,
         id_usuario_creacion, id_usuario_modificacion
     ) VALUES (
         p_id_tipo_comprobante, p_serie, p_numero, p_fecha, p_id_proveedor,
@@ -242,14 +242,14 @@ BEGIN
     -- El gas NO ingresa a pro_stock: el retorno físico va por bal_actualizar_recarga_planta.
     IF p_id_recarga_planta IS NOT NULL THEN
         IF NOT EXISTS (
-            SELECT 1 FROM bal_recarga_planta WHERE id = p_id_recarga_planta AND estado = 1
+            SELECT 1 FROM doc_salida WHERE id = p_id_recarga_planta AND estado = 1
         ) THEN
             RAISE EXCEPTION 'Orden de recarga planta no encontrada o inactiva';
         END IF;
 
         IF EXISTS (
             SELECT 1
-            FROM bal_recarga_planta
+            FROM doc_salida
             WHERE id = p_id_recarga_planta
               AND estado = 1
               AND id_proveedor IS NOT NULL
@@ -261,7 +261,7 @@ BEGIN
 
         IF EXISTS (
             SELECT 1
-            FROM bal_recarga_planta
+            FROM doc_salida
             WHERE id = p_id_recarga_planta
               AND estado = 1
               AND id_comprobante_compra IS NOT NULL
@@ -280,7 +280,7 @@ BEGIN
             COALESCE(p_fecha_vencimiento_lote, rp.fecha_vencimiento_lote),
             COALESCE(p_fecha_prueba_hidrostatica, rp.fecha_prueba_hidrostatica)
         INTO v_lote, v_fecha_venc_lote, v_fecha_ph
-        FROM bal_recarga_planta rp
+        FROM doc_salida rp
         WHERE rp.id = p_id_recarga_planta AND rp.estado = 1;
 
         IF v_registrar_retorno THEN
@@ -325,4 +325,4 @@ BEGIN
 
     RETURN com_obtener_compra(v_id_compra);
 END;
-$function$
+$function$;

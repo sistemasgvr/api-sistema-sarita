@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_actualizar_mantenimiento
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.515Z
+-- Generated: 2026-09-03T16:50:38.943Z
 DROP FUNCTION IF EXISTS bal_actualizar_mantenimiento(p_id integer, p_id_tipo_mantenimiento integer, p_fecha_ingreso date, p_fecha_salida date, p_descripcion character varying, p_costo numeric, p_es_externo boolean, p_id_proveedor integer, p_id_estado integer, p_id_comprobante_venta integer, p_id_comprobante_compra integer, p_observacion character varying, p_id_usuario_auditoria integer, p_vigencia_ph_anios integer, p_id_organo_inspector integer, p_organo_inspector_no_aplica boolean, p_numero_certificado_ph character varying);
 
 CREATE OR REPLACE FUNCTION bal_actualizar_mantenimiento(p_id integer, p_id_tipo_mantenimiento integer DEFAULT NULL::integer, p_fecha_ingreso date DEFAULT NULL::date, p_fecha_salida date DEFAULT NULL::date, p_descripcion character varying DEFAULT NULL::character varying, p_costo numeric DEFAULT NULL::numeric, p_es_externo boolean DEFAULT NULL::boolean, p_id_proveedor integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer, p_id_comprobante_venta integer DEFAULT NULL::integer, p_id_comprobante_compra integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_vigencia_ph_anios integer DEFAULT NULL::integer, p_id_organo_inspector integer DEFAULT NULL::integer, p_organo_inspector_no_aplica boolean DEFAULT NULL::boolean, p_numero_certificado_ph character varying DEFAULT NULL::character varying)
@@ -78,4 +78,4 @@ BEGIN
 
     RETURN bal_obtener_mantenimiento(p_id);
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: pro_listar_stock_bajo_notificar
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.786Z
+-- Generated: 2026-09-03T16:50:38.965Z
 DROP FUNCTION IF EXISTS pro_listar_stock_bajo_notificar();
 
 CREATE OR REPLACE FUNCTION pro_listar_stock_bajo_notificar()
@@ -40,4 +40,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros);
 END;
-$function$
+$function$;

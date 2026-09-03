@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: pro_crear_producto_imagen
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.774Z
+-- Generated: 2026-09-03T16:50:38.964Z
 DROP FUNCTION IF EXISTS pro_crear_producto_imagen(p_id_producto integer, p_id_archivo integer, p_orden integer, p_es_principal boolean, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION pro_crear_producto_imagen(p_id_producto integer, p_id_archivo integer, p_orden integer DEFAULT NULL::integer, p_es_principal boolean DEFAULT false, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -80,4 +80,4 @@ BEGIN
 
     RETURN pro_obtener_producto_imagen(v_id);
 END;
-$function$
+$function$;

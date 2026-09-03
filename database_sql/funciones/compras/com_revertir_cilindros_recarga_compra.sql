@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: com_revertir_cilindros_recarga_compra
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.640Z
+-- Generated: 2026-09-03T16:50:38.954Z
 DROP FUNCTION IF EXISTS com_revertir_cilindros_recarga_compra(p_id_recarga_planta integer, p_id_comprobante integer, p_id_usuario integer);
 
 CREATE OR REPLACE FUNCTION com_revertir_cilindros_recarga_compra(p_id_recarga_planta integer, p_id_comprobante integer, p_id_usuario integer DEFAULT NULL::integer)
@@ -35,8 +35,8 @@ BEGIN
 
     FOR v_det IN
         SELECT d.id_balon
-        FROM bal_recarga_planta_detalle d
-        WHERE d.id_recarga_planta = p_id_recarga_planta
+        FROM doc_salida_detalle d
+        WHERE d.id_doc_salida = p_id_recarga_planta
           AND d.estado = 1
     LOOP
         SELECT eb.nombre INTO v_estado
@@ -78,8 +78,8 @@ BEGIN
           AND m.id_documento_origen = p_id_comprobante
           AND m.id_balon IN (
               SELECT d.id_balon
-              FROM bal_recarga_planta_detalle d
-              WHERE d.id_recarga_planta = p_id_recarga_planta
+              FROM doc_salida_detalle d
+              WHERE d.id_doc_salida = p_id_recarga_planta
                 AND d.estado = 1
           )
           AND m.id_tipo_movimiento IN (
@@ -106,10 +106,10 @@ BEGIN
         WHERE b.estado = 1
           AND b.id IN (
               SELECT d.id_balon
-              FROM bal_recarga_planta_detalle d
-              WHERE d.id_recarga_planta = p_id_recarga_planta
+              FROM doc_salida_detalle d
+              WHERE d.id_doc_salida = p_id_recarga_planta
                 AND d.estado = 1
           );
     END IF;
 END;
-$function$
+$function$;

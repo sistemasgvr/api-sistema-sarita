@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: pro_listar_stock
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.786Z
+-- Generated: 2026-09-03T16:50:38.965Z
 DROP FUNCTION IF EXISTS pro_listar_stock(p_busqueda character varying, p_limite integer, p_offset integer, p_id_almacen integer, p_id_producto integer, p_solo_bajo_minimo boolean, p_solo_activos integer);
 
 CREATE OR REPLACE FUNCTION pro_listar_stock(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_almacen integer DEFAULT NULL::integer, p_id_producto integer DEFAULT NULL::integer, p_solo_bajo_minimo boolean DEFAULT NULL::boolean, p_solo_activos integer DEFAULT 1)
@@ -107,4 +107,4 @@ BEGIN
         'resumen', v_resumen
     );
 END;
-$function$
+$function$;

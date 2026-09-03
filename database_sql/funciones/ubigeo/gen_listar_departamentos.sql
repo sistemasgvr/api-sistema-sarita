@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_listar_departamentos
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.729Z
+-- Generated: 2026-09-03T16:50:38.962Z
 DROP FUNCTION IF EXISTS gen_listar_departamentos(p_id_pais integer);
 
 CREATE OR REPLACE FUNCTION gen_listar_departamentos(p_id_pais integer DEFAULT NULL::integer)
@@ -30,4 +30,4 @@ BEGIN
 
     RETURN v_registros;
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: auth_listar_ids_usuarios_admin_con_permiso
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.494Z
+-- Generated: 2026-09-03T16:50:38.942Z
 DROP FUNCTION IF EXISTS auth_listar_ids_usuarios_admin_con_permiso(p_permiso character varying);
 
 CREATE OR REPLACE FUNCTION auth_listar_ids_usuarios_admin_con_permiso(p_permiso character varying)
@@ -29,4 +29,4 @@ BEGIN
 
     RETURN json_build_object('ids', v_ids);
 END;
-$function$
+$function$;

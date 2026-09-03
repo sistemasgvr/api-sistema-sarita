@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: dash_operaciones_registradas
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.655Z
+-- Generated: 2026-09-03T16:50:38.957Z
 DROP FUNCTION IF EXISTS dash_operaciones_registradas(p_fecha date, p_limite integer, p_offset integer);
 
 CREATE OR REPLACE FUNCTION dash_operaciones_registradas(p_fecha date DEFAULT CURRENT_DATE, p_limite integer DEFAULT 20, p_offset integer DEFAULT 0)
@@ -62,4 +62,4 @@ BEGIN
         'registros', v_registros
     );
 END;
-$function$
+$function$;

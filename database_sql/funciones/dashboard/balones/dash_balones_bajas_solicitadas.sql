@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: dash_balones_bajas_solicitadas
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.644Z
+-- Generated: 2026-09-03T16:50:38.954Z
 DROP FUNCTION IF EXISTS dash_balones_bajas_solicitadas();
 
 CREATE OR REPLACE FUNCTION dash_balones_bajas_solicitadas()
@@ -38,4 +38,4 @@ BEGIN
 
   RETURN v_result;
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: auth_crear_usuario
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.490Z
+-- Generated: 2026-09-03T16:50:38.942Z
 DROP FUNCTION IF EXISTS auth_crear_usuario(p_nombre character varying, p_correo character varying, p_contrasena character varying, p_id_trabajador integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION auth_crear_usuario(p_nombre character varying, p_correo character varying, p_contrasena character varying, p_id_trabajador integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -35,4 +35,4 @@ BEGIN
 
     RETURN auth_obtener_usuario(v_id);
 END;
-$function$
+$function$;

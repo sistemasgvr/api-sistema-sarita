@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: pro_crear_catalogo_precio
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.771Z
+-- Generated: 2026-09-03T16:50:38.964Z
 DROP FUNCTION IF EXISTS pro_crear_catalogo_precio(p_id_tipo_catalogo integer, p_nombre_item character varying, p_periodo character varying, p_id_producto integer, p_id_tipo_balon integer, p_id_proveedor integer, p_clasificacion character varying, p_modelo character varying, p_capacidad numeric, p_id_unidad_medida integer, p_descripcion_presentacion character varying, p_costo_producto numeric, p_costo_flete numeric, p_porcentaje_margen numeric, p_precio_final numeric, p_precio_garantia numeric, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION pro_crear_catalogo_precio(p_id_tipo_catalogo integer, p_nombre_item character varying, p_periodo character varying DEFAULT NULL::character varying, p_id_producto integer DEFAULT NULL::integer, p_id_tipo_balon integer DEFAULT NULL::integer, p_id_proveedor integer DEFAULT NULL::integer, p_clasificacion character varying DEFAULT NULL::character varying, p_modelo character varying DEFAULT NULL::character varying, p_capacidad numeric DEFAULT NULL::numeric, p_id_unidad_medida integer DEFAULT NULL::integer, p_descripcion_presentacion character varying DEFAULT NULL::character varying, p_costo_producto numeric DEFAULT 0, p_costo_flete numeric DEFAULT 0, p_porcentaje_margen numeric DEFAULT NULL::numeric, p_precio_final numeric DEFAULT NULL::numeric, p_precio_garantia numeric DEFAULT NULL::numeric, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -85,4 +85,4 @@ BEGIN
 
     RETURN pro_obtener_catalogo_precio(v_id);
 END;
-$function$
+$function$;

@@ -534,7 +534,7 @@ export class NotificacionesLogic {
     const items = (raw.registros ?? []) as GuiaPendienteRow[];
     const destinatarios = this.normalizeIds(
       (
-        await this.model.listarIdsPorPermiso(PermisoBanderas.GUIAS_REMISION_EMITIR)
+        await this.model.listarIdsPorPermiso(PermisoBanderas.DOCUMENTOS_SALIDA_EMITIR)
       ).ids,
     );
 

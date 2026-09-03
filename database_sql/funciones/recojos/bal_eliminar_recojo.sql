@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_eliminar_recojo
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.550Z
+-- Generated: 2026-09-03T16:50:38.945Z
 DROP FUNCTION IF EXISTS bal_eliminar_recojo(p_id integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_eliminar_recojo(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -105,4 +105,4 @@ BEGIN
 
     RETURN json_build_object('eliminado', TRUE, 'id', p_id);
 END;
-$function$
+$function$;

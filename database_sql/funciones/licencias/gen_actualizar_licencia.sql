@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_actualizar_licencia
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.698Z
+-- Generated: 2026-09-03T16:50:38.961Z
 DROP FUNCTION IF EXISTS gen_actualizar_licencia(p_id integer, p_id_chofer integer, p_codigo character varying, p_id_tipo_licencia integer, p_id_categoria_licencia integer, p_fecha_emision date, p_fecha_vencimiento date, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION gen_actualizar_licencia(p_id integer, p_id_chofer integer DEFAULT NULL::integer, p_codigo character varying DEFAULT NULL::character varying, p_id_tipo_licencia integer DEFAULT NULL::integer, p_id_categoria_licencia integer DEFAULT NULL::integer, p_fecha_emision date DEFAULT NULL::date, p_fecha_vencimiento date DEFAULT NULL::date, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -29,4 +29,4 @@ BEGIN
 
     RETURN gen_obtener_licencia(p_id);
 END;
-$function$
+$function$;

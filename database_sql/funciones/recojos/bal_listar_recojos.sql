@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_listar_recojos
 -- Overloads: 2
--- Generated: 2026-09-02T21:31:03.575Z
+-- Generated: 2026-09-03T16:50:38.947Z
 DROP FUNCTION IF EXISTS bal_listar_recojos(p_busqueda character varying, p_limite integer, p_offset integer, p_id_cliente integer, p_id_prestamo integer, p_id_alquiler integer, p_estado_nombre character varying, p_fecha_desde date, p_fecha_hasta date);
 
 CREATE OR REPLACE FUNCTION bal_listar_recojos(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_cliente integer DEFAULT NULL::integer, p_id_prestamo integer DEFAULT NULL::integer, p_id_alquiler integer DEFAULT NULL::integer, p_estado_nombre character varying DEFAULT NULL::character varying, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date)
@@ -141,7 +141,7 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;
 
 DROP FUNCTION IF EXISTS bal_listar_recojos(p_busqueda character varying, p_limite integer, p_offset integer, p_id_cliente integer, p_id_prestamo integer, p_estado_nombre character varying, p_fecha_desde date, p_fecha_hasta date);
 
@@ -240,4 +240,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;

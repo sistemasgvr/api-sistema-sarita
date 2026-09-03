@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_revertir_salidas_guia_remision
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.606Z
+-- Generated: 2026-09-03T16:50:38.950Z
 DROP FUNCTION IF EXISTS bal_revertir_salidas_guia_remision(p_id_guia integer, p_ids_conservar integer[], p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_revertir_salidas_guia_remision(p_id_guia integer, p_ids_conservar integer[] DEFAULT NULL::integer[], p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -77,4 +77,4 @@ BEGIN
 
     RETURN json_build_object('ok', TRUE, 'revertidos', v_revertidos, 'error', NULL);
 END;
-$function$
+$function$;

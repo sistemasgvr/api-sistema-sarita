@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: com_eliminar_compra_detalle
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.635Z
+-- Generated: 2026-09-03T16:50:38.954Z
 DROP FUNCTION IF EXISTS com_eliminar_compra_detalle(p_id_detalle integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION com_eliminar_compra_detalle(p_id_detalle integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -77,4 +77,4 @@ BEGIN
 
     RETURN json_build_object('eliminado', TRUE, 'id', p_id_detalle);
 END;
-$function$
+$function$;

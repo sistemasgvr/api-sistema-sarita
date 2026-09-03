@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_listar_cuentas
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.681Z
+-- Generated: 2026-09-03T16:50:38.959Z
 DROP FUNCTION IF EXISTS fin_listar_cuentas(p_tipo character varying, p_id_tercero integer, p_estado character varying, p_solo_pendientes integer, p_buscar character varying, p_id_padre integer, p_limite integer, p_offset integer);
 
 CREATE OR REPLACE FUNCTION fin_listar_cuentas(p_tipo character varying DEFAULT NULL::character varying, p_id_tercero integer DEFAULT NULL::integer, p_estado character varying DEFAULT NULL::character varying, p_solo_pendientes integer DEFAULT NULL::integer, p_buscar character varying DEFAULT NULL::character varying, p_id_padre integer DEFAULT NULL::integer, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0)
@@ -117,4 +117,4 @@ BEGIN
 
     RETURN v_resultado;
 END;
-$function$
+$function$;

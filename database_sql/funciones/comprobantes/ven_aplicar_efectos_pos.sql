@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_aplicar_efectos_pos
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.800Z
+-- Generated: 2026-09-03T16:50:38.965Z
 DROP FUNCTION IF EXISTS ven_aplicar_efectos_pos(p_id_comprobante integer, p_efectos json, p_id_usuario integer);
 
 CREATE OR REPLACE FUNCTION ven_aplicar_efectos_pos(p_id_comprobante integer, p_efectos json, p_id_usuario integer DEFAULT NULL::integer)
@@ -288,4 +288,4 @@ BEGIN
         END IF;
     END LOOP;
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_marcar_notificacion_leida
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.739Z
+-- Generated: 2026-09-03T16:50:38.963Z
 DROP FUNCTION IF EXISTS gen_marcar_notificacion_leida(p_id integer, p_id_usuario integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION gen_marcar_notificacion_leida(p_id integer, p_id_usuario integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -28,4 +28,4 @@ BEGIN
 
     RETURN gen_obtener_notificacion(p_id, p_id_usuario);
 END;
-$function$
+$function$;

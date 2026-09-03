@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_prestamo_aplicar_retorno_cilindro
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.593Z
+-- Generated: 2026-09-03T16:50:38.949Z
 DROP FUNCTION IF EXISTS bal_prestamo_aplicar_retorno_cilindro(p_id_balon integer, p_id_prestamo integer, p_id_cliente integer, p_id_almacen_destino integer, p_nombre_contenido character varying, p_observacion character varying, p_id_usuario_auditoria integer, p_crear_movimiento boolean);
 
 CREATE OR REPLACE FUNCTION bal_prestamo_aplicar_retorno_cilindro(p_id_balon integer, p_id_prestamo integer, p_id_cliente integer DEFAULT NULL::integer, p_id_almacen_destino integer DEFAULT NULL::integer, p_nombre_contenido character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_crear_movimiento boolean DEFAULT true)
@@ -106,4 +106,4 @@ BEGIN
 
     RETURN json_build_object('ok', TRUE, 'skipped', FALSE);
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: age_crear_actividad
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.479Z
+-- Generated: 2026-09-03T16:50:38.941Z
 DROP FUNCTION IF EXISTS age_crear_actividad(p_titulo character varying, p_descripcion text, p_fecha_programada date, p_hora_inicio_estimada time without time zone, p_hora_fin_estimada time without time zone, p_id_tipo_actividad integer, p_id_prioridad integer, p_id_cliente integer, p_id_trabajador_responsable integer, p_id_estado_actividad integer, p_observaciones character varying, p_id_usuario_auditoria integer, p_id_comprobante integer, p_id_guia_remision integer, p_items json);
 
 CREATE OR REPLACE FUNCTION age_crear_actividad(p_titulo character varying, p_descripcion text, p_fecha_programada date, p_hora_inicio_estimada time without time zone, p_hora_fin_estimada time without time zone, p_id_tipo_actividad integer, p_id_prioridad integer, p_id_cliente integer DEFAULT NULL::integer, p_id_trabajador_responsable integer DEFAULT NULL::integer, p_id_estado_actividad integer DEFAULT NULL::integer, p_observaciones character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_comprobante integer DEFAULT NULL::integer, p_id_guia_remision integer DEFAULT NULL::integer, p_items json DEFAULT NULL::json)
@@ -54,7 +54,7 @@ BEGIN
     IF p_id_guia_remision IS NOT NULL THEN
         SELECT gr.id_cliente, gr.id_destinatario, gr.serie, gr.numero
         INTO v_cliente, v_destinatario, v_serie, v_numero
-        FROM gre_guia_remision gr
+        FROM doc_salida gr
         WHERE gr.id = p_id_guia_remision AND gr.estado = 1;
 
         IF NOT FOUND THEN
@@ -70,7 +70,7 @@ BEGIN
             SELECT 1
             FROM age_actividad a
             LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
-            WHERE a.id_guia_remision = p_id_guia_remision
+            WHERE a.id_doc_salida = p_id_guia_remision
               AND a.estado = 1
               AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO')
         ) THEN
@@ -164,7 +164,7 @@ BEGIN
         hora_inicio_estimada, hora_fin_estimada,
         id_tipo_actividad, id_prioridad, id_cliente,
         id_trabajador_responsable, id_comprobante,
-        id_guia_remision,
+        id_doc_salida,
         id_estado_actividad, observaciones,
         id_usuario_creacion, id_usuario_modificacion
     )
@@ -230,11 +230,11 @@ BEGIN
             d.id_balon,
             p_id_usuario_auditoria,
             p_id_usuario_auditoria
-        FROM gre_guia_remision_detalle d
+        FROM doc_salida_detalle d
         WHERE d.id_guia_remision = p_id_guia_remision AND d.estado = 1
         ORDER BY d.item;
     END IF;
 
     RETURN age_obtener_actividad(v_id);
 END;
-$function$
+$function$;

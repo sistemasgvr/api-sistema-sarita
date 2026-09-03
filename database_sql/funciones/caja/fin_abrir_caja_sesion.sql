@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_abrir_caja_sesion
 -- Overloads: 2
--- Generated: 2026-09-02T21:31:03.664Z
+-- Generated: 2026-09-03T16:50:38.958Z
 DROP FUNCTION IF EXISTS fin_abrir_caja_sesion(p_fecha date, p_monto_inicial numeric, p_id_sucursal integer, p_observacion character varying, p_id_usuario integer, p_id_sesion integer);
 
 CREATE OR REPLACE FUNCTION fin_abrir_caja_sesion(p_fecha date, p_monto_inicial numeric, p_id_sucursal integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer, p_id_sesion integer DEFAULT NULL::integer)
@@ -299,7 +299,7 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$
+$function$;
 
 DROP FUNCTION IF EXISTS fin_abrir_caja_sesion(p_fecha date, p_monto_inicial numeric, p_id_sucursal integer, p_observacion character varying, p_id_usuario integer);
 
@@ -420,4 +420,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$
+$function$;

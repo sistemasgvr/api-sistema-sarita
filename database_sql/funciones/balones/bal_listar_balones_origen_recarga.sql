@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_listar_balones_origen_recarga
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.564Z
+-- Generated: 2026-09-03T16:50:38.947Z
 DROP FUNCTION IF EXISTS bal_listar_balones_origen_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric, p_id_almacen integer, p_limite integer, p_offset integer);
 
 CREATE OR REPLACE FUNCTION bal_listar_balones_origen_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric DEFAULT NULL::numeric, p_id_almacen integer DEFAULT NULL::integer, p_limite integer DEFAULT 50, p_offset integer DEFAULT 0)
@@ -80,4 +80,4 @@ BEGIN
         'total', v_total
     );
 END;
-$function$
+$function$;

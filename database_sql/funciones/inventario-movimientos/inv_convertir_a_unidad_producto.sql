@@ -1,23 +1,13 @@
--- Convierte una cantidad expresada en `p_id_unidad_origen` a la unidad de medida
--- del producto (decisión 3 del plan: la unidad del producto es la canónica del stock).
---
--- Pivote: m³. Los factores de pro_producto son "m³ por unidad-origen":
---   a m³      -> cantidad * factor
---   desde m³  -> cantidad / factor
--- (verificado contra bal_factor_lb_m3, que devuelve capacidad_m3 / capacidad_lb).
---
--- Si la conversión no es posible (unidad desconocida o factor sin configurar) lanza
--- excepción: nunca debe descontarse stock con una cantidad en la unidad equivocada.
-DROP FUNCTION IF EXISTS inv_convertir_a_unidad_producto(integer, numeric, integer);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: inv_convertir_a_unidad_producto
+-- Overloads: 1
+-- Generated: 2026-09-03T16:50:38.963Z
+DROP FUNCTION IF EXISTS inv_convertir_a_unidad_producto(p_id_producto integer, p_cantidad numeric, p_id_unidad_origen integer);
 
-CREATE OR REPLACE FUNCTION inv_convertir_a_unidad_producto(
-    p_id_producto INTEGER,
-    p_cantidad NUMERIC,
-    p_id_unidad_origen INTEGER DEFAULT NULL
-)
-RETURNS NUMERIC
-LANGUAGE plpgsql
-STABLE
+CREATE OR REPLACE FUNCTION inv_convertir_a_unidad_producto(p_id_producto integer, p_cantidad numeric, p_id_unidad_origen integer DEFAULT NULL::integer)
+ RETURNS numeric
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 DECLARE
     v_unidad_producto VARCHAR;

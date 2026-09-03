@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_obtener_siguiente_numero
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.815Z
+-- Generated: 2026-09-03T16:50:38.966Z
 DROP FUNCTION IF EXISTS ven_obtener_siguiente_numero(p_id_tipo_comprobante integer, p_serie character varying);
 
 CREATE OR REPLACE FUNCTION ven_obtener_siguiente_numero(p_id_tipo_comprobante integer, p_serie character varying)
@@ -46,4 +46,4 @@ BEGIN
         'numero', v_siguiente
     );
 END;
-$function$
+$function$;

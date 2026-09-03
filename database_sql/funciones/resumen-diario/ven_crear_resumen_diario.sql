@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_crear_resumen_diario
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.803Z
+-- Generated: 2026-09-03T16:50:38.966Z
 DROP FUNCTION IF EXISTS ven_crear_resumen_diario(p_fecha date, p_correlativo character varying, p_ticket_sunat character varying, p_id_estado_sunat integer, p_cdr_respuesta text, p_moneda character varying, p_cantidad_docs integer, p_total_importe numeric, p_total_igv numeric, p_total_valor_venta numeric, p_ids_comprobante json, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION ven_crear_resumen_diario(p_fecha date, p_correlativo character varying, p_ticket_sunat character varying DEFAULT NULL::character varying, p_id_estado_sunat integer DEFAULT NULL::integer, p_cdr_respuesta text DEFAULT NULL::text, p_moneda character varying DEFAULT 'PEN'::character varying, p_cantidad_docs integer DEFAULT 0, p_total_importe numeric DEFAULT 0, p_total_igv numeric DEFAULT 0, p_total_valor_venta numeric DEFAULT 0, p_ids_comprobante json DEFAULT '[]'::json, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -95,4 +95,4 @@ BEGIN
 
     RETURN ven_obtener_resumen_diario(v_id);
 END;
-$function$
+$function$;

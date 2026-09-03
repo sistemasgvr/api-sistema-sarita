@@ -265,12 +265,14 @@ export const PermisoBanderas = {
   COMPROBANTES_EMITIR: 'comprobantes.emitir',
   COMPROBANTES_CONSULTAR_CDR: 'comprobantes.consultar_cdr',
 
-  GUIAS_REMISION_LISTAR: 'guias_remision.listar',
-  GUIAS_REMISION_VER: 'guias_remision.ver',
-  GUIAS_REMISION_CREAR: 'guias_remision.crear',
-  GUIAS_REMISION_EDITAR: 'guias_remision.editar',
-  GUIAS_REMISION_ELIMINAR: 'guias_remision.eliminar',
-  GUIAS_REMISION_EMITIR: 'guias_remision.emitir',
+  // Fase 2: reemplaza GUIAS_REMISION_* y la parte de recarga-planta de
+  // MOVIMIENTOS_RECARGA_* (unificadas en doc_salida).
+  DOCUMENTOS_SALIDA_LISTAR: 'documentos_salida.listar',
+  DOCUMENTOS_SALIDA_VER: 'documentos_salida.ver',
+  DOCUMENTOS_SALIDA_CREAR: 'documentos_salida.crear',
+  DOCUMENTOS_SALIDA_EDITAR: 'documentos_salida.editar',
+  DOCUMENTOS_SALIDA_ELIMINAR: 'documentos_salida.eliminar',
+  DOCUMENTOS_SALIDA_EMITIR: 'documentos_salida.emitir',
 
   CUENTAS_BANCARIAS_LISTAR: 'cuentas_bancarias.listar',
   CUENTAS_BANCARIAS_VER: 'cuentas_bancarias.ver',

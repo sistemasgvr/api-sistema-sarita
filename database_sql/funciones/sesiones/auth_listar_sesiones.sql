@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: auth_listar_sesiones
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.500Z
+-- Generated: 2026-09-03T16:50:38.942Z
 DROP FUNCTION IF EXISTS auth_listar_sesiones(p_id_usuario integer, p_solo_activas boolean, p_limite integer, p_offset integer);
 
 CREATE OR REPLACE FUNCTION auth_listar_sesiones(p_id_usuario integer DEFAULT NULL::integer, p_solo_activas boolean DEFAULT true, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0)
@@ -44,4 +44,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;

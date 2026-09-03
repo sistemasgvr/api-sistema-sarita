@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_eliminar_almacen
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.712Z
+-- Generated: 2026-09-03T16:50:38.961Z
 DROP FUNCTION IF EXISTS gen_eliminar_almacen(p_id integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION gen_eliminar_almacen(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -23,4 +23,4 @@ BEGIN
 
     RETURN json_build_object('eliminado', TRUE, 'id', p_id);
 END;
-$function$
+$function$;

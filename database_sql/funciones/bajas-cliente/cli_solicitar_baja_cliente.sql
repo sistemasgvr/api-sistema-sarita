@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: cli_solicitar_baja_cliente
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.628Z
+-- Generated: 2026-09-03T16:50:38.953Z
 DROP FUNCTION IF EXISTS cli_solicitar_baja_cliente(p_id_cliente integer, p_id_motivo_baja integer, p_motivo_detalle character varying, p_id_usuario_auditoria integer, p_id_tipo_solicitud integer);
 
 CREATE OR REPLACE FUNCTION cli_solicitar_baja_cliente(p_id_cliente integer, p_id_motivo_baja integer DEFAULT NULL::integer, p_motivo_detalle character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_tipo_solicitud integer DEFAULT NULL::integer)
@@ -61,4 +61,4 @@ BEGIN
 
     RETURN cli_obtener_baja_cliente(v_id_baja);
 END;
-$function$
+$function$;

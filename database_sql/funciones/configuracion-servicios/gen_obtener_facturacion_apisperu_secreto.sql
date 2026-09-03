@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_obtener_facturacion_apisperu_secreto
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.750Z
+-- Generated: 2026-09-03T16:50:38.963Z
 DROP FUNCTION IF EXISTS gen_obtener_facturacion_apisperu_secreto();
 
 CREATE OR REPLACE FUNCTION gen_obtener_facturacion_apisperu_secreto()
@@ -35,4 +35,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$
+$function$;

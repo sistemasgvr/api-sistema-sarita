@@ -1,8 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: pro_actualizar_producto
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.768Z
-DROP FUNCTION IF EXISTS pro_actualizar_producto(p_id integer, p_codigo character varying, p_codigo_barra character varying, p_nombre character varying, p_id_sub_categoria integer, p_id_unidad_medida integer, p_marca character varying, p_presentacion character varying, p_es_gas boolean, p_es_servicio boolean, p_es_alquilable boolean, p_afecta_stock boolean, p_precio numeric, p_codigo_ubicacion character varying, p_id_usuario_auditoria integer, p_precio_compra numeric, p_precio_garantia numeric, p_factor_kg_m3 numeric, p_factor_lb_m3 numeric, p_es_mantenimiento boolean);
+-- Generated: 2026-09-03T16:50:38.964Z
 DROP FUNCTION IF EXISTS pro_actualizar_producto(p_id integer, p_codigo character varying, p_codigo_barra character varying, p_nombre character varying, p_id_sub_categoria integer, p_id_unidad_medida integer, p_marca character varying, p_presentacion character varying, p_es_gas boolean, p_es_servicio boolean, p_es_alquilable boolean, p_afecta_stock boolean, p_precio numeric, p_codigo_ubicacion character varying, p_id_usuario_auditoria integer, p_precio_compra numeric, p_precio_garantia numeric, p_factor_kg_m3 numeric, p_factor_lb_m3 numeric, p_es_mantenimiento boolean, p_convertir_stock boolean);
 
 CREATE OR REPLACE FUNCTION pro_actualizar_producto(p_id integer, p_codigo character varying DEFAULT NULL::character varying, p_codigo_barra character varying DEFAULT NULL::character varying, p_nombre character varying DEFAULT NULL::character varying, p_id_sub_categoria integer DEFAULT NULL::integer, p_id_unidad_medida integer DEFAULT NULL::integer, p_marca character varying DEFAULT NULL::character varying, p_presentacion character varying DEFAULT NULL::character varying, p_es_gas boolean DEFAULT NULL::boolean, p_es_servicio boolean DEFAULT NULL::boolean, p_es_alquilable boolean DEFAULT NULL::boolean, p_afecta_stock boolean DEFAULT NULL::boolean, p_precio numeric DEFAULT NULL::numeric, p_codigo_ubicacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_precio_compra numeric DEFAULT NULL::numeric, p_precio_garantia numeric DEFAULT NULL::numeric, p_factor_kg_m3 numeric DEFAULT NULL::numeric, p_factor_lb_m3 numeric DEFAULT NULL::numeric, p_es_mantenimiento boolean DEFAULT NULL::boolean, p_convertir_stock boolean DEFAULT false)
@@ -268,4 +267,4 @@ BEGIN
 
     RETURN pro_obtener_producto(p_id);
 END;
-$function$
+$function$;

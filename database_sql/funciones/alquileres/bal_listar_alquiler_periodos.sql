@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_listar_alquiler_periodos
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.559Z
+-- Generated: 2026-09-03T16:50:38.946Z
 DROP FUNCTION IF EXISTS bal_listar_alquiler_periodos(p_id_alquiler integer, p_limite integer, p_offset integer);
 
 CREATE OR REPLACE FUNCTION bal_listar_alquiler_periodos(p_id_alquiler integer, p_limite integer DEFAULT 100, p_offset integer DEFAULT 0)
@@ -55,4 +55,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;

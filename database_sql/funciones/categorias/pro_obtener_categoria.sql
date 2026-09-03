@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: pro_obtener_categoria
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.788Z
+-- Generated: 2026-09-03T16:50:38.965Z
 DROP FUNCTION IF EXISTS pro_obtener_categoria(p_id integer);
 
 CREATE OR REPLACE FUNCTION pro_obtener_categoria(p_id integer)
@@ -44,4 +44,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$
+$function$;

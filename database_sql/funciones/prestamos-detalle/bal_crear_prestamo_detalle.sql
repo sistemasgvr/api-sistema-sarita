@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_crear_prestamo_detalle
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.535Z
+-- Generated: 2026-09-03T16:50:38.944Z
 DROP FUNCTION IF EXISTS bal_crear_prestamo_detalle(p_id_prestamo integer, p_id_balon integer, p_id_producto integer, p_motivo_especifico character varying, p_fecha_entregado date, p_fecha_prestamo date, p_dias_prestamo integer, p_fecha_vencimiento date, p_fecha_devolucion date, p_serie_guia_entrega character varying, p_numero_guia_entrega character varying, p_serie_guia_devolucion character varying, p_numero_guia_devolucion character varying, p_id_estado integer, p_observacion character varying, p_id_usuario_auditoria integer, p_id_guia_entrega integer, p_id_guia_devolucion integer);
 
 CREATE OR REPLACE FUNCTION bal_crear_prestamo_detalle(p_id_prestamo integer, p_id_balon integer DEFAULT NULL::integer, p_id_producto integer DEFAULT NULL::integer, p_motivo_especifico character varying DEFAULT NULL::character varying, p_fecha_entregado date DEFAULT NULL::date, p_fecha_prestamo date DEFAULT NULL::date, p_dias_prestamo integer DEFAULT 30, p_fecha_vencimiento date DEFAULT NULL::date, p_fecha_devolucion date DEFAULT NULL::date, p_serie_guia_entrega character varying DEFAULT NULL::character varying, p_numero_guia_entrega character varying DEFAULT NULL::character varying, p_serie_guia_devolucion character varying DEFAULT NULL::character varying, p_numero_guia_devolucion character varying DEFAULT NULL::character varying, p_id_estado integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_guia_entrega integer DEFAULT NULL::integer, p_id_guia_devolucion integer DEFAULT NULL::integer)
@@ -35,8 +35,8 @@ BEGIN
 
     -- Serie/número quedan como snapshot de la GRE vinculada (compatibilidad UI).
     IF p_id_guia_entrega IS NOT NULL THEN
-        SELECT g.serie, g.numero INTO v_serie_entrega, v_numero_entrega
-        FROM gre_guia_remision g
+        SELECT g.serie, g.numero_sunat INTO v_serie_entrega, v_numero_entrega
+        FROM doc_salida g
         WHERE g.id = p_id_guia_entrega AND g.estado = 1;
 
         IF NOT FOUND THEN
@@ -45,8 +45,8 @@ BEGIN
     END IF;
 
     IF p_id_guia_devolucion IS NOT NULL THEN
-        SELECT g.serie, g.numero INTO v_serie_devolucion, v_numero_devolucion
-        FROM gre_guia_remision g
+        SELECT g.serie, g.numero_sunat INTO v_serie_devolucion, v_numero_devolucion
+        FROM doc_salida g
         WHERE g.id = p_id_guia_devolucion AND g.estado = 1;
 
         IF NOT FOUND THEN
@@ -105,7 +105,7 @@ BEGIN
     INSERT INTO bal_prestamo_detalle (
         id_prestamo, id_balon, id_producto, motivo_especifico,
         fecha_entregado, fecha_prestamo, dias_prestamo, fecha_vencimiento, fecha_devolucion,
-        id_guia_entrega, id_guia_devolucion,
+        id_doc_salida_entrega, id_guia_devolucion,
         serie_guia_entrega, numero_guia_entrega, serie_guia_devolucion, numero_guia_devolucion,
         id_estado, observacion,
         id_usuario_creacion, id_usuario_modificacion
@@ -136,4 +136,4 @@ BEGIN
 
     RETURN bal_obtener_prestamo_detalle(v_id);
 END;
-$function$
+$function$;

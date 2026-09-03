@@ -1,14 +1,13 @@
--- Signo canónico de TipoMovInvUnificado.
--- -1 = salida (descuenta stock origen)
---  1 = entrada (aumenta stock origen)
---  0 = traslado (sale origen / entra destino; o movimiento de custodia sin stock de producto)
--- NULL = AJUSTE (lo resuelve p_sentido_ajuste) o tipo desconocido
-DROP FUNCTION IF EXISTS inv_signo_tipo_movimiento(integer);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: inv_signo_tipo_movimiento
+-- Overloads: 1
+-- Generated: 2026-09-03T16:50:38.964Z
+DROP FUNCTION IF EXISTS inv_signo_tipo_movimiento(p_id_tipo_movimiento integer);
 
 CREATE OR REPLACE FUNCTION inv_signo_tipo_movimiento(p_id_tipo_movimiento integer)
-RETURNS integer
-LANGUAGE plpgsql
-STABLE
+ RETURNS integer
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 DECLARE
     v_nombre VARCHAR;
@@ -45,7 +44,8 @@ BEGIN
         'PRESTAMO',
         'ALQUILER',
         'MERMA',
-        'DESPACHO'
+        'DESPACHO',
+        'CONSUMO_INTERNO'
     ) OR v_nombre LIKE 'SALIDA_%' THEN
         RETURN -1;
     END IF;
@@ -58,7 +58,8 @@ BEGIN
         'ENTRADA_PLANTA_EXTERNA',
         'RETORNO_LIMA',
         'RETORNO_PRESTAMO',
-        'DEVOLUCION'
+        'DEVOLUCION',
+        'REPOSICION'
     ) OR v_nombre LIKE 'ENTRADA_%' OR v_nombre LIKE 'RETORNO_%' THEN
         RETURN 1;
     END IF;

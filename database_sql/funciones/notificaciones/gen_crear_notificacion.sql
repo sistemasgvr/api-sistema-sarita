@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_crear_notificacion
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.711Z
+-- Generated: 2026-09-03T16:50:38.961Z
 DROP FUNCTION IF EXISTS gen_crear_notificacion(p_id_usuario integer, p_codigo_tipo character varying, p_titulo character varying, p_mensaje text, p_payload json, p_id_referencia integer, p_tipo_referencia character varying, p_clave_dedupe character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION gen_crear_notificacion(p_id_usuario integer, p_codigo_tipo character varying, p_titulo character varying, p_mensaje text DEFAULT NULL::text, p_payload json DEFAULT '{}'::json, p_id_referencia integer DEFAULT NULL::integer, p_tipo_referencia character varying DEFAULT NULL::character varying, p_clave_dedupe character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -83,4 +83,4 @@ BEGIN
         'creada', TRUE
     );
 END;
-$function$
+$function$;

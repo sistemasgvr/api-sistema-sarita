@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_revertir_efectos_comprobante
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.820Z
+-- Generated: 2026-09-03T16:50:38.966Z
 DROP FUNCTION IF EXISTS ven_revertir_efectos_comprobante(p_id integer, p_id_usuario_auditoria integer, p_exigir_sin_pagos boolean);
 
 CREATE OR REPLACE FUNCTION ven_revertir_efectos_comprobante(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_exigir_sin_pagos boolean DEFAULT false)
@@ -56,4 +56,4 @@ BEGIN
 
     RETURN json_build_object('ok', TRUE, 'error', NULL);
 END;
-$function$
+$function$;

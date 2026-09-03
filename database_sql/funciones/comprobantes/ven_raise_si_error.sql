@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_raise_si_error
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.817Z
+-- Generated: 2026-09-03T16:50:38.966Z
 DROP FUNCTION IF EXISTS ven_raise_si_error(p_result json);
 
 CREATE OR REPLACE FUNCTION ven_raise_si_error(p_result json)
@@ -17,4 +17,4 @@ BEGIN
         RAISE EXCEPTION '%', p_result->>'error';
     END IF;
 END;
-$function$
+$function$;

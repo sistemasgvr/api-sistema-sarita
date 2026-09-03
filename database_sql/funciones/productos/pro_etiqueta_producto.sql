@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: pro_etiqueta_producto
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.782Z
+-- Generated: 2026-09-03T16:50:38.964Z
 DROP FUNCTION IF EXISTS pro_etiqueta_producto(p_id integer);
 
 CREATE OR REPLACE FUNCTION pro_etiqueta_producto(p_id integer)
@@ -22,4 +22,4 @@ AS $function$
     )
     FROM pro_producto p
     WHERE p.id = p_id;
-$function$
+$function$;

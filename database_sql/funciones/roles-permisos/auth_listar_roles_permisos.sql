@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: auth_listar_roles_permisos
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.499Z
+-- Generated: 2026-09-03T16:50:38.942Z
 DROP FUNCTION IF EXISTS auth_listar_roles_permisos(p_id_rol integer, p_id_permiso integer, p_limite integer, p_offset integer);
 
 CREATE OR REPLACE FUNCTION auth_listar_roles_permisos(p_id_rol integer DEFAULT NULL::integer, p_id_permiso integer DEFAULT NULL::integer, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0)
@@ -46,4 +46,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;

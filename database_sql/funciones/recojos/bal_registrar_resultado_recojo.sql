@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_registrar_resultado_recojo
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.599Z
+-- Generated: 2026-09-03T16:50:38.949Z
 DROP FUNCTION IF EXISTS bal_registrar_resultado_recojo(p_id integer, p_fecha_visita date, p_id_motivo_fallo integer, p_observacion character varying, p_detalles json, p_id_usuario_auditoria integer, p_regulador json);
 
 CREATE OR REPLACE FUNCTION bal_registrar_resultado_recojo(p_id integer, p_fecha_visita date DEFAULT NULL::date, p_id_motivo_fallo integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_detalles json DEFAULT '[]'::json, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_regulador json DEFAULT NULL::json)
@@ -882,4 +882,4 @@ BEGIN
 
     RETURN bal_obtener_recojo(p_id);
 END;
-$function$
+$function$;

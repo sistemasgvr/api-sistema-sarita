@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_actualizar_garantia_manual
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.799Z
+-- Generated: 2026-09-03T16:50:38.965Z
 DROP FUNCTION IF EXISTS ven_actualizar_garantia_manual(p_id integer, p_fecha date, p_id_cliente integer, p_id_medio_pago integer, p_importe numeric, p_observacion character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION ven_actualizar_garantia_manual(p_id integer, p_fecha date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_importe numeric DEFAULT NULL::numeric, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -128,4 +128,4 @@ BEGIN
 
     RETURN ven_obtener_garantia(p_id);
 END;
-$function$
+$function$;

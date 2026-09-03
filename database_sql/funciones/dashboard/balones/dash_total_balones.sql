@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: dash_total_balones
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.659Z
+-- Generated: 2026-09-03T16:50:38.957Z
 DROP FUNCTION IF EXISTS dash_total_balones(p_id_cliente integer);
 
 CREATE OR REPLACE FUNCTION dash_total_balones(p_id_cliente integer DEFAULT NULL::integer)
@@ -21,4 +21,4 @@ BEGIN
 
   RETURN v_total;
 END;
-$function$
+$function$;

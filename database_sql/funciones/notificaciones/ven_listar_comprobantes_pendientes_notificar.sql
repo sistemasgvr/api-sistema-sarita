@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_listar_comprobantes_pendientes_notificar
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.807Z
+-- Generated: 2026-09-03T16:50:38.966Z
 DROP FUNCTION IF EXISTS ven_listar_comprobantes_pendientes_notificar(p_dias_min integer, p_fecha date);
 
 CREATE OR REPLACE FUNCTION ven_listar_comprobantes_pendientes_notificar(p_dias_min integer DEFAULT 1, p_fecha date DEFAULT NULL::date)
@@ -45,4 +45,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros);
 END;
-$function$
+$function$;

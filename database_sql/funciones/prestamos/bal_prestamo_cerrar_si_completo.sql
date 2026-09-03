@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_prestamo_cerrar_si_completo
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.595Z
+-- Generated: 2026-09-03T16:50:38.949Z
 DROP FUNCTION IF EXISTS bal_prestamo_cerrar_si_completo(p_id_prestamo integer, p_fecha date, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_prestamo_cerrar_si_completo(p_id_prestamo integer, p_fecha date DEFAULT CURRENT_DATE, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -41,4 +41,4 @@ BEGIN
     WHERE id = p_id_prestamo
       AND estado = 1;
 END;
-$function$
+$function$;

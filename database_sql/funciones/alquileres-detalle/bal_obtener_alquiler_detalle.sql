@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_obtener_alquiler_detalle
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.581Z
+-- Generated: 2026-09-03T16:50:38.947Z
 DROP FUNCTION IF EXISTS bal_obtener_alquiler_detalle(p_id integer);
 
 CREATE OR REPLACE FUNCTION bal_obtener_alquiler_detalle(p_id integer)
@@ -39,4 +39,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$
+$function$;

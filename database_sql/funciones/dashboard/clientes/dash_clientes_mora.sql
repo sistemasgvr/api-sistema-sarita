@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: dash_clientes_mora
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.647Z
+-- Generated: 2026-09-03T16:50:38.954Z
 DROP FUNCTION IF EXISTS dash_clientes_mora(p_dias_urgente integer, p_fecha_desde date, p_fecha_hasta date);
 
 CREATE OR REPLACE FUNCTION dash_clientes_mora(p_dias_urgente integer DEFAULT 30, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date)
@@ -57,4 +57,4 @@ BEGIN
 
     RETURN v_result;
 END;
-$function$
+$function$;

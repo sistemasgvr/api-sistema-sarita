@@ -1,8 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: inv_revertir_por_documento
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.764Z
-DROP FUNCTION IF EXISTS inv_revertir_por_documento(p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_id_usuario_auditoria integer);
+-- Generated: 2026-09-03T16:50:38.964Z
 DROP FUNCTION IF EXISTS inv_revertir_por_documento(p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_id_usuario_auditoria integer, p_id_documento_detalle integer);
 
 CREATE OR REPLACE FUNCTION inv_revertir_por_documento(p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_documento_detalle integer DEFAULT NULL::integer)
@@ -142,4 +141,4 @@ BEGIN
 
     RETURN json_build_object('revertidos', v_count);
 END;
-$function$
+$function$;

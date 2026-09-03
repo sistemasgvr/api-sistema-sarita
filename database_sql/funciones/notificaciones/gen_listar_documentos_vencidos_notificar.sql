@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_listar_documentos_vencidos_notificar
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.731Z
+-- Generated: 2026-09-03T16:50:38.962Z
 DROP FUNCTION IF EXISTS gen_listar_documentos_vencidos_notificar(p_fecha date);
 
 CREATE OR REPLACE FUNCTION gen_listar_documentos_vencidos_notificar(p_fecha date DEFAULT NULL::date)
@@ -42,4 +42,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros);
 END;
-$function$
+$function$;

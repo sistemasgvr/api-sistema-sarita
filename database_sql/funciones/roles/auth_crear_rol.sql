@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: auth_crear_rol
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.489Z
+-- Generated: 2026-09-03T16:50:38.942Z
 DROP FUNCTION IF EXISTS auth_crear_rol(p_nombre character varying, p_descripcion character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION auth_crear_rol(p_nombre character varying, p_descripcion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -20,4 +20,4 @@ BEGIN
 
     RETURN auth_obtener_rol(v_id);
 END;
-$function$
+$function$;

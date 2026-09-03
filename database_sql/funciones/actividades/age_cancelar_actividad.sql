@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: age_cancelar_actividad
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.478Z
+-- Generated: 2026-09-03T16:50:38.941Z
 DROP FUNCTION IF EXISTS age_cancelar_actividad(p_id integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION age_cancelar_actividad(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -50,4 +50,4 @@ BEGIN
 
     RETURN age_obtener_actividad(p_id);
 END;
-$function$
+$function$;

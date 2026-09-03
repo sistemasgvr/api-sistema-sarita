@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_resumen_cuentas
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.690Z
+-- Generated: 2026-09-03T16:50:38.959Z
 DROP FUNCTION IF EXISTS fin_resumen_cuentas(p_tipo character varying);
 
 CREATE OR REPLACE FUNCTION fin_resumen_cuentas(p_tipo character varying)
@@ -44,4 +44,4 @@ BEGIN
 
     RETURN v_res;
 END;
-$function$
+$function$;

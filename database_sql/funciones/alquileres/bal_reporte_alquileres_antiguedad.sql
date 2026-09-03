@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_reporte_alquileres_antiguedad
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.602Z
+-- Generated: 2026-09-03T16:50:38.950Z
 DROP FUNCTION IF EXISTS bal_reporte_alquileres_antiguedad(p_busqueda character varying, p_limite integer, p_offset integer, p_id_cliente integer, p_rango_dias character varying, p_excluir_bajas boolean, p_solo_pendientes boolean);
 
 CREATE OR REPLACE FUNCTION bal_reporte_alquileres_antiguedad(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 50, p_offset integer DEFAULT 0, p_id_cliente integer DEFAULT NULL::integer, p_rango_dias character varying DEFAULT NULL::character varying, p_excluir_bajas boolean DEFAULT true, p_solo_pendientes boolean DEFAULT true)
@@ -148,4 +148,4 @@ BEGIN
         )
     );
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_validar_codigos_recojo
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.609Z
+-- Generated: 2026-09-03T16:50:38.951Z
 DROP FUNCTION IF EXISTS bal_validar_codigos_recojo(p_id_recojo integer, p_codigos json);
 
 CREATE OR REPLACE FUNCTION bal_validar_codigos_recojo(p_id_recojo integer, p_codigos json DEFAULT '[]'::json)
@@ -121,4 +121,4 @@ BEGIN
         'completo', jsonb_array_length(v_faltantes) = 0
     );
 END;
-$function$
+$function$;

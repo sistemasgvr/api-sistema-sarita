@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_caja_assert_abierta
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.668Z
+-- Generated: 2026-09-03T16:50:38.958Z
 DROP FUNCTION IF EXISTS fin_caja_assert_abierta(p_fecha date, p_id_sucursal integer);
 
 CREATE OR REPLACE FUNCTION fin_caja_assert_abierta(p_fecha date, p_id_sucursal integer DEFAULT NULL::integer)
@@ -69,4 +69,4 @@ BEGIN
 
     RETURN 'No hay caja abierta para esta fecha. Abre la caja en Ventas → Caja antes de continuar.';
 END;
-$function$
+$function$;

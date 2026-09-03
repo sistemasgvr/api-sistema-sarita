@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_resolver_tipo_documento_ref
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.819Z
+-- Generated: 2026-09-03T16:50:38.966Z
 DROP FUNCTION IF EXISTS ven_resolver_tipo_documento_ref(p_codigo_tipo_comprobante character varying, p_nombre_tipo_venta character varying);
 
 CREATE OR REPLACE FUNCTION ven_resolver_tipo_documento_ref(p_codigo_tipo_comprobante character varying, p_nombre_tipo_venta character varying DEFAULT NULL::character varying)
@@ -20,4 +20,4 @@ BEGIN
         ELSE 'FACTURA'
     END;
 END;
-$function$
+$function$;

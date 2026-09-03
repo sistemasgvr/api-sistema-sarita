@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_listar_caja_pendiente_cierre
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.680Z
+-- Generated: 2026-09-03T16:50:38.959Z
 DROP FUNCTION IF EXISTS fin_listar_caja_pendiente_cierre(p_id_sucursal integer);
 
 CREATE OR REPLACE FUNCTION fin_listar_caja_pendiente_cierre(p_id_sucursal integer DEFAULT NULL::integer)
@@ -38,4 +38,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', jsonb_array_length(v_registros::jsonb));
 END;
-$function$
+$function$;

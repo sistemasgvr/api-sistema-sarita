@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: pro_listar_productos
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.786Z
+-- Generated: 2026-09-03T16:50:38.965Z
 DROP FUNCTION IF EXISTS pro_listar_productos(p_busqueda character varying, p_limite integer, p_offset integer, p_id_sub_categoria integer, p_id_categoria integer, p_es_gas boolean, p_es_servicio boolean, p_es_alquilable boolean, p_afecta_stock boolean, p_solo_activos integer, p_id_almacen integer, p_es_mantenimiento boolean);
 
 CREATE OR REPLACE FUNCTION pro_listar_productos(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_sub_categoria integer DEFAULT NULL::integer, p_id_categoria integer DEFAULT NULL::integer, p_es_gas boolean DEFAULT NULL::boolean, p_es_servicio boolean DEFAULT NULL::boolean, p_es_alquilable boolean DEFAULT NULL::boolean, p_afecta_stock boolean DEFAULT NULL::boolean, p_solo_activos integer DEFAULT 1, p_id_almacen integer DEFAULT NULL::integer, p_es_mantenimiento boolean DEFAULT NULL::boolean)
@@ -151,4 +151,4 @@ BEGIN
         'resumen', v_resumen
     );
 END;
-$function$
+$function$;

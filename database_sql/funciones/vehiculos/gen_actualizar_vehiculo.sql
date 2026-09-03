@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_actualizar_vehiculo
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.700Z
+-- Generated: 2026-09-03T16:50:38.961Z
 DROP FUNCTION IF EXISTS gen_actualizar_vehiculo(p_id integer, p_id_cliente integer, p_id_tipo_vehiculo integer, p_placa character varying, p_placa2 character varying, p_marca character varying, p_marca2 character varying, p_modelo character varying, p_anio integer, p_color character varying, p_certificado_inscripcion character varying, p_certificado2 character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION gen_actualizar_vehiculo(p_id integer, p_id_cliente integer DEFAULT NULL::integer, p_id_tipo_vehiculo integer DEFAULT NULL::integer, p_placa character varying DEFAULT NULL::character varying, p_placa2 character varying DEFAULT NULL::character varying, p_marca character varying DEFAULT NULL::character varying, p_marca2 character varying DEFAULT NULL::character varying, p_modelo character varying DEFAULT NULL::character varying, p_anio integer DEFAULT NULL::integer, p_color character varying DEFAULT NULL::character varying, p_certificado_inscripcion character varying DEFAULT NULL::character varying, p_certificado2 character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -41,4 +41,4 @@ BEGIN
 
     RETURN gen_obtener_vehiculo(p_id);
 END;
-$function$
+$function$;

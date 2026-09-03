@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: pro_actualizar_categoria
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.766Z
+-- Generated: 2026-09-03T16:50:38.964Z
 DROP FUNCTION IF EXISTS pro_actualizar_categoria(p_id integer, p_nombre character varying, p_descripcion character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION pro_actualizar_categoria(p_id integer, p_nombre character varying DEFAULT NULL::character varying, p_descripcion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -38,4 +38,4 @@ BEGIN
 
     RETURN pro_obtener_categoria(p_id);
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: dash_balones_ph_por_vencer
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.646Z
+-- Generated: 2026-09-03T16:50:38.954Z
 DROP FUNCTION IF EXISTS dash_balones_ph_por_vencer(p_dias_alerta integer, p_id_cliente integer);
 
 CREATE OR REPLACE FUNCTION dash_balones_ph_por_vencer(p_dias_alerta integer DEFAULT 30, p_id_cliente integer DEFAULT NULL::integer)
@@ -45,4 +45,4 @@ BEGIN
 
   RETURN v_result;
 END;
-$function$
+$function$;

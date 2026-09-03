@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_listar_documentos_vencimiento
 -- Overloads: 2
--- Generated: 2026-09-02T21:31:03.731Z
+-- Generated: 2026-09-03T16:50:38.962Z
 DROP FUNCTION IF EXISTS gen_listar_documentos_vencimiento(p_solo_activos integer, p_buscar character varying, p_limite integer, p_offset integer, p_id_categoria integer, p_id_vehiculo integer, p_id_sucursal integer, p_estado character varying, p_dias_alerta integer);
 
 CREATE OR REPLACE FUNCTION gen_listar_documentos_vencimiento(p_solo_activos integer DEFAULT NULL::integer, p_buscar character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_categoria integer DEFAULT NULL::integer, p_id_vehiculo integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer, p_estado character varying DEFAULT NULL::character varying, p_dias_alerta integer DEFAULT 30)
@@ -93,7 +93,7 @@ BEGIN
     INTO v_result;
     RETURN v_result;
 END;
-$function$
+$function$;
 
 DROP FUNCTION IF EXISTS gen_listar_documentos_vencimiento(p_solo_activos integer, p_buscar character varying, p_limite integer, p_offset integer, p_id_categoria integer, p_id_vehiculo integer);
 
@@ -165,4 +165,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;

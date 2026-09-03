@@ -1,8 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: inv_registrar_movimiento
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.763Z
-DROP FUNCTION IF EXISTS inv_registrar_movimiento(p_naturaleza character varying, p_codigo_tipo_movimiento character varying, p_fecha timestamp without time zone, p_id_producto integer, p_id_balon integer, p_cantidad numeric, p_id_almacen_origen integer, p_id_almacen_destino integer, p_id_cliente integer, p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_glosa character varying, p_id_usuario_auditoria integer, p_id_movimiento_padre integer, p_sentido_ajuste character varying, p_forzar boolean);
+-- Generated: 2026-09-03T16:50:38.963Z
 DROP FUNCTION IF EXISTS inv_registrar_movimiento(p_naturaleza character varying, p_codigo_tipo_movimiento character varying, p_fecha timestamp without time zone, p_id_producto integer, p_id_balon integer, p_cantidad numeric, p_id_almacen_origen integer, p_id_almacen_destino integer, p_id_cliente integer, p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_glosa character varying, p_id_usuario_auditoria integer, p_id_movimiento_padre integer, p_sentido_ajuste character varying, p_forzar boolean, p_id_documento_detalle integer);
 
 CREATE OR REPLACE FUNCTION inv_registrar_movimiento(p_naturaleza character varying, p_codigo_tipo_movimiento character varying, p_fecha timestamp without time zone DEFAULT now(), p_id_producto integer DEFAULT NULL::integer, p_id_balon integer DEFAULT NULL::integer, p_cantidad numeric DEFAULT 0, p_id_almacen_origen integer DEFAULT NULL::integer, p_id_almacen_destino integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_codigo_tipo_documento_origen character varying DEFAULT NULL::character varying, p_id_documento_origen integer DEFAULT NULL::integer, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_movimiento_padre integer DEFAULT NULL::integer, p_sentido_ajuste character varying DEFAULT NULL::character varying, p_forzar boolean DEFAULT false, p_id_documento_detalle integer DEFAULT NULL::integer)
@@ -90,8 +89,6 @@ BEGIN
             );
         END IF;
     END IF;
-
-    -- Anti-duplicación: cabecera + detalle opcional + tipo + producto/balón.
     IF p_id_documento_origen IS NOT NULL AND v_id_tipo_doc IS NOT NULL AND NOT COALESCE(p_forzar, FALSE) THEN
         SELECT m.id INTO v_id_existente
         FROM inv_movimiento m
@@ -227,9 +224,6 @@ BEGIN
 
         RETURN (inv_obtener_movimiento(v_id)::JSONB || jsonb_build_object('creado', TRUE))::JSON;
     END IF;
-
-    -- ============== naturaleza = BALON ==============
-
     SELECT eb.nombre, b.id_almacen, b.id_estado_balon, b.id_cliente_ubicacion
     INTO v_nombre_estado_actual, v_id_almacen_balon, v_id_estado_anterior, v_id_cliente_anterior
     FROM bal_balon b
@@ -249,8 +243,6 @@ BEGIN
     END IF;
 
     v_id_almacen_anterior := v_id_almacen_balon;
-
-    -- Mismo mapeo tipo→estado que bal_aplicar_custodia_tipo_movimiento (custodia "Libro").
     v_limpiar_almacen := FALSE;
     v_codigo_contenido := NULL;
     v_cliente_destino := NULL;
@@ -264,7 +256,7 @@ BEGIN
         WHEN 'SALIDA_ENTREGA_CLIENTE' THEN
             v_codigo_estado_destino := 'EN_PODER_CLIENTE'; v_cliente_destino := p_id_cliente; v_limpiar_almacen := TRUE;
         WHEN 'SALIDA_MANTENIMIENTO' THEN
-            v_codigo_estado_destino := 'EN_MANTENIMIENTO';
+            v_codigo_estado_destino := 'EN_MANTENIMIENTO'; v_cliente_destino := p_id_cliente;
         WHEN 'SALIDA_PLANTA_EXTERNA' THEN
             v_codigo_estado_destino := 'EN_RECARGA_EXTERNA'; v_limpiar_almacen := TRUE; v_codigo_contenido := 'VACIO';
         WHEN 'ENTRADA_DEVOLUCION', 'ENTRADA_MANTENIMIENTO', 'RETORNO_LIMA' THEN
@@ -366,4 +358,4 @@ BEGIN
 
     RETURN (inv_obtener_movimiento(v_id)::JSONB || jsonb_build_object('creado', TRUE))::JSON;
 END;
-$function$
+$function$;

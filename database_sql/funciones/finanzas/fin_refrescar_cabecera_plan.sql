@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_refrescar_cabecera_plan
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.689Z
+-- Generated: 2026-09-03T16:50:38.959Z
 DROP FUNCTION IF EXISTS fin_refrescar_cabecera_plan(p_id_padre integer);
 
 CREATE OR REPLACE FUNCTION fin_refrescar_cabecera_plan(p_id_padre integer)
@@ -55,4 +55,4 @@ BEGIN
         fecha_modificacion = NOW()
     WHERE id = p_id_padre;
 END;
-$function$
+$function$;

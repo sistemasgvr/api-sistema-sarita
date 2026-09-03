@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: pro_generar_codigo_producto
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.782Z
+-- Generated: 2026-09-03T16:50:38.964Z
 DROP FUNCTION IF EXISTS pro_generar_codigo_producto(p_prefijo character varying);
 
 CREATE OR REPLACE FUNCTION pro_generar_codigo_producto(p_prefijo character varying DEFAULT 'PRO'::character varying)
@@ -54,4 +54,4 @@ BEGIN
         'registro', json_build_object('codigo', v_codigo)
     );
 END;
-$function$
+$function$;

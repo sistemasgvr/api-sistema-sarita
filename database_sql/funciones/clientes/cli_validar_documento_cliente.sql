@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: cli_validar_documento_cliente
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.630Z
+-- Generated: 2026-09-03T16:50:38.953Z
 DROP FUNCTION IF EXISTS cli_validar_documento_cliente(p_numero_documento character varying, p_id_excluir integer);
 
 CREATE OR REPLACE FUNCTION cli_validar_documento_cliente(p_numero_documento character varying, p_id_excluir integer DEFAULT NULL::integer)
@@ -19,4 +19,4 @@ BEGIN
 
     RETURN json_build_object('existe', v_existe);
 END;
-$function$
+$function$;

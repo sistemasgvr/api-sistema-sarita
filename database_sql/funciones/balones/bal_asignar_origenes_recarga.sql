@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_asignar_origenes_recarga
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.524Z
+-- Generated: 2026-09-03T16:50:38.944Z
 DROP FUNCTION IF EXISTS bal_asignar_origenes_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric, p_id_almacen integer, p_id_balon_preferido integer);
 
 CREATE OR REPLACE FUNCTION bal_asignar_origenes_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric, p_id_almacen integer DEFAULT NULL::integer, p_id_balon_preferido integer DEFAULT NULL::integer)
@@ -102,4 +102,4 @@ BEGIN
         END
     );
 END;
-$function$
+$function$;

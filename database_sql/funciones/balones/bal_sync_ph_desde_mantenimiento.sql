@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_sync_ph_desde_mantenimiento
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.608Z
+-- Generated: 2026-09-03T16:50:38.950Z
 DROP FUNCTION IF EXISTS bal_sync_ph_desde_mantenimiento(p_id_mantenimiento integer, p_id_usuario_auditoria integer, p_vigencia_anios integer, p_id_organo_inspector integer, p_organo_inspector_no_aplica boolean, p_numero_certificado character varying);
 
 CREATE OR REPLACE FUNCTION bal_sync_ph_desde_mantenimiento(p_id_mantenimiento integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_vigencia_anios integer DEFAULT NULL::integer, p_id_organo_inspector integer DEFAULT NULL::integer, p_organo_inspector_no_aplica boolean DEFAULT NULL::boolean, p_numero_certificado character varying DEFAULT NULL::character varying)
@@ -52,4 +52,4 @@ BEGIN
         p_id_usuario_auditoria
     );
 END;
-$function$
+$function$;

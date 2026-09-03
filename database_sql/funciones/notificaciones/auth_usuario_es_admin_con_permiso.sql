@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: auth_usuario_es_admin_con_permiso
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.509Z
+-- Generated: 2026-09-03T16:50:38.943Z
 DROP FUNCTION IF EXISTS auth_usuario_es_admin_con_permiso(p_id_usuario integer, p_permiso character varying);
 
 CREATE OR REPLACE FUNCTION auth_usuario_es_admin_con_permiso(p_id_usuario integer, p_permiso character varying)
@@ -34,4 +34,4 @@ BEGIN
 
     RETURN COALESCE(v_ok, FALSE);
 END;
-$function$
+$function$;

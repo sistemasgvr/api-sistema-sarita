@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: dash_garantias_alquiler
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.651Z
+-- Generated: 2026-09-03T16:50:38.956Z
 DROP FUNCTION IF EXISTS dash_garantias_alquiler();
 
 CREATE OR REPLACE FUNCTION dash_garantias_alquiler()
@@ -71,4 +71,4 @@ BEGIN
         'ingresadoEsteMes', v_ingresado_mes
     );
 END;
-$function$
+$function$;

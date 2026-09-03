@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_actualizar_almacen
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.693Z
+-- Generated: 2026-09-03T16:50:38.960Z
 DROP FUNCTION IF EXISTS gen_actualizar_almacen(p_id integer, p_id_sucursal integer, p_nombre character varying, p_ubicacion character varying, p_descripcion character varying, p_id_departamento integer, p_id_provincia integer, p_id_distrito integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION gen_actualizar_almacen(p_id integer, p_id_sucursal integer DEFAULT NULL::integer, p_nombre character varying DEFAULT NULL::character varying, p_ubicacion character varying DEFAULT NULL::character varying, p_descripcion character varying DEFAULT NULL::character varying, p_id_departamento integer DEFAULT NULL::integer, p_id_provincia integer DEFAULT NULL::integer, p_id_distrito integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -30,4 +30,4 @@ BEGIN
 
     RETURN gen_obtener_almacen(p_id);
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: auth_obtener_rol
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.505Z
+-- Generated: 2026-09-03T16:50:38.942Z
 DROP FUNCTION IF EXISTS auth_obtener_rol(p_id integer);
 
 CREATE OR REPLACE FUNCTION auth_obtener_rol(p_id integer)
@@ -44,4 +44,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$
+$function$;

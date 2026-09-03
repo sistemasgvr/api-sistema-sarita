@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: age_listar_actividades
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.481Z
+-- Generated: 2026-09-03T16:50:38.941Z
 DROP FUNCTION IF EXISTS age_listar_actividades(p_busqueda character varying, p_limite integer, p_offset integer, p_fecha_desde date, p_fecha_hasta date, p_id_estado integer, p_id_tipo integer, p_id_prioridad integer, p_sin_responsable boolean);
 
 CREATE OR REPLACE FUNCTION age_listar_actividades(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_id_estado integer DEFAULT NULL::integer, p_id_tipo integer DEFAULT NULL::integer, p_id_prioridad integer DEFAULT NULL::integer, p_sin_responsable boolean DEFAULT NULL::boolean)
@@ -59,9 +59,10 @@ BEGIN
             act.id_comprobante,
             vc.serie AS serie_comprobante,
             vc.numero AS numero_comprobante,
-            act.id_guia_remision,
+            act.id_doc_salida,
             gr.serie AS serie_guia_remision,
-            gr.numero AS numero_guia_remision,
+            gr.numero_sunat AS numero_guia_remision,
+            gr.numero AS numero_doc_salida,
             act.id_estado_actividad,
             ea.nombre AS nombre_estado_actividad,
             act.observaciones,
@@ -86,7 +87,7 @@ BEGIN
         LEFT JOIN auth_usuarios au ON au.id_trabajador = tr.id AND au.estado = TRUE
         LEFT JOIN gen_chofer ch ON ch.id_trabajador = tr.id AND ch.estado = 1
         LEFT JOIN ven_comprobante vc ON act.id_comprobante = vc.id
-        LEFT JOIN gre_guia_remision gr ON act.id_guia_remision = gr.id
+        LEFT JOIN doc_salida gr ON act.id_doc_salida = gr.id
         LEFT JOIN auth_usuarios uc ON act.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON act.id_usuario_modificacion = um.id
         WHERE act.estado = 1
@@ -121,4 +122,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;

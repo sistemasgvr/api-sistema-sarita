@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_listar_garantias
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.682Z
+-- Generated: 2026-09-03T16:50:38.959Z
 DROP FUNCTION IF EXISTS fin_listar_garantias(p_buscar character varying, p_id_cliente integer, p_desde date, p_hasta date, p_estado character varying, p_limite integer, p_offset integer);
 
 CREATE OR REPLACE FUNCTION fin_listar_garantias(p_buscar character varying DEFAULT NULL::character varying, p_id_cliente integer DEFAULT NULL::integer, p_desde date DEFAULT NULL::date, p_hasta date DEFAULT NULL::date, p_estado character varying DEFAULT NULL::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0)
@@ -73,4 +73,4 @@ BEGIN
 
     RETURN v_resultado;
 END;
-$function$
+$function$;

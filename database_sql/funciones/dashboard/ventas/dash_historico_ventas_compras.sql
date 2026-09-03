@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: dash_historico_ventas_compras
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.652Z
+-- Generated: 2026-09-03T16:50:38.956Z
 DROP FUNCTION IF EXISTS dash_historico_ventas_compras(p_anio integer);
 
 CREATE OR REPLACE FUNCTION dash_historico_ventas_compras(p_anio integer DEFAULT NULL::integer)
@@ -51,4 +51,4 @@ BEGIN
 
     RETURN v_result;
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: pro_asegurar_stock_producto
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.771Z
+-- Generated: 2026-09-03T16:50:38.964Z
 DROP FUNCTION IF EXISTS pro_asegurar_stock_producto(p_id_producto integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION pro_asegurar_stock_producto(p_id_producto integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -64,4 +64,4 @@ BEGIN
             AND s.id_producto = p_id_producto
       );
 END;
-$function$
+$function$;

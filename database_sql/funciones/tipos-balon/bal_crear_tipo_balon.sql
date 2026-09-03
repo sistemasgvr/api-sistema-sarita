@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_crear_tipo_balon
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.539Z
+-- Generated: 2026-09-03T16:50:38.945Z
 DROP FUNCTION IF EXISTS bal_crear_tipo_balon(p_nombre character varying, p_id_gas integer, p_capacidad numeric, p_capacidad_lb numeric, p_id_unidad_medida integer, p_peso numeric, p_vigencia_ph_anios integer, p_presion_llenado_psi numeric, p_peso_tara_lb numeric, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_crear_tipo_balon(p_nombre character varying, p_id_gas integer DEFAULT NULL::integer, p_capacidad numeric DEFAULT NULL::numeric, p_capacidad_lb numeric DEFAULT NULL::numeric, p_id_unidad_medida integer DEFAULT NULL::integer, p_peso numeric DEFAULT NULL::numeric, p_vigencia_ph_anios integer DEFAULT 5, p_presion_llenado_psi numeric DEFAULT NULL::numeric, p_peso_tara_lb numeric DEFAULT NULL::numeric, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -65,4 +65,4 @@ BEGIN
 
     RETURN bal_obtener_tipo_balon(v_id);
 END;
-$function$
+$function$;

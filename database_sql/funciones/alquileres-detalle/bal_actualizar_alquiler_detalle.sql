@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_actualizar_alquiler_detalle
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.513Z
+-- Generated: 2026-09-03T16:50:38.943Z
 DROP FUNCTION IF EXISTS bal_actualizar_alquiler_detalle(p_id integer, p_id_balon integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_actualizar_alquiler_detalle(p_id integer, p_id_balon integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -165,4 +165,4 @@ BEGIN
 
     RETURN bal_obtener_alquiler_detalle(p_id);
 END;
-$function$
+$function$;

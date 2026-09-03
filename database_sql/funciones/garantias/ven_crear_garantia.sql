@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_crear_garantia
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.802Z
+-- Generated: 2026-09-03T16:50:38.966Z
 DROP FUNCTION IF EXISTS ven_crear_garantia(p_id_cliente integer, p_monto numeric, p_id_comprobante integer, p_id_prestamo integer, p_id_producto integer, p_ubicacion character varying, p_cantidad_venta numeric, p_id_unidad_medida integer, p_fecha_registro date, p_observacion character varying, p_id_usuario_auditoria integer, p_id_alquiler integer, p_id_medio_pago integer);
 
 CREATE OR REPLACE FUNCTION ven_crear_garantia(p_id_cliente integer, p_monto numeric, p_id_comprobante integer DEFAULT NULL::integer, p_id_prestamo integer DEFAULT NULL::integer, p_id_producto integer DEFAULT NULL::integer, p_ubicacion character varying DEFAULT NULL::character varying, p_cantidad_venta numeric DEFAULT NULL::numeric, p_id_unidad_medida integer DEFAULT NULL::integer, p_fecha_registro date DEFAULT NULL::date, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_alquiler integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer)
@@ -174,4 +174,4 @@ BEGIN
 
     RETURN ven_obtener_garantia(v_id);
 END;
-$function$
+$function$;

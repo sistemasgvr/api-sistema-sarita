@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_tara_lb_tipo
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.609Z
+-- Generated: 2026-09-03T16:50:38.950Z
 DROP FUNCTION IF EXISTS bal_tara_lb_tipo(p_id_tipo_balon integer);
 
 CREATE OR REPLACE FUNCTION bal_tara_lb_tipo(p_id_tipo_balon integer)
@@ -32,4 +32,4 @@ BEGIN
 
     RETURN NULL;
 END;
-$function$
+$function$;

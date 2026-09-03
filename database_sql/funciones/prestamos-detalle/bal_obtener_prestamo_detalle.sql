@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_obtener_prestamo_detalle
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.589Z
+-- Generated: 2026-09-03T16:50:38.948Z
 DROP FUNCTION IF EXISTS bal_obtener_prestamo_detalle(p_id integer);
 
 CREATE OR REPLACE FUNCTION bal_obtener_prestamo_detalle(p_id integer)
@@ -34,12 +34,12 @@ BEGIN
             pd.dias_prestamo,
             pd.fecha_vencimiento,
             pd.fecha_devolucion,
-            pd.id_guia_entrega,
+            pd.id_doc_salida_entrega AS id_guia_entrega,
             ge.serie AS serie_guia_entrega_gre,
-            ge.numero AS numero_guia_entrega_gre,
-            pd.id_guia_devolucion,
+            ge.numero_sunat AS numero_guia_entrega_gre,
+            pd.id_doc_salida_devolucion AS id_guia_devolucion,
             gd.serie AS serie_guia_devolucion_gre,
-            gd.numero AS numero_guia_devolucion_gre,
+            gd.numero_sunat AS numero_guia_devolucion_gre,
             pd.serie_guia_entrega,
             pd.numero_guia_entrega,
             pd.serie_guia_devolucion,
@@ -61,8 +61,8 @@ BEGIN
         LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
         LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
         LEFT JOIN gen_lista_opciones ep ON pd.id_estado = ep.id
-        LEFT JOIN gre_guia_remision ge ON pd.id_guia_entrega = ge.id
-        LEFT JOIN gre_guia_remision gd ON pd.id_guia_devolucion = gd.id
+        LEFT JOIN doc_salida ge ON pd.id_doc_salida_entrega = ge.id
+        LEFT JOIN doc_salida gd ON pd.id_doc_salida_devolucion = gd.id
         LEFT JOIN auth_usuarios uc ON pd.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON pd.id_usuario_modificacion = um.id
         WHERE pd.id = p_id AND pd.estado = 1
@@ -70,4 +70,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$
+$function$;

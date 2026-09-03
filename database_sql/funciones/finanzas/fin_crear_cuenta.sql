@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_crear_cuenta
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.673Z
+-- Generated: 2026-09-03T16:50:38.959Z
 DROP FUNCTION IF EXISTS fin_crear_cuenta(p_tipo character varying, p_id_tercero integer, p_tercero_nombre character varying, p_fecha_emision date, p_fecha_vencimiento date, p_monto numeric, p_descripcion character varying, p_observacion character varying, p_id_banco integer, p_tasa_interes numeric, p_numero_comprobante character varying, p_id_usuario integer);
 
 CREATE OR REPLACE FUNCTION fin_crear_cuenta(p_tipo character varying, p_id_tercero integer DEFAULT NULL::integer, p_tercero_nombre character varying DEFAULT NULL::character varying, p_fecha_emision date DEFAULT NULL::date, p_fecha_vencimiento date DEFAULT NULL::date, p_monto numeric DEFAULT NULL::numeric, p_descripcion character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_banco integer DEFAULT NULL::integer, p_tasa_interes numeric DEFAULT NULL::numeric, p_numero_comprobante character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
@@ -125,4 +125,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$
+$function$;

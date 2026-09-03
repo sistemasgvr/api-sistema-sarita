@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: tra_listar_trabajadores
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.797Z
+-- Generated: 2026-09-03T16:50:38.965Z
 DROP FUNCTION IF EXISTS tra_listar_trabajadores(p_estado integer, p_buscar character varying, p_id_area integer, p_id_cargo integer, p_limite integer, p_offset integer, p_solo_sin_usuario boolean);
 
 CREATE OR REPLACE FUNCTION tra_listar_trabajadores(p_estado integer DEFAULT NULL::integer, p_buscar character varying DEFAULT ''::character varying, p_id_area integer DEFAULT NULL::integer, p_id_cargo integer DEFAULT NULL::integer, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_solo_sin_usuario boolean DEFAULT false)
@@ -92,4 +92,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;

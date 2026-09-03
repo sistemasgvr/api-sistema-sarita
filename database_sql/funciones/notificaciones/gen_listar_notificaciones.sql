@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_listar_notificaciones
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.735Z
+-- Generated: 2026-09-03T16:50:38.962Z
 DROP FUNCTION IF EXISTS gen_listar_notificaciones(p_id_usuario integer, p_solo_no_leidas integer, p_buscar character varying, p_limite integer, p_offset integer);
 
 CREATE OR REPLACE FUNCTION gen_listar_notificaciones(p_id_usuario integer, p_solo_no_leidas integer DEFAULT 0, p_buscar character varying DEFAULT ''::character varying, p_limite integer DEFAULT 20, p_offset integer DEFAULT 0)
@@ -69,4 +69,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;

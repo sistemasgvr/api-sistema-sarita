@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: cli_crear_clientes
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.614Z
+-- Generated: 2026-09-03T16:50:38.951Z
 DROP FUNCTION IF EXISTS cli_crear_clientes(p_codigo_interno character varying, p_razon_social character varying, p_id_tipo_cliente integer, p_id_tipo_persona integer, p_nombres character varying, p_apellido_paterno character varying, p_apellido_materno character varying, p_id_tipo_documento integer, p_numero_documento character varying, p_telefono character varying, p_email character varying, p_es_agente_percepcion boolean, p_es_buen_contribuyente boolean, p_es_agente_retenedor boolean, p_afecto_rus boolean, p_situacion_sunat character varying, p_estado_contribuyente_sunat character varying, p_observacion character varying, p_direccion character varying, p_referencia character varying, p_latitud numeric, p_longitud numeric, p_id_departamento integer, p_id_provincia integer, p_id_distrito integer, p_id_pais integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION cli_crear_clientes(p_codigo_interno character varying DEFAULT NULL::character varying, p_razon_social character varying DEFAULT NULL::character varying, p_id_tipo_cliente integer DEFAULT NULL::integer, p_id_tipo_persona integer DEFAULT NULL::integer, p_nombres character varying DEFAULT NULL::character varying, p_apellido_paterno character varying DEFAULT NULL::character varying, p_apellido_materno character varying DEFAULT NULL::character varying, p_id_tipo_documento integer DEFAULT NULL::integer, p_numero_documento character varying DEFAULT NULL::character varying, p_telefono character varying DEFAULT NULL::character varying, p_email character varying DEFAULT NULL::character varying, p_es_agente_percepcion boolean DEFAULT false, p_es_buen_contribuyente boolean DEFAULT false, p_es_agente_retenedor boolean DEFAULT false, p_afecto_rus boolean DEFAULT false, p_situacion_sunat character varying DEFAULT NULL::character varying, p_estado_contribuyente_sunat character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_direccion character varying DEFAULT NULL::character varying, p_referencia character varying DEFAULT NULL::character varying, p_latitud numeric DEFAULT NULL::numeric, p_longitud numeric DEFAULT NULL::numeric, p_id_departamento integer DEFAULT NULL::integer, p_id_provincia integer DEFAULT NULL::integer, p_id_distrito integer DEFAULT NULL::integer, p_id_pais integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -76,4 +76,4 @@ BEGIN
 
     RETURN cli_obtener_por_id_cliente(v_id_cliente);
 END;
-$function$
+$function$;

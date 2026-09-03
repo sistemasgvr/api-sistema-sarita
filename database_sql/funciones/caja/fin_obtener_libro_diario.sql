@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_obtener_libro_diario
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.686Z
+-- Generated: 2026-09-03T16:50:38.959Z
 DROP FUNCTION IF EXISTS fin_obtener_libro_diario(p_fecha_desde date, p_fecha_hasta date, p_id_cliente integer, p_id_sucursal integer);
 
 CREATE OR REPLACE FUNCTION fin_obtener_libro_diario(p_fecha_desde date, p_fecha_hasta date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer)
@@ -218,4 +218,4 @@ BEGIN
         )
     );
 END;
-$function$
+$function$;

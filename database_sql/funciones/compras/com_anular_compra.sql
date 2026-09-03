@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: com_anular_compra
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.633Z
+-- Generated: 2026-09-03T16:50:38.953Z
 DROP FUNCTION IF EXISTS com_anular_compra(p_id_comprobante integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION com_anular_compra(p_id_comprobante integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -152,7 +152,7 @@ BEGIN
 
     FOR v_orden IN
         SELECT id, fecha_llegada_almacen, id_almacen
-        FROM bal_recarga_planta
+        FROM doc_salida
         WHERE id_comprobante_compra = p_id_comprobante
           AND estado = 1
     LOOP
@@ -162,7 +162,7 @@ BEGIN
             p_id_usuario_auditoria
         );
 
-        UPDATE bal_recarga_planta
+        UPDATE doc_salida
         SET
             id_comprobante_compra = NULL,
             serie_factura = NULL,
@@ -204,4 +204,4 @@ BEGIN
 
     RETURN json_build_object('eliminado', TRUE, 'id', p_id_comprobante);
 END;
-$function$
+$function$;

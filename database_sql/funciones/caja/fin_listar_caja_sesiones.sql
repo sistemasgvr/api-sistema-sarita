@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_listar_caja_sesiones
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.681Z
+-- Generated: 2026-09-03T16:50:38.959Z
 DROP FUNCTION IF EXISTS fin_listar_caja_sesiones(p_fecha_desde date, p_fecha_hasta date, p_id_sucursal integer, p_estado_caja character varying, p_limite integer, p_offset integer);
 
 CREATE OR REPLACE FUNCTION fin_listar_caja_sesiones(p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_id_sucursal integer DEFAULT NULL::integer, p_estado_caja character varying DEFAULT NULL::character varying, p_limite integer DEFAULT 20, p_offset integer DEFAULT 0)
@@ -56,4 +56,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;

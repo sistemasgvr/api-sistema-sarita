@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_m3_desde_psi
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.580Z
+-- Generated: 2026-09-03T16:50:38.947Z
 DROP FUNCTION IF EXISTS bal_m3_desde_psi(p_id_tipo_balon integer, p_psi numeric);
 
 CREATE OR REPLACE FUNCTION bal_m3_desde_psi(p_id_tipo_balon integer, p_psi numeric)
@@ -28,4 +28,4 @@ BEGIN
 
     RETURN ROUND(v_cap * LEAST(p_psi / v_psi_lleno, 1), 4);
 END;
-$function$
+$function$;

@@ -48,7 +48,6 @@ import { ProductosModule } from './modules/productos/productos.module';
 import { TiposBalonModule } from './modules/tipos-balon/tipos-balon.module';
 import { BalonesModule } from './modules/balones/balones.module';
 import { MovimientosRecargaModule } from './modules/movimientos-recarga/movimientos-recarga.module';
-import { RecargasPlantaModule } from './modules/recargas-planta/recargas-planta.module';
 import { PrestamosBalonModule } from './modules/prestamos-balon/prestamos-balon.module';
 import { PrestamosDetalleModule } from './modules/prestamos-detalle/prestamos-detalle.module';
 import { RecojosBalonModule } from './modules/recojos-balon/recojos-balon.module';
@@ -60,7 +59,7 @@ import { GarantiasModule } from './modules/garantias/garantias.module';
 import { FacturacionApisperuModule } from './integrations/facturacion-apisperu/facturacion-apisperu.module';
 import { FacturacionElectronicaModule } from './modules/facturacion-electronica/facturacion-electronica.module';
 import { ComprobantesModule } from './modules/comprobantes/comprobantes.module';
-import { GuiasRemisionModule } from './modules/guias-remision/guias-remision.module';
+import { DocumentosSalidaModule } from './modules/documentos-salida/documentos-salida.module';
 import { BajasClienteModule } from './modules/bajas-cliente/bajas-cliente.module';
 import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-bancarias.module';
 import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/documentos-vencimiento.module';
@@ -123,7 +122,6 @@ import { CajaModule } from './modules/caja/caja.module';
     ProductosModule,
     TiposBalonModule,
     MovimientosRecargaModule,
-    RecargasPlantaModule,
     PrestamosBalonModule,
     PrestamosDetalleModule,
     RecojosBalonModule,
@@ -136,7 +134,7 @@ import { CajaModule } from './modules/caja/caja.module';
     FacturacionApisperuModule,
     FacturacionElectronicaModule,
     ComprobantesModule,
-    GuiasRemisionModule,
+    DocumentosSalidaModule,
     BajasClienteModule,
     CuentasBancariasModule,
     DocumentosVencimientoModule,

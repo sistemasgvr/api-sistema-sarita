@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: dash_venta_gases_comparativo
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.661Z
+-- Generated: 2026-09-03T16:50:38.957Z
 DROP FUNCTION IF EXISTS dash_venta_gases_comparativo(p_anio integer, p_mes integer);
 
 CREATE OR REPLACE FUNCTION dash_venta_gases_comparativo(p_anio integer DEFAULT NULL::integer, p_mes integer DEFAULT NULL::integer)
@@ -63,4 +63,4 @@ BEGIN
 
     RETURN v_result;
 END;
-$function$
+$function$;

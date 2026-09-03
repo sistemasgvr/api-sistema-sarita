@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: cli_obtener_por_id_contacto
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.625Z
+-- Generated: 2026-09-03T16:50:38.953Z
 DROP FUNCTION IF EXISTS cli_obtener_por_id_contacto(p_id integer);
 
 CREATE OR REPLACE FUNCTION cli_obtener_por_id_contacto(p_id integer)
@@ -53,4 +53,4 @@ BEGIN
 
     RETURN v_resultado;
 END;
-$function$
+$function$;

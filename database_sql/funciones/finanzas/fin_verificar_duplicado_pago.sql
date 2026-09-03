@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_verificar_duplicado_pago
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.692Z
+-- Generated: 2026-09-03T16:50:38.960Z
 DROP FUNCTION IF EXISTS fin_verificar_duplicado_pago(p_id_cuenta integer, p_fecha_pago date, p_monto numeric, p_dias_ventana integer, p_numero_comprobante character varying);
 
 CREATE OR REPLACE FUNCTION fin_verificar_duplicado_pago(p_id_cuenta integer, p_fecha_pago date, p_monto numeric, p_dias_ventana integer DEFAULT 7, p_numero_comprobante character varying DEFAULT NULL::character varying)
@@ -164,4 +164,4 @@ BEGIN
 
     RETURN json_build_object('duplicado', false);
 END;
-$function$
+$function$;

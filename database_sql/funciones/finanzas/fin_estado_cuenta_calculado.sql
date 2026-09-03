@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_estado_cuenta_calculado
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.679Z
+-- Generated: 2026-09-03T16:50:38.959Z
 DROP FUNCTION IF EXISTS fin_estado_cuenta_calculado(p_saldo numeric, p_monto_abonado numeric, p_fecha_vencimiento date);
 
 CREATE OR REPLACE FUNCTION fin_estado_cuenta_calculado(p_saldo numeric, p_monto_abonado numeric, p_fecha_vencimiento date)
@@ -15,4 +15,4 @@ AS $function$
         WHEN fin_redondear_monto(p_monto_abonado) > 0 THEN 'PARCIAL'
         ELSE 'PENDIENTE'
     END;
-$function$
+$function$;

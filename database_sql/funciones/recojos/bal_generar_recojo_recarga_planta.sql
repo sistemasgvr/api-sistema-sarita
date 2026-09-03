@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_generar_recojo_recarga_planta
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.556Z
+-- Generated: 2026-09-03T16:50:38.946Z
 DROP FUNCTION IF EXISTS bal_generar_recojo_recarga_planta(p_id_recarga_planta integer, p_fecha_programada date, p_id_usuario_responsable integer, p_observacion character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_generar_recojo_recarga_planta(p_id_recarga_planta integer, p_fecha_programada date DEFAULT NULL::date, p_id_usuario_responsable integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -23,8 +23,8 @@ BEGIN
 
     SELECT rp.id_proveedor, est.nombre
     INTO v_proveedor, v_rp_estado
-    FROM bal_recarga_planta rp
-    LEFT JOIN gen_lista_opciones est ON est.id = rp.id_estado
+    FROM doc_salida rp
+    LEFT JOIN gen_lista_opciones est ON est.id = rp.id_estado_ciclo
     WHERE rp.id = p_id_recarga_planta AND rp.estado = 1;
 
     IF v_proveedor IS NULL THEN
@@ -40,7 +40,7 @@ BEGIN
 
     SELECT r.id INTO v_existente
     FROM bal_recojo r
-    WHERE r.id_recarga_planta = p_id_recarga_planta
+    WHERE r.id_doc_salida = p_id_recarga_planta
       AND r.estado = 1
     LIMIT 1;
 
@@ -55,8 +55,8 @@ BEGIN
 
     FOR v_rec IN
         SELECT d.id_balon
-        FROM bal_recarga_planta_detalle d
-        WHERE d.id_recarga_planta = p_id_recarga_planta
+        FROM doc_salida_detalle d
+        WHERE d.id_doc_salida = p_id_recarga_planta
           AND d.estado = 1
     LOOP
         v_id_balon := v_rec.id_balon;
@@ -87,7 +87,7 @@ BEGIN
         v_proveedor,
         NULL,
         NULL,
-        p_id_recarga_planta,
+        p_id_doc_salida,
         v_fecha,
         NULL::TIME,
         p_id_usuario_responsable,
@@ -96,4 +96,4 @@ BEGIN
         p_id_usuario_auditoria
     );
 END;
-$function$
+$function$;

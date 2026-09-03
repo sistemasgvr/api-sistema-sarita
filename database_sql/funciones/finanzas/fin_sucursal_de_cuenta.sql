@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_sucursal_de_cuenta
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.691Z
+-- Generated: 2026-09-03T16:50:38.960Z
 DROP FUNCTION IF EXISTS fin_sucursal_de_cuenta(p_id_cuenta integer);
 
 CREATE OR REPLACE FUNCTION fin_sucursal_de_cuenta(p_id_cuenta integer)
@@ -22,4 +22,4 @@ AS $function$
     LEFT JOIN com_comprobante_compra cc ON cc.id = fc.id_comprobante_compra
     LEFT JOIN com_comprobante_compra cc_padre ON cc_padre.id = fp.id_comprobante_compra
     WHERE fc.id = p_id_cuenta;
-$function$
+$function$;

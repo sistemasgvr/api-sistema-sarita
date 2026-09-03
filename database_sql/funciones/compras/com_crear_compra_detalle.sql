@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: com_crear_compra_detalle
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.635Z
+-- Generated: 2026-09-03T16:50:38.954Z
 DROP FUNCTION IF EXISTS com_crear_compra_detalle(p_id_comprobante integer, p_id_producto integer, p_cantidad numeric, p_precio_unitario numeric, p_id_clasificacion_gasto integer, p_descripcion character varying, p_id_unidad_medida integer, p_id_almacen integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION com_crear_compra_detalle(p_id_comprobante integer, p_id_producto integer, p_cantidad numeric, p_precio_unitario numeric DEFAULT 0, p_id_clasificacion_gasto integer DEFAULT NULL::integer, p_descripcion character varying DEFAULT NULL::character varying, p_id_unidad_medida integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -109,4 +109,4 @@ BEGIN
 
     RETURN com_obtener_compra(p_id_comprobante);
 END;
-$function$
+$function$;

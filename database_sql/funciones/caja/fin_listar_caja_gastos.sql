@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_listar_caja_gastos
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.680Z
+-- Generated: 2026-09-03T16:50:38.959Z
 DROP FUNCTION IF EXISTS fin_listar_caja_gastos(p_buscar character varying, p_limite integer, p_offset integer, p_fecha_desde date, p_fecha_hasta date, p_id_categoria_gasto integer, p_id_sesion integer, p_estado integer);
 
 CREATE OR REPLACE FUNCTION fin_listar_caja_gastos(p_buscar character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_id_categoria_gasto integer DEFAULT NULL::integer, p_id_sesion integer DEFAULT NULL::integer, p_estado integer DEFAULT 1)
@@ -62,4 +62,4 @@ BEGIN
 
     RETURN v_result;
 END;
-$function$
+$function$;

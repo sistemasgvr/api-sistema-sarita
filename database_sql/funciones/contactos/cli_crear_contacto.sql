@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: cli_crear_contacto
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.614Z
+-- Generated: 2026-09-03T16:50:38.951Z
 DROP FUNCTION IF EXISTS cli_crear_contacto(p_id_cliente integer, p_nombre character varying, p_apellido_paterno character varying, p_apellido_materno character varying, p_direccion character varying, p_email character varying, p_telefono1 character varying, p_telefono2 character varying, p_telefono3 character varying, p_es_principal boolean, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION cli_crear_contacto(p_id_cliente integer, p_nombre character varying DEFAULT NULL::character varying, p_apellido_paterno character varying DEFAULT NULL::character varying, p_apellido_materno character varying DEFAULT NULL::character varying, p_direccion character varying DEFAULT NULL::character varying, p_email character varying DEFAULT NULL::character varying, p_telefono1 character varying DEFAULT NULL::character varying, p_telefono2 character varying DEFAULT NULL::character varying, p_telefono3 character varying DEFAULT NULL::character varying, p_es_principal boolean DEFAULT false, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -41,4 +41,4 @@ BEGIN
 
     RETURN cli_obtener_por_id_contacto(v_id);
 END;
-$function$
+$function$;

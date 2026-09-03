@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_obtener_movimiento_recarga
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.587Z
+-- Generated: 2026-09-03T16:50:38.948Z
 DROP FUNCTION IF EXISTS bal_obtener_movimiento_recarga(p_id integer);
 
 CREATE OR REPLACE FUNCTION bal_obtener_movimiento_recarga(p_id integer)
@@ -34,16 +34,16 @@ BEGIN
             COALESCE(mr.capacidad, tb.capacidad) AS capacidad,
             mr.id_unidad_medida,
             um.nombre AS nombre_unidad_medida,
-            mr.id_recarga_planta,
+            mr.id_doc_salida,
             rp.numero AS numero_recarga_planta,
-            rp.id_guia_salida,
-            rp.id_guia_retorno,
+            rp.id,
+            rp.id_doc_salida_origen,
             -- Guías/factura se resuelven desde la orden de planta y sus FKs;
             -- el texto propio del movimiento manda solo si existe (legacy).
             COALESCE(mr.serie_guia_salida, rp.serie_guia_salida, grs.serie) AS serie_guia_salida,
-            COALESCE(mr.numero_guia_salida, rp.numero_guia_salida, grs.numero) AS numero_guia_salida,
+            COALESCE(mr.numero_guia_salida, rp.numero_guia_salida, grs.numero_sunat) AS numero_guia_salida,
             COALESCE(mr.serie_guia_ingreso, rp.serie_guia_ingreso, gri.serie) AS serie_guia_ingreso,
-            COALESCE(mr.numero_guia_ingreso, rp.numero_guia_ingreso, gri.numero) AS numero_guia_ingreso,
+            COALESCE(mr.numero_guia_ingreso, rp.numero_guia_ingreso, gri.numero_sunat) AS numero_guia_ingreso,
             COALESCE(mr.serie_factura, cc.serie, rp.serie_factura) AS serie_factura,
             COALESCE(mr.numero_factura, cc.numero, rp.numero_factura) AS numero_factura,
             mr.id_comprobante,
@@ -67,9 +67,9 @@ BEGIN
         INNER JOIN bal_balon b ON mr.id_balon = b.id
         LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
         LEFT JOIN bal_balon bo ON mr.id_balon_origen = bo.id
-        LEFT JOIN bal_recarga_planta rp ON rp.id = mr.id_recarga_planta AND rp.estado = 1
-        LEFT JOIN gre_guia_remision grs ON grs.id = rp.id_guia_salida AND grs.estado = 1
-        LEFT JOIN gre_guia_remision gri ON gri.id = rp.id_guia_retorno AND gri.estado = 1
+        LEFT JOIN doc_salida rp ON rp.id = mr.id_doc_salida AND rp.estado = 1
+        LEFT JOIN doc_salida grs ON grs.id = rp.id AND grs.estado = 1
+        LEFT JOIN doc_salida gri ON gri.id = rp.id_doc_salida_origen AND gri.estado = 1
         LEFT JOIN com_comprobante_compra cc ON cc.id = mr.id_comprobante_compra AND cc.estado = 1
         LEFT JOIN cli_clientes cli ON mr.id_cliente = cli.id
         LEFT JOIN gen_lista_opciones tr ON mr.id_tipo_recarga = tr.id
@@ -84,4 +84,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: pro_generar_codigo_ubicacion
 -- Overloads: 2
--- Generated: 2026-09-02T21:31:03.783Z
+-- Generated: 2026-09-03T16:50:38.964Z
 DROP FUNCTION IF EXISTS pro_generar_codigo_ubicacion(p_prefijo character varying, p_id_producto integer);
 
 CREATE OR REPLACE FUNCTION pro_generar_codigo_ubicacion(p_prefijo character varying DEFAULT NULL::character varying, p_id_producto integer DEFAULT NULL::integer)
@@ -86,7 +86,7 @@ BEGIN
         'registro', json_build_object('codigo_ubicacion', v_codigo)
     );
 END;
-$function$
+$function$;
 
 DROP FUNCTION IF EXISTS pro_generar_codigo_ubicacion();
 
@@ -111,4 +111,4 @@ BEGIN
         'registro', json_build_object('codigo_ubicacion', v_codigo)
     );
 END;
-$function$
+$function$;

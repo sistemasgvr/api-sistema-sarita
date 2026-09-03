@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: dash_velocidad_salida
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.661Z
+-- Generated: 2026-09-03T16:50:38.957Z
 DROP FUNCTION IF EXISTS dash_velocidad_salida(p_fecha_desde date, p_fecha_hasta date, p_id_almacen integer, p_limite integer);
 
 CREATE OR REPLACE FUNCTION dash_velocidad_salida(p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_id_almacen integer DEFAULT NULL::integer, p_limite integer DEFAULT 20)
@@ -84,4 +84,4 @@ BEGIN
 
     RETURN json_build_object('detalle', v_result);
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_registrar_estado_historial
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.598Z
+-- Generated: 2026-09-03T16:50:38.949Z
 DROP FUNCTION IF EXISTS bal_registrar_estado_historial(p_id_balon integer, p_tipo_evento text, p_id_baja integer, p_id_motivo_baja integer, p_id_estado_anterior integer, p_id_estado_nuevo integer, p_observacion text, p_id_usuario integer, p_fecha_evento timestamp with time zone);
 
 CREATE OR REPLACE FUNCTION bal_registrar_estado_historial(p_id_balon integer, p_tipo_evento text, p_id_baja integer DEFAULT NULL::integer, p_id_motivo_baja integer DEFAULT NULL::integer, p_id_estado_anterior integer DEFAULT NULL::integer, p_id_estado_nuevo integer DEFAULT NULL::integer, p_observacion text DEFAULT NULL::text, p_id_usuario integer DEFAULT NULL::integer, p_fecha_evento timestamp with time zone DEFAULT NULL::timestamp with time zone)
@@ -39,4 +39,4 @@ BEGIN
 
     RETURN v_id;
 END;
-$function$
+$function$;

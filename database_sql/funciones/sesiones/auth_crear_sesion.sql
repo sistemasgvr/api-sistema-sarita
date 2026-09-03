@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: auth_crear_sesion
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.490Z
+-- Generated: 2026-09-03T16:50:38.942Z
 DROP FUNCTION IF EXISTS auth_crear_sesion(p_id_usuario integer, p_token character varying, p_ip character varying, p_user_agent character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION auth_crear_sesion(p_id_usuario integer, p_token character varying, p_ip character varying DEFAULT NULL::character varying, p_user_agent character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -25,4 +25,4 @@ BEGIN
 
     RETURN auth_obtener_sesion(v_id);
 END;
-$function$
+$function$;

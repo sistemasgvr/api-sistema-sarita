@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_cerrar_custodia_comprobante
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.801Z
+-- Generated: 2026-09-03T16:50:38.965Z
 DROP FUNCTION IF EXISTS ven_cerrar_custodia_comprobante(p_id_comprobante integer, p_id_usuario integer);
 
 CREATE OR REPLACE FUNCTION ven_cerrar_custodia_comprobante(p_id_comprobante integer, p_id_usuario integer DEFAULT NULL::integer)
@@ -106,8 +106,8 @@ BEGIN
     -- GRE PENDIENTE que referencia este CPE
     FOR v_guia IN
         SELECT DISTINCT g.id
-        FROM gre_guia_remision g
-        INNER JOIN gre_documentos_referencia r ON r.id_guia_remision = g.id AND r.estado = 1
+        FROM doc_salida g
+        INNER JOIN doc_salida_referencia r ON r.id_doc_salida = g.id AND r.estado = 1
         INNER JOIN ven_comprobante c ON c.id = p_id_comprobante
         LEFT JOIN gen_lista_opciones es ON es.id = g.id_estado_sunat
         WHERE g.estado = 1
@@ -190,4 +190,4 @@ BEGIN
           WHERE gm0.id_garantia = g.id AND gm0.id_comprobante = p_id_comprobante
       );
 END;
-$function$
+$function$;

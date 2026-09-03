@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_registrar_salida_documento
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.600Z
+-- Generated: 2026-09-03T16:50:38.949Z
 DROP FUNCTION IF EXISTS bal_registrar_salida_documento(p_id_balon integer, p_codigo_tipo_mov character varying, p_id_documento_ref integer, p_codigo_tipo_doc_ref character varying, p_id_cliente integer, p_id_almacen_origen integer, p_codigo_estado_destino character varying, p_limpiar_almacen boolean, p_id_almacen_destino integer, p_observacion character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_registrar_salida_documento(p_id_balon integer, p_codigo_tipo_mov character varying, p_id_documento_ref integer DEFAULT NULL::integer, p_codigo_tipo_doc_ref character varying DEFAULT NULL::character varying, p_id_cliente integer DEFAULT NULL::integer, p_id_almacen_origen integer DEFAULT NULL::integer, p_codigo_estado_destino character varying DEFAULT NULL::character varying, p_limpiar_almacen boolean DEFAULT true, p_id_almacen_destino integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -63,4 +63,4 @@ BEGIN
     -- Si la función creó el movimiento, lo retorna; si era idempotente, retorna el existente
     RETURN v_result;
 END;
-$function$
+$function$;

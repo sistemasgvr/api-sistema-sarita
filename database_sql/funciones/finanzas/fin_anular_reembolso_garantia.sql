@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_anular_reembolso_garantia
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.667Z
+-- Generated: 2026-09-03T16:50:38.958Z
 DROP FUNCTION IF EXISTS fin_anular_reembolso_garantia(p_id integer, p_id_usuario integer);
 
 CREATE OR REPLACE FUNCTION fin_anular_reembolso_garantia(p_id integer, p_id_usuario integer DEFAULT NULL::integer)
@@ -42,4 +42,4 @@ BEGIN
 
     RETURN json_build_object('registro', json_build_object('id', p_id, 'estado_texto', 'ACTIVA'));
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: inv_listar_movimientos
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.761Z
+-- Generated: 2026-09-03T16:50:38.963Z
 DROP FUNCTION IF EXISTS inv_listar_movimientos(p_busqueda character varying, p_limite integer, p_offset integer, p_naturaleza character varying, p_id_producto integer, p_id_balon integer, p_id_almacen integer, p_id_tipo_movimiento integer, p_id_tipo_documento_origen integer, p_id_documento_origen integer, p_fecha_desde date, p_fecha_hasta date);
 
 CREATE OR REPLACE FUNCTION inv_listar_movimientos(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_naturaleza character varying DEFAULT NULL::character varying, p_id_producto integer DEFAULT NULL::integer, p_id_balon integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_tipo_movimiento integer DEFAULT NULL::integer, p_id_tipo_documento_origen integer DEFAULT NULL::integer, p_id_documento_origen integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date)
@@ -131,4 +131,4 @@ BEGIN
         'resumen', v_resumen
     );
 END;
-$function$
+$function$;

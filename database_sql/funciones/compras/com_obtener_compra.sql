@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: com_obtener_compra
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.638Z
+-- Generated: 2026-09-03T16:50:38.954Z
 DROP FUNCTION IF EXISTS com_obtener_compra(p_id integer);
 
 CREATE OR REPLACE FUNCTION com_obtener_compra(p_id integer)
@@ -49,7 +49,7 @@ BEGIN
         'estado_pago',               est.nombre,
         'estado',                    c.estado,
         'id_comprobante_referencia', c.id_comprobante_referencia,
-        'id_recarga_planta',         c.id_recarga_planta,
+        'id_recarga_planta',         c.id_doc_salida,
         'numero_recarga_planta',     rp.numero,
         'tiene_movimientos_inventario', com_tiene_movimientos_inventario(c.id),
         -- Activa: se puede editar cabecera y líneas (ingresos/salidas según afecta_stock)
@@ -68,7 +68,7 @@ BEGIN
     LEFT JOIN gen_lista_opciones mon      ON mon.id = c.id_moneda
     LEFT JOIN gen_condicion_pago cp       ON cp.id = c.id_condicion_pago
     LEFT JOIN gen_lista_opciones est      ON est.id = c.id_estado
-    LEFT JOIN bal_recarga_planta rp       ON rp.id = c.id_recarga_planta
+    LEFT JOIN doc_salida rp               ON rp.id = c.id_doc_salida
     WHERE c.id = p_id;
 
     IF v_cabecera IS NULL THEN
@@ -150,4 +150,4 @@ BEGIN
         )
     );
 END;
-$function$
+$function$;

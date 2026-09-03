@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_listar_stock_gas
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.578Z
+-- Generated: 2026-09-03T16:50:38.947Z
 DROP FUNCTION IF EXISTS bal_listar_stock_gas(p_busqueda character varying, p_limite integer, p_offset integer, p_id_almacen integer, p_id_producto_gas integer);
 
 CREATE OR REPLACE FUNCTION bal_listar_stock_gas(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_almacen integer DEFAULT NULL::integer, p_id_producto_gas integer DEFAULT NULL::integer)
@@ -72,4 +72,4 @@ BEGIN
         'resumen', v_resumen
     );
 END;
-$function$
+$function$;

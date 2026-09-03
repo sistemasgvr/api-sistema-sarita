@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_listar_balones
 -- Overloads: 3
--- Generated: 2026-09-02T21:31:03.564Z
+-- Generated: 2026-09-03T16:50:38.946Z
 DROP FUNCTION IF EXISTS bal_listar_balones(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_balon integer, p_id_almacen integer, p_id_estado_balon integer, p_id_cliente_ubicacion integer, p_id_marca_cilindro integer, p_ph_vencida boolean, p_ph_por_vencer_dias integer, p_id_cliente_relacionado integer, p_solo_bajas boolean, p_familia_gas character varying, p_id_propietario integer, p_id_producto_gas integer, p_solo_llenos_fuera boolean, p_id_planta integer, p_tipo_valvula character varying);
 
 CREATE OR REPLACE FUNCTION bal_listar_balones(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_tipo_balon integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_estado_balon integer DEFAULT NULL::integer, p_id_cliente_ubicacion integer DEFAULT NULL::integer, p_id_marca_cilindro integer DEFAULT NULL::integer, p_ph_vencida boolean DEFAULT NULL::boolean, p_ph_por_vencer_dias integer DEFAULT NULL::integer, p_id_cliente_relacionado integer DEFAULT NULL::integer, p_solo_bajas boolean DEFAULT NULL::boolean, p_familia_gas character varying DEFAULT NULL::character varying, p_id_propietario integer DEFAULT NULL::integer, p_id_producto_gas integer DEFAULT NULL::integer, p_solo_llenos_fuera boolean DEFAULT NULL::boolean, p_id_planta integer DEFAULT NULL::integer, p_tipo_valvula character varying DEFAULT NULL::character varying)
@@ -209,7 +209,7 @@ BEGIN
                 OR EXISTS (SELECT 1 FROM bal_balon_ph_historial ph WHERE ph.id_balon = b.id AND ph.estado = 1)
                 OR EXISTS (SELECT 1 FROM bal_balon_estado_historial eh WHERE eh.id_balon = b.id AND eh.estado = 1)
                 OR EXISTS (SELECT 1 FROM ven_comprobante_detalle vd WHERE vd.id_balon = b.id AND vd.estado = 1)
-                OR EXISTS (SELECT 1 FROM gre_guia_remision_detalle gd WHERE gd.id_balon = b.id AND gd.estado = 1)
+                OR EXISTS (SELECT 1 FROM doc_salida_detalle gd WHERE gd.id_balon = b.id AND gd.estado = 1)
             ) AS puede_eliminar,
             b.estado,
             b.fecha_creacion,
@@ -346,7 +346,7 @@ BEGIN
         'resumen', v_resumen
     );
 END;
-$function$
+$function$;
 
 DROP FUNCTION IF EXISTS bal_listar_balones(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_balon integer, p_id_almacen integer, p_id_estado_balon integer, p_id_cliente_ubicacion integer, p_id_marca_cilindro integer, p_ph_vencida boolean, p_ph_por_vencer_dias integer, p_id_cliente_relacionado integer);
 
@@ -519,7 +519,7 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;
 
 DROP FUNCTION IF EXISTS bal_listar_balones(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_balon integer, p_id_almacen integer, p_id_estado_balon integer, p_id_cliente_ubicacion integer, p_id_marca_cilindro integer, p_ph_vencida boolean, p_ph_por_vencer_dias integer);
 
@@ -668,4 +668,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
-$function$
+$function$;

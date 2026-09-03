@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: pro_crear_stock
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.775Z
+-- Generated: 2026-09-03T16:50:38.964Z
 DROP FUNCTION IF EXISTS pro_crear_stock(p_id_almacen integer, p_id_producto integer, p_stock numeric, p_stock_minimo numeric, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION pro_crear_stock(p_id_almacen integer, p_id_producto integer, p_stock numeric DEFAULT 0, p_stock_minimo numeric DEFAULT 0, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -142,4 +142,4 @@ BEGIN
 
     RETURN pro_obtener_stock(v_id);
 END;
-$function$
+$function$;

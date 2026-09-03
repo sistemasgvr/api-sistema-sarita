@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_vincular_recarga_cliente_comprobante
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.610Z
+-- Generated: 2026-09-03T16:50:38.951Z
 DROP FUNCTION IF EXISTS bal_vincular_recarga_cliente_comprobante(p_id_comprobante integer, p_id_cliente integer, p_id_balon integer, p_id_producto integer, p_capacidad numeric, p_id_almacen integer, p_observacion character varying, p_id_balon_origen integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_vincular_recarga_cliente_comprobante(p_id_comprobante integer, p_id_cliente integer, p_id_balon integer, p_id_producto integer, p_capacidad numeric DEFAULT NULL::numeric, p_id_almacen integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_balon_origen integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -251,4 +251,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_recarga->'registro');
 END;
-$function$
+$function$;

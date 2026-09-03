@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_cerrar_ruta_pueblo
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.525Z
+-- Generated: 2026-09-03T16:50:38.944Z
 DROP FUNCTION IF EXISTS bal_cerrar_ruta_pueblo(p_id integer, p_m3_reportado_ventas numeric, p_observacion character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_cerrar_ruta_pueblo(p_id integer, p_m3_reportado_ventas numeric DEFAULT NULL::numeric, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -88,4 +88,4 @@ BEGIN
 
     RETURN bal_obtener_ruta_pueblo(p_id);
 END;
-$function$
+$function$;

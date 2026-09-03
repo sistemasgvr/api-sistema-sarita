@@ -1,0 +1,27 @@
+-- Fase 2 — Documento de salida unificado (doc_salida).
+--
+-- Esta migración es intencionalmente un NO-OP: el esquema real (tablas
+-- doc_salida/doc_salida_detalle/doc_salida_referencia/doc_rango_numeracion,
+-- catálogos TipoOrdenSalida/EstadoCicloSalida, TipoDocumentoRef.ORDEN_SALIDA,
+-- y las funciones doc_crear_salida/doc_crear_salida_detalle/doc_generar_salida/
+-- doc_convertir_a_gre/doc_crear_desde_venta/doc_anular_salida/doc_listar_salidas/
+-- doc_obtener_salida/doc_obtener_siguiente_numero/doc_registrar_respuesta_sunat,
+-- además de la migración de gre_guia_remision/bal_recarga_planta y sus ~13
+-- funciones dependientes hacia doc_salida en com_crear_compra, com_anular_compra,
+-- com_obtener_compra, com_revertir_cilindros_recarga_compra, bal_crear_recojo,
+-- bal_generar_recojo_recarga_planta, bal_obtener_recojo, bal_listar_movimientos_recarga,
+-- bal_obtener_movimiento_recarga, ven_cerrar_custodia_comprobante,
+-- ven_pos_crear_guia_remision, age_crear_actividad, age_listar_actividades,
+-- age_obtener_actividad, bal_eliminar_balon, bal_actualizar_prestamo_detalle,
+-- bal_crear_prestamo_detalle, bal_obtener_prestamo_detalle,
+-- bal_aplicar_salidas_guia_remision, bal_finalizar_recarga_planta y
+-- com_comprobante_compra.id_doc_salida — ya fue aplicado directamente contra
+-- la BD de DEV fuera de esta migración, y se sincronizó a los archivos
+-- versionados del repo con sync-tables-from-dev.js / sync-functions-from-dev.js
+-- (database_sql/tablas/documentos-salida/, database_sql/funciones/documentos-salida/).
+--
+-- Se deja este archivo como marcador histórico para que el árbol de
+-- migraciones/ no tenga un salto silencioso entre 20260903_f4_unidad_canonica_y_balon_origen.sql
+-- y las migraciones que sí trae este commit (20260903_doc_salida_completar_gaps.sql).
+
+SELECT 1;

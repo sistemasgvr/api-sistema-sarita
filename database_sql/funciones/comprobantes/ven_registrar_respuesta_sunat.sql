@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_registrar_respuesta_sunat
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.818Z
+-- Generated: 2026-09-03T16:50:38.966Z
 DROP FUNCTION IF EXISTS ven_registrar_respuesta_sunat(p_id integer, p_id_estado_sunat integer, p_ticket_sunat character varying, p_hash_documento character varying, p_xml_firmado text, p_cdr_respuesta text, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION ven_registrar_respuesta_sunat(p_id integer, p_id_estado_sunat integer DEFAULT NULL::integer, p_ticket_sunat character varying DEFAULT NULL::character varying, p_hash_documento character varying DEFAULT NULL::character varying, p_xml_firmado text DEFAULT NULL::text, p_cdr_respuesta text DEFAULT NULL::text, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -54,4 +54,4 @@ BEGIN
 
     RETURN ven_obtener_comprobante(p_id);
 END;
-$function$
+$function$;

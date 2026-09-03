@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_caja_calcular_totales
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.669Z
+-- Generated: 2026-09-03T16:50:38.958Z
 DROP FUNCTION IF EXISTS fin_caja_calcular_totales(p_fecha date, p_id_sucursal integer);
 
 CREATE OR REPLACE FUNCTION fin_caja_calcular_totales(p_fecha date, p_id_sucursal integer DEFAULT NULL::integer)
@@ -148,4 +148,4 @@ BEGIN
         'garantiasDevolucionMediosCaja', v_garantias_dev_caja
     );
 END;
-$function$
+$function$;

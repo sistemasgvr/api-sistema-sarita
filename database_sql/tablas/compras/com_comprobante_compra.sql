@@ -1,6 +1,6 @@
 -- Synced from DEV via database_sql/scripts/sync-tables-from-dev.js
 -- Table: com_comprobante_compra
--- Generated: 2026-09-02T21:44:58.366Z
+-- Generated: 2026-09-03T16:49:20.155Z
 
 CREATE TABLE com_comprobante_compra (
     id integer NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE com_comprobante_compra (
     fecha_creacion timestamp without time zone DEFAULT now(),
     fecha_modificacion timestamp without time zone DEFAULT now(),
     id_comprobante_referencia integer,
-    id_recarga_planta integer
+    id_doc_salida integer
 );
 
 CREATE SEQUENCE com_comprobante_compra_id_seq
@@ -46,11 +46,13 @@ ALTER TABLE com_comprobante_compra ALTER COLUMN id SET DEFAULT nextval('public.c
 ALTER TABLE com_comprobante_compra
     ADD CONSTRAINT com_comprobante_compra_pkey PRIMARY KEY (id);
 
-CREATE INDEX idx_com_compra_declarar_sunat ON com_comprobante_compra USING btree (declarar_sunat, fecha);
+CREATE INDEX idx_com_compra_declarar_sunat ON public.com_comprobante_compra USING btree (declarar_sunat, fecha);
 
-CREATE INDEX idx_com_compra_fecha ON com_comprobante_compra USING btree (fecha);
+CREATE INDEX idx_com_compra_doc ON public.com_comprobante_compra USING btree (id_doc_salida);
 
-CREATE INDEX idx_com_compra_proveedor ON com_comprobante_compra USING btree (id_proveedor);
+CREATE INDEX idx_com_compra_fecha ON public.com_comprobante_compra USING btree (fecha);
+
+CREATE INDEX idx_com_compra_proveedor ON public.com_comprobante_compra USING btree (id_proveedor);
 
 ALTER TABLE com_comprobante_compra
     ADD CONSTRAINT com_comprobante_compra_id_almacen_fkey FOREIGN KEY (id_almacen) REFERENCES public.gen_almacen(id);
@@ -65,6 +67,9 @@ ALTER TABLE com_comprobante_compra
     ADD CONSTRAINT com_comprobante_compra_id_condicion_pago_fkey FOREIGN KEY (id_condicion_pago) REFERENCES public.gen_condicion_pago(id);
 
 ALTER TABLE com_comprobante_compra
+    ADD CONSTRAINT com_comprobante_compra_id_doc_salida_fkey FOREIGN KEY (id_doc_salida) REFERENCES public.doc_salida(id);
+
+ALTER TABLE com_comprobante_compra
     ADD CONSTRAINT com_comprobante_compra_id_estado_fkey FOREIGN KEY (id_estado) REFERENCES public.gen_lista_opciones(id);
 
 ALTER TABLE com_comprobante_compra
@@ -72,9 +77,6 @@ ALTER TABLE com_comprobante_compra
 
 ALTER TABLE com_comprobante_compra
     ADD CONSTRAINT com_comprobante_compra_id_proveedor_fkey FOREIGN KEY (id_proveedor) REFERENCES public.cli_clientes(id);
-
-ALTER TABLE com_comprobante_compra
-    ADD CONSTRAINT com_comprobante_compra_id_recarga_planta_fkey FOREIGN KEY (id_recarga_planta) REFERENCES public.bal_recarga_planta(id);
 
 ALTER TABLE com_comprobante_compra
     ADD CONSTRAINT com_comprobante_compra_id_sucursal_fkey FOREIGN KEY (id_sucursal) REFERENCES public.gen_sucursal(id);

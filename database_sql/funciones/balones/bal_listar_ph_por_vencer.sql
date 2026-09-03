@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_listar_ph_por_vencer
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.569Z
+-- Generated: 2026-09-03T16:50:38.947Z
 DROP FUNCTION IF EXISTS bal_listar_ph_por_vencer(p_dias integer);
 
 CREATE OR REPLACE FUNCTION bal_listar_ph_por_vencer(p_dias integer DEFAULT 60)
@@ -37,4 +37,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_registros);
 END;
-$function$
+$function$;

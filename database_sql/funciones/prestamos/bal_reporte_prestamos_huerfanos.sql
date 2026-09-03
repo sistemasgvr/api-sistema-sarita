@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_reporte_prestamos_huerfanos
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.605Z
+-- Generated: 2026-09-03T16:50:38.950Z
 DROP FUNCTION IF EXISTS bal_reporte_prestamos_huerfanos();
 
 CREATE OR REPLACE FUNCTION bal_reporte_prestamos_huerfanos()
@@ -56,4 +56,4 @@ BEGIN
         'registros', v_registros
     );
 END;
-$function$
+$function$;

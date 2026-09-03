@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: cli_listar_clientes_mapa
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.621Z
+-- Generated: 2026-09-03T16:50:38.952Z
 DROP FUNCTION IF EXISTS cli_listar_clientes_mapa(p_solo_activos integer, p_buscar character varying, p_filtro_balones character varying, p_limite integer, p_offset integer);
 
 CREATE OR REPLACE FUNCTION cli_listar_clientes_mapa(p_solo_activos integer DEFAULT 1, p_buscar character varying DEFAULT NULL::character varying, p_filtro_balones character varying DEFAULT NULL::character varying, p_limite integer DEFAULT 500, p_offset integer DEFAULT 0)
@@ -284,4 +284,4 @@ BEGIN
 
     RETURN v_resultado;
 END;
-$function$
+$function$;

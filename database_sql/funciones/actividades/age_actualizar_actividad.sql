@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: age_actualizar_actividad
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.475Z
+-- Generated: 2026-09-03T16:50:38.941Z
 DROP FUNCTION IF EXISTS age_actualizar_actividad(p_id integer, p_titulo character varying, p_descripcion text, p_fecha_programada date, p_hora_inicio_estimada time without time zone, p_hora_fin_estimada time without time zone, p_fecha_hora_cierre timestamp without time zone, p_id_tipo_actividad integer, p_id_prioridad integer, p_id_cliente integer, p_id_trabajador_responsable integer, p_id_estado_actividad integer, p_observaciones character varying, p_id_usuario_auditoria integer, p_id_comprobante integer, p_id_guia_remision integer, p_items json);
 
 CREATE OR REPLACE FUNCTION age_actualizar_actividad(p_id integer, p_titulo character varying, p_descripcion text, p_fecha_programada date, p_hora_inicio_estimada time without time zone, p_hora_fin_estimada time without time zone, p_fecha_hora_cierre timestamp without time zone, p_id_tipo_actividad integer, p_id_prioridad integer, p_id_cliente integer DEFAULT NULL::integer, p_id_trabajador_responsable integer DEFAULT NULL::integer, p_id_estado_actividad integer DEFAULT NULL::integer, p_observaciones character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_comprobante integer DEFAULT NULL::integer, p_id_guia_remision integer DEFAULT NULL::integer, p_items json DEFAULT NULL::json)
@@ -156,4 +156,4 @@ BEGIN
 
     RETURN age_obtener_actividad(p_id);
 END;
-$function$
+$function$;

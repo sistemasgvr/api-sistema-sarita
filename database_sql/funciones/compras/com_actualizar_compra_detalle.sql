@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: com_actualizar_compra_detalle
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.632Z
+-- Generated: 2026-09-03T16:50:38.953Z
 DROP FUNCTION IF EXISTS com_actualizar_compra_detalle(p_id_detalle integer, p_cantidad numeric, p_precio_unitario numeric, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION com_actualizar_compra_detalle(p_id_detalle integer, p_cantidad numeric DEFAULT NULL::numeric, p_precio_unitario numeric DEFAULT NULL::numeric, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -104,4 +104,4 @@ BEGIN
 
     RETURN com_obtener_compra(v_detalle.id_comprobante);
 END;
-$function$
+$function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: inv_eliminar_movimiento
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.761Z
+-- Generated: 2026-09-03T16:50:38.963Z
 DROP FUNCTION IF EXISTS inv_eliminar_movimiento(p_id integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION inv_eliminar_movimiento(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -127,4 +127,4 @@ BEGIN
 
     RETURN json_build_object('eliminado', TRUE, 'id', p_id);
 END;
-$function$
+$function$;

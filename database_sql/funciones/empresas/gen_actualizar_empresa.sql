@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_actualizar_empresa
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.697Z
+-- Generated: 2026-09-03T16:50:38.961Z
 DROP FUNCTION IF EXISTS gen_actualizar_empresa(p_id integer, p_ruc character varying, p_razon_social character varying, p_nombre_comercial character varying, p_direccion character varying, p_telefono character varying, p_email character varying, p_tolerancia_m3_ruta_pueblo numeric, p_psi_minimo_util numeric, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION gen_actualizar_empresa(p_id integer, p_ruc character varying DEFAULT NULL::character varying, p_razon_social character varying DEFAULT NULL::character varying, p_nombre_comercial character varying DEFAULT NULL::character varying, p_direccion character varying DEFAULT NULL::character varying, p_telefono character varying DEFAULT NULL::character varying, p_email character varying DEFAULT NULL::character varying, p_tolerancia_m3_ruta_pueblo numeric DEFAULT NULL::numeric, p_psi_minimo_util numeric DEFAULT NULL::numeric, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -39,4 +39,4 @@ BEGIN
 
     RETURN gen_obtener_empresa(p_id);
 END;
-$function$
+$function$;

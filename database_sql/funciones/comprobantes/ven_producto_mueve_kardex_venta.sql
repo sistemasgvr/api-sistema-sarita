@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_producto_mueve_kardex_venta
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.816Z
+-- Generated: 2026-09-03T16:50:38.966Z
 DROP FUNCTION IF EXISTS ven_producto_mueve_kardex_venta(p_id_producto integer, p_descripcion character varying);
 
 CREATE OR REPLACE FUNCTION ven_producto_mueve_kardex_venta(p_id_producto integer, p_descripcion character varying DEFAULT NULL::character varying)
@@ -36,4 +36,4 @@ BEGIN
 
     RETURN TRUE;
 END;
-$function$
+$function$;

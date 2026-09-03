@@ -1,18 +1,13 @@
--- Capacidad nominal del tipo de un balón, expresada en la unidad de medida del
--- producto-gas que contiene (decisión 3 del plan).
---
--- Motivo: bal_tipo_balon puede estar catalogado en MT3 mientras su gas se vende en KG
--- (hoy: los 4 tipos de Acetileno y los 4 de Dióxido de Carbono). Antes esa cantidad
--- llegaba tal cual a pro_stock y mezclaba kilos con metros cúbicos en el mismo saldo.
---
--- Devuelve NULL si el balón no existe o no tiene capacidad de tipo; el llamador
--- decide el fallback.
-DROP FUNCTION IF EXISTS bal_capacidad_balon_en_unidad_gas(integer);
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: bal_capacidad_balon_en_unidad_gas
+-- Overloads: 1
+-- Generated: 2026-09-03T16:50:38.944Z
+DROP FUNCTION IF EXISTS bal_capacidad_balon_en_unidad_gas(p_id_balon integer);
 
-CREATE OR REPLACE FUNCTION bal_capacidad_balon_en_unidad_gas(p_id_balon INTEGER)
-RETURNS NUMERIC
-LANGUAGE plpgsql
-STABLE
+CREATE OR REPLACE FUNCTION bal_capacidad_balon_en_unidad_gas(p_id_balon integer)
+ RETURNS numeric
+ LANGUAGE plpgsql
+ STABLE
 AS $function$
 DECLARE
     v_capacidad NUMERIC;

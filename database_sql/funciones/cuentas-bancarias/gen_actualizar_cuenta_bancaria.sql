@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: gen_actualizar_cuenta_bancaria
 -- Overloads: 1
--- Generated: 2026-09-02T21:31:03.696Z
+-- Generated: 2026-09-03T16:50:38.961Z
 DROP FUNCTION IF EXISTS gen_actualizar_cuenta_bancaria(p_id integer, p_id_cliente integer, p_id_banco integer, p_id_tipo_cuenta integer, p_titular character varying, p_numero_cuenta character varying, p_numero_cuenta_interbancaria character varying, p_telefono_billetera character varying, p_es_principal boolean, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION gen_actualizar_cuenta_bancaria(p_id integer, p_id_cliente integer DEFAULT NULL::integer, p_id_banco integer DEFAULT NULL::integer, p_id_tipo_cuenta integer DEFAULT NULL::integer, p_titular character varying DEFAULT NULL::character varying, p_numero_cuenta character varying DEFAULT NULL::character varying, p_numero_cuenta_interbancaria character varying DEFAULT NULL::character varying, p_telefono_billetera character varying DEFAULT NULL::character varying, p_es_principal boolean DEFAULT NULL::boolean, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -45,4 +45,4 @@ BEGIN
 
     RETURN gen_obtener_cuenta_bancaria(p_id);
 END;
-$function$
+$function$;
