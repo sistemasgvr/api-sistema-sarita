@@ -9,6 +9,7 @@ import {
   CreatePrestamosBalonDto,
   FiltroPrestamosAntiguedadDto,
   FiltroPrestamosBalonDto,
+  RenovarPrestamosBalonDto,
   UpdatePrestamosBalonDto,
 } from '../dto/prestamos-balon.dto';
 
@@ -99,6 +100,14 @@ export class PrestamosBalonModel {
     return this.db.callFunctionJson<AuthDeleteResult>('bal_eliminar_prestamo', [
       id,
       idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  renovar(id: number, dto: RenovarPrestamosBalonDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_renovar_prestamo', [
+      id,
+      dto.idBalonNuevo ?? null,
+      dto.idUsuarioAuditoria ?? null,
     ]);
   }
 }

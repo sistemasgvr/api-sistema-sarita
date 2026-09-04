@@ -1,3 +1,17 @@
+-- ⚠️ NO EJECUTAR sin revisión — dejar aplicado a mano con apply-migration.js cuando el usuario lo confirme.
+--
+-- Bug: fin_caja_calcular_totales excluía toda garantía cobrada junto a una boleta,
+-- factura o nota de venta ("que no viaja ya en el total del CPE"), asumiendo que ese
+-- monto ya estaba sumado dentro de c.total_importe del comprobante. Verificado que es
+-- falso: PosVentaPanel.vue y PosAlquilerPanel.vue calculan 'totales' sumando solo las
+-- líneas de producto/servicio — la garantía viaja aparte, como efecto de
+-- ven_aplicar_efectos_pos -> ven_crear_garantia, y jamás entra a total_importe. El
+-- resultado era que casi ninguna garantía cobrada desde el POS (el caso normal: casi
+-- toda garantía queda ligada a la venta que la originó) aparecía en el resumen de caja.
+--
+-- Fix: se quita esa condición de exclusión; se cuenta cualquier ven_garantia_movimiento
+-- tipo COBRO del día, esté o no ligado a un comprobante. Sin cambios de firma.
+
 -- Function: fin_caja_calcular_totales
 -- Fase 3. Dos cambios de fondo:
 --
@@ -49,19 +63,7 @@ BEGIN
     WHERE UPPER(o.nombre) = 'EFECTIVO'
     LIMIT 1;
 
-    -- Ventas, medidas por línea de cobro. Una Nota de Crédito referida a una venta
-    -- anterior RESTA, en vez de excluirse: su propia c.fecha es el día en que se
-    -- emite (hoy), no el día de la venta original, así que una devolución de una
-    -- venta de hace días reduce la caja de HOY, no reabre ni altera la caja (ya
-    -- cerrada) de aquel día. Nota de débito suma, igual que una venta normal.
-    -- Antes ambas quedaban excluidas del todo, así que una NC no reducía la caja
-    -- en ningún día — la venta original se quedaba contada para siempre.
-    --
-    -- Un comprobante dado de baja ante SUNAT (comunicación de baja, ven_estado_sunat
-    -- = 'BAJA') también se excluye de su propio día: es la otra forma real de anular
-    -- una factura/nota ya aceptada (no genera NC), y no existía ningún campo que lo
-    -- reflejara aquí — c.id_estado nunca se setea a ANULADO en ese flujo, solo
-    -- c.id_estado_sunat pasa a BAJA.
+    -- Ventas, medidas por línea de cobro.
     SELECT
         COALESCE(SUM(CASE WHEN NOT x.es_credito THEN x.monto ELSE 0 END), 0),
         COALESCE(SUM(CASE WHEN x.es_credito THEN x.monto ELSE 0 END), 0),
@@ -71,20 +73,19 @@ BEGIN
     INTO v_ventas_contado, v_ventas_credito, v_ventas_caja, v_ventas_efectivo, v_ventas_otros
     FROM (
         SELECT
-            pg.monto * CASE WHEN UPPER(COALESCE(tip.nombre, '')) = 'NOTA_CREDITO' THEN -1 ELSE 1 END AS monto,
+            pg.monto,
             fin_medio_pago_flag(COALESCE(pg.id_medio_pago, v_efectivo_id), 'ES_CREDITO')  AS es_credito,
             fin_medio_pago_flag(COALESCE(pg.id_medio_pago, v_efectivo_id), 'AFECTA_CAJA') AS afecta_caja,
             fin_medio_pago_flag(COALESCE(pg.id_medio_pago, v_efectivo_id), 'ES_EFECTIVO') AS es_efectivo
         FROM ven_comprobante c
         LEFT JOIN gen_lista_opciones est ON est.id = c.id_estado
-        LEFT JOIN gen_lista_opciones es ON es.id = c.id_estado_sunat
         LEFT JOIN gen_lista_opciones tip ON tip.id = c.id_tipo_comprobante
         CROSS JOIN LATERAL ven_pagos_de_comprobante(c.id) pg
         WHERE c.estado = 1
           AND c.fecha = p_fecha
           AND (p_id_sucursal IS NULL OR c.id_sucursal = p_id_sucursal OR c.id_sucursal IS NULL)
           AND COALESCE(UPPER(est.nombre), '') <> 'ANULADO'
-          AND COALESCE(UPPER(es.nombre), '') <> 'BAJA'
+          AND COALESCE(UPPER(tip.nombre), '') NOT IN ('NOTA_CREDITO', 'NOTA_DEBITO')
     ) x;
 
     -- Cobranzas de cuentas por cobrar.

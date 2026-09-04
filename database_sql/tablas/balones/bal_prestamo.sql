@@ -21,7 +21,8 @@ CREATE TABLE bal_prestamo (
     id_usuario_creacion integer,
     id_usuario_modificacion integer,
     fecha_creacion timestamp without time zone DEFAULT now(),
-    fecha_modificacion timestamp without time zone DEFAULT now()
+    fecha_modificacion timestamp without time zone DEFAULT now(),
+    id_prestamo_origen integer
 );
 
 CREATE SEQUENCE bal_prestamo_id_seq
@@ -62,6 +63,9 @@ ALTER TABLE bal_prestamo
 
 ALTER TABLE bal_prestamo
     ADD CONSTRAINT bal_prestamo_id_estado_fkey FOREIGN KEY (id_estado) REFERENCES public.gen_lista_opciones(id);
+
+ALTER TABLE bal_prestamo
+    ADD CONSTRAINT bal_prestamo_id_prestamo_origen_fkey FOREIGN KEY (id_prestamo_origen) REFERENCES public.bal_prestamo(id);
 
 ALTER TABLE bal_prestamo
     ADD CONSTRAINT bal_prestamo_id_proveedor_fkey FOREIGN KEY (id_proveedor) REFERENCES public.cli_clientes(id);

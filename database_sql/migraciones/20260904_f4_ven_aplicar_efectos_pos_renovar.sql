@@ -1,3 +1,21 @@
+-- ⚠️ NO EJECUTAR sin revisión — dejar aplicado a mano con apply-migration.js cuando el usuario lo confirme.
+-- Aplicar DESPUÉS de 20260904_f4_bal_renovar_prestamo_venta_y_garantia.sql.
+--
+-- Fase 4 — el bloque 'prestamos' de ven_aplicar_efectos_pos ahora acepta
+-- idPrestamoRenovar (+ mantenerGarantiaPrestamo) por ítem: en vez de crear un
+-- préstamo suelto, cierra el indicado (canje o extensión) y abre uno nuevo
+-- encadenado, ligado a la venta que se está creando. El resto del bloque (auto-
+-- recojo, garantía monetaria, garantía de balón) sigue igual — ya funciona con
+-- v_id_prestamo/v_id_prestamo_detalle sin importar cuál rama los generó.
+--
+-- CRÍTICO — corrige además un gap real de Fase 4 que dejaba 'préstamo con garantía
+-- de balón' completamente inoperante: EfectoPosPrestamoDto (NestJS) no declaraba el
+-- campo garantiaBalon, así que class-transformer lo descartaba en silencio antes de
+-- que este archivo SQL llegara a verlo — confirmado al revisar el DTO. Se agregó
+-- EfectoPosGarantiaBalonDto + el campo en el DTO (api-sistema-sarita/src/modules/
+-- comprobantes/dto/comprobantes.dto.ts), sin cambios de esquema — ya está en el
+-- código fuente, no requiere aplicar nada aparte.
+
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_aplicar_efectos_pos
 -- Overloads: 1

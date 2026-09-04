@@ -2,6 +2,13 @@
 -- Function: bal_listar_prestamo_detalles
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.947Z
+--
+-- Fix (encontrado al trabajar en Fase 4, sin relación con lo que pedía esa
+-- fase): el SELECT referenciaba pd.id_guia_entrega/pd.id_guia_devolucion, que
+-- ya no existen (Fase 2 las renombró a id_doc_salida_entrega/
+-- id_doc_salida_devolucion). Toda llamada a esta función fallaba con "column
+-- pd.id_guia_entrega does not exist" — confirmado roto también en la BD viva,
+-- no solo en este archivo. De paso se agrega pd.rol (Fase 4, apunte 1.c.viii).
 DROP FUNCTION IF EXISTS bal_listar_prestamo_detalles(p_busqueda character varying, p_limite integer, p_offset integer, p_id_prestamo integer, p_id_balon integer, p_id_estado integer);
 
 CREATE OR REPLACE FUNCTION bal_listar_prestamo_detalles(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_prestamo integer DEFAULT NULL::integer, p_id_balon integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer)
@@ -54,14 +61,15 @@ BEGIN
             pd.fecha_prestamo,
             pd.fecha_vencimiento,
             pd.fecha_devolucion,
-            pd.id_guia_entrega,
+            pd.id_doc_salida_entrega AS id_guia_entrega,
             pd.serie_guia_entrega,
             pd.numero_guia_entrega,
-            pd.id_guia_devolucion,
+            pd.id_doc_salida_devolucion AS id_guia_devolucion,
             pd.serie_guia_devolucion,
             pd.numero_guia_devolucion,
             pd.id_estado,
             ep.nombre AS nombre_estado,
+            pd.rol,
             pd.estado,
             pd.fecha_creacion
         FROM bal_prestamo_detalle pd

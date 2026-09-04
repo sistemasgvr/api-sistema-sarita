@@ -9,6 +9,7 @@ import {
   CreatePrestamosBalonDto,
   FiltroPrestamosAntiguedadDto,
   FiltroPrestamosBalonDto,
+  RenovarPrestamosBalonDto,
   UpdatePrestamosBalonDto,
 } from '../dto/prestamos-balon.dto';
 import { PrestamosBalonModel } from '../models/prestamos-balon.model';
@@ -53,5 +54,10 @@ export class PrestamosBalonLogic {
   async eliminar(id: number, idUsuarioAuditoria?: number) {
     const result = await this.model.eliminar(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Préstamo ${id} no encontrado`);
+  }
+
+  async renovar(id: number, dto: RenovarPrestamosBalonDto) {
+    const result = await this.model.renovar(id, dto);
+    return mapSingleResult(result, `Préstamo ${id} no encontrado`);
   }
 }

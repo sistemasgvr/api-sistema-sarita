@@ -11,6 +11,7 @@ CREATE TABLE fin_caja_sesion (
     monto_efectivo_contado numeric(12,4),
     monto_esperado numeric(12,4),
     diferencia numeric(12,4),
+    totales_cierre json,
     observacion_apertura character varying(500),
     observacion_cierre character varying(500),
     fecha_apertura timestamp without time zone DEFAULT now() NOT NULL,

@@ -50,6 +50,7 @@ function mapDetallesToJson(detalles: ComprobanteDetalleDto[]) {
       id_balon: d.idBalon ?? null,
       capacidad_cilindro: d.capacidadCilindro ?? null,
       id_estado_cilindro: d.idEstadoCilindro ?? null,
+      no_mueve_kardex: d.noMueveKardex ?? false,
     })),
   );
 }

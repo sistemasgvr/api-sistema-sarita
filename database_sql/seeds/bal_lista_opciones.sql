@@ -55,7 +55,8 @@ FROM (
         ('ENTRADA_PLANTA_EXTERNA', 'Retorno de planta'),
         ('RECARGA_CLIENTE', 'Recarga mostrador'),
         ('TRASLADO_LIMA', 'Traslado Lima'),
-        ('RETORNO_LIMA', 'Retorno Lima')
+        ('RETORNO_LIMA', 'Retorno Lima'),
+        ('ENTRADA_GARANTIA', 'Entrada garantía de cliente')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'TipoMovBalon'
@@ -179,7 +180,8 @@ FROM (
         ('EMPRESA', 'Empresa'),
         ('CLIENTE', 'Cliente'),
         ('PROPIA', 'Propia'),
-        ('PLANTA', 'Planta')
+        ('PLANTA', 'Planta'),
+        ('GARANTIA_CLIENTE', 'Garantía de cliente (préstamo de balón)')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'PropietarioBalon'

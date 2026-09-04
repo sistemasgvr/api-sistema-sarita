@@ -1,3 +1,12 @@
+-- ⚠️ NO EJECUTAR sin revisión — dejar aplicado a mano con apply-migration.js cuando el usuario lo confirme.
+-- Aplicar junto con 20260904_fin_caja_sesion_totales_cierre.sql (columna nueva) y
+-- 20260904_fin_obtener_caja_sesion_totales_congeladas.sql (lectura congelada).
+--
+-- Parte A: al cerrar la caja, guarda el JSON completo de fin_caja_calcular_totales()
+-- (ya calculado en v_totales para el arqueo) en la nueva columna totales_cierre, para
+-- que la sesión cerrada quede con una foto congelada y no dependa de un recálculo en
+-- vivo cada vez que se reabre. Sin cambio de firma.
+
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_cerrar_caja_sesion
 -- Overloads: 1

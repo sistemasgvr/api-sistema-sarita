@@ -1,3 +1,23 @@
+-- ⚠️ NO EJECUTAR sin revisión — dejar aplicado a mano con apply-migration.js cuando el usuario lo confirme.
+-- Aplicar DESPUÉS de:
+--   20260904_f4_prestamo_garantia_balon_esquema.sql (columna bal_prestamo_detalle.rol,
+--     catálogos PropietarioBalon.GARANTIA_CLIENTE y TipoMovBalon.ENTRADA_GARANTIA)
+--   20260904_f4_prestamo_detalle_rol_y_fix.sql (bal_crear_prestamo_detalle acepta p_rol)
+--
+-- Fase 4 (apunte 1.c.viii) — préstamo con garantía de balón. Extiende el bloque
+-- 'prestamos' de ven_aplicar_efectos_pos con un sub-objeto opcional garantiaBalon
+-- por ítem: { codigoBalon (requerido), numeroSerie?, idTipoBalon?, idProductoGas?,
+-- fechaUltimaPruebaHidrostatica?, vigenciaPruebaHidrostaticaAnios? (default 5),
+-- observacion? }. Cuando viene, además de lo que el bloque ya hacía (préstamo +
+-- detalle ENTREGADO + garantía monetaria opcional):
+--   1. Registra el cilindro del cliente vía bal_crear_balon (propietario
+--      GARANTIA_CLIENTE, catálogo nuevo) — si su próxima prueba hidrostática ya
+--      venció, lo anota en observacion.
+--   2. Registra la entrada física a custodia de Sarita vía inv_registrar_movimiento
+--      (BALON / ENTRADA_GARANTIA, catálogo nuevo).
+--   3. Enlaza ese balón al mismo préstamo con bal_crear_prestamo_detalle(..., p_rol
+--      => 'GARANTIA') — junto al detalle ENTREGADO que el bloque ya creaba.
+
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_aplicar_efectos_pos
 -- Overloads: 1
@@ -70,73 +90,44 @@ BEGIN
     v_arr := CASE WHEN json_typeof(p_efectos->'prestamos') = 'array' THEN p_efectos->'prestamos' ELSE '[]'::JSON END;
     FOR v_item IN SELECT value FROM json_array_elements(v_arr)
     LOOP
-        IF NULLIF(v_item->>'idPrestamoRenovar', '') IS NOT NULL THEN
-            -- Fase 4 (apunte 1.c.ix): renovación — cierra el préstamo indicado
-            -- (canjeando el cilindro si hay uno disponible, o extendiéndolo con
-            -- el mismo) y abre uno nuevo encadenado, ligado a ESTA venta. Por
-            -- defecto reutiliza la garantía (dinero y/o cilindro) del préstamo
-            -- anterior; si mantenerGarantiaPrestamo es false, el bloque de
-            -- garantia/garantiaBalon más abajo registra una nueva.
-            v_result := bal_renovar_prestamo(
-                p_id_prestamo                => (v_item->>'idPrestamoRenovar')::INTEGER,
-                p_id_balon_nuevo             => NULLIF(v_item->>'idBalon', '')::INTEGER,
-                p_id_usuario                 => p_id_usuario,
-                p_id_comprobante_venta_nuevo => p_id_comprobante,
-                p_mantener_garantia          => COALESCE((v_item->>'mantenerGarantiaPrestamo')::BOOLEAN, TRUE)
-            );
-            PERFORM ven_raise_si_error(v_result);
-            v_id_prestamo := (v_result->'registro'->>'id')::INTEGER;
-            IF v_id_prestamo IS NULL THEN
-                RAISE EXCEPTION 'No se pudo renovar el préstamo';
-            END IF;
-
-            SELECT pd.id INTO v_id_prestamo_detalle
-            FROM bal_prestamo_detalle pd
-            WHERE pd.id_prestamo = v_id_prestamo
-              AND pd.rol = 'ENTREGADO'
-              AND pd.estado = 1
-            ORDER BY pd.id DESC
-            LIMIT 1;
-        ELSE
-            v_result := bal_crear_prestamo(
-                NULLIF(v_item->>'idTipoPrestamo', '')::INTEGER,
-                NULL,
-                v_id_cliente,
-                NULL,
-                NULLIF(v_item->>'idAlmacen', '')::INTEGER,
-                NULLIF(v_item->>'fechaSalida', '')::DATE,
-                NULLIF(v_item->>'fechaRetornoPactada', '')::DATE,
-                NULL,
-                NULLIF(TRIM(COALESCE(v_item->>'titulo', '')), ''),
-                NULLIF(TRIM(COALESCE(v_item->>'observacion', '')), ''),
-                NULLIF(v_item->>'idEstado', '')::INTEGER,
-                p_id_comprobante,
-                NULL,
-                p_id_usuario
-            );
-            PERFORM ven_raise_si_error(v_result);
-            v_id_prestamo := (v_result->'registro'->>'id')::INTEGER;
-            IF v_id_prestamo IS NULL THEN
-                RAISE EXCEPTION 'No se pudo crear el préstamo POS';
-            END IF;
-
-            v_result := bal_crear_prestamo_detalle(
-                v_id_prestamo,
-                NULLIF(v_item->>'idBalon', '')::INTEGER,
-                NULLIF(v_item->>'idProducto', '')::INTEGER,
-                NULL,
-                NULLIF(COALESCE(v_item->>'fechaEntregado', v_item->>'fechaSalida'), '')::DATE,
-                NULLIF(COALESCE(v_item->>'fechaPrestamo', v_item->>'fechaSalida'), '')::DATE,
-                30,
-                NULLIF(COALESCE(v_item->>'fechaVencimiento', v_item->>'fechaRetornoPactada'), '')::DATE,
-                NULL, NULL, NULL, NULL, NULL,
-                NULLIF(v_item->>'idEstadoDetalle', '')::INTEGER,
-                NULLIF(TRIM(COALESCE(v_item->>'observacionDetalle', '')), ''),
-                p_id_usuario
-            );
-            PERFORM ven_raise_si_error(v_result);
-            v_id_prestamo_detalle := (v_result->'registro'->>'id')::INTEGER;
+        v_result := bal_crear_prestamo(
+            NULLIF(v_item->>'idTipoPrestamo', '')::INTEGER,
+            NULL,
+            v_id_cliente,
+            NULL,
+            NULLIF(v_item->>'idAlmacen', '')::INTEGER,
+            NULLIF(v_item->>'fechaSalida', '')::DATE,
+            NULLIF(v_item->>'fechaRetornoPactada', '')::DATE,
+            NULL,
+            NULLIF(TRIM(COALESCE(v_item->>'titulo', '')), ''),
+            NULLIF(TRIM(COALESCE(v_item->>'observacion', '')), ''),
+            NULLIF(v_item->>'idEstado', '')::INTEGER,
+            p_id_comprobante,
+            NULL,
+            p_id_usuario
+        );
+        PERFORM ven_raise_si_error(v_result);
+        v_id_prestamo := (v_result->'registro'->>'id')::INTEGER;
+        IF v_id_prestamo IS NULL THEN
+            RAISE EXCEPTION 'No se pudo crear el préstamo POS';
         END IF;
+
+        v_result := bal_crear_prestamo_detalle(
+            v_id_prestamo,
+            NULLIF(v_item->>'idBalon', '')::INTEGER,
+            NULLIF(v_item->>'idProducto', '')::INTEGER,
+            NULL,
+            NULLIF(COALESCE(v_item->>'fechaEntregado', v_item->>'fechaSalida'), '')::DATE,
+            NULLIF(COALESCE(v_item->>'fechaPrestamo', v_item->>'fechaSalida'), '')::DATE,
+            30,
+            NULLIF(COALESCE(v_item->>'fechaVencimiento', v_item->>'fechaRetornoPactada'), '')::DATE,
+            NULL, NULL, NULL, NULL, NULL,
+            NULLIF(v_item->>'idEstadoDetalle', '')::INTEGER,
+            NULLIF(TRIM(COALESCE(v_item->>'observacionDetalle', '')), ''),
+            p_id_usuario
+        );
+        PERFORM ven_raise_si_error(v_result);
+        v_id_prestamo_detalle := (v_result->'registro'->>'id')::INTEGER;
 
         -- Auto-recojo: el préstamo ya tiene fecha de retorno pactada, por lo que se
         -- programa el recojo sin pasar por la pantalla de programación manual.

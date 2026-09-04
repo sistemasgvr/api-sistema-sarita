@@ -169,6 +169,14 @@ export class ComprobanteDetalleDto {
   @IsOptional()
   @IsNumber()
   idEstadoCilindro?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'true cuando otro proceso ya descuenta el stock de esta línea (recarga de mostrador: el movimiento del balón lleva la capacidad real) — evita el doble descuento en ven_crear_comprobante.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  noMueveKardex?: boolean;
 }
 
 export class ComprobanteCuotaDto {
@@ -282,6 +290,41 @@ export class EfectoPosRecargaDto {
   idBalonOrigen?: number;
 }
 
+/** Cilindro que el cliente deja en garantía (Fase 4, apunte 1.c.viii). */
+export class EfectoPosGarantiaBalonDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  codigoBalon!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  numeroSerie?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idTipoBalon?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idProductoGas?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaUltimaPruebaHidrostatica?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  observacion?: string;
+}
+
 export class EfectoPosPrestamoDto {
   @ApiProperty()
   @Type(() => Number)
@@ -320,10 +363,14 @@ export class EfectoPosPrestamoDto {
   @IsInt()
   idEstado?: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional({
+    description:
+      'Requerido salvo en renovación (idPrestamoRenovar): ahí puede omitirse para que el backend busque uno de las mismas características o extienda el préstamo con el mismo cilindro.',
+  })
   @Type(() => Number)
+  @IsOptional()
   @IsInt()
-  idBalon!: number;
+  idBalon?: number;
 
   @ApiPropertyOptional()
   @Type(() => Number)
@@ -356,6 +403,29 @@ export class EfectoPosPrestamoDto {
   @ValidateNested()
   @Type(() => EfectoPosGarantiaDto)
   garantia?: EfectoPosGarantiaDto;
+
+  @ApiPropertyOptional({ type: EfectoPosGarantiaBalonDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EfectoPosGarantiaBalonDto)
+  garantiaBalon?: EfectoPosGarantiaBalonDto;
+
+  @ApiPropertyOptional({
+    description:
+      'ID del préstamo activo que se renueva. Si viene, en vez de crear un préstamo suelto se cierra ese (canjeando el cilindro si hay uno disponible, o extendiéndolo con el mismo) y se abre uno nuevo encadenado, ligado a esta venta.',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idPrestamoRenovar?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Solo aplica junto con idPrestamoRenovar. true (default) = reutiliza la garantía del préstamo anterior (dinero o cilindro); false = no la reutiliza — se registra la nueva que venga en garantia/garantiaBalon.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  mantenerGarantiaPrestamo?: boolean;
 }
 
 export class EfectoPosAlquilerPeriodoDto {

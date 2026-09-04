@@ -2,9 +2,19 @@
 -- Function: bal_crear_prestamo_detalle
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.944Z
+--
+-- Fase 4 (apunte 1.c.viii) — agrega p_rol ('ENTREGADO' | 'GARANTIA') para que un
+-- mismo préstamo pueda tener tanto el cilindro entregado al cliente como el que
+-- dejó en garantía, cada uno como su propia fila de bal_prestamo_detalle.
+--
+-- De paso, corrige un bug preexistente sin relación con lo anterior: el INSERT
+-- escribía en la columna "id_guia_devolucion", que ya no existe (Fase 2 la
+-- renombró a "id_doc_salida_devolucion" al migrar de gre_guia_remision a
+-- doc_salida; el par "id_doc_salida_entrega" sí se corrigió, este no). Cualquier
+-- llamada a esta función fallaba con "column id_guia_devolucion does not exist".
 DROP FUNCTION IF EXISTS bal_crear_prestamo_detalle(p_id_prestamo integer, p_id_balon integer, p_id_producto integer, p_motivo_especifico character varying, p_fecha_entregado date, p_fecha_prestamo date, p_dias_prestamo integer, p_fecha_vencimiento date, p_fecha_devolucion date, p_serie_guia_entrega character varying, p_numero_guia_entrega character varying, p_serie_guia_devolucion character varying, p_numero_guia_devolucion character varying, p_id_estado integer, p_observacion character varying, p_id_usuario_auditoria integer, p_id_guia_entrega integer, p_id_guia_devolucion integer);
 
-CREATE OR REPLACE FUNCTION bal_crear_prestamo_detalle(p_id_prestamo integer, p_id_balon integer DEFAULT NULL::integer, p_id_producto integer DEFAULT NULL::integer, p_motivo_especifico character varying DEFAULT NULL::character varying, p_fecha_entregado date DEFAULT NULL::date, p_fecha_prestamo date DEFAULT NULL::date, p_dias_prestamo integer DEFAULT 30, p_fecha_vencimiento date DEFAULT NULL::date, p_fecha_devolucion date DEFAULT NULL::date, p_serie_guia_entrega character varying DEFAULT NULL::character varying, p_numero_guia_entrega character varying DEFAULT NULL::character varying, p_serie_guia_devolucion character varying DEFAULT NULL::character varying, p_numero_guia_devolucion character varying DEFAULT NULL::character varying, p_id_estado integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_guia_entrega integer DEFAULT NULL::integer, p_id_guia_devolucion integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION bal_crear_prestamo_detalle(p_id_prestamo integer, p_id_balon integer DEFAULT NULL::integer, p_id_producto integer DEFAULT NULL::integer, p_motivo_especifico character varying DEFAULT NULL::character varying, p_fecha_entregado date DEFAULT NULL::date, p_fecha_prestamo date DEFAULT NULL::date, p_dias_prestamo integer DEFAULT 30, p_fecha_vencimiento date DEFAULT NULL::date, p_fecha_devolucion date DEFAULT NULL::date, p_serie_guia_entrega character varying DEFAULT NULL::character varying, p_numero_guia_entrega character varying DEFAULT NULL::character varying, p_serie_guia_devolucion character varying DEFAULT NULL::character varying, p_numero_guia_devolucion character varying DEFAULT NULL::character varying, p_id_estado integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_guia_entrega integer DEFAULT NULL::integer, p_id_guia_devolucion integer DEFAULT NULL::integer, p_rol character varying DEFAULT 'ENTREGADO'::character varying)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -105,9 +115,9 @@ BEGIN
     INSERT INTO bal_prestamo_detalle (
         id_prestamo, id_balon, id_producto, motivo_especifico,
         fecha_entregado, fecha_prestamo, dias_prestamo, fecha_vencimiento, fecha_devolucion,
-        id_doc_salida_entrega, id_guia_devolucion,
+        id_doc_salida_entrega, id_doc_salida_devolucion,
         serie_guia_entrega, numero_guia_entrega, serie_guia_devolucion, numero_guia_devolucion,
-        id_estado, observacion,
+        id_estado, observacion, rol,
         id_usuario_creacion, id_usuario_modificacion
     )
     VALUES (
@@ -115,13 +125,15 @@ BEGIN
         p_fecha_entregado, p_fecha_prestamo, COALESCE(p_dias_prestamo, 30), p_fecha_vencimiento, p_fecha_devolucion,
         p_id_guia_entrega, p_id_guia_devolucion,
         v_serie_entrega, v_numero_entrega, v_serie_devolucion, v_numero_devolucion,
-        v_id_estado_detalle, p_observacion,
+        v_id_estado_detalle, p_observacion, COALESCE(p_rol, 'ENTREGADO'),
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;
 
     -- Histórico ya devuelto: no mueve custodia. Activo: sale del almacén.
-    IF p_id_balon IS NOT NULL AND p_fecha_devolucion IS NULL THEN
+    -- Rol GARANTIA es al revés (el cilindro ENTRA a custodia de Sarita, no sale) —
+    -- ese movimiento lo registra quien llama (ven_aplicar_efectos_pos), no aquí.
+    IF p_id_balon IS NOT NULL AND p_fecha_devolucion IS NULL AND COALESCE(p_rol, 'ENTREGADO') = 'ENTREGADO' THEN
         v_salida := bal_prestamo_aplicar_salida_cilindro(
             p_id_prestamo,
             p_id_balon,

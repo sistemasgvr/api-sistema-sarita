@@ -1,3 +1,34 @@
+-- ⚠️ NO EJECUTAR sin revisión — dejar aplicado a mano con apply-migration.js cuando el usuario lo confirme.
+--
+-- Parte B/C del diseño de 'caja histórica inmutable + devolución fechada hoy':
+--
+-- B. Nota de Crédito: antes fin_caja_calcular_totales excluía NC/ND por completo de
+--    la clasificación de ventas ('no son una venta nueva'). Correcto en el sentido de
+--    que no son 'ventasNuevas', pero el efecto real (el dinero SALE del cajón al
+--    devolver) nunca se reflejaba en ningún lado: la venta original se quedaba
+--    contada a valor completo para siempre, y la NC no restaba nada, en ningún día.
+--    Fix: la NC ahora RESTA (ND sigue sumando, como una venta normal) en la
+--    clasificación de ventasContado/ventasCredito/ventasMediosCaja/etc. — usando su
+--    propio ven_pagos_de_comprobante (mismo id_medio_pago que ya se copia del
+--    comprobante original al crear la NC, ver ComprobanteNotaCreditoModal.vue) y su
+--    propia c.fecha (el día en que se emite la NC, normalmente hoy). Esto es la clave:
+--    como la fecha de la NC es independiente de la fecha de la venta original, anular
+--    una venta de hace varios días reduce la caja de HOY (cuando se emite la NC), sin
+--    tocar ni reabrir la caja ya cerrada de aquel día.
+--
+-- C. Comunicación de baja (anular() en comprobantes.logic.ts, solo factura/nota, no
+--    boleta): confirmado que ese flujo solo actualiza c.id_estado_sunat = 'BAJA' —
+--    nunca c.id_estado ni c.estado — así que el comprobante se quedaba contado en
+--    caja para siempre, sin ninguna forma de excluirlo. Fix: se agrega el mismo tipo
+--    de exclusión que ya existe para 'ANULADO' (c.id_estado), pero sobre
+--    c.id_estado_sunat = 'BAJA'. Esto excluye el comprobante de su propio día — que en
+--    la práctica es aceptable porque comunicación de baja SUNAT solo es válida en una
+--    ventana muy corta tras la emisión (normalmente el mismo día o pocos días), y la
+--    Parte A (fin_obtener_caja_sesion_totales_congeladas) ya protege cualquier caja
+--    que para entonces esté cerrada.
+--
+-- Sin cambio de firma en ningún caso.
+
 -- Function: fin_caja_calcular_totales
 -- Fase 3. Dos cambios de fondo:
 --

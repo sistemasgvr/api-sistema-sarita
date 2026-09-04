@@ -1,3 +1,14 @@
+-- ⚠️ NO EJECUTAR sin revisión — dejar aplicado a mano con apply-migration.js cuando el usuario lo confirme.
+-- Aplicar junto con 20260904_fin_caja_sesion_totales_cierre.sql (columna nueva) y
+-- 20260904_fin_cerrar_caja_sesion_totales_cierre.sql (escritura al cerrar).
+--
+-- Parte A: si la sesión ya está cerrada (fecha_cierre no nulo) y tiene
+-- totales_cierre guardado, se sirve esa foto congelada en vez de recalcular
+-- fin_caja_calcular_totales() en vivo — que es lo que hacía antes SIEMPRE, incluso
+-- para sesiones cerradas hace semanas. Sesiones cerradas antes de esta migración
+-- (sin totales_cierre) siguen recalculando en vivo, sin cambio de comportamiento
+-- para ellas. Sin cambio de firma.
+
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_obtener_caja_sesion
 -- Overloads: 1

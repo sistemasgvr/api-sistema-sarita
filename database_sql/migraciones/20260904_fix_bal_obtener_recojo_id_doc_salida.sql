@@ -1,3 +1,16 @@
+-- ⚠️ NO EJECUTAR sin revisión — dejar aplicado a mano con apply-migration.js cuando el usuario lo confirme.
+--
+-- Bug preexistente confirmado en vivo (encontrado al probar Fase 4 — préstamo con
+-- garantía de balón + fecha de retorno pactada, que dispara el auto-recojo de
+-- ven_aplicar_efectos_pos → bal_crear_recojo → bal_obtener_recojo):
+-- bal_obtener_recojo referenciaba bal_recojo.id_recarga_planta, columna que ya no
+-- existe — Fase 2 la renombró a id_doc_salida al migrar de bal_recarga_planta a
+-- doc_salida (bal_crear_recojo, en el mismo archivo/módulo, ya usa id_doc_salida
+-- correctamente; solo bal_obtener_recojo se quedó con el nombre viejo). Cualquier
+-- creación de recojo (incluyendo el auto-recojo del POS) fallaba con
+-- 'column r2.id_recarga_planta does not exist' — error real reportado por el usuario:
+-- POST /comprobantes failed: column r2.id_recarga_planta does not exist | code=P0001.
+
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_obtener_recojo
 -- Overloads: 1

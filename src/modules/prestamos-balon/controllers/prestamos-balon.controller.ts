@@ -18,6 +18,7 @@ import {
   CreatePrestamosBalonDto,
   FiltroPrestamosAntiguedadDto,
   FiltroPrestamosBalonDto,
+  RenovarPrestamosBalonDto,
   UpdatePrestamosBalonDto,
 } from '../dto/prestamos-balon.dto';
 import { PrestamosBalonLogic } from '../logic/prestamos-balon.logic';
@@ -79,5 +80,19 @@ export class PrestamosBalonController {
     @Body() dto: AuditoriaDto,
   ) {
     return this.logic.eliminar(id, dto.idUsuarioAuditoria);
+  }
+
+  @Post(':id/renovar')
+  @Permisos(PermisoBanderas.PRESTAMOS_BALON_CREAR)
+  @ApiOperation({
+    summary:
+      'Renovar: cierra el préstamo (canjeando el cilindro si hay uno disponible de las mismas características, o extendiéndolo con el mismo) y abre uno nuevo encadenado',
+  })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  renovar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RenovarPrestamosBalonDto,
+  ) {
+    return this.logic.renovar(id, dto);
   }
 }

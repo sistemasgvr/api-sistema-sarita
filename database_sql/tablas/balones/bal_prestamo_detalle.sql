@@ -25,8 +25,12 @@ CREATE TABLE bal_prestamo_detalle (
     fecha_creacion timestamp without time zone DEFAULT now(),
     fecha_modificacion timestamp without time zone DEFAULT now(),
     id_guia_entrega integer,
-    id_guia_devolucion integer
+    id_guia_devolucion integer,
+    rol character varying(20) DEFAULT 'ENTREGADO'::character varying NOT NULL
 );
+
+ALTER TABLE bal_prestamo_detalle
+    ADD CONSTRAINT bal_prestamo_detalle_rol_check CHECK (rol IN ('ENTREGADO', 'GARANTIA'));
 
 CREATE SEQUENCE bal_prestamo_detalle_id_seq
     AS integer

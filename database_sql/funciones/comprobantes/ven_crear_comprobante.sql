@@ -458,6 +458,21 @@ BEGIN
 
     -- Gas también se valida contra pro_stock (bloque de capacidad de cilindros eliminado en F1).
 
+    -- Ventas a crédito sin medio de pago explícito (el POS no lo pide: "excluir-credito"
+    -- + "medio-requerido = !esVentaCredito", el cobro se registra después en CxC): sin
+    -- esto, id_medio_pago queda NULL y fin_caja_calcular_totales / ven_pagos_de_comprobante
+    -- lo tratan como EFECTIVO (COALESCE(..., v_efectivo_id)), contando la venta entera como
+    -- "ventasContado" en vez de "ventasCredito" en la card de caja.
+    IF p_id_medio_pago IS NULL AND p_id_condicion_pago IS NOT NULL THEN
+        SELECT o.id INTO p_id_medio_pago
+        FROM gen_condicion_pago cp
+        JOIN gen_lista_opciones o ON UPPER(o.nombre) = 'CREDITO' AND o.estado = 1
+        JOIN gen_lista l ON l.id = o.id_lista AND l.nombre = 'MedioPago'
+        WHERE cp.id = p_id_condicion_pago
+          AND (COALESCE(cp.dias_credito, 0) > 0 OR COALESCE(cp.numero_cuotas, 0) > 1)
+        LIMIT 1;
+    END IF;
+
     INSERT INTO ven_comprobante (
         id_tipo_comprobante, serie, numero,
         id_estado_sunat, id_tipo_operacion_sunat,

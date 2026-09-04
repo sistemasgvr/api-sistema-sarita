@@ -46,6 +46,7 @@ BEGIN
             pd.numero_guia_devolucion,
             pd.id_estado,
             ep.nombre AS nombre_estado,
+            pd.rol,
             pd.observacion,
             pd.estado,
             pd.fecha_creacion,
