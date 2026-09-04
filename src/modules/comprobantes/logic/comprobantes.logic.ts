@@ -26,6 +26,7 @@ import {
   EnviarResumenDiarioDto,
   FiltroComprobantesDto,
   FiltroResumenDiarioDto,
+  RegistrarCobroComprobanteDto,
   RegistrarRespuestaSunatDto,
   SiguienteNumeroQueryDto,
   UpdateComprobantesDto,
@@ -104,6 +105,9 @@ export class ComprobantesLogic {
       ...result.registro,
       detalles: result.detalles ?? [],
       cuotas: result.cuotas ?? [],
+      // Fase 3: sin esto el desglose del cobro se perdía aquí, porque este
+      // return arma la respuesta campo a campo en vez de propagar el resultado.
+      pagos: result.pagos ?? [],
     };
   }
 
@@ -375,6 +379,11 @@ export class ComprobantesLogic {
 
   async actualizar(id: number, dto: UpdateComprobantesDto) {
     const result = await this.model.actualizar(id, dto);
+    return mapSingleResult(result, `Comprobante ${id} no encontrado`);
+  }
+
+  async registrarCobro(id: number, dto: RegistrarCobroComprobanteDto) {
+    const result = await this.model.registrarCobro(id, dto);
     return mapSingleResult(result, `Comprobante ${id} no encontrado`);
   }
 

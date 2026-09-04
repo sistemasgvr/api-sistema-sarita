@@ -1,7 +1,12 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: auth_listar_ids_usuarios_admin_con_permiso
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.942Z
+--
+-- Corregido en Fase 3: la función estaba declarada STABLE y ejecutaba
+-- `SET TIME ZONE 'America/Lima'`, cosa que PostgreSQL rechaza en ejecución
+-- ("SET is not allowed in a non-volatile function"). Es decir, fallaba en
+-- *toda* llamada, incluida la de notificaciones.model.ts. Como aquí solo se
+-- consultan ids de usuario, no hay ningún valor dependiente de la zona horaria:
+-- se quita el SET y se mantiene STABLE.
+
 DROP FUNCTION IF EXISTS auth_listar_ids_usuarios_admin_con_permiso(p_permiso character varying);
 
 CREATE OR REPLACE FUNCTION auth_listar_ids_usuarios_admin_con_permiso(p_permiso character varying)
@@ -12,8 +17,6 @@ AS $function$
 DECLARE
     v_ids JSON;
 BEGIN
-    SET TIME ZONE 'America/Lima';
-
     SELECT COALESCE(json_agg(DISTINCT u.id ORDER BY u.id), '[]'::JSON)
     INTO v_ids
     FROM auth_usuarios u

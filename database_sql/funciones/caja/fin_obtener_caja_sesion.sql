@@ -36,10 +36,13 @@ BEGIN
             cg.monto,
             cg.id_medio_pago AS "idMedioPago",
             mp.nombre AS "medioPago",
+            cg.id_cuenta_bancaria AS "idCuentaBancaria",
+            COALESCE(cbg.alias, cbg.titular, cbg.numero_cuenta) AS "cuentaBancaria",
             cg.numero_operacion AS "numeroOperacion",
             cg.observacion
         FROM fin_caja_gasto cg
         LEFT JOIN gen_lista_opciones mp ON mp.id = cg.id_medio_pago
+        LEFT JOIN gen_cuenta_bancaria cbg ON cbg.id = cg.id_cuenta_bancaria
         WHERE cg.estado = 1 AND cg.id_sesion = p_id
     ) g;
 
@@ -91,7 +94,12 @@ BEGIN
                 + COALESCE((v_totales->>'cobranzasMediosCaja')::NUMERIC, 0)
                 + COALESCE((v_totales->>'garantiasCobroMediosCaja')::NUMERIC, 0)
                 - COALESCE((v_totales->>'depositos')::NUMERIC, 0)
-                - COALESCE((v_totales->>'gastosCaja')::NUMERIC, 0)
+                -- Fase 3: solo los gastos pagados con medios que afectan caja.
+                -- Antes se restaba `gastosCaja` completo, así que un gasto pagado
+                -- por transferencia bajaba el efectivo esperado sin haber salido
+                -- del cajón y el arqueo salía con diferencia.
+                - COALESCE((v_totales->>'gastosCajaMediosCaja')::NUMERIC,
+                           (v_totales->>'gastosCaja')::NUMERIC, 0)
                 - COALESCE((v_totales->>'garantiasDevolucionMediosCaja')::NUMERIC, 0)
             ) AS "cajaEsperada"
         FROM fin_caja_sesion s

@@ -3,12 +3,14 @@
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.965Z
 DROP FUNCTION IF EXISTS ven_crear_comprobante(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_cliente integer, p_detalles json, p_id_tipo_operacion_sunat integer, p_id_comprobante_origen integer, p_id_motivo_nota integer, p_id_tipo_movimiento integer, p_id_tipo_venta integer, p_fecha_vencimiento date, p_tipo_cambio numeric, p_id_sucursal integer, p_id_almacen integer, p_id_condicion_pago integer, p_id_moneda integer, p_id_medio_pago integer, p_glosa character varying, p_observaciones character varying, p_periodo_contable character varying, p_operacion character varying, p_id_estado integer, p_cuotas json, p_id_usuario_auditoria integer, p_origen_pos character varying, p_efectos_pos json);
+DROP FUNCTION IF EXISTS ven_crear_comprobante(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_cliente integer, p_detalles json, p_id_tipo_operacion_sunat integer, p_id_comprobante_origen integer, p_id_motivo_nota integer, p_id_tipo_movimiento integer, p_id_tipo_venta integer, p_fecha_vencimiento date, p_tipo_cambio numeric, p_id_sucursal integer, p_id_almacen integer, p_id_condicion_pago integer, p_id_moneda integer, p_id_medio_pago integer, p_glosa character varying, p_observaciones character varying, p_periodo_contable character varying, p_operacion character varying, p_id_estado integer, p_cuotas json, p_id_usuario_auditoria integer, p_origen_pos character varying, p_efectos_pos json, p_pagos json);
 
-CREATE OR REPLACE FUNCTION ven_crear_comprobante(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying DEFAULT NULL::character varying, p_fecha date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer, p_detalles json DEFAULT '[]'::json, p_id_tipo_operacion_sunat integer DEFAULT NULL::integer, p_id_comprobante_origen integer DEFAULT NULL::integer, p_id_motivo_nota integer DEFAULT NULL::integer, p_id_tipo_movimiento integer DEFAULT NULL::integer, p_id_tipo_venta integer DEFAULT NULL::integer, p_fecha_vencimiento date DEFAULT NULL::date, p_tipo_cambio numeric DEFAULT 3.5, p_id_sucursal integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_glosa character varying DEFAULT NULL::character varying, p_observaciones character varying DEFAULT NULL::character varying, p_periodo_contable character varying DEFAULT NULL::character varying, p_operacion character varying DEFAULT NULL::character varying, p_id_estado integer DEFAULT NULL::integer, p_cuotas json DEFAULT NULL::json, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_origen_pos character varying DEFAULT NULL::character varying, p_efectos_pos json DEFAULT NULL::json)
+CREATE OR REPLACE FUNCTION ven_crear_comprobante(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying DEFAULT NULL::character varying, p_fecha date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer, p_detalles json DEFAULT '[]'::json, p_id_tipo_operacion_sunat integer DEFAULT NULL::integer, p_id_comprobante_origen integer DEFAULT NULL::integer, p_id_motivo_nota integer DEFAULT NULL::integer, p_id_tipo_movimiento integer DEFAULT NULL::integer, p_id_tipo_venta integer DEFAULT NULL::integer, p_fecha_vencimiento date DEFAULT NULL::date, p_tipo_cambio numeric DEFAULT 3.5, p_id_sucursal integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_glosa character varying DEFAULT NULL::character varying, p_observaciones character varying DEFAULT NULL::character varying, p_periodo_contable character varying DEFAULT NULL::character varying, p_operacion character varying DEFAULT NULL::character varying, p_id_estado integer DEFAULT NULL::integer, p_cuotas json DEFAULT NULL::json, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_origen_pos character varying DEFAULT NULL::character varying, p_efectos_pos json DEFAULT NULL::json, p_pagos json DEFAULT NULL::json)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
 DECLARE
+    v_err_pagos TEXT;
     v_id INTEGER;
     v_id_detalle INTEGER;
     v_serie VARCHAR;
@@ -916,6 +918,13 @@ BEGIN
 
     IF p_efectos_pos IS NOT NULL AND p_efectos_pos::TEXT NOT IN ('null', '{}', '[]') THEN
         PERFORM ven_aplicar_efectos_pos(v_id, p_efectos_pos, p_id_usuario_auditoria);
+    END IF;
+
+    -- Fase 3: cobro multi-medio. Va al final, cuando total_importe ya está
+    -- calculado, porque la suma de los pagos se valida contra él.
+    v_err_pagos := ven_sincronizar_pagos_comprobante(v_id, p_pagos, p_id_usuario_auditoria);
+    IF v_err_pagos IS NOT NULL THEN
+        RAISE EXCEPTION '%', v_err_pagos USING ERRCODE = '22023';
     END IF;
 
     RETURN ven_obtener_comprobante(v_id);

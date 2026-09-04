@@ -12,6 +12,7 @@ DECLARE
     v_registro JSON;
     v_detalles JSON;
     v_cuotas JSON;
+    v_pagos JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -195,10 +196,33 @@ BEGIN
         WHERE q.id_comprobante = p_id AND q.estado = 1
     ) q;
 
+    -- Fase 3: desglose del cobro. Solo las líneas reales de ven_comprobante_pago;
+    -- si la venta no tiene ninguna, el array va vacío y el frontend cae al
+    -- medio de pago de la cabecera, que es donde estaba el dato antes.
+    SELECT COALESCE(json_agg(row_to_json(pg) ORDER BY pg.item), '[]'::JSON) INTO v_pagos
+    FROM (
+        SELECT
+            pp.id,
+            pp.item,
+            pp.id_medio_pago,
+            mp.nombre AS nombre_medio_pago,
+            pp.id_cuenta_bancaria,
+            COALESCE(cb.alias, cb.titular, cb.numero_cuenta) AS cuenta_bancaria,
+            pp.monto,
+            pp.numero_operacion,
+            pp.referencia,
+            pp.observacion
+        FROM ven_comprobante_pago pp
+        LEFT JOIN gen_lista_opciones mp ON mp.id = pp.id_medio_pago
+        LEFT JOIN gen_cuenta_bancaria cb ON cb.id = pp.id_cuenta_bancaria
+        WHERE pp.id_comprobante = p_id AND pp.estado = 1
+    ) pg;
+
     RETURN json_build_object(
         'registro', v_registro,
         'detalles', v_detalles,
-        'cuotas', v_cuotas
+        'cuotas', v_cuotas,
+        'pagos', v_pagos
     );
 END;
 $function$;

@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsDateString,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -110,6 +111,22 @@ export class CreateGarantiaDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   idMedioPago?: number;
+
+  @ApiPropertyOptional({
+    example: 16,
+    description:
+      'Cuenta bancaria de la EMPRESA que recibe el dinero. Obligatoria cuando el medio de pago no es efectivo.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCuentaBancaria?: number;
+
+  @ApiPropertyOptional({ example: 'OP-00123', description: 'Número de operación / voucher' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  numeroOperacion?: string;
 }
 
 export class DevolverGarantiaDto extends AuditoriaDto {
@@ -129,6 +146,28 @@ export class DevolverGarantiaDto extends AuditoriaDto {
   @IsOptional()
   @IsDateString()
   fecha?: string;
+
+  @ApiPropertyOptional({ example: 265, description: 'Medio con el que se devuelve el dinero' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idMedioReembolso?: number;
+
+  @ApiPropertyOptional({
+    example: 16,
+    description:
+      'Cuenta bancaria de la EMPRESA desde la que se devuelve. Obligatoria cuando el medio de reembolso no es efectivo.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCuentaBancariaReembolso?: number;
+
+  @ApiPropertyOptional({ example: 'OP-00123', description: 'Número de operación / voucher' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  numeroOperacion?: string;
 
   @ApiPropertyOptional()
   @MaxLength(500)

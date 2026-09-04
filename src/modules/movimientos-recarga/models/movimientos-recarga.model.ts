@@ -111,6 +111,7 @@ export class MovimientosRecargaModel {
       dto.idUsuarioAuditoria ?? null,
       dto.idCondicionPago ?? null,
       dto.fechaVencimiento ?? null,
+      dto.pagos ? JSON.stringify(dto.pagos) : null,
     ]);
   }
 

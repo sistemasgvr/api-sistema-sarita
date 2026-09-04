@@ -48,7 +48,11 @@ BEGIN
         + COALESCE((v_totales->>'cobranzasMediosCaja')::NUMERIC, 0)
         + COALESCE((v_totales->>'garantiasCobroMediosCaja')::NUMERIC, 0)
         - COALESCE((v_totales->>'depositos')::NUMERIC, 0)
-        - COALESCE((v_totales->>'gastosCaja')::NUMERIC, 0)
+        -- Fase 3: solo los gastos pagados con medios que afectan caja. Antes se
+        -- restaba `gastosCaja` completo y un gasto pagado por transferencia
+        -- generaba una diferencia de arqueo inexistente.
+        - COALESCE((v_totales->>'gastosCajaMediosCaja')::NUMERIC,
+                   (v_totales->>'gastosCaja')::NUMERIC, 0)
         - COALESCE((v_totales->>'garantiasDevolucionMediosCaja')::NUMERIC, 0);
     v_diferencia := COALESCE(p_monto_efectivo_contado, 0) - v_esperado;
 
@@ -89,6 +93,9 @@ BEGIN
         LEFT JOIN gen_lista_opciones est ON est.id = s.id_estado
         WHERE s.id = p_id
     ) t;
+
+    -- Fase 3 (apunte 1.a.iii): avisar a los ADMIN del cierre y su diferencia.
+    PERFORM fin_notificar_caja_admins(p_id, 'CIERRE', p_id_usuario);
 
     RETURN json_build_object('registro', v_registro);
 END;

@@ -78,6 +78,7 @@ export interface ComprobanteCompletoResult {
   detalles?: ComprobanteDetalleRegistro[];
   cuotas?: ComprobanteCuotaRegistro[];
   error?: string;
+  pagos?: unknown[];
 }
 
 export interface ListaOpcionBasica {

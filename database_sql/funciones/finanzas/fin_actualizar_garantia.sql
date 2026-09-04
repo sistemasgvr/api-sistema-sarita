@@ -1,17 +1,28 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_actualizar_garantia
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
-DROP FUNCTION IF EXISTS fin_actualizar_garantia(p_id integer, p_fecha date, p_id_cliente integer, p_id_medio_pago integer, p_importe numeric, p_observacion character varying, p_id_usuario integer);
+-- Fase 3: admite la cuenta bancaria del cobro.
 
-CREATE OR REPLACE FUNCTION fin_actualizar_garantia(p_id integer, p_fecha date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_importe numeric DEFAULT NULL::numeric, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
+DROP FUNCTION IF EXISTS fin_actualizar_garantia(p_id integer, p_fecha date, p_id_cliente integer, p_id_medio_pago integer, p_importe numeric, p_observacion character varying, p_id_usuario integer);
+DROP FUNCTION IF EXISTS fin_actualizar_garantia(p_id integer, p_fecha date, p_id_cliente integer, p_id_medio_pago integer, p_importe numeric, p_observacion character varying, p_id_usuario integer, p_id_cuenta_bancaria integer);
+
+CREATE OR REPLACE FUNCTION fin_actualizar_garantia(
+    p_id integer,
+    p_fecha date DEFAULT NULL::date,
+    p_id_cliente integer DEFAULT NULL::integer,
+    p_id_medio_pago integer DEFAULT NULL::integer,
+    p_importe numeric DEFAULT NULL::numeric,
+    p_observacion character varying DEFAULT NULL::character varying,
+    p_id_usuario integer DEFAULT NULL::integer,
+    p_id_cuenta_bancaria integer DEFAULT NULL::integer
+)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_garantia   fin_garantia%ROWTYPE;
     v_id_cliente INT;
-    v_registro   JSON;
+    v_medio      INT;
+    v_cuenta     INT;
+    v_error      TEXT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -37,10 +48,26 @@ BEGIN
         RETURN json_build_object('registro', NULL, 'error', 'El importe debe ser mayor a cero');
     END IF;
 
+    v_medio := COALESCE(p_id_medio_pago, v_garantia.id_medio_pago);
+    -- Cambiar de medio invalida la cuenta anterior: si no llega una nueva, se
+    -- valida contra NULL y el mensaje pide la que corresponde.
+    v_cuenta := CASE
+        WHEN p_id_cuenta_bancaria IS NOT NULL THEN p_id_cuenta_bancaria
+        WHEN p_id_medio_pago IS NOT NULL
+             AND p_id_medio_pago IS DISTINCT FROM v_garantia.id_medio_pago THEN NULL
+        ELSE v_garantia.id_cuenta_bancaria
+    END;
+
+    v_error := fin_validar_cuenta_medio_pago(v_medio, v_cuenta);
+    IF v_error IS NOT NULL THEN
+        RETURN json_build_object('registro', NULL, 'error', v_error);
+    END IF;
+
     UPDATE fin_garantia SET
         fecha         = COALESCE(p_fecha, fecha),
         id_cliente    = COALESCE(p_id_cliente, id_cliente),
-        id_medio_pago = COALESCE(p_id_medio_pago, id_medio_pago),
+        id_medio_pago = v_medio,
+        id_cuenta_bancaria = v_cuenta,
         importe       = COALESCE(p_importe, importe),
         observacion   = CASE
             WHEN p_observacion IS NULL THEN observacion
@@ -51,28 +78,6 @@ BEGIN
         fecha_modificacion = NOW()
     WHERE id = p_id;
 
-    SELECT row_to_json(t) INTO v_registro FROM (
-        SELECT
-            g.id, g.fecha,
-            g.id_cliente,
-            COALESCE(NULLIF(TRIM(c.razon_social), ''),
-                     NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), ''),
-                     'Cliente #' || g.id_cliente) AS cliente,
-            c.numero_documento AS documento_cliente,
-            g.id_medio_pago, mp.nombre AS medio_pago,
-            g.importe, g.observacion,
-            g.fecha_reembolso,
-            g.id_medio_reembolso, mr.nombre AS medio_reembolso,
-            g.observacion_reembolso,
-            g.id_estado, est.nombre AS estado_texto
-        FROM fin_garantia g
-        JOIN cli_clientes c ON c.id = g.id_cliente
-        LEFT JOIN gen_lista_opciones mp  ON mp.id = g.id_medio_pago
-        LEFT JOIN gen_lista_opciones mr  ON mr.id = g.id_medio_reembolso
-        LEFT JOIN gen_lista_opciones est ON est.id = g.id_estado
-        WHERE g.id = p_id
-    ) t;
-
-    RETURN json_build_object('registro', v_registro);
+    RETURN json_build_object('registro', fin_garantia_registro(p_id));
 END;
 $function$;

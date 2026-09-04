@@ -557,6 +557,53 @@ export class EfectosPosDto {
   generarGre?: boolean;
 }
 
+/** Una línea de cobro de la venta (Fase 3: cobro multi-medio). */
+export class ComprobantePagoDto {
+  @ApiProperty({ example: 265, description: 'ID de opción de lista MedioPago' })
+  @Type(() => Number)
+  @IsInt()
+  idMedioPago!: number;
+
+  @ApiPropertyOptional({
+    example: 50.0,
+    description:
+      'Monto cobrado por este medio. En una lista de un solo pago puede omitirse: se toma el total del comprobante.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @IsPositive()
+  monto?: number;
+
+  @ApiPropertyOptional({
+    example: 16,
+    description:
+      'Cuenta bancaria de la EMPRESA que recibe el dinero. Obligatoria cuando el medio de pago no es efectivo.',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idCuentaBancaria?: number;
+
+  @ApiPropertyOptional({ example: 'OP-00123' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  numeroOperacion?: string;
+
+  @ApiPropertyOptional({ example: 'Yape del titular' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  referencia?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observacion?: string;
+}
+
 export class CreateComprobantesDto extends AuditoriaDto {
   @ApiProperty()
   @Type(() => Number)
@@ -664,6 +711,18 @@ export class CreateComprobantesDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   idMedioPago?: number;
+
+  @ApiPropertyOptional({
+    type: [ComprobantePagoDto],
+    description:
+      'Desglose del cobro por medio de pago. La suma debe igualar el total del comprobante. ' +
+      'Omitir para dejar el comportamiento anterior (un solo medio en la cabecera).',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ComprobantePagoDto)
+  pagos?: ComprobantePagoDto[];
 
   @ApiPropertyOptional()
   @MaxLength(500)
@@ -814,6 +873,18 @@ export class UpdateComprobantesDto extends AuditoriaDto {
   @IsNumber()
   idMedioPago?: number;
 
+  @ApiPropertyOptional({
+    type: [ComprobantePagoDto],
+    description:
+      'Desglose del cobro por medio de pago. La suma debe igualar el total del comprobante. ' +
+      'Omitir para dejar el comportamiento anterior (un solo medio en la cabecera).',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ComprobantePagoDto)
+  pagos?: ComprobantePagoDto[];
+
   @ApiPropertyOptional()
   @MaxLength(500)
   @IsOptional()
@@ -860,6 +931,49 @@ export class UpdateComprobantesDto extends AuditoriaDto {
   @ValidateNested({ each: true })
   @Type(() => ComprobanteCuotaDto)
   cuotas?: ComprobanteCuotaDto[];
+}
+
+/** Una línea de cobro a completar tras la venta (Fase 3). */
+export class RegistrarCobroLineaDto {
+  @ApiProperty({ example: 25, description: 'ID de la línea de ven_comprobante_pago' })
+  @Type(() => Number)
+  @IsInt()
+  idPago!: number;
+
+  @ApiPropertyOptional({ example: 'YAPE-4471' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  numeroOperacion?: string;
+
+  @ApiPropertyOptional({ example: 'Yape del titular' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  referencia?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observacion?: string;
+
+  @ApiPropertyOptional({
+    example: 16,
+    description: 'Cambiar la cuenta de la empresa. Omitir para conservar la actual.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCuentaBancaria?: number;
+}
+
+export class RegistrarCobroComprobanteDto extends AuditoriaDto {
+  @ApiProperty({ type: [RegistrarCobroLineaDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RegistrarCobroLineaDto)
+  pagos!: RegistrarCobroLineaDto[];
 }
 
 export class AnularComprobanteDto extends AuditoriaDto {

@@ -21,6 +21,7 @@ import {
   EfectosPosDto,
   FiltroComprobantesDto,
   FiltroResumenDiarioDto,
+  RegistrarCobroComprobanteDto,
   RegistrarRespuestaSunatDto,
   SiguienteNumeroQueryDto,
   UpdateComprobantesDto,
@@ -337,6 +338,7 @@ export class ComprobantesModel {
       dto.idUsuarioAuditoria ?? null,
       dto.origenPos ?? null,
       mapEfectosPosToJson(dto.efectosPos),
+      dto.pagos ? JSON.stringify(dto.pagos) : null,
     ]);
   }
 
@@ -366,6 +368,7 @@ export class ComprobantesModel {
       dto.cuotas !== undefined ? mapCuotasToJson(dto.cuotas) : null,
       dto.idUsuarioAuditoria ?? null,
       dto.origenPos ?? null,
+      dto.pagos ? JSON.stringify(dto.pagos) : null,
     ]);
   }
 
@@ -374,6 +377,13 @@ export class ComprobantesModel {
       id,
       idUsuarioAuditoria ?? null,
     ]);
+  }
+
+  registrarCobro(id: number, dto: RegistrarCobroComprobanteDto) {
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'ven_registrar_cobro_comprobante',
+      [id, JSON.stringify(dto.pagos), dto.idUsuarioAuditoria ?? null],
+    );
   }
 
   revertirEfectos(id: number, idUsuarioAuditoria?: number) {

@@ -4,7 +4,7 @@
 -- Generated: 2026-09-03T16:50:38.965Z
 DROP FUNCTION IF EXISTS ven_actualizar_garantia_manual(p_id integer, p_fecha date, p_id_cliente integer, p_id_medio_pago integer, p_importe numeric, p_observacion character varying, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION ven_actualizar_garantia_manual(p_id integer, p_fecha date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_importe numeric DEFAULT NULL::numeric, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION ven_actualizar_garantia_manual(p_id integer, p_fecha date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_importe numeric DEFAULT NULL::numeric, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_cuenta_bancaria integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -13,6 +13,9 @@ DECLARE
     v_es_manual BOOLEAN;
     v_monto NUMERIC(12,4);
     v_id_tipo_cobro INTEGER;
+    v_medio INTEGER;
+    v_cuenta INTEGER;
+    v_error TEXT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -65,6 +68,20 @@ BEGIN
         RETURN json_build_object('error', 'El método de pago indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
+    v_medio := COALESCE(p_id_medio_pago, v_garantia.id_medio_pago);
+    -- Cambiar de medio invalida la cuenta anterior.
+    v_cuenta := CASE
+        WHEN p_id_cuenta_bancaria IS NOT NULL THEN p_id_cuenta_bancaria
+        WHEN p_id_medio_pago IS NOT NULL
+             AND p_id_medio_pago IS DISTINCT FROM v_garantia.id_medio_pago THEN NULL
+        ELSE v_garantia.id_cuenta_bancaria
+    END;
+
+    v_error := fin_validar_cuenta_medio_pago(v_medio, v_cuenta);
+    IF v_error IS NOT NULL THEN
+        RETURN json_build_object('error', v_error, 'registro', NULL);
+    END IF;
+
     IF p_importe IS NOT NULL THEN
         v_monto := ROUND(p_importe::NUMERIC, 4);
         IF v_monto <= 0 THEN
@@ -78,10 +95,8 @@ BEGIN
     SET
         fecha_registro = COALESCE(p_fecha, fecha_registro),
         id_cliente = COALESCE(p_id_cliente, id_cliente),
-        id_medio_pago = CASE
-            WHEN p_id_medio_pago IS NULL THEN id_medio_pago
-            ELSE p_id_medio_pago
-        END,
+        id_medio_pago = v_medio,
+        id_cuenta_bancaria = v_cuenta,
         monto_cobrado = COALESCE(v_monto, monto_cobrado),
         monto_saldo = COALESCE(v_monto, monto_saldo),
         observacion = CASE
@@ -104,6 +119,8 @@ BEGIN
         SET
             monto = v_monto,
             fecha = COALESCE(p_fecha, gm.fecha),
+            id_medio_pago = v_medio,
+            id_cuenta_bancaria = v_cuenta,
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE gm.id_garantia = p_id
@@ -119,6 +136,8 @@ BEGIN
         UPDATE ven_garantia_movimiento gm
         SET
             fecha = p_fecha,
+            id_medio_pago = v_medio,
+            id_cuenta_bancaria = v_cuenta,
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE gm.id_garantia = p_id

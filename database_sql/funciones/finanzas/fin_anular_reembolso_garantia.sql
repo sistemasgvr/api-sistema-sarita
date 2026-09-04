@@ -33,6 +33,9 @@ BEGIN
     UPDATE fin_garantia SET
         fecha_reembolso       = NULL,
         id_medio_reembolso    = NULL,
+        -- Fase 3: si se limpia el medio hay que limpiar también la cuenta, o la
+        -- garantía queda apuntando al banco de un reembolso que ya no existe.
+        id_cuenta_bancaria_reembolso = NULL,
         observacion_reembolso = NULL,
         id_usuario_reembolso  = NULL,
         id_estado             = COALESCE(v_id_activa, id_estado),

@@ -81,6 +81,7 @@ export class CajaModel {
       dto.idSesion ?? null,
       dto.idUsuarioAuditoria ?? null,
       dto.idSucursal ?? null,
+      dto.idCuentaBancaria ?? null,
     ]);
   }
 
@@ -111,6 +112,7 @@ export class CajaModel {
       dto.numeroOperacion ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idCuentaBancaria ?? null,
     ]);
   }
 

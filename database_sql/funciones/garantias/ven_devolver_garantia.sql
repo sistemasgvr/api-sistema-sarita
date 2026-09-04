@@ -1,10 +1,11 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_devolver_garantia
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.966Z
+-- Fase 3: la devolución lleva cuenta bancaria propia. No tiene por qué ser la
+-- misma por la que entró el dinero: el cliente pudo pagar por Yape y pedir la
+-- devolución por transferencia.
 DROP FUNCTION IF EXISTS ven_devolver_garantia(p_id integer, p_monto numeric, p_id_comprobante integer, p_fecha date, p_observacion character varying, p_id_usuario_auditoria integer, p_id_medio_reembolso integer);
+DROP FUNCTION IF EXISTS ven_devolver_garantia(p_id integer, p_monto numeric, p_id_comprobante integer, p_fecha date, p_observacion character varying, p_id_usuario_auditoria integer, p_id_medio_reembolso integer, p_id_cuenta_bancaria_reembolso integer, p_numero_operacion character varying);
 
-CREATE OR REPLACE FUNCTION ven_devolver_garantia(p_id integer, p_monto numeric, p_id_comprobante integer DEFAULT NULL::integer, p_fecha date DEFAULT NULL::date, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_medio_reembolso integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION ven_devolver_garantia(p_id integer, p_monto numeric, p_id_comprobante integer DEFAULT NULL::integer, p_fecha date DEFAULT NULL::date, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_medio_reembolso integer DEFAULT NULL::integer, p_id_cuenta_bancaria_reembolso integer DEFAULT NULL::integer, p_numero_operacion character varying DEFAULT NULL::character varying)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -63,6 +64,11 @@ BEGIN
         SELECT 1 FROM gen_lista_opciones WHERE id = p_id_medio_reembolso AND estado = 1
     ) THEN
         RETURN json_build_object('error', 'El método de reembolso indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    v_err_caja := fin_validar_cuenta_medio_pago(p_id_medio_reembolso, p_id_cuenta_bancaria_reembolso);
+    IF v_err_caja IS NOT NULL THEN
+        RETURN json_build_object('error', v_err_caja, 'registro', NULL);
     END IF;
 
     SELECT lo.id INTO v_id_tipo_devolucion
@@ -156,6 +162,7 @@ BEGIN
         observacion = COALESCE(v_obs, observacion),
         fecha_reembolso = CASE WHEN v_nuevo_saldo = 0 THEN v_fecha ELSE fecha_reembolso END,
         id_medio_reembolso = COALESCE(p_id_medio_reembolso, id_medio_reembolso),
+        id_cuenta_bancaria_reembolso = COALESCE(p_id_cuenta_bancaria_reembolso, id_cuenta_bancaria_reembolso),
         observacion_reembolso = COALESCE(v_obs, observacion_reembolso),
         id_usuario_reembolso = CASE
             WHEN v_nuevo_saldo = 0 OR p_id_medio_reembolso IS NOT NULL
@@ -175,6 +182,8 @@ BEGIN
         observacion,
         id_sucursal,
         id_medio_pago,
+        id_cuenta_bancaria,
+        numero_operacion,
         id_usuario_creacion,
         id_usuario_modificacion
     )
@@ -187,6 +196,8 @@ BEGIN
         COALESCE(v_obs, 'Devolución de garantía'),
         v_id_sucursal,
         COALESCE(p_id_medio_reembolso, v_garantia.id_medio_reembolso, v_garantia.id_medio_pago),
+        COALESCE(p_id_cuenta_bancaria_reembolso, v_garantia.id_cuenta_bancaria_reembolso),
+        NULLIF(TRIM(COALESCE(p_numero_operacion, '')), ''),
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     );

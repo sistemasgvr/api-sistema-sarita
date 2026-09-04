@@ -134,6 +134,15 @@ export class CrearCajaGastoDto extends AuditoriaDto {
   @IsInt()
   idMedioPago?: number;
 
+  @ApiPropertyOptional({
+    description:
+      'Cuenta bancaria de la empresa de la que sale el dinero. Obligatoria cuando el medio de pago no es efectivo.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCuentaBancaria?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
@@ -241,6 +250,15 @@ export class ActualizarCajaGastoDto extends AuditoriaDto {
   @Type(() => Number)
   @IsInt()
   idMedioPago?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Cuenta bancaria de la empresa de la que sale el dinero. Obligatoria cuando el medio de pago no es efectivo.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCuentaBancaria?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

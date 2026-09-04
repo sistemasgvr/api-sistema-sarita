@@ -25,6 +25,7 @@ import {
   FiltroResumenDiarioDto,
   PdfComprobanteQueryDto,
   PreviewResumenDiarioQueryDto,
+  RegistrarCobroComprobanteDto,
   RegistrarRespuestaSunatDto,
   SiguienteNumeroQueryDto,
   UpdateComprobantesDto,
@@ -159,6 +160,24 @@ export class ComprobantesController {
     @Body() dto: UpdateComprobantesDto,
   ) {
     return this.logic.actualizar(id, dto);
+  }
+
+  @Patch(':id/cobro')
+  @Permisos(PermisoBanderas.COMPROBANTES_EDITAR)
+  @ApiOperation({
+    summary: 'Registrar la referencia del cobro (voucher) de una venta ya emitida',
+    description:
+      'En el mostrador la venta se genera antes de que el cliente pague, así que el número de ' +
+      'operación se completa después. Solo toca datos de referencia y la cuenta bancaria: no ' +
+      'permite cambiar el medio de pago ni el importe, que moverían el arqueo de una caja que ' +
+      'puede estar ya cerrada.',
+  })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  registrarCobro(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RegistrarCobroComprobanteDto,
+  ) {
+    return this.logic.registrarCobro(id, dto);
   }
 
   @Post(':id/emitir')

@@ -82,6 +82,16 @@ BEGIN
         fecha_modificacion = NOW()
     WHERE id_comprobante = p_id AND estado = 1;
 
+    -- Fase 3: las líneas de cobro siguen la suerte del comprobante. Los totales
+    -- de caja ya excluyen las ventas anuladas por su cabecera, pero dejarlas
+    -- activas haría que un listado de cobros por cuenta bancaria contara dinero
+    -- de una venta que ya no existe.
+    UPDATE ven_comprobante_pago
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_comprobante = p_id AND estado = 1;
+
     UPDATE ven_comprobante
     SET estado = 0,
         id_usuario_modificacion = p_id_usuario_auditoria,

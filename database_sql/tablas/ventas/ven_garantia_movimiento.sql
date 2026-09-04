@@ -17,6 +17,11 @@ CREATE TABLE ven_garantia_movimiento (
     fecha_modificacion timestamp without time zone DEFAULT now(),
     id_sucursal integer,
     id_medio_pago integer
+,
+    -- Fase 3: cuenta y voucher del movimiento, que es la fila que leen los
+    -- resúmenes de caja.
+    id_cuenta_bancaria integer,
+    numero_operacion character varying(80)
 );
 
 CREATE SEQUENCE ven_garantia_movimiento_id_seq
@@ -56,3 +61,8 @@ ALTER TABLE ven_garantia_movimiento
 
 ALTER TABLE ven_garantia_movimiento
     ADD CONSTRAINT ven_garantia_movimiento_id_usuario_modificacion_fkey FOREIGN KEY (id_usuario_modificacion) REFERENCES public.auth_usuarios(id);
+
+ALTER TABLE ven_garantia_movimiento
+    ADD CONSTRAINT ven_garantia_movimiento_id_cuenta_bancaria_fkey FOREIGN KEY (id_cuenta_bancaria) REFERENCES public.gen_cuenta_bancaria(id);
+
+CREATE INDEX idx_ven_garantia_mov_cuenta ON ven_garantia_movimiento USING btree (id_cuenta_bancaria) WHERE (estado = 1);

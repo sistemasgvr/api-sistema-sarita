@@ -7,6 +7,9 @@ CREATE TABLE fin_garantia (
     fecha date NOT NULL,
     id_cliente integer NOT NULL,
     id_medio_pago integer,
+    -- Fase 3: cuenta de la empresa que recibe el cobro / paga el reembolso.
+    id_cuenta_bancaria integer,
+    id_cuenta_bancaria_reembolso integer,
     importe numeric(12,4) NOT NULL,
     observacion character varying(500),
     id_estado integer,
@@ -61,3 +64,9 @@ ALTER TABLE fin_garantia
 
 ALTER TABLE fin_garantia
     ADD CONSTRAINT fin_garantia_id_usuario_reembolso_fkey FOREIGN KEY (id_usuario_reembolso) REFERENCES public.auth_usuarios(id);
+
+ALTER TABLE fin_garantia
+    ADD CONSTRAINT fin_garantia_id_cuenta_bancaria_fkey FOREIGN KEY (id_cuenta_bancaria) REFERENCES public.gen_cuenta_bancaria(id);
+
+ALTER TABLE fin_garantia
+    ADD CONSTRAINT fin_garantia_id_cuenta_bancaria_reembolso_fkey FOREIGN KEY (id_cuenta_bancaria_reembolso) REFERENCES public.gen_cuenta_bancaria(id);

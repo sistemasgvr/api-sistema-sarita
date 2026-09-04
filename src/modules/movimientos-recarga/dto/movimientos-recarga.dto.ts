@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsDateString,
   IsNotEmpty,
@@ -8,7 +9,9 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
+import { ComprobantePagoDto } from '../../comprobantes/dto/comprobantes.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
@@ -324,6 +327,17 @@ export class CreateRecargaClienteDto extends AuditoriaDto {
   @IsOptional()
   @IsDateString()
   fechaVencimiento?: string;
+
+  @ApiPropertyOptional({
+    type: [ComprobantePagoDto],
+    description:
+      'Desglose del cobro del comprobante que genera la recarga. Con un solo pago el monto puede omitirse.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ComprobantePagoDto)
+  pagos?: ComprobantePagoDto[];
 }
 
 export class UpdateMovimientosRecargaDto extends AuditoriaDto {

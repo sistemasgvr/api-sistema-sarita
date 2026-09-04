@@ -45,9 +45,13 @@ BEGIN
             g.observacion,
             g.id_medio_pago,
             mp.nombre AS medio_pago,
+            g.id_cuenta_bancaria,
+            COALESCE(cb.alias, cb.titular, cb.numero_cuenta) AS cuenta_bancaria,
             g.fecha_reembolso,
             g.id_medio_reembolso,
             mr.nombre AS medio_reembolso,
+            g.id_cuenta_bancaria_reembolso,
+            COALESCE(cbr.alias, cbr.titular, cbr.numero_cuenta) AS cuenta_bancaria_reembolso,
             g.observacion_reembolso,
             g.id_usuario_reembolso,
             g.estado,
@@ -151,6 +155,8 @@ BEGIN
         LEFT JOIN gen_lista_opciones eg ON g.id_estado = eg.id
         LEFT JOIN gen_lista_opciones mp ON g.id_medio_pago = mp.id
         LEFT JOIN gen_lista_opciones mr ON g.id_medio_reembolso = mr.id
+        LEFT JOIN gen_cuenta_bancaria cb  ON cb.id = g.id_cuenta_bancaria
+        LEFT JOIN gen_cuenta_bancaria cbr ON cbr.id = g.id_cuenta_bancaria_reembolso
         LEFT JOIN auth_usuarios uc ON g.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios umod ON g.id_usuario_modificacion = umod.id
         WHERE g.id = p_id AND g.estado = 1

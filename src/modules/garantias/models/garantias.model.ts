@@ -48,6 +48,8 @@ export class GarantiasModel {
       dto.idUsuarioAuditoria ?? null,
       dto.idAlquiler ?? null,
       dto.idMedioPago ?? null,
+      dto.idCuentaBancaria ?? null,
+      dto.numeroOperacion ?? null,
     ]);
   }
 
@@ -59,7 +61,9 @@ export class GarantiasModel {
       dto.fecha ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
-      null,
+      dto.idMedioReembolso ?? null,
+      dto.idCuentaBancariaReembolso ?? null,
+      dto.numeroOperacion ?? null,
     ]);
   }
 }

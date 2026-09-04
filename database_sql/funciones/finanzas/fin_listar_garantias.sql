@@ -33,9 +33,13 @@ BEGIN
                      'Cliente #' || g.id_cliente) AS cliente,
             c.numero_documento AS documento_cliente,
             g.id_medio_pago, mp.nombre AS medio_pago,
+            g.id_cuenta_bancaria,
+            COALESCE(cb.alias, cb.titular, cb.numero_cuenta) AS cuenta_bancaria,
             g.importe, g.observacion,
             g.fecha_reembolso,
             g.id_medio_reembolso, mr.nombre AS medio_reembolso,
+            g.id_cuenta_bancaria_reembolso,
+            COALESCE(cbr.alias, cbr.titular, cbr.numero_cuenta) AS cuenta_bancaria_reembolso,
             g.observacion_reembolso,
             g.id_estado, est.nombre AS estado_texto,
             g.fecha_creacion
@@ -44,6 +48,8 @@ BEGIN
         LEFT JOIN gen_lista_opciones mp  ON mp.id = g.id_medio_pago
         LEFT JOIN gen_lista_opciones mr  ON mr.id = g.id_medio_reembolso
         LEFT JOIN gen_lista_opciones est ON est.id = g.id_estado
+        LEFT JOIN gen_cuenta_bancaria cb  ON cb.id = g.id_cuenta_bancaria
+        LEFT JOIN gen_cuenta_bancaria cbr ON cbr.id = g.id_cuenta_bancaria_reembolso
         WHERE g.estado = 1
           AND (p_id_cliente IS NULL OR g.id_cliente = p_id_cliente)
           AND (p_desde IS NULL OR g.fecha >= p_desde)

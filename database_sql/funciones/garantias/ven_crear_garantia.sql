@@ -1,10 +1,12 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_crear_garantia
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.966Z
+-- Fase 3 (apunte 1.c.vi): la garantía de venta se liga a la cuenta bancaria de
+-- la empresa cuando el medio de pago no es efectivo. La cuenta se guarda tanto
+-- en la garantía como en su movimiento de COBRO, que es la fila que leen los
+-- resúmenes de caja.
 DROP FUNCTION IF EXISTS ven_crear_garantia(p_id_cliente integer, p_monto numeric, p_id_comprobante integer, p_id_prestamo integer, p_id_producto integer, p_ubicacion character varying, p_cantidad_venta numeric, p_id_unidad_medida integer, p_fecha_registro date, p_observacion character varying, p_id_usuario_auditoria integer, p_id_alquiler integer, p_id_medio_pago integer);
+DROP FUNCTION IF EXISTS ven_crear_garantia(p_id_cliente integer, p_monto numeric, p_id_comprobante integer, p_id_prestamo integer, p_id_producto integer, p_ubicacion character varying, p_cantidad_venta numeric, p_id_unidad_medida integer, p_fecha_registro date, p_observacion character varying, p_id_usuario_auditoria integer, p_id_alquiler integer, p_id_medio_pago integer, p_id_cuenta_bancaria integer, p_numero_operacion character varying);
 
-CREATE OR REPLACE FUNCTION ven_crear_garantia(p_id_cliente integer, p_monto numeric, p_id_comprobante integer DEFAULT NULL::integer, p_id_prestamo integer DEFAULT NULL::integer, p_id_producto integer DEFAULT NULL::integer, p_ubicacion character varying DEFAULT NULL::character varying, p_cantidad_venta numeric DEFAULT NULL::numeric, p_id_unidad_medida integer DEFAULT NULL::integer, p_fecha_registro date DEFAULT NULL::date, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_alquiler integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION ven_crear_garantia(p_id_cliente integer, p_monto numeric, p_id_comprobante integer DEFAULT NULL::integer, p_id_prestamo integer DEFAULT NULL::integer, p_id_producto integer DEFAULT NULL::integer, p_ubicacion character varying DEFAULT NULL::character varying, p_cantidad_venta numeric DEFAULT NULL::numeric, p_id_unidad_medida integer DEFAULT NULL::integer, p_fecha_registro date DEFAULT NULL::date, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_alquiler integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_id_cuenta_bancaria integer DEFAULT NULL::integer, p_numero_operacion character varying DEFAULT NULL::character varying)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -60,6 +62,11 @@ BEGIN
         SELECT 1 FROM gen_lista_opciones WHERE id = p_id_medio_pago AND estado = 1
     ) THEN
         RETURN json_build_object('error', 'El método de pago indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    v_err_caja := fin_validar_cuenta_medio_pago(p_id_medio_pago, p_id_cuenta_bancaria);
+    IF v_err_caja IS NOT NULL THEN
+        RETURN json_build_object('error', v_err_caja, 'registro', NULL);
     END IF;
 
     SELECT lo.id INTO v_id_estado_activa
@@ -124,6 +131,7 @@ BEGIN
         id_estado,
         observacion,
         id_medio_pago,
+        id_cuenta_bancaria,
         id_usuario_creacion,
         id_usuario_modificacion
     )
@@ -142,6 +150,7 @@ BEGIN
         v_id_estado_activa,
         NULLIF(TRIM(COALESCE(p_observacion, '')), ''),
         p_id_medio_pago,
+        p_id_cuenta_bancaria,
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     )
@@ -156,6 +165,8 @@ BEGIN
         observacion,
         id_sucursal,
         id_medio_pago,
+        id_cuenta_bancaria,
+        numero_operacion,
         id_usuario_creacion,
         id_usuario_modificacion
     )
@@ -168,6 +179,8 @@ BEGIN
         'Cobro inicial de garantía',
         v_id_sucursal,
         p_id_medio_pago,
+        p_id_cuenta_bancaria,
+        NULLIF(TRIM(COALESCE(p_numero_operacion, '')), ''),
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     );

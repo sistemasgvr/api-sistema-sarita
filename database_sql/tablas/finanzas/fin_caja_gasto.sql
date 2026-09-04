@@ -9,6 +9,9 @@ CREATE TABLE fin_caja_gasto (
     concepto character varying(200) NOT NULL,
     monto numeric(12,4) NOT NULL,
     id_medio_pago integer,
+    -- Fase 3: cuenta de la empresa de la que sale el dinero cuando el medio
+    -- de pago no es efectivo.
+    id_cuenta_bancaria integer,
     id_categoria_gasto integer,
     numero_operacion character varying(80),
     observacion character varying(500),
@@ -53,3 +56,8 @@ ALTER TABLE fin_caja_gasto
 
 ALTER TABLE fin_caja_gasto
     ADD CONSTRAINT fin_caja_gasto_id_usuario_modificacion_fkey FOREIGN KEY (id_usuario_modificacion) REFERENCES public.auth_usuarios(id);
+
+ALTER TABLE fin_caja_gasto
+    ADD CONSTRAINT fin_caja_gasto_id_cuenta_bancaria_fkey FOREIGN KEY (id_cuenta_bancaria) REFERENCES public.gen_cuenta_bancaria(id);
+
+CREATE INDEX idx_fin_caja_gasto_cuenta ON fin_caja_gasto USING btree (id_cuenta_bancaria) WHERE (estado = 1);

@@ -12,6 +12,12 @@ CREATE TABLE gen_cuenta_bancaria (
     numero_cuenta_interbancaria character varying(30),
     telefono_billetera character varying(20),
     es_principal boolean DEFAULT false,
+    -- Fase 3: CLIENTE = cuenta del cliente (devoluciones);
+    -- EMPRESA = cuenta propia que recibe los cobros. Las de EMPRESA se comparten
+    -- entre sucursales: la sucursal ya queda en el movimiento que usa la cuenta.
+    ambito character varying(10) DEFAULT 'CLIENTE'::character varying NOT NULL,
+    alias character varying(100),
+    id_empresa integer,
     estado integer DEFAULT 1 NOT NULL,
     id_usuario_creacion integer,
     id_usuario_modificacion integer,
@@ -35,6 +41,17 @@ ALTER TABLE gen_cuenta_bancaria
     ADD CONSTRAINT gen_cuenta_bancaria_pkey PRIMARY KEY (id);
 
 CREATE INDEX idx_gen_cuenta_cliente ON gen_cuenta_bancaria USING btree (id_cliente);
+
+CREATE INDEX idx_gen_cuenta_ambito ON gen_cuenta_bancaria USING btree (ambito) WHERE (estado = 1);
+
+ALTER TABLE gen_cuenta_bancaria
+    ADD CONSTRAINT gen_cuenta_bancaria_ambito_check CHECK (((ambito)::text = ANY ((ARRAY['CLIENTE'::character varying, 'EMPRESA'::character varying])::text[])));
+
+ALTER TABLE gen_cuenta_bancaria
+    ADD CONSTRAINT gen_cuenta_bancaria_ambito_coherente CHECK (((((ambito)::text = 'CLIENTE'::text) AND (id_cliente IS NOT NULL)) OR (((ambito)::text = 'EMPRESA'::text) AND (id_cliente IS NULL))));
+
+ALTER TABLE gen_cuenta_bancaria
+    ADD CONSTRAINT gen_cuenta_bancaria_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.gen_empresa(id);
 
 ALTER TABLE gen_cuenta_bancaria
     ADD CONSTRAINT gen_cuenta_bancaria_id_banco_fkey FOREIGN KEY (id_banco) REFERENCES public.gen_lista_opciones(id);

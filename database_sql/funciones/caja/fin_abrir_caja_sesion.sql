@@ -136,6 +136,9 @@ BEGIN
             WHERE s.id = v_id
         ) t;
 
+        -- Fase 3 (apunte 1.a.iii): avisar a los ADMIN de la apertura.
+        PERFORM fin_notificar_caja_admins(v_id, 'APERTURA', p_id_usuario);
+
         RETURN json_build_object('registro', v_registro);
     END IF;
 
@@ -297,6 +300,9 @@ BEGIN
         WHERE s.id = v_id
     ) t;
 
+    -- Fase 3 (apunte 1.a.iii): avisar a los ADMIN de la apertura.
+    PERFORM fin_notificar_caja_admins(v_id, 'APERTURA', p_id_usuario);
+
     RETURN json_build_object('registro', v_registro);
 END;
 $function$;
@@ -417,6 +423,9 @@ BEGIN
         LEFT JOIN gen_lista_opciones est ON est.id = s.id_estado
         WHERE s.id = v_id
     ) t;
+
+    -- Fase 3 (apunte 1.a.iii): avisar a los ADMIN de la apertura.
+    PERFORM fin_notificar_caja_admins(v_id, 'APERTURA', p_id_usuario);
 
     RETURN json_build_object('registro', v_registro);
 END;

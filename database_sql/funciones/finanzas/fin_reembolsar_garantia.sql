@@ -1,17 +1,26 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_reembolsar_garantia
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.959Z
-DROP FUNCTION IF EXISTS fin_reembolsar_garantia(p_id integer, p_fecha_reembolso date, p_id_medio_reembolso integer, p_observacion_reembolso character varying, p_id_usuario integer);
+-- Fase 3: el reembolso lleva su propia cuenta bancaria. No tiene por qué ser la
+-- misma por la que entró: el cliente pudo pagar por Yape y pedir la devolución
+-- por transferencia.
 
-CREATE OR REPLACE FUNCTION fin_reembolsar_garantia(p_id integer, p_fecha_reembolso date, p_id_medio_reembolso integer, p_observacion_reembolso character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
+DROP FUNCTION IF EXISTS fin_reembolsar_garantia(p_id integer, p_fecha_reembolso date, p_id_medio_reembolso integer, p_observacion_reembolso character varying, p_id_usuario integer);
+DROP FUNCTION IF EXISTS fin_reembolsar_garantia(p_id integer, p_fecha_reembolso date, p_id_medio_reembolso integer, p_observacion_reembolso character varying, p_id_usuario integer, p_id_cuenta_bancaria_reembolso integer);
+
+CREATE OR REPLACE FUNCTION fin_reembolsar_garantia(
+    p_id integer,
+    p_fecha_reembolso date,
+    p_id_medio_reembolso integer,
+    p_observacion_reembolso character varying DEFAULT NULL::character varying,
+    p_id_usuario integer DEFAULT NULL::integer,
+    p_id_cuenta_bancaria_reembolso integer DEFAULT NULL::integer
+)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_garantia  fin_garantia%ROWTYPE;
     v_id_devuelta INT;
-    v_registro JSON;
+    v_error TEXT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -36,6 +45,11 @@ BEGIN
                 to_char(v_garantia.fecha, 'DD/MM/YYYY')));
     END IF;
 
+    v_error := fin_validar_cuenta_medio_pago(p_id_medio_reembolso, p_id_cuenta_bancaria_reembolso);
+    IF v_error IS NOT NULL THEN
+        RETURN json_build_object('registro', NULL, 'error', v_error);
+    END IF;
+
     SELECT glo.id INTO v_id_devuelta
     FROM gen_lista_opciones glo
     JOIN gen_lista gl ON gl.id = glo.id_lista
@@ -45,6 +59,7 @@ BEGIN
     UPDATE fin_garantia SET
         fecha_reembolso       = p_fecha_reembolso,
         id_medio_reembolso    = p_id_medio_reembolso,
+        id_cuenta_bancaria_reembolso = p_id_cuenta_bancaria_reembolso,
         observacion_reembolso = NULLIF(TRIM(p_observacion_reembolso), ''),
         id_usuario_reembolso  = p_id_usuario,
         id_estado             = COALESCE(v_id_devuelta, id_estado),
@@ -52,28 +67,6 @@ BEGIN
         fecha_modificacion    = NOW()
     WHERE id = p_id;
 
-    SELECT row_to_json(t) INTO v_registro FROM (
-        SELECT
-            g.id, g.fecha,
-            g.id_cliente,
-            COALESCE(NULLIF(TRIM(c.razon_social), ''),
-                     NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), ''),
-                     'Cliente #' || g.id_cliente) AS cliente,
-            c.numero_documento AS documento_cliente,
-            g.id_medio_pago, mp.nombre AS medio_pago,
-            g.importe, g.observacion,
-            g.fecha_reembolso,
-            g.id_medio_reembolso, mr.nombre AS medio_reembolso,
-            g.observacion_reembolso,
-            g.id_estado, est.nombre AS estado_texto
-        FROM fin_garantia g
-        JOIN cli_clientes c ON c.id = g.id_cliente
-        LEFT JOIN gen_lista_opciones mp  ON mp.id = g.id_medio_pago
-        LEFT JOIN gen_lista_opciones mr  ON mr.id = g.id_medio_reembolso
-        LEFT JOIN gen_lista_opciones est ON est.id = g.id_estado
-        WHERE g.id = p_id
-    ) t;
-
-    RETURN json_build_object('registro', v_registro);
+    RETURN json_build_object('registro', fin_garantia_registro(p_id));
 END;
 $function$;

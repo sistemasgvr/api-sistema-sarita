@@ -27,6 +27,13 @@ BEGIN
         RETURN json_build_object('registro', NULL, 'error', v_err_caja);
     END IF;
 
+    -- Fase 3: la columna id_cuenta_bancaria ya existía, pero nadie comprobaba
+    -- que la cuenta fuera de la empresa ni que aceptara el medio elegido.
+    v_err_caja := fin_validar_cuenta_medio_pago(p_id_medio_pago, p_id_cuenta_bancaria);
+    IF v_err_caja IS NOT NULL THEN
+        RETURN json_build_object('registro', NULL, 'error', v_err_caja);
+    END IF;
+
     SELECT glo.id INTO v_id_tipo
     FROM gen_lista_opciones glo
     JOIN gen_lista gl ON gl.id = glo.id_lista

@@ -35,6 +35,22 @@ export class CrearGarantiaDto extends AuditoriaDto {
   @IsInt()
   idMedioPago?: number;
 
+  @ApiPropertyOptional({
+    example: 16,
+    description:
+      'Cuenta bancaria de la EMPRESA que recibe el dinero. Obligatoria cuando el medio de pago no es efectivo.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCuentaBancaria?: number;
+
+  @ApiPropertyOptional({ example: 'OP-00123', description: 'Número de operación / voucher' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  numeroOperacion?: string;
+
   @ApiProperty({ example: 50.0, description: 'Importe de la garantía' })
   @Type(() => Number)
   @IsNumber(MONEY_NUMBER_OPTIONS)
@@ -91,6 +107,22 @@ export class ActualizarGarantiaDto extends AuditoriaDto {
   @IsInt()
   idMedioPago?: number;
 
+  @ApiPropertyOptional({
+    example: 16,
+    description:
+      'Cuenta bancaria de la EMPRESA que recibe el dinero. Obligatoria cuando el medio de pago no es efectivo.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCuentaBancaria?: number;
+
+  @ApiPropertyOptional({ example: 'OP-00123', description: 'Número de operación / voucher' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  numeroOperacion?: string;
+
   @ApiPropertyOptional({ example: 50.0 })
   @IsOptional()
   @Type(() => Number)
@@ -129,6 +161,22 @@ export class ReembolsarGarantiaDto extends AuditoriaDto {
   @Type(() => Number)
   @IsInt()
   idMedioReembolso?: number;
+
+  @ApiPropertyOptional({
+    example: 16,
+    description:
+      'Cuenta bancaria de la EMPRESA desde la que se devuelve. Obligatoria cuando el medio de reembolso no es efectivo.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCuentaBancariaReembolso?: number;
+
+  @ApiPropertyOptional({ example: 'OP-00123', description: 'Número de operación / voucher' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  numeroOperacion?: string;
 
   @ApiPropertyOptional({ example: 'Entregado en tienda' })
   @IsOptional()

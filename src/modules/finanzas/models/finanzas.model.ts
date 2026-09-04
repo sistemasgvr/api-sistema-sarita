@@ -172,6 +172,8 @@ export class FinanzasModel {
       dto.idUsuarioAuditoria ?? null,
       dto.idAlquiler ?? null,
       dto.idMedioPago ?? null,
+      dto.idCuentaBancaria ?? null,
+      dto.numeroOperacion ?? null,
     ]);
   }
 
@@ -184,6 +186,7 @@ export class FinanzasModel {
       dto.importe ?? null,
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idCuentaBancaria ?? null,
     ]);
   }
 
@@ -222,6 +225,8 @@ export class FinanzasModel {
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
       dto.idMedioReembolso ?? null,
+      dto.idCuentaBancariaReembolso ?? null,
+      dto.numeroOperacion ?? null,
     ]);
   }
 

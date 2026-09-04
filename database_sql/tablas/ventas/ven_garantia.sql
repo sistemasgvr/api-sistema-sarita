@@ -23,6 +23,9 @@ CREATE TABLE ven_garantia (
     fecha_modificacion timestamp without time zone DEFAULT now(),
     id_alquiler integer,
     id_medio_pago integer,
+    -- Fase 3: cuenta de la empresa que recibe el cobro / paga el reembolso.
+    id_cuenta_bancaria integer,
+    id_cuenta_bancaria_reembolso integer,
     fecha_reembolso date,
     id_medio_reembolso integer,
     observacion_reembolso character varying(500),
@@ -80,3 +83,9 @@ ALTER TABLE ven_garantia
 
 ALTER TABLE ven_garantia
     ADD CONSTRAINT ven_garantia_id_usuario_reembolso_fkey FOREIGN KEY (id_usuario_reembolso) REFERENCES public.auth_usuarios(id);
+
+ALTER TABLE ven_garantia
+    ADD CONSTRAINT ven_garantia_id_cuenta_bancaria_fkey FOREIGN KEY (id_cuenta_bancaria) REFERENCES public.gen_cuenta_bancaria(id);
+
+ALTER TABLE ven_garantia
+    ADD CONSTRAINT ven_garantia_id_cuenta_bancaria_reembolso_fkey FOREIGN KEY (id_cuenta_bancaria_reembolso) REFERENCES public.gen_cuenta_bancaria(id);

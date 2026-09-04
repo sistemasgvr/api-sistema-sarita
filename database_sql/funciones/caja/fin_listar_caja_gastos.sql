@@ -43,6 +43,8 @@ BEGIN
                     f.monto,
                     f.id_medio_pago AS "idMedioPago",
                     mp.nombre AS "medioPago",
+                    f.id_cuenta_bancaria AS "idCuentaBancaria",
+                    COALESCE(cb.alias, cb.titular, cb.numero_cuenta) AS "cuentaBancaria",
                     f.id_categoria_gasto AS "idCategoriaGasto",
                     cat.nombre AS "categoriaGasto",
                     f.numero_operacion AS "numeroOperacion",
@@ -52,6 +54,7 @@ BEGIN
                 FROM filtrado f
                 LEFT JOIN gen_lista_opciones mp ON mp.id = f.id_medio_pago
                 LEFT JOIN gen_lista_opciones cat ON cat.id = f.id_categoria_gasto
+                LEFT JOIN gen_cuenta_bancaria cb ON cb.id = f.id_cuenta_bancaria
                 ORDER BY f.fecha DESC, f.id DESC
                 LIMIT p_limite
                 OFFSET p_offset

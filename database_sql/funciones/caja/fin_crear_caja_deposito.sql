@@ -1,10 +1,20 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_crear_caja_deposito
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
+-- Fase 3: la cuenta bancaria ya existía en la tabla, pero no se validaba que
+-- fuera una cuenta de la EMPRESA ni que aceptara el medio de pago elegido.
+
 DROP FUNCTION IF EXISTS fin_crear_caja_deposito(p_fecha date, p_monto numeric, p_id_cuenta_bancaria integer, p_id_medio_pago integer, p_numero_operacion character varying, p_observacion character varying, p_id_sesion integer, p_id_usuario integer, p_id_sucursal integer);
 
-CREATE OR REPLACE FUNCTION fin_crear_caja_deposito(p_fecha date, p_monto numeric, p_id_cuenta_bancaria integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_numero_operacion character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_sesion integer DEFAULT NULL::integer, p_id_usuario integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION fin_crear_caja_deposito(
+    p_fecha date,
+    p_monto numeric,
+    p_id_cuenta_bancaria integer DEFAULT NULL::integer,
+    p_id_medio_pago integer DEFAULT NULL::integer,
+    p_numero_operacion character varying DEFAULT NULL::character varying,
+    p_observacion character varying DEFAULT NULL::character varying,
+    p_id_sesion integer DEFAULT NULL::integer,
+    p_id_usuario integer DEFAULT NULL::integer,
+    p_id_sucursal integer DEFAULT NULL::integer
+)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -19,6 +29,25 @@ BEGIN
 
     IF p_fecha IS NULL OR COALESCE(p_monto, 0) <= 0 THEN
         RETURN json_build_object('error', 'Fecha y monto (> 0) son obligatorios', 'registro', NULL);
+    END IF;
+
+    -- Un depósito saca efectivo de la caja y lo mete al banco: la cuenta destino
+    -- es obligatoria siempre, aunque el medio no la exigiera por sí solo.
+    IF p_id_cuenta_bancaria IS NULL THEN
+        RETURN json_build_object(
+            'error', 'Indica la cuenta bancaria de la empresa donde se deposita el dinero',
+            'registro', NULL
+        );
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM gen_cuenta_bancaria
+        WHERE id = p_id_cuenta_bancaria AND estado = 1 AND ambito = 'EMPRESA'
+    ) THEN
+        RETURN json_build_object(
+            'error', 'La cuenta de destino debe ser una cuenta bancaria activa de la empresa',
+            'registro', NULL
+        );
     END IF;
 
     v_sucursal := p_id_sucursal;
@@ -62,7 +91,7 @@ BEGIN
         SELECT
             d.id, d.fecha, d.monto,
             d.id_cuenta_bancaria AS "idCuentaBancaria",
-            COALESCE(cb.titular, cb.numero_cuenta) AS "cuentaBancaria",
+            COALESCE(cb.alias, cb.titular, cb.numero_cuenta) AS "cuentaBancaria",
             d.id_medio_pago AS "idMedioPago",
             mp.nombre AS "medioPago",
             d.numero_operacion AS "numeroOperacion",

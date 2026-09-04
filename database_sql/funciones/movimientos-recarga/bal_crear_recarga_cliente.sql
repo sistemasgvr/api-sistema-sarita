@@ -3,8 +3,9 @@
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.944Z
 DROP FUNCTION IF EXISTS bal_crear_recarga_cliente(p_id_cliente integer, p_id_balon integer, p_id_producto integer, p_precio_unitario numeric, p_cantidad numeric, p_id_tipo_comprobante integer, p_serie character varying, p_capacidad numeric, p_id_medio_pago integer, p_id_almacen integer, p_observacion character varying, p_id_balon_origen integer, p_id_usuario_auditoria integer, p_id_condicion_pago integer, p_fecha_vencimiento date);
+DROP FUNCTION IF EXISTS bal_crear_recarga_cliente(p_id_cliente integer, p_id_balon integer, p_id_producto integer, p_precio_unitario numeric, p_cantidad numeric, p_id_tipo_comprobante integer, p_serie character varying, p_capacidad numeric, p_id_medio_pago integer, p_id_almacen integer, p_observacion character varying, p_id_balon_origen integer, p_id_usuario_auditoria integer, p_id_condicion_pago integer, p_fecha_vencimiento date, p_pagos json);
 
-CREATE OR REPLACE FUNCTION bal_crear_recarga_cliente(p_id_cliente integer, p_id_balon integer, p_id_producto integer, p_precio_unitario numeric, p_cantidad numeric DEFAULT 1, p_id_tipo_comprobante integer DEFAULT NULL::integer, p_serie character varying DEFAULT 'B001'::character varying, p_capacidad numeric DEFAULT NULL::numeric, p_id_medio_pago integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_balon_origen integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_fecha_vencimiento date DEFAULT NULL::date)
+CREATE OR REPLACE FUNCTION bal_crear_recarga_cliente(p_id_cliente integer, p_id_balon integer, p_id_producto integer, p_precio_unitario numeric, p_cantidad numeric DEFAULT 1, p_id_tipo_comprobante integer DEFAULT NULL::integer, p_serie character varying DEFAULT 'B001'::character varying, p_capacidad numeric DEFAULT NULL::numeric, p_id_medio_pago integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_balon_origen integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_fecha_vencimiento date DEFAULT NULL::date, p_pagos json DEFAULT NULL::json)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -24,6 +25,7 @@ DECLARE
     v_serie_comprobante VARCHAR;
     v_numero_comprobante VARCHAR;
     v_id_recarga INTEGER;
+    v_err_pagos TEXT;
     v_recarga JSON;
     v_comprobante JSON;
     v_capacidad NUMERIC;
@@ -241,6 +243,16 @@ BEGIN
     v_id_comprobante := (v_comprobante->>'id')::INTEGER;
     v_serie_comprobante := v_comprobante->>'serie';
     v_numero_comprobante := v_comprobante->>'numero';
+
+    -- Fase 3: el cobro de la recarga se guarda como linea de ven_comprobante_pago,
+    -- con la cuenta de la empresa cuando el medio no es efectivo. Va aqui, con el
+    -- comprobante ya creado y su total calculado.
+    v_err_pagos := ven_sincronizar_pagos_comprobante(
+        v_id_comprobante, p_pagos, p_id_usuario_auditoria
+    );
+    IF v_err_pagos IS NOT NULL THEN
+        RAISE EXCEPTION '%', v_err_pagos USING ERRCODE = '22023';
+    END IF;
 
     -- El stock de gas ya se validó en bal_asignar_origenes_recarga (pro_stock) y se
     -- descuenta más abajo vía inv_registrar_movimiento; ya no hay capacidad por

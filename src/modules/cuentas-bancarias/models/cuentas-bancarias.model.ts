@@ -22,6 +22,8 @@ export class CuentasBancariasModel {
       filtros.limite ?? 10,
       filtros.offset ?? 0,
       filtros.idCliente ?? null,
+      filtros.ambito ?? null,
+      filtros.idMedioPago ?? null,
     ]);
   }
 
@@ -45,6 +47,9 @@ export class CuentasBancariasModel {
         dto.telefonoBilletera ?? null,
         dto.esPrincipal ?? false,
         dto.idUsuarioAuditoria ?? null,
+        dto.ambito ?? null,
+        dto.alias ?? null,
+        dto.mediosPago ? JSON.stringify(dto.mediosPago) : null,
       ],
     );
   }
@@ -63,6 +68,8 @@ export class CuentasBancariasModel {
         dto.telefonoBilletera ?? null,
         dto.esPrincipal ?? null,
         dto.idUsuarioAuditoria ?? null,
+        dto.alias ?? null,
+        dto.mediosPago ? JSON.stringify(dto.mediosPago) : null,
       ],
     );
   }
