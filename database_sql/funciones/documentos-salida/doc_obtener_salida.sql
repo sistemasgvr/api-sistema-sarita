@@ -2,6 +2,10 @@
 -- Function: doc_obtener_salida
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.958Z
+--
+-- Actualizada por database_sql/migraciones/20260905_venta_gas_prestamo_garantia_join.sql:
+-- con id_venta el detalle une los items de la venta con los cilindros
+-- entregados en prestamo (rol ENTREGADO) y descarta las lineas de garantia.
 DROP FUNCTION IF EXISTS doc_obtener_salida(p_id integer);
 
 CREATE OR REPLACE FUNCTION doc_obtener_salida(p_id integer)
@@ -13,6 +17,7 @@ DECLARE
     v_id_venta INTEGER;
     v_venta_anulada BOOLEAN;
     v_detalle JSON;
+    v_ultimo_item_venta INTEGER := 0;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -25,10 +30,29 @@ BEGIN
     IF v_id_venta IS NOT NULL THEN
         SELECT (vc.estado = 0) INTO v_venta_anulada FROM ven_comprobante vc WHERE vc.id = v_id_venta;
 
-        -- Si la venta fue anulada, sus líneas también quedaron en estado=0
-        -- (ven_eliminar_comprobante). El detalle de este documento se toma
-        -- por JOIN (principio "detalle no duplicado"), así que sin este
-        -- OR se vería vacío en vez de mostrar qué se vendió originalmente.
+        -- El detalle de una orden ligada a venta se arma por JOIN (principio
+        -- "detalle no duplicado") y tiene dos orígenes:
+        --   VENTA    — los ítems/productos del comprobante. Si la venta fue
+        --              anulada sus líneas quedaron en estado=0
+        --              (ven_eliminar_comprobante), así que el OR con
+        --              v_venta_anulada evita que el documento se vea vacío en
+        --              vez de mostrar qué se vendió originalmente.
+        --   PRESTAMO — los cilindros entregados en préstamo por esa misma venta.
+        --              Van como fila propia aunque la línea de gas ya traiga ese
+        --              mismo id_balon: son dos cosas distintas que el cliente se
+        --              lleva a la vez (el contenido y el envase), y la orden de
+        --              salida tiene que mencionar ambas.
+        -- Se excluyen dos cosas: las líneas de garantía antiguas (garantía es
+        -- dinero, no se despacha) y los cilindros de rol GARANTIA, que entran al
+        -- almacén en vez de salir.
+        -- El item de los cilindros continúa la numeración de la venta, así que
+        -- se calcula antes: dentro del UNION no hay forma de mirar el otro lado.
+        SELECT COALESCE(MAX(vd.item), 0) INTO v_ultimo_item_venta
+        FROM ven_comprobante_detalle vd
+        WHERE vd.id_comprobante = v_id_venta
+          AND (vd.estado = 1 OR v_venta_anulada)
+          AND COALESCE(vd.descripcion, '') !~* 'garant[ií]a';
+
         SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.item), '[]'::JSON) INTO v_detalle
         FROM (
             SELECT
@@ -53,6 +77,37 @@ BEGIN
             LEFT JOIN gen_lista_opciones um ON um.id = vd.id_unidad_medida
             WHERE vd.id_comprobante = v_id_venta
               AND (vd.estado = 1 OR v_venta_anulada)
+              AND COALESCE(vd.descripcion, '') !~* 'garant[ií]a'
+            UNION ALL
+            SELECT
+                pd.id,
+                v_ultimo_item_venta + (ROW_NUMBER() OVER (ORDER BY pd.id))::INTEGER AS item,
+                NULL::INTEGER AS id_producto,
+                b.codigo_balon AS codigo_producto,
+                (
+                    'Cilindro en préstamo — '
+                    || COALESCE(b.codigo_balon, 'sin código')
+                    || COALESCE(' (' || tb.nombre || ')', '')
+                )::VARCHAR AS descripcion,
+                pd.id_balon,
+                b.codigo_balon,
+                1::NUMERIC AS cantidad,
+                NULL::INTEGER AS id_unidad_medida,
+                NULL::VARCHAR AS nombre_unidad_medida,
+                NULL::VARCHAR AS codigo_unidad_medida,
+                tb.nombre::VARCHAR AS nombre_producto,
+                NULL::VARCHAR AS glosa,
+                NULL::INTEGER AS id_movimiento,
+                'PRESTAMO'::VARCHAR AS origen_detalle
+            FROM bal_prestamo pr
+            INNER JOIN bal_prestamo_detalle pd
+                ON pd.id_prestamo = pr.id AND pd.estado = 1
+            LEFT JOIN bal_balon b ON b.id = pd.id_balon
+            LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+            WHERE pr.id_comprobante_venta = v_id_venta
+              AND pr.estado = 1
+              AND pd.rol = 'ENTREGADO'
+              AND pd.id_balon IS NOT NULL
         ) t;
     ELSE
         SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.item), '[]'::JSON) INTO v_detalle

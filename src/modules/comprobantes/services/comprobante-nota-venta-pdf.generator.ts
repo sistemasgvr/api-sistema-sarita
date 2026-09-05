@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
-import type { ComprobanteCompletoResult } from '../interfaces/comprobante.interface';
+import type {
+  ComprobanteCompletoResult,
+  ComprobanteGarantiaRegistro,
+} from '../interfaces/comprobante.interface';
+import { esLineaGarantia } from '../utils/comprobante-lineas.util';
 
 interface EmpresaEmisora {
   ruc: string;
@@ -39,6 +43,19 @@ export class ComprobanteNotaVentaPdfGenerator {
     }
 
     const detalles = comprobante.detalles ?? [];
+    const prestamos = comprobante.prestamos ?? [];
+    const garantias = comprobante.garantias ?? [];
+    // Las líneas se imprimen tal cual quedaron guardadas, incluida la garantía
+    // de los documentos anteriores al cambio: reimprimir tiene que dar el mismo
+    // total que se emitió. Cuando la garantía ya viaja como línea no se repite
+    // en su bloque propio.
+    const garantiaEnLineas = detalles.some((detalle) =>
+      esLineaGarantia(detalle),
+    );
+    const totalGarantia = garantias.reduce(
+      (total, garantia) => total + this.montoGarantia(garantia),
+      0,
+    );
     const clienteNombre = this.resolveClienteNombre(cliente, cabecera.nombre_cliente);
     const clienteDoc =
       (cliente.numero_documento ?? cabecera.documento_cliente ?? '').trim() || '—';
@@ -383,6 +400,79 @@ export class ComprobanteNotaVentaPdfGenerator {
         y += 20;
       }
 
+      // ===== Préstamo de cilindros y garantía: llegan por JOIN, no son venta =====
+      const balonesEntregados = prestamos.flatMap((prestamo) =>
+        (prestamo.balones ?? [])
+          .filter((balon) => balon.rol === 'ENTREGADO')
+          .map((balon) => ({ prestamo, balon })),
+      );
+      const balonesEnGarantia = prestamos.flatMap((prestamo) =>
+        (prestamo.balones ?? []).filter((balon) => balon.rol === 'GARANTIA'),
+      );
+
+      const escribirBloque = (titulo: string, lineas: string[]) => {
+        if (lineas.length === 0) return;
+        y += 12;
+        ensureSpace(20 + lineas.length * 14);
+        doc.font('Helvetica-Bold').fontSize(9).fillColor('#111111');
+        doc.text(titulo, left, y, { width: pageWidth });
+        y = doc.y + 4;
+        doc.font('Helvetica').fontSize(8).fillColor('#333333');
+        for (const linea of lineas) {
+          doc.text(linea, left, y, { width: pageWidth });
+          y = doc.y + 2;
+        }
+      };
+
+      escribirBloque(
+        'Cilindros entregados en préstamo',
+        balonesEntregados.map(({ prestamo, balon }) =>
+          [
+            [balon.codigo_balon, balon.nombre_tipo_balon]
+              .filter(Boolean)
+              .join(' · ') || `Cilindro ${balon.id_balon ?? ''}`,
+            prestamo.numero_prestamo
+              ? `Préstamo ${prestamo.numero_prestamo}`
+              : '',
+            balon.fecha_vencimiento
+              ? `Devolución pactada: ${balon.fecha_vencimiento}`
+              : '',
+            balon.fecha_devolucion ? `Devuelto: ${balon.fecha_devolucion}` : '',
+          ]
+            .filter(Boolean)
+            .join('  —  '),
+        ),
+      );
+
+      escribirBloque(
+        'Cilindro recibido en garantía',
+        balonesEnGarantia.map(
+          (balon) =>
+            [balon.codigo_balon, balon.nombre_tipo_balon]
+              .filter(Boolean)
+              .join(' · ') || `Cilindro ${balon.id_balon ?? ''}`,
+        ),
+      );
+
+      if (!garantiaEnLineas && totalGarantia > 0) {
+        escribirBloque(
+          'Garantía recibida (reembolsable)',
+          garantias
+            .filter((garantia) => this.montoGarantia(garantia) > 0)
+            .map((garantia) => {
+              const etiqueta =
+                garantia.nombre_producto?.trim() ||
+                (garantia.numero_prestamo
+                  ? `Préstamo ${garantia.numero_prestamo}`
+                  : 'Garantía');
+              return `${etiqueta}  —  S/ ${this.money(this.montoGarantia(garantia))}`;
+            })
+            .concat(
+              'No es venta: se devuelve al retornar el cilindro, por eso no entra en los totales.',
+            ),
+        );
+      }
+
       y += 14;
       ensureSpace(110);
 
@@ -437,9 +527,26 @@ export class ComprobanteNotaVentaPdfGenerator {
       drawTotal('Op. Gravadas:', valorVenta);
       drawTotal('I.G.V.:', igv);
       drawTotal('Precio Venta:', total, true);
+      // La garantía no es venta, así que va fuera de "Precio Venta"; el total
+      // cobrado se muestra aparte para que el cliente sepa cuánto entrega hoy.
+      if (!garantiaEnLineas && totalGarantia > 0) {
+        drawTotal('Garantía (reembolsable):', totalGarantia);
+        drawTotal('Total cobrado:', total + totalGarantia, true);
+      }
 
       doc.end();
     });
+  }
+
+  /**
+   * Lo cobrado por esa garantía en ESTE comprobante. El saldo vigente no se
+   * imprime a propósito: el papel es la foto del día de emisión y quedaría
+   * desactualizado apenas hay una devolución.
+   */
+  private montoGarantia(garantia: ComprobanteGarantiaRegistro) {
+    return Number(
+      garantia.monto_cobrado_comprobante ?? garantia.monto_cobrado ?? 0,
+    );
   }
 
   private resolveClienteNombre(

@@ -108,6 +108,11 @@ export class ComprobantesLogic {
       // Fase 3: sin esto el desglose del cobro se perdía aquí, porque este
       // return arma la respuesta campo a campo en vez de propagar el resultado.
       pagos: result.pagos ?? [],
+      // El préstamo de cilindros y la garantía no son líneas de la venta: viven
+      // en bal_prestamo y ven_garantia, y ven_obtener_comprobante los trae por
+      // JOIN para que el detalle muestre la operación completa.
+      prestamos: result.prestamos ?? [],
+      garantias: result.garantias ?? [],
     };
   }
 

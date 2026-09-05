@@ -5,7 +5,10 @@ import { FacturacionApisperuClient } from '../../../integrations/facturacion-api
 import type {
   ComprobanteCompletoResult,
   ComprobanteDetalleRegistro,
+  ComprobanteGarantiaRegistro,
+  ComprobantePrestamoRegistro,
 } from '../interfaces/comprobante.interface';
+import { esLineaGarantia } from '../utils/comprobante-lineas.util';
 
 /** Ancho ticketera 80mm en puntos PDF (72 dpi). */
 const PAGE_WIDTH_PT = (80 / 25.4) * 72; // ≈ 226.77
@@ -49,6 +52,16 @@ export class ComprobanteTicketPdfGenerator {
     }
 
     const detalles = comprobante.detalles ?? [];
+    const prestamos = comprobante.prestamos ?? [];
+    const garantias = comprobante.garantias ?? [];
+    // Las líneas se imprimen tal cual quedaron guardadas, incluida la garantía
+    // de los comprobantes anteriores al cambio: reimprimir un documento ya
+    // emitido tiene que dar el mismo total que se emitió. Lo que sí cambia es
+    // que, cuando la garantía ya viaja como línea, no se repite abajo en su
+    // propio bloque.
+    const garantiaEnLineas = detalles.some((detalle) =>
+      esLineaGarantia(detalle),
+    );
     let logoBase64 = options?.logoBase64 ?? null;
     if (logoBase64 === null && !documentoInterno) {
       logoBase64 = await this.facturacionClient.obtenerLogoEmpresaBase64(
@@ -118,10 +131,18 @@ export class ComprobanteTicketPdfGenerator {
       });
     }
 
+    const balonesPrestados = prestamos.reduce(
+      (total, prestamo) => total + (prestamo.balones?.length ?? 0),
+      0,
+    );
     const estimatedHeight =
       320 +
       (logoBase64 ? 70 : 0) +
       detalles.length * 42 +
+      (prestamos.length
+        ? 24 + prestamos.length * 22 + balonesPrestados * 20
+        : 0) +
+      (!garantiaEnLineas && garantias.length ? 32 + garantias.length * 22 : 0) +
       (hash ? 36 : 0) +
       (qrPng ? 160 : 60);
 
@@ -145,6 +166,9 @@ export class ComprobanteTicketPdfGenerator {
       clienteDireccion,
       moneda: String(moneda),
       detalles,
+      prestamos,
+      garantias,
+      garantiaEnLineas,
       valorVenta,
       igv,
       total,
@@ -171,6 +195,9 @@ export class ComprobanteTicketPdfGenerator {
     clienteDireccion: string;
     moneda: string;
     detalles: ComprobanteDetalleRegistro[];
+    prestamos: ComprobantePrestamoRegistro[];
+    garantias: ComprobanteGarantiaRegistro[];
+    garantiaEnLineas: boolean;
     valorVenta: number;
     igv: number;
     total: number;
@@ -319,6 +346,92 @@ export class ComprobanteTicketPdfGenerator {
       row('Op. Gravadas', `S/ ${this.money(ctx.valorVenta)}`);
       row('I.G.V. (18%)', `S/ ${this.money(ctx.igv)}`);
       row('TOTAL', `S/ ${this.money(ctx.total)}`, true);
+
+      // Cilindros entregados en préstamo con esta venta. No suman al total —
+      // no se venden, se prestan — pero el cliente se los lleva y el ticket es
+      // el papel con el que se los reclaman de vuelta.
+      const balonesEntregados = ctx.prestamos.flatMap((prestamo) =>
+        (prestamo.balones ?? [])
+          .filter((balon) => balon.rol === 'ENTREGADO')
+          .map((balon) => ({ prestamo, balon })),
+      );
+      const balonesEnGarantia = ctx.prestamos.flatMap((prestamo) =>
+        (prestamo.balones ?? []).filter((balon) => balon.rol === 'GARANTIA'),
+      );
+
+      if (balonesEntregados.length > 0) {
+        separator();
+        leftText('CILINDROS EN PRÉSTAMO', { bold: true, size: 7.5 });
+        for (const { prestamo, balon } of balonesEntregados) {
+          const etiqueta = [balon.codigo_balon, balon.nombre_tipo_balon]
+            .filter(Boolean)
+            .join(' · ');
+          leftText(etiqueta || `Cilindro ${balon.id_balon ?? ''}`, { size: 7 });
+          const referencia = [
+            prestamo.numero_prestamo
+              ? `Préstamo ${prestamo.numero_prestamo}`
+              : '',
+            balon.fecha_vencimiento
+              ? `Devolver: ${this.formatFecha(balon.fecha_vencimiento)}`
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' · ');
+          if (referencia) leftText(referencia, { size: 6.5 });
+        }
+      }
+
+      if (balonesEnGarantia.length > 0) {
+        leftText('CILINDRO RECIBIDO EN GARANTÍA', { bold: true, size: 7.5 });
+        for (const balon of balonesEnGarantia) {
+          const etiqueta = [balon.codigo_balon, balon.nombre_tipo_balon]
+            .filter(Boolean)
+            .join(' · ');
+          leftText(etiqueta || `Cilindro ${balon.id_balon ?? ''}`, { size: 7 });
+        }
+      }
+
+      // Garantía en dinero. Se imprime lo cobrado en ESTA venta, no el saldo
+      // vigente: el ticket es la foto del día y un saldo impreso queda
+      // desactualizado apenas hay una devolución.
+      if (!ctx.garantiaEnLineas && ctx.garantias.length > 0) {
+        const totalGarantia = ctx.garantias.reduce(
+          (total, garantia) =>
+            total +
+            Number(
+              garantia.monto_cobrado_comprobante ?? garantia.monto_cobrado ?? 0,
+            ),
+          0,
+        );
+        if (totalGarantia > 0) {
+          separator();
+          leftText('GARANTÍA RECIBIDA (REEMBOLSABLE)', {
+            bold: true,
+            size: 7.5,
+          });
+          for (const garantia of ctx.garantias) {
+            const monto = Number(
+              garantia.monto_cobrado_comprobante ?? garantia.monto_cobrado ?? 0,
+            );
+            if (monto <= 0) continue;
+            const etiqueta =
+              garantia.nombre_producto?.trim() ||
+              (garantia.numero_prestamo
+                ? `Préstamo ${garantia.numero_prestamo}`
+                : 'Garantía');
+            row(etiqueta, `S/ ${this.money(monto)}`);
+          }
+          row('Total garantía', `S/ ${this.money(totalGarantia)}`, true);
+          leftText('No es venta: se devuelve al retornar el cilindro.', {
+            size: 6.5,
+          });
+          row(
+            'TOTAL COBRADO',
+            `S/ ${this.money(ctx.total + totalGarantia)}`,
+            true,
+          );
+        }
+      }
 
       separator(false);
 

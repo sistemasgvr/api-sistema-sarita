@@ -2,6 +2,11 @@
 -- Function: ven_obtener_comprobante
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.966Z
+--
+-- Actualizada por database_sql/migraciones/20260905_venta_gas_prestamo_garantia_join.sql:
+-- devuelve `prestamos` (con sus balones) y `garantias` por JOIN, y marca cada
+-- linea de detalle con `es_linea_garantia` para poder leer con el criterio nuevo
+-- los comprobantes emitidos antes del cambio.
 DROP FUNCTION IF EXISTS ven_obtener_comprobante(p_id integer);
 
 CREATE OR REPLACE FUNCTION ven_obtener_comprobante(p_id integer)
@@ -13,6 +18,8 @@ DECLARE
     v_detalles JSON;
     v_cuotas JSON;
     v_pagos JSON;
+    v_prestamos JSON;
+    v_garantias JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -135,6 +142,13 @@ BEGIN
         RETURN json_build_object('registro', NULL);
     END IF;
 
+    -- `es_linea_garantia` marca las líneas que el POS antiguo insertaba para
+    -- cobrar la garantía dentro de la venta. Desde este cambio ya no se crean,
+    -- pero los comprobantes emitidos antes las conservan: la bandera deja que el
+    -- detalle, el ticket y el mapper de SUNAT las traten como garantía sin que
+    -- cada uno repita la comparación de texto por su cuenta. Es el mismo
+    -- criterio que ya usaba ven_producto_mueve_kardex_venta para no descontar
+    -- stock por ellas.
     SELECT COALESCE(json_agg(row_to_json(d) ORDER BY d.item), '[]'::JSON) INTO v_detalles
     FROM (
         SELECT
@@ -165,6 +179,7 @@ BEGIN
             d.capacidad_cilindro,
             d.id_estado_cilindro,
             ec.nombre AS nombre_estado_cilindro,
+            (COALESCE(d.descripcion, '') ~* 'garant[ií]a') AS es_linea_garantia,
             d.estado,
             d.fecha_creacion,
             d.fecha_modificacion
@@ -218,11 +233,140 @@ BEGIN
         WHERE pp.id_comprobante = p_id AND pp.estado = 1
     ) pg;
 
+    -- Préstamos de cilindro nacidos de esta venta, con TODOS sus balones: no se
+    -- filtra por id_estado del detalle ni por fecha_devolucion a propósito. El
+    -- comprobante documenta qué cilindros salieron con esa venta; que uno ya
+    -- haya vuelto no lo borra de lo que se entregó ese día, solo cambia la
+    -- etiqueta de estado que se muestra al costado. Se incluyen ambos roles:
+    -- ENTREGADO (lo que se lleva el cliente) y GARANTIA (el cilindro propio que
+    -- deja como colateral).
+    SELECT COALESCE(json_agg(row_to_json(pr) ORDER BY pr.id), '[]'::JSON) INTO v_prestamos
+    FROM (
+        SELECT
+            p.id,
+            p.numero_prestamo,
+            p.id_tipo_prestamo,
+            tp.nombre AS nombre_tipo_prestamo,
+            p.id_almacen,
+            a.nombre AS nombre_almacen,
+            p.fecha_salida,
+            p.fecha_retorno_pactada,
+            p.fecha_retorno_real,
+            p.titulo,
+            p.observacion,
+            p.id_estado,
+            ep.nombre AS nombre_estado,
+            p.id_prestamo_origen,
+            po.numero_prestamo AS numero_prestamo_origen,
+            (
+                SELECT COALESCE(json_agg(row_to_json(bl) ORDER BY bl.rol, bl.id), '[]'::JSON)
+                FROM (
+                    SELECT
+                        pd.id,
+                        pd.rol,
+                        pd.id_balon,
+                        b.codigo_balon,
+                        b.numero_serie,
+                        b.id_tipo_balon,
+                        tb.nombre AS nombre_tipo_balon,
+                        tb.capacidad,
+                        b.id_estado_balon,
+                        eb.nombre AS nombre_estado_balon,
+                        pd.id_producto,
+                        COALESCE(pgas.nombre, prod.nombre) AS nombre_producto,
+                        pd.fecha_entregado,
+                        pd.fecha_prestamo,
+                        pd.fecha_vencimiento,
+                        pd.fecha_devolucion,
+                        pd.id_estado,
+                        epd.nombre AS nombre_estado,
+                        pd.motivo_especifico,
+                        pd.observacion
+                    FROM bal_prestamo_detalle pd
+                    LEFT JOIN bal_balon b ON b.id = pd.id_balon
+                    LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+                    LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+                    LEFT JOIN pro_producto prod ON prod.id = pd.id_producto
+                    LEFT JOIN pro_producto pgas ON pgas.id = b.id_producto_gas
+                    LEFT JOIN gen_lista_opciones epd ON epd.id = pd.id_estado
+                    WHERE pd.id_prestamo = p.id AND pd.estado = 1
+                ) bl
+            ) AS balones
+        FROM bal_prestamo p
+        LEFT JOIN gen_lista_opciones tp ON tp.id = p.id_tipo_prestamo
+        LEFT JOIN gen_almacen a ON a.id = p.id_almacen
+        LEFT JOIN gen_lista_opciones ep ON ep.id = p.id_estado
+        LEFT JOIN bal_prestamo po ON po.id = p.id_prestamo_origen
+        WHERE p.id_comprobante_venta = p_id AND p.estado = 1
+    ) pr;
+
+    -- Garantías ligadas a esta venta. Se llega a ellas por tres caminos porque
+    -- ven_garantia no guarda id_comprobante: por el préstamo, por el alquiler o
+    -- por el movimiento de cobro, que sí apunta al comprobante.
+    -- `monto_cobrado_comprobante` es lo que se cobró en ESTA venta; los demás
+    -- montos son el estado vigente de la garantía (para pantalla, no para el
+    -- ticket impreso, que debe quedar como foto del día de emisión).
+    SELECT COALESCE(json_agg(row_to_json(gr) ORDER BY gr.id), '[]'::JSON) INTO v_garantias
+    FROM (
+        SELECT
+            g.id,
+            g.id_cliente,
+            g.id_prestamo,
+            pr.numero_prestamo,
+            g.id_alquiler,
+            alq.numero_alquiler,
+            g.id_producto,
+            prod.nombre AS nombre_producto,
+            g.cantidad_venta,
+            g.id_unidad_medida,
+            umg.nombre AS nombre_unidad_medida,
+            g.ubicacion,
+            g.fecha_registro,
+            g.monto_cobrado,
+            g.monto_devuelto,
+            g.monto_saldo,
+            g.id_estado,
+            eg.nombre AS nombre_estado,
+            g.id_medio_pago,
+            mpg.nombre AS nombre_medio_pago,
+            g.observacion,
+            COALESCE((
+                SELECT SUM(gm.monto)
+                FROM ven_garantia_movimiento gm
+                INNER JOIN gen_lista_opciones tmg ON tmg.id = gm.id_tipo_movimiento
+                WHERE gm.id_garantia = g.id
+                  AND gm.id_comprobante = p_id
+                  AND gm.estado = 1
+                  AND UPPER(tmg.nombre) = 'COBRO'
+            ), 0) AS monto_cobrado_comprobante
+        FROM ven_garantia g
+        LEFT JOIN bal_prestamo pr ON pr.id = g.id_prestamo
+        LEFT JOIN bal_alquiler alq ON alq.id = g.id_alquiler
+        LEFT JOIN pro_producto prod ON prod.id = g.id_producto
+        LEFT JOIN gen_lista_opciones umg ON umg.id = g.id_unidad_medida
+        LEFT JOIN gen_lista_opciones eg ON eg.id = g.id_estado
+        LEFT JOIN gen_lista_opciones mpg ON mpg.id = g.id_medio_pago
+        WHERE g.estado = 1
+          AND (
+              pr.id_comprobante_venta = p_id
+              OR alq.id_comprobante_venta = p_id
+              OR EXISTS (
+                  SELECT 1
+                  FROM ven_garantia_movimiento gm
+                  WHERE gm.id_garantia = g.id
+                    AND gm.id_comprobante = p_id
+                    AND gm.estado = 1
+              )
+          )
+    ) gr;
+
     RETURN json_build_object(
         'registro', v_registro,
         'detalles', v_detalles,
         'cuotas', v_cuotas,
-        'pagos', v_pagos
+        'pagos', v_pagos,
+        'prestamos', v_prestamos,
+        'garantias', v_garantias
     );
 END;
 $function$;

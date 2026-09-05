@@ -1,6 +1,9 @@
-/** Fila de `doc_salida_detalle` — o de `ven_comprobante_detalle` cuando el
- * documento viene de una venta (`origen_detalle: 'VENTA'`), tal como lo
- * arma `doc_obtener_salida`. */
+/** Fila del detalle tal como lo arma `doc_obtener_salida`. Cuando el documento
+ * viene de una venta el detalle es la unión de dos orígenes: `VENTA` son los
+ * ítems de `ven_comprobante_detalle` y `PRESTAMO` los cilindros entregados en
+ * préstamo por esa misma venta (`bal_prestamo_detalle`, rol ENTREGADO), que van
+ * como fila propia porque físicamente también se los lleva el cliente. Sin
+ * venta el detalle es el propio `doc_salida_detalle` (`PROPIO`). */
 export interface DocumentoSalidaDetalleRegistro {
   id: number;
   item: number;
@@ -16,7 +19,7 @@ export interface DocumentoSalidaDetalleRegistro {
   nombre_producto: string | null;
   glosa: string | null;
   id_movimiento: number | null;
-  origen_detalle: 'VENTA' | 'PROPIO';
+  origen_detalle: 'VENTA' | 'PRESTAMO' | 'PROPIO';
 }
 
 export interface DocumentoSalidaReferenciaRegistro {

@@ -4,6 +4,7 @@ import type {
   ComprobanteCompletoResult,
   ComprobanteDetalleRegistro,
 } from '../interfaces/comprobante.interface';
+import { lineasDeVenta } from '../utils/comprobante-lineas.util';
 
 interface EmpresaEmisora {
   ruc: string;
@@ -45,6 +46,18 @@ export class ComprobanteInvoiceMapper {
       throw new BadRequestException('El comprobante no tiene detalles');
     }
 
+    // A SUNAT solo viaja la venta. La garantía es dinero reembolsable que el
+    // cliente deja en custodia, no una operación gravada: vive en ven_garantia
+    // y llega al comprobante por JOIN, no como línea. Los comprobantes creados
+    // antes de ese cambio sí guardan la línea, así que se filtra aquí.
+    const detallesVenta = lineasDeVenta(detalles);
+
+    if (detallesVenta.length === 0) {
+      throw new BadRequestException(
+        'El comprobante no tiene líneas de venta: solo registra garantía, que no se declara a SUNAT',
+      );
+    }
+
     const tipoDoc = cabecera.codigo_tipo_comprobante;
 
     if (!tipoDoc || !['01', '03', '07', '08'].includes(tipoDoc)) {
@@ -56,7 +69,14 @@ export class ComprobanteInvoiceMapper {
     const correlativo = this.parseCorrelativo(cabecera.numero);
     const fechaEmision = this.formatFechaEmision(cabecera.fecha);
     const tipoMoneda = cabecera.codigo_moneda ?? 'PEN';
-    const totales = this.calcularTotales(detalles, cabecera);
+    // Si se descartó alguna línea, los totales de la cabecera ya no
+    // corresponden a lo que se declara (los de un comprobante antiguo incluyen
+    // la garantía), así que se recalculan desde las líneas que sí van.
+    const totales = this.calcularTotales(
+      detallesVenta,
+      cabecera,
+      detallesVenta.length === detalles.length,
+    );
 
     const payload: FacturacionApisperuPayload = {
       ublVersion: '2.1',
@@ -80,7 +100,7 @@ export class ComprobanteInvoiceMapper {
       totalImpuestos: totales.totalImpuestos,
       subTotal: totales.subTotal,
       mtoImpVenta: totales.mtoImpVenta,
-      details: detalles.map((detalle, index) =>
+      details: detallesVenta.map((detalle, index) =>
         this.mapDetalle(detalle, index + 1),
       ),
     };
@@ -304,15 +324,18 @@ export class ComprobanteInvoiceMapper {
   private calcularTotales(
     detalles: ComprobanteDetalleRegistro[],
     cabecera: NonNullable<ComprobanteCompletoResult['registro']>,
+    usarTotalesCabecera = true,
   ) {
     let mtoOperGravadas = 0;
     let mtoOperExoneradas = 0;
     let mtoOperInafectas = 0;
     let mtoIGV = 0;
+    let importeTotal = 0;
 
     for (const detalle of detalles) {
       const valor = Number(detalle.valor_venta);
       const afectacion = detalle.codigo_afectacion_igv ?? '10';
+      importeTotal += Number(detalle.importe ?? 0);
 
       if (afectacion === '10') {
         mtoOperGravadas += valor;
@@ -324,13 +347,26 @@ export class ComprobanteInvoiceMapper {
       }
     }
 
+    const sumaValorVenta =
+      mtoOperGravadas + mtoOperExoneradas + mtoOperInafectas;
     const valorVenta = this.round(
-      cabecera.valor_venta ?? mtoOperGravadas + mtoOperExoneradas + mtoOperInafectas,
+      usarTotalesCabecera ? (cabecera.valor_venta ?? sumaValorVenta) : sumaValorVenta,
       2,
     );
-    const totalImpuestos = this.round(cabecera.igv ?? mtoIGV, 2);
-    const subTotal = this.round(cabecera.sub_total ?? valorVenta + totalImpuestos, 2);
-    const mtoImpVenta = this.round(cabecera.total_importe ?? subTotal, 2);
+    const totalImpuestos = this.round(
+      usarTotalesCabecera ? (cabecera.igv ?? mtoIGV) : mtoIGV,
+      2,
+    );
+    const subTotal = this.round(
+      usarTotalesCabecera
+        ? (cabecera.sub_total ?? valorVenta + totalImpuestos)
+        : valorVenta + totalImpuestos,
+      2,
+    );
+    const mtoImpVenta = this.round(
+      usarTotalesCabecera ? (cabecera.total_importe ?? subTotal) : importeTotal,
+      2,
+    );
 
     return {
       mtoOperGravadas: this.round(mtoOperGravadas, 2),
