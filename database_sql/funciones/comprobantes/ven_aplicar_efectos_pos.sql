@@ -2,6 +2,10 @@
 -- Function: ven_aplicar_efectos_pos
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.965Z
+--
+-- Actualizada por database_sql/migraciones/20260905_pos_garantia_cuenta_y_catalogos.sql:
+-- la garantia (de prestamo y de alquiler) se crea con su cuenta bancaria y su
+-- numero de operacion, que antes nunca llegaban a ven_crear_garantia.
 DROP FUNCTION IF EXISTS ven_aplicar_efectos_pos(p_id_comprobante integer, p_efectos json, p_id_usuario integer);
 
 CREATE OR REPLACE FUNCTION ven_aplicar_efectos_pos(p_id_comprobante integer, p_efectos json, p_id_usuario integer DEFAULT NULL::integer)
@@ -185,7 +189,9 @@ BEGIN
                 NULLIF(TRIM(COALESCE(v_garantia->>'observacion', '')), ''),
                 p_id_usuario,
                 NULL,
-                NULLIF(v_garantia->>'idMedioPago', '')::INTEGER
+                NULLIF(v_garantia->>'idMedioPago', '')::INTEGER,
+                NULLIF(v_garantia->>'idCuentaBancaria', '')::INTEGER,
+                NULLIF(TRIM(COALESCE(v_garantia->>'numeroOperacion', '')), '')
             );
             PERFORM ven_raise_si_error(v_result);
         END IF;
@@ -355,7 +361,9 @@ BEGIN
                 NULLIF(TRIM(COALESCE(v_garantia->>'observacion', '')), ''),
                 p_id_usuario,
                 v_id_alquiler,
-                NULLIF(v_garantia->>'idMedioPago', '')::INTEGER
+                NULLIF(v_garantia->>'idMedioPago', '')::INTEGER,
+                NULLIF(v_garantia->>'idCuentaBancaria', '')::INTEGER,
+                NULLIF(TRIM(COALESCE(v_garantia->>'numeroOperacion', '')), '')
             );
             PERFORM ven_raise_si_error(v_result);
         END IF;

@@ -249,6 +249,20 @@ export class EfectoPosGarantiaDto {
   @IsInt()
   idMedioPago?: number;
 
+  @ApiPropertyOptional({
+    description:
+      'Cuenta de la empresa que recibe el depósito. Obligatoria cuando el medio de pago la exige (transferencia, billetera): sin ella ven_crear_garantia rechaza el cobro.',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idCuentaBancaria?: number;
+
+  @ApiPropertyOptional({ description: 'Voucher / constancia del depósito.' })
+  @IsOptional()
+  @IsString()
+  numeroOperacion?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
