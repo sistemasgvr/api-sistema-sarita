@@ -1,7 +1,9 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_obtener_prestamo
 -- Overloads: 1
--- Generated: 2026-09-03T16:50:38.948Z
+--
+-- Actualizada por database_sql/migraciones/20260905_prestamo_cadena_renovaciones.sql:
+-- devuelve la cadena de renovaciones (id_prestamo_origen).
 DROP FUNCTION IF EXISTS bal_obtener_prestamo(p_id integer);
 
 CREATE OR REPLACE FUNCTION bal_obtener_prestamo(p_id integer)
@@ -41,6 +43,22 @@ BEGIN
             pr.observacion,
             pr.id_estado,
             ep.nombre AS nombre_estado,
+            pr.id_prestamo_origen,
+            po.numero_prestamo AS numero_prestamo_origen,
+            (
+                SELECT pd_sig.id
+                FROM bal_prestamo pd_sig
+                WHERE pd_sig.id_prestamo_origen = pr.id AND pd_sig.estado = 1
+                ORDER BY pd_sig.id ASC
+                LIMIT 1
+            ) AS id_prestamo_renovacion,
+            (
+                SELECT pd_sig.numero_prestamo
+                FROM bal_prestamo pd_sig
+                WHERE pd_sig.id_prestamo_origen = pr.id AND pd_sig.estado = 1
+                ORDER BY pd_sig.id ASC
+                LIMIT 1
+            ) AS numero_prestamo_renovacion,
             pr.id_comprobante_venta,
             cv.serie AS serie_comprobante_venta,
             cv.numero AS numero_comprobante_venta,
@@ -75,6 +93,7 @@ BEGIN
         LEFT JOIN cli_clientes prov ON pr.id_proveedor = prov.id
         LEFT JOIN gen_almacen a ON pr.id_almacen = a.id
         LEFT JOIN gen_lista_opciones ep ON pr.id_estado = ep.id
+        LEFT JOIN bal_prestamo po ON po.id = pr.id_prestamo_origen
         LEFT JOIN ven_comprobante cv ON pr.id_comprobante_venta = cv.id
         LEFT JOIN cli_clientes cv_cli ON cv.id_cliente = cv_cli.id
         LEFT JOIN com_comprobante_compra cc ON pr.id_comprobante_compra = cc.id

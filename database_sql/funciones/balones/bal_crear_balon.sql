@@ -1,7 +1,9 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_crear_balon
 -- Overloads: 1
--- Generated: 2026-09-03T16:50:38.944Z
+--
+-- Actualizada por database_sql/migraciones/20260905_movimientos_orden_garantia_dueno_y_numero_prestamo.sql:
+-- GARANTIA_CLIENTE conserva id_cliente_propietario, igual que CLIENTE.
 DROP FUNCTION IF EXISTS bal_crear_balon(p_codigo_balon character varying, p_libro_cilindro character varying, p_pagina_libro integer, p_fecha_registro date, p_id_almacen integer, p_id_cliente_ubicacion integer, p_id_propietario integer, p_id_cliente_propietario integer, p_id_referencia integer, p_id_tipo_balon integer, p_id_producto_gas integer, p_id_estado_balon integer, p_fecha_ultima_prueba_hidrostatica date, p_vigencia_prueba_hidrostatica_anios integer, p_fecha_proxima_prueba_hidrostatica date, p_fecha_fabricacion date, p_numero_recepcion character varying, p_presion_actual numeric, p_observacion character varying, p_numero_serie character varying, p_id_marca_cilindro integer, p_id_organo_inspector integer, p_organo_inspector_no_aplica boolean, p_anio_fabricacion smallint, p_mes_fabricacion smallint, p_id_planta integer, p_tipo_valvula character varying, p_peso_aproximado_kg numeric, p_sello_inspeccion character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_crear_balon(p_codigo_balon character varying, p_libro_cilindro character varying DEFAULT NULL::character varying, p_pagina_libro integer DEFAULT NULL::integer, p_fecha_registro date DEFAULT NULL::date, p_id_almacen integer DEFAULT NULL::integer, p_id_cliente_ubicacion integer DEFAULT NULL::integer, p_id_propietario integer DEFAULT NULL::integer, p_id_cliente_propietario integer DEFAULT NULL::integer, p_id_referencia integer DEFAULT NULL::integer, p_id_tipo_balon integer DEFAULT NULL::integer, p_id_producto_gas integer DEFAULT NULL::integer, p_id_estado_balon integer DEFAULT NULL::integer, p_fecha_ultima_prueba_hidrostatica date DEFAULT NULL::date, p_vigencia_prueba_hidrostatica_anios integer DEFAULT NULL::integer, p_fecha_proxima_prueba_hidrostatica date DEFAULT NULL::date, p_fecha_fabricacion date DEFAULT NULL::date, p_numero_recepcion character varying DEFAULT NULL::character varying, p_presion_actual numeric DEFAULT NULL::numeric, p_observacion character varying DEFAULT NULL::character varying, p_numero_serie character varying DEFAULT NULL::character varying, p_id_marca_cilindro integer DEFAULT NULL::integer, p_id_organo_inspector integer DEFAULT NULL::integer, p_organo_inspector_no_aplica boolean DEFAULT false, p_anio_fabricacion smallint DEFAULT NULL::smallint, p_mes_fabricacion smallint DEFAULT NULL::smallint, p_id_planta integer DEFAULT NULL::integer, p_tipo_valvula character varying DEFAULT NULL::character varying, p_peso_aproximado_kg numeric DEFAULT NULL::numeric, p_sello_inspeccion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -82,7 +84,11 @@ BEGIN
             );
         END IF;
 
-        IF v_prop_nombre = 'CLIENTE' AND p_id_cliente_propietario IS NULL THEN
+        -- GARANTIA_CLIENTE es un cliente propietario igual que CLIENTE: el
+        -- cilindro que alguien deja como colateral sigue siendo suyo, solo que
+        -- en custodia de la empresa. Tratarlo aparte hacia que el id del cliente
+        -- se perdiera y el balon quedara sin dueno.
+        IF v_prop_nombre IN ('CLIENTE', 'GARANTIA_CLIENTE') AND p_id_cliente_propietario IS NULL THEN
             RETURN json_build_object(
                 'error', 'Si el propietario es cliente, debe indicar el cliente propietario',
                 'registro', NULL
@@ -93,7 +99,7 @@ BEGIN
             p_id_planta := NULL;
         END IF;
 
-        IF v_prop_nombre IS DISTINCT FROM 'CLIENTE' THEN
+        IF COALESCE(v_prop_nombre, '') NOT IN ('CLIENTE', 'GARANTIA_CLIENTE') THEN
             p_id_cliente_propietario := NULL;
         END IF;
     ELSIF p_id_planta IS NOT NULL THEN

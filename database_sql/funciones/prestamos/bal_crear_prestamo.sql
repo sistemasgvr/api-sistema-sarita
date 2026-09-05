@@ -1,7 +1,9 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_crear_prestamo
 -- Overloads: 1
--- Generated: 2026-09-03T16:50:38.944Z
+--
+-- Actualizada por database_sql/migraciones/20260905_movimientos_orden_garantia_dueno_y_numero_prestamo.sql:
+-- numera solo con bal_obtener_siguiente_numero_prestamo cuando no recibe numero.
 DROP FUNCTION IF EXISTS bal_crear_prestamo(p_id_tipo_prestamo integer, p_numero_prestamo character varying, p_id_cliente integer, p_id_proveedor integer, p_id_almacen integer, p_fecha_salida date, p_fecha_retorno_pactada date, p_fecha_retorno_real date, p_titulo character varying, p_observacion character varying, p_id_estado integer, p_id_comprobante_venta integer, p_id_comprobante_compra integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_crear_prestamo(p_id_tipo_prestamo integer, p_numero_prestamo character varying DEFAULT NULL::character varying, p_id_cliente integer DEFAULT NULL::integer, p_id_proveedor integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_fecha_salida date DEFAULT NULL::date, p_fecha_retorno_pactada date DEFAULT NULL::date, p_fecha_retorno_real date DEFAULT NULL::date, p_titulo character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_estado integer DEFAULT NULL::integer, p_id_comprobante_venta integer DEFAULT NULL::integer, p_id_comprobante_compra integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -12,6 +14,7 @@ DECLARE
     v_id INTEGER;
     v_id_estado INTEGER;
     v_nombre_tipo VARCHAR;
+    v_numero VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -55,6 +58,15 @@ BEGIN
         );
     END IF;
 
+    -- Sin numero explicito se toma el correlativo del anio, igual que hacen los
+    -- alquileres. Antes se guardaba NULL: el POS nunca manda numero, asi que
+    -- todo prestamo nacido de una venta quedaba sin identificador y no habia
+    -- como nombrarlo en el comprobante ni en el ticket.
+    v_numero := NULLIF(TRIM(COALESCE(p_numero_prestamo, '')), '');
+    IF v_numero IS NULL THEN
+        v_numero := bal_obtener_siguiente_numero_prestamo()->>'numero';
+    END IF;
+
     IF p_numero_prestamo IS NOT NULL AND EXISTS (
         SELECT 1 FROM bal_prestamo WHERE numero_prestamo = TRIM(p_numero_prestamo)
     ) THEN
@@ -87,7 +99,7 @@ BEGIN
         id_usuario_creacion, id_usuario_modificacion
     )
     VALUES (
-        NULLIF(TRIM(p_numero_prestamo), ''), p_id_tipo_prestamo, p_id_cliente, p_id_proveedor, p_id_almacen,
+        v_numero, p_id_tipo_prestamo, p_id_cliente, p_id_proveedor, p_id_almacen,
         p_fecha_salida, p_fecha_retorno_pactada, p_fecha_retorno_real,
         p_titulo, p_observacion, v_id_estado,
         p_id_comprobante_venta, p_id_comprobante_compra,

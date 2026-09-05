@@ -1,10 +1,22 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: bal_renovar_prestamo
--- Overloads: 1
+-- bal_renovar_prestamo: no proponer como reemplazo un cilindro que ya esta
+-- comprometido en otro prestamo.
 --
--- Actualizada por database_sql/migraciones/20260905_bal_renovar_prestamo_cilindro_comprometido.sql:
--- la busqueda de cilindro de canje descarta los que tienen un detalle de
--- prestamo abierto (por ejemplo, los recibidos en garantia).
+-- La busqueda automatica de cilindro de canje pedia solo "mismo tipo, mismo gas
+-- y EN_ALMACEN". El cilindro que un cliente deja en garantia cumple las tres:
+-- esta fisicamente en la empresa y figura EN_ALMACEN, pero tiene un detalle de
+-- prestamo abierto con rol GARANTIA. La renovacion lo elegia como reemplazo y
+-- moria en bal_crear_prestamo_detalle con "El cilindro ya tiene un prestamo
+-- activo sin devolver".
+--
+-- Efecto practico del bug: un cliente que habia dejado su propio cilindro como
+-- garantia no podia renovar su prestamo, que es justo el flujo mas comun de
+-- mostrador. Se reprodujo con el prestamo PRE-2026-004 (cilindro entregado
+-- DEMO-ACE5-001 y garantia 12133232, mismo tipo y mismo gas).
+--
+-- Ahora la busqueda descarta cualquier cilindro con detalle de prestamo abierto,
+-- que es el mismo criterio que ya aplicaba bal_crear_prestamo_detalle, y la
+-- eleccion manual devuelve un mensaje que explica el caso.
+
 DROP FUNCTION IF EXISTS bal_renovar_prestamo(p_id_prestamo integer, p_id_balon_nuevo integer, p_id_usuario integer);
 
 CREATE OR REPLACE FUNCTION bal_renovar_prestamo(p_id_prestamo integer, p_id_balon_nuevo integer DEFAULT NULL::integer, p_id_usuario integer DEFAULT NULL::integer, p_id_comprobante_venta_nuevo integer DEFAULT NULL::integer, p_mantener_garantia boolean DEFAULT true)

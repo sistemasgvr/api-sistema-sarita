@@ -1,7 +1,9 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: age_crear_actividad
 -- Overloads: 1
--- Generated: 2026-09-03T16:50:38.941Z
+--
+-- Actualizada por database_sql/migraciones/20260905_age_crear_actividad_items_orden_salida.sql:
+-- los items del reparto se copian del detalle de doc_obtener_salida.
 DROP FUNCTION IF EXISTS age_crear_actividad(p_titulo character varying, p_descripcion text, p_fecha_programada date, p_hora_inicio_estimada time without time zone, p_hora_fin_estimada time without time zone, p_id_tipo_actividad integer, p_id_prioridad integer, p_id_cliente integer, p_id_trabajador_responsable integer, p_id_estado_actividad integer, p_observaciones character varying, p_id_usuario_auditoria integer, p_id_comprobante integer, p_id_guia_remision integer, p_items json);
 
 CREATE OR REPLACE FUNCTION age_crear_actividad(p_titulo character varying, p_descripcion text, p_fecha_programada date, p_hora_inicio_estimada time without time zone, p_hora_fin_estimada time without time zone, p_id_tipo_actividad integer, p_id_prioridad integer, p_id_cliente integer DEFAULT NULL::integer, p_id_trabajador_responsable integer DEFAULT NULL::integer, p_id_estado_actividad integer DEFAULT NULL::integer, p_observaciones character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_comprobante integer DEFAULT NULL::integer, p_id_guia_remision integer DEFAULT NULL::integer, p_items json DEFAULT NULL::json)
@@ -63,7 +65,15 @@ BEGIN
 
         v_cliente := COALESCE(p_id_cliente, v_cliente, v_destinatario);
         IF v_titulo IS NULL THEN
-            v_titulo := TRIM(CONCAT('Reparto GRE ', COALESCE(v_serie, ''), '-', COALESCE(v_numero, '')));
+            -- gr.serie es la serie de la GRE y esta vacia mientras la orden no
+            -- se convierta; concatenarla dejaba titulos como
+            -- "Reparto GRE -OS-01-2026-000005". Con GRE se nombra la guia, y sin
+            -- ella el numero propio de la orden.
+            v_titulo := CASE
+                WHEN NULLIF(TRIM(COALESCE(v_serie, '')), '') IS NOT NULL
+                THEN CONCAT('Reparto GRE ', TRIM(v_serie), '-', COALESCE(v_numero, ''))
+                ELSE CONCAT('Reparto ', COALESCE(v_numero, ''))
+            END;
         END IF;
 
         IF EXISTS (
@@ -217,22 +227,32 @@ BEGIN
         WHERE d.id_comprobante = p_id_comprobante AND d.estado = 1
         ORDER BY d.item;
     ELSIF p_id_guia_remision IS NOT NULL THEN
+        -- Los items del reparto salen del mismo detalle que muestra la orden de
+        -- salida, con doc_obtener_salida como unica fuente. Dos motivos:
+        --   * doc_salida_detalle se filtraba por d.id_guia_remision, columna que
+        --     ya no existe (la Fase 2 la renombro a id_doc_salida), asi que la
+        --     copia fallaba con "column d.id_guia_remision does not exist".
+        --   * En una orden nacida de una venta esa tabla esta vacia a proposito:
+        --     el detalle se arma por JOIN (lineas de la venta + cilindros
+        --     entregados en prestamo). Copiando de la tabla el reparto quedaba
+        --     sin items justo en el caso normal.
         INSERT INTO age_actividad_item (
             id_actividad, item, id_producto, descripcion, cantidad, id_balon,
             id_usuario_creacion, id_usuario_modificacion
         )
         SELECT
             v_id,
-            d.item,
-            d.id_producto,
-            NULLIF(TRIM(COALESCE(d.descripcion, d.glosa, '')), ''),
-            d.cantidad,
-            d.id_balon,
+            (d->>'item')::INTEGER,
+            NULLIF(d->>'id_producto', '')::INTEGER,
+            NULLIF(TRIM(COALESCE(d->>'descripcion', d->>'glosa', '')), ''),
+            COALESCE((d->>'cantidad')::NUMERIC, 1),
+            NULLIF(d->>'id_balon', '')::INTEGER,
             p_id_usuario_auditoria,
             p_id_usuario_auditoria
-        FROM doc_salida_detalle d
-        WHERE d.id_guia_remision = p_id_guia_remision AND d.estado = 1
-        ORDER BY d.item;
+        FROM json_array_elements(
+            COALESCE(doc_obtener_salida(p_id_guia_remision)->'registro'->'detalle', '[]'::JSON)
+        ) AS d
+        ORDER BY (d->>'item')::INTEGER;
     END IF;
 
     RETURN age_obtener_actividad(v_id);

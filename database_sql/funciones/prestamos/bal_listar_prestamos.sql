@@ -1,7 +1,9 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_listar_prestamos
 -- Overloads: 1
--- Generated: 2026-09-03T16:50:38.947Z
+--
+-- Actualizada por database_sql/migraciones/20260905_prestamo_cadena_renovaciones.sql:
+-- devuelve la cadena de renovaciones (id_prestamo_origen).
 DROP FUNCTION IF EXISTS bal_listar_prestamos(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_prestamo integer, p_id_cliente integer, p_id_estado integer);
 
 CREATE OR REPLACE FUNCTION bal_listar_prestamos(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_tipo_prestamo integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer)
@@ -46,6 +48,8 @@ BEGIN
             pr.titulo,
             pr.id_estado,
             ep.nombre AS nombre_estado,
+            pr.id_prestamo_origen,
+            po.numero_prestamo AS numero_prestamo_origen,
             pr.id_comprobante_venta,
             CASE
                 WHEN cv.id IS NULL THEN NULL
@@ -85,6 +89,7 @@ BEGIN
         LEFT JOIN cli_clientes c ON pr.id_cliente = c.id
         LEFT JOIN gen_lista_opciones ep ON pr.id_estado = ep.id
         LEFT JOIN ven_comprobante cv ON pr.id_comprobante_venta = cv.id
+        LEFT JOIN bal_prestamo po ON po.id = pr.id_prestamo_origen
         LEFT JOIN com_comprobante_compra cc ON pr.id_comprobante_compra = cc.id
         WHERE pr.estado = 1
           AND (p_id_tipo_prestamo IS NULL OR pr.id_tipo_prestamo = p_id_tipo_prestamo)

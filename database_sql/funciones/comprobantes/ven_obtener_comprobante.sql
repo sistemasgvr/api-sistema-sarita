@@ -1,12 +1,9 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_obtener_comprobante
 -- Overloads: 1
--- Generated: 2026-09-03T16:50:38.966Z
 --
--- Actualizada por database_sql/migraciones/20260905_venta_gas_prestamo_garantia_join.sql:
--- devuelve `prestamos` (con sus balones) y `garantias` por JOIN, y marca cada
--- linea de detalle con `es_linea_garantia` para poder leer con el criterio nuevo
--- los comprobantes emitidos antes del cambio.
+-- Actualizada por database_sql/migraciones/20260905_reparto_desde_orden_salida.sql:
+-- el reparto se alcanza tambien por la orden de salida de la venta.
 DROP FUNCTION IF EXISTS ven_obtener_comprobante(p_id integer);
 
 CREATE OR REPLACE FUNCTION ven_obtener_comprobante(p_id integer)
@@ -129,7 +126,19 @@ BEGIN
             LEFT JOIN gen_lista_opciones ta ON ta.id = a.id_tipo_actividad
             LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
             LEFT JOIN gen_chofer ch ON ch.id = a.id_chofer_responsable
-            WHERE a.id_comprobante = c.id
+            -- El reparto se programa desde la orden de salida, que es lo que
+            -- realmente sale a la calle, asi que cuelga de doc_salida y no del
+            -- comprobante. La venta lo sigue mostrando alcanzandolo por JOIN a
+            -- traves de su orden. Se conserva la rama por id_comprobante para
+            -- los repartos creados antes de ese cambio.
+            WHERE (
+                    a.id_comprobante = c.id
+                    OR a.id_doc_salida IN (
+                        SELECT ds.id
+                        FROM doc_salida ds
+                        WHERE ds.id_venta = c.id AND ds.estado = 1
+                    )
+                  )
               AND a.estado = 1
               AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO')
             ORDER BY a.id DESC

@@ -1,4 +1,9 @@
-
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_listar_comprobantes
+-- Overloads: 1
+--
+-- Actualizada por database_sql/migraciones/20260905_reparto_desde_orden_salida.sql:
+-- el reparto se alcanza tambien por la orden de salida de la venta.
 DROP FUNCTION IF EXISTS ven_listar_comprobantes(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_comprobante integer, p_id_cliente integer, p_id_estado integer, p_id_estado_sunat integer, p_fecha_desde date, p_fecha_hasta date, p_serie character varying);
 
 CREATE OR REPLACE FUNCTION ven_listar_comprobantes(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_tipo_comprobante integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer, p_id_estado_sunat integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_serie character varying DEFAULT NULL::character varying, p_solo_activos integer DEFAULT 1)
@@ -118,7 +123,19 @@ BEGIN
             FROM age_actividad a
             LEFT JOIN gen_lista_opciones ta ON ta.id = a.id_tipo_actividad
             LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
-            WHERE a.id_comprobante = c.id
+            -- El reparto se programa desde la orden de salida, que es lo que
+            -- realmente sale a la calle, asi que cuelga de doc_salida y no del
+            -- comprobante. La venta lo sigue mostrando alcanzandolo por JOIN a
+            -- traves de su orden. Se conserva la rama por id_comprobante para
+            -- los repartos creados antes de ese cambio.
+            WHERE (
+                    a.id_comprobante = c.id
+                    OR a.id_doc_salida IN (
+                        SELECT ds.id
+                        FROM doc_salida ds
+                        WHERE ds.id_venta = c.id AND ds.estado = 1
+                    )
+                  )
               AND a.estado = 1
               AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO')
             ORDER BY a.id DESC
