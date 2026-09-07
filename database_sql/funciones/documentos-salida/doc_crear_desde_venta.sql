@@ -1,7 +1,8 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: doc_crear_desde_venta
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
+--
+-- Al confirmar que la venta es para envío, los cilindros que salen quedan en
+-- estado PENDIENTE_ENVIO: siguen siendo nuestros y siguen en el almacén, pero
+-- ya están comprometidos y no deben ofrecerse para otra entrega.
 DROP FUNCTION IF EXISTS doc_crear_desde_venta(p_id_venta integer, p_id_destinatario integer, p_fecha_traslado date, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION doc_crear_desde_venta(p_id_venta integer, p_id_destinatario integer DEFAULT NULL::integer, p_fecha_traslado date DEFAULT NULL::date, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -13,6 +14,7 @@ DECLARE
     v_id_sucursal INTEGER;
     v_resultado JSON;
     v_id INTEGER;
+    v_id_estado_pendiente_envio INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -52,6 +54,40 @@ BEGIN
     END IF;
 
     v_id := (v_resultado->'registro'->>'id')::INTEGER;
+
+    -- Los cilindros de la venta pasan a PENDIENTE_ENVIO.
+    --
+    -- Se toman de ven_comprobante_detalle, que es exactamente lo que sale por la
+    -- puerta: el cilindro que el cliente deja en garantía no está ahí (vive en
+    -- bal_prestamo_detalle con rol GARANTIA), así que se queda con su estado y no
+    -- se marca por error como pendiente de envío.
+    --
+    -- No pasa por inv_registrar_movimiento a propósito: esto no mueve inventario
+    -- —el movimiento lo hizo la venta— sino que marca una situación logística
+    -- sobre el mismo cilindro, en el mismo almacén y con el mismo dueño.
+    SELECT lo.id INTO v_id_estado_pendiente_envio
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(lo.nombre) = 'PENDIENTE_ENVIO' AND lo.estado = 1
+    LIMIT 1;
+
+    IF v_id_estado_pendiente_envio IS NOT NULL THEN
+        UPDATE bal_balon b
+        SET id_estado_balon = v_id_estado_pendiente_envio,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        FROM ven_comprobante_detalle d
+        WHERE d.id_comprobante = p_id_venta
+          AND d.estado = 1
+          AND d.id_balon = b.id
+          AND b.estado = 1
+          AND b.id_estado_balon IS DISTINCT FROM v_id_estado_pendiente_envio
+          -- Un cilindro de baja o robado no "sale": no se le cambia el estado.
+          AND UPPER(COALESCE(
+                (SELECT lo2.nombre FROM gen_lista_opciones lo2 WHERE lo2.id = b.id_estado_balon),
+                ''
+              )) NOT IN ('DADO_DE_BAJA', 'ROBO');
+    END IF;
 
     -- Se genera de inmediato: no mueve inventario (lo hizo la venta), así que no hay
     -- nada que el usuario deba revisar antes de cerrarla.

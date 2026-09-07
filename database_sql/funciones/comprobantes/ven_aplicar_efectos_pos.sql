@@ -199,9 +199,10 @@ BEGIN
         -- Fase 4 (apunte 1.c.viii) — préstamo con garantía de balón: el cliente deja
         -- su propio cilindro como colateral y se lleva uno de Sarita recargado.
         -- Distinto de v_garantia (dinero): aquí se registra un balón físico nuevo,
-        -- de propietario GARANTIA_CLIENTE, con su propia fila de detalle (rol
-        -- GARANTIA) enlazada al mismo préstamo que ya tiene el detalle ENTREGADO
-        -- creado arriba.
+        -- de propietario CLIENTE (el envase sigue siendo suyo y se le devuelve),
+        -- con su propia fila de detalle (rol GARANTIA) enlazada al mismo préstamo
+        -- que ya tiene el detalle ENTREGADO creado arriba. Es esa fila —y no el
+        -- propietario— la que dice que lo tenemos en garantía y de qué préstamo.
         v_garantia_balon := v_item->'garantiaBalon';
         IF json_typeof(v_garantia_balon) = 'object'
            AND NULLIF(v_garantia_balon->>'codigoBalon', '') IS NOT NULL
@@ -228,11 +229,11 @@ BEGIN
             SELECT lo.id INTO v_id_propietario_garantia
             FROM gen_lista_opciones lo
             INNER JOIN gen_lista l ON lo.id_lista = l.id
-            WHERE l.nombre = 'PropietarioBalon' AND lo.nombre = 'GARANTIA_CLIENTE' AND lo.estado = 1
+            WHERE l.nombre = 'PropietarioBalon' AND lo.nombre = 'CLIENTE' AND lo.estado = 1
             LIMIT 1;
 
             IF v_id_propietario_garantia IS NULL THEN
-                RAISE EXCEPTION 'Falta la opción GARANTIA_CLIENTE en el catálogo PropietarioBalon';
+                RAISE EXCEPTION 'Falta la opción CLIENTE en el catálogo PropietarioBalon';
             END IF;
 
             SELECT lo.id INTO v_id_estado_balon_almacen

@@ -1,3 +1,9 @@
+-- Corregido a mano el 2026-09-06: el archivo se quedo en el esquema anterior a
+-- la Fase 2. Las columnas de guia se llaman id_doc_salida_entrega /
+-- id_doc_salida_devolucion y apuntan a doc_salida (que reemplazo a
+-- gre_guia_remision, hoy inexistente), tal como las escribe
+-- bal_crear_prestamo_detalle. Con los nombres viejos este DDL no se podia
+-- aplicar: fallaba con "relation public.gre_guia_remision does not exist".
 -- Synced from DEV via database_sql/scripts/sync-tables-from-dev.js
 -- Table: bal_prestamo_detalle
 -- Generated: 2026-09-02T21:43:17.507Z
@@ -24,8 +30,8 @@ CREATE TABLE bal_prestamo_detalle (
     id_usuario_modificacion integer,
     fecha_creacion timestamp without time zone DEFAULT now(),
     fecha_modificacion timestamp without time zone DEFAULT now(),
-    id_guia_entrega integer,
-    id_guia_devolucion integer,
+    id_doc_salida_entrega integer,
+    id_doc_salida_devolucion integer,
     rol character varying(20) DEFAULT 'ENTREGADO'::character varying NOT NULL
 );
 
@@ -51,9 +57,9 @@ CREATE INDEX idx_bal_prestamo_detalle_balon ON bal_prestamo_detalle USING btree 
 
 CREATE INDEX idx_bal_prestamo_detalle_est ON bal_prestamo_detalle USING btree (id_estado);
 
-CREATE INDEX idx_bal_prestamo_detalle_guia_dev ON bal_prestamo_detalle USING btree (id_guia_devolucion);
+CREATE INDEX idx_bal_prestamo_detalle_guia_dev ON bal_prestamo_detalle USING btree (id_doc_salida_devolucion);
 
-CREATE INDEX idx_bal_prestamo_detalle_guia_ent ON bal_prestamo_detalle USING btree (id_guia_entrega);
+CREATE INDEX idx_bal_prestamo_detalle_guia_ent ON bal_prestamo_detalle USING btree (id_doc_salida_entrega);
 
 CREATE INDEX idx_bal_prestamo_detalle_venc ON bal_prestamo_detalle USING btree (fecha_vencimiento);
 
@@ -64,10 +70,10 @@ ALTER TABLE bal_prestamo_detalle
     ADD CONSTRAINT bal_prestamo_detalle_id_estado_fkey FOREIGN KEY (id_estado) REFERENCES public.gen_lista_opciones(id);
 
 ALTER TABLE bal_prestamo_detalle
-    ADD CONSTRAINT bal_prestamo_detalle_id_guia_devolucion_fkey FOREIGN KEY (id_guia_devolucion) REFERENCES public.gre_guia_remision(id);
+    ADD CONSTRAINT bal_prestamo_detalle_id_doc_salida_devolucion_fkey FOREIGN KEY (id_doc_salida_devolucion) REFERENCES public.doc_salida(id);
 
 ALTER TABLE bal_prestamo_detalle
-    ADD CONSTRAINT bal_prestamo_detalle_id_guia_entrega_fkey FOREIGN KEY (id_guia_entrega) REFERENCES public.gre_guia_remision(id);
+    ADD CONSTRAINT bal_prestamo_detalle_id_doc_salida_entrega_fkey FOREIGN KEY (id_doc_salida_entrega) REFERENCES public.doc_salida(id);
 
 ALTER TABLE bal_prestamo_detalle
     ADD CONSTRAINT bal_prestamo_detalle_id_prestamo_fkey FOREIGN KEY (id_prestamo) REFERENCES public.bal_prestamo(id);
