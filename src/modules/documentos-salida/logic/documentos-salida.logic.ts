@@ -14,6 +14,8 @@ import { FacturacionCredentialsService } from '../../../integrations/facturacion
 import { TipoNotificacion, TipoReferenciaNotificacion } from '../../notificaciones/constants/tipo-notificacion';
 import { NotificacionesLogic } from '../../notificaciones/logic/notificaciones.logic';
 import {
+  ActualizarDocSalidaDetalleDto,
+  ActualizarDocSalidaDto,
   AnularDocSalidaDto,
   ConvertirGreDto,
   CreateDocSalidaDetalleDto,
@@ -82,6 +84,16 @@ export class DocumentosSalidaLogic {
   async agregarDetalle(idDocSalida: number, dto: CreateDocSalidaDetalleDto) {
     const result = await this.model.agregarDetalle(idDocSalida, dto);
     return mapSingleResult(result, `Documento de salida ${idDocSalida} no encontrado`);
+  }
+
+  async actualizarDetalle(idDetalle: number, dto: ActualizarDocSalidaDetalleDto) {
+    const result = await this.model.actualizarDetalle(idDetalle, dto);
+    return mapSingleResult(result, `Línea ${idDetalle} no encontrada`);
+  }
+
+  async actualizar(id: number, dto: ActualizarDocSalidaDto) {
+    const result = await this.model.actualizar(id, dto);
+    return mapSingleResult(result, `Documento de salida ${id} no encontrado`);
   }
 
   async eliminarDetalle(idDetalle: number, dto: AuditoriaDto) {

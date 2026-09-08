@@ -293,6 +293,17 @@ BEGIN
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = p_id_balon AND estado = 1;
+
+    ELSIF UPPER(v_nombre_tipo_mov) = 'TRASLADO' AND p_id_almacen_destino IS NOT NULL THEN
+        -- Trasladar un cilindro cambia dónde está, no en qué situación está:
+        -- sigue DISPONIBLE (o como estuviera), solo que en el otro almacén. Sin
+        -- esto el traslado registraba el movimiento y dejaba el balón en el
+        -- almacén de origen, que es justo lo que venía a cambiar.
+        UPDATE bal_balon
+        SET id_almacen = p_id_almacen_destino,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id = p_id_balon AND estado = 1;
     END IF;
 
     -- Si el movimiento del balón también mueve gas, se refleja en pro_stock del gas.

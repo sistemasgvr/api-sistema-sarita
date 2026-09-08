@@ -59,6 +59,7 @@ BEGIN
             d.fecha, d.fecha_traslado, d.fecha_llegada_almacen,
             d.id_sucursal, suc.nombre AS nombre_sucursal,
             d.id_almacen, alm.nombre AS nombre_almacen,
+            d.id_almacen_destino, almdest.nombre AS nombre_almacen_destino,
             d.id_cliente,
             COALESCE(NULLIF(TRIM(cli.razon_social), ''),
                      NULLIF(TRIM(CONCAT_WS(' ', cli.nombres, cli.apellido_paterno, cli.apellido_materno)), '')) AS nombre_cliente,
@@ -86,6 +87,7 @@ BEGIN
         LEFT JOIN ven_comprobante vc ON vc.id = d.id_venta
         LEFT JOIN gen_sucursal suc ON suc.id = d.id_sucursal
         LEFT JOIN gen_almacen alm ON alm.id = d.id_almacen
+        LEFT JOIN gen_almacen almdest ON almdest.id = d.id_almacen_destino
         LEFT JOIN cli_clientes cli ON cli.id = d.id_cliente
         LEFT JOIN cli_clientes prov ON prov.id = d.id_proveedor
         WHERE d.estado = 1

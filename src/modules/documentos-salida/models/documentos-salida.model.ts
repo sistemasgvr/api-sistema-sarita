@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../../../database/database.service';
 import {
+  ActualizarDocSalidaDetalleDto,
+  ActualizarDocSalidaDto,
   AnularDocSalidaDto,
   ConvertirGreDto,
   CreateDocSalidaDetalleDto,
@@ -81,6 +83,7 @@ export class DocumentosSalidaModel {
       dto.idUsuarioAuditoria ?? null,
       dto.pesoBruto ?? null,
       dto.numeroBultos ?? null,
+      dto.idAlmacenDestino ?? null,
     ]);
   }
 
@@ -102,6 +105,23 @@ export class DocumentosSalidaModel {
       dto.descripcion ?? null,
       dto.idUnidadMedida ?? null,
       dto.glosa ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  actualizarDetalle(idDetalle: number, dto: ActualizarDocSalidaDetalleDto) {
+    return this.db.callFunctionJson<DocumentoSalidaCompletoResult>('doc_actualizar_salida_detalle', [
+      idDetalle,
+      dto.cantidad ?? null,
+      dto.glosa ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  actualizar(id: number, dto: ActualizarDocSalidaDto) {
+    return this.db.callFunctionJson<DocumentoSalidaCompletoResult>('doc_actualizar_salida', [
+      id,
+      dto.observaciones ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
   }

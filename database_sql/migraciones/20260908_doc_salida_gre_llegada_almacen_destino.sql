@@ -1,7 +1,23 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- ============================================================
+-- Migración: la GRE de un traslado llega al almacén de destino
+-- Fecha: 2026-09-08
+--
+-- Complemento de 20260908_doc_salida_traslado_y_gas_general.sql. Al convertir
+-- un traslado en guía de remisión, el punto de llegada se pedía en blanco: el
+-- respaldo existente era la dirección de entrega del cliente, y en un traslado
+-- no hay cliente — la carga va a otro almacén propio.
+--
+-- doc_obtener_salida ahora expone la ubicación completa del almacén de destino
+-- (dirección, distrito, provincia, departamento y país), que es lo que el
+-- selector de ubigeo necesita para precargarse en cascada.
+--
+-- No cambia ninguna tabla.
+--
+-- Aplicar con:
+--   node database_sql/scripts/apply-migration.js database_sql/migraciones/20260908_doc_salida_gre_llegada_almacen_destino.sql
+-- ============================================================
+
 -- Function: doc_obtener_salida
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
 --
 -- Actualizada por database_sql/migraciones/20260905_venta_gas_prestamo_garantia_join.sql:
 -- con id_venta el detalle une los items de la venta con los cilindros

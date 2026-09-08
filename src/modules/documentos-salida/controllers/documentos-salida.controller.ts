@@ -17,6 +17,8 @@ import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
+  ActualizarDocSalidaDetalleDto,
+  ActualizarDocSalidaDto,
   AnularDocSalidaDto,
   ConvertirGreDto,
   CreateDocSalidaDetalleDto,
@@ -100,6 +102,19 @@ export class DocumentosSalidaController {
     return this.logic.agregarDetalle(id, dto);
   }
 
+  @Patch('detalle/:detalleId')
+  @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EDITAR)
+  @ApiOperation({
+    summary: 'Corregir cantidad o glosa de una línea — solo mientras está en BORRADOR',
+  })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  actualizarDetalle(
+    @Param('detalleId', ParseIntPipe) detalleId: number,
+    @Body() dto: ActualizarDocSalidaDetalleDto,
+  ) {
+    return this.logic.actualizarDetalle(detalleId, dto);
+  }
+
   @Delete('detalle/:detalleId')
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EDITAR)
   @ApiOperation({ summary: 'Quitar una línea — solo mientras el documento está en BORRADOR' })
@@ -120,6 +135,17 @@ export class DocumentosSalidaController {
     @Body() dto: ActualizarTrasladoDto,
   ) {
     return this.logic.actualizarTraslado(id, dto);
+  }
+
+  // Después de las rutas PATCH con segmento fijo ('detalle/:detalleId',
+  // ':id/traslado'): declarada antes, ParseIntPipe intentaría leer 'detalle'
+  // como id y esas rutas devolverían 400.
+  @Patch(':id')
+  @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EDITAR)
+  @ApiOperation({ summary: 'Corregir las observaciones de la orden' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  actualizar(@Param('id', ParseIntPipe) id: number, @Body() dto: ActualizarDocSalidaDto) {
+    return this.logic.actualizar(id, dto);
   }
 
   @Post(':id/generar')

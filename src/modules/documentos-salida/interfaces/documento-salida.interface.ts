@@ -12,8 +12,15 @@ export interface DocumentoSalidaDetalleRegistro {
   descripcion: string | null;
   id_balon: number | null;
   codigo_balon: string | null;
+  id_tipo_balon?: number | null;
   nombre_tipo_balon?: string | null;
   nombre_almacen_balon?: string | null;
+  /**
+   * Capacidad del tipo de cilindro y su unidad. En planta externa el editor las
+   * suma por gas para topar cuánta cantidad se puede declarar que sale.
+   */
+  capacidad_balon?: number | null;
+  unidad_capacidad_balon?: string | null;
   /** Gas del cilindro: una ficha de lote y protocolo cubre un solo gas. */
   id_producto_gas_balon?: number | null;
   nombre_producto_gas_balon?: string | null;
@@ -57,6 +64,14 @@ export interface DocumentoSalidaRegistro {
   nombre_sucursal: string | null;
   id_almacen: number;
   nombre_almacen: string | null;
+  /** Destino del traslado: mueve el stock y da el punto de llegada de la GRE. */
+  id_almacen_destino?: number | null;
+  nombre_almacen_destino?: string | null;
+  direccion_almacen_destino?: string | null;
+  id_distrito_almacen_destino?: number | null;
+  id_provincia_almacen_destino?: number | null;
+  id_departamento_almacen_destino?: number | null;
+  id_pais_almacen_destino?: number | null;
   id_cliente: number | null;
   nombre_cliente: string | null;
   id_destinatario: number | null;
@@ -186,6 +201,9 @@ export interface DocumentoSalidaListItem {
   nombre_sucursal: string | null;
   id_almacen: number;
   nombre_almacen: string | null;
+  /** Destino del traslado: mueve el stock y da el punto de llegada de la GRE. */
+  id_almacen_destino?: number | null;
+  nombre_almacen_destino?: string | null;
   id_cliente: number | null;
   nombre_cliente: string | null;
   id_proveedor: number | null;

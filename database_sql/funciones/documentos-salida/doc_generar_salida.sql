@@ -47,10 +47,19 @@ BEGIN
     -- El tipo de movimiento depende del propósito del documento.
     v_codigo_mov := CASE v_tipo
         WHEN 'RECARGA_PLANTA_EXTERNA' THEN 'SALIDA_PLANTA_EXTERNA'
-        WHEN 'RETORNO_PLANTA_EXTERNA' THEN 'ENTRADA_PLANTA_EXTERNA'
         WHEN 'TRASLADO'               THEN 'TRASLADO'
         ELSE 'SALIDA_ENTREGA_CLIENTE'
     END;
+
+    -- Se comprueba acá y no solo al crear: hay órdenes anteriores a que el
+    -- destino existiera, y sin él inv_registrar_movimiento aborta con una
+    -- excepción que tumba toda la petición en vez de devolver el error.
+    IF v_tipo = 'TRASLADO' AND v_doc.id_almacen_destino IS NULL THEN
+        RETURN json_build_object(
+            'error', 'El traslado requiere almacén de destino: regístralo antes de generar',
+            'registro', NULL
+        );
+    END IF;
 
     IF v_doc.id_venta IS NULL THEN
         IF NOT EXISTS (SELECT 1 FROM doc_salida_detalle WHERE id_doc_salida = p_id AND estado = 1) THEN
@@ -58,22 +67,25 @@ BEGIN
         END IF;
 
         FOR v_det IN
-            SELECT dd.*, COALESCE(b.id_producto_gas, dd.id_producto) AS id_producto_efectivo
+            SELECT dd.*
             FROM doc_salida_detalle dd
-            LEFT JOIN bal_balon b ON b.id = dd.id_balon
             WHERE dd.id_doc_salida = p_id AND dd.estado = 1
             ORDER BY dd.item
         LOOP
+            -- El gas viaja SIEMPRE en sus propias líneas de producto, nunca en
+            -- la del cilindro. El detalle se arma en dos planos: una línea por
+            -- balón, que mueve el envase (estado y almacén), y una línea por
+            -- producto con la cantidad total de gas que sale. Tomar además el
+            -- gas del balón descontaría el mismo gas dos veces.
             v_mov := inv_registrar_movimiento(
                 p_naturaleza                   => CASE WHEN v_det.id_balon IS NOT NULL THEN 'BALON' ELSE 'PRODUCTO' END,
                 p_codigo_tipo_movimiento       => v_codigo_mov,
                 p_fecha                        => LOCALTIMESTAMP,
-                p_id_producto                  => CASE WHEN v_det.id_balon IS NOT NULL
-                                                       THEN v_det.id_producto_efectivo
-                                                       ELSE v_det.id_producto END,
+                p_id_producto                  => v_det.id_producto,
                 p_id_balon                     => v_det.id_balon,
                 p_cantidad                     => v_det.cantidad,
                 p_id_almacen_origen            => v_doc.id_almacen,
+                p_id_almacen_destino           => v_doc.id_almacen_destino,
                 p_id_cliente                   => COALESCE(v_doc.id_destinatario, v_doc.id_cliente, v_doc.id_proveedor),
                 p_codigo_tipo_documento_origen => 'ORDEN_SALIDA',
                 p_id_documento_origen          => p_id,

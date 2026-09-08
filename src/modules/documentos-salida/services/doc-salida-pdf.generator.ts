@@ -181,9 +181,7 @@ export class DocSalidaPdfGenerator {
       y += 8;
       // En recarga/retorno de planta externa la carga va (o vuelve) del
       // proveedor: él ES el destinatario del documento, no un tercero aparte.
-      const esPlantaExterna =
-        cabecera.nombre_tipo_orden === 'RECARGA_PLANTA_EXTERNA' ||
-        cabecera.nombre_tipo_orden === 'RETORNO_PLANTA_EXTERNA';
+      const esPlantaExterna = cabecera.nombre_tipo_orden === 'RECARGA_PLANTA_EXTERNA';
       const destLabel = esPlantaExterna
         ? 'Destinatario (planta externa)'
         : cabecera.nombre_destinatario || cabecera.nombre_cliente

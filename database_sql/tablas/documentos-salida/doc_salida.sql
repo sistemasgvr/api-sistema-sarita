@@ -17,6 +17,7 @@ CREATE TABLE doc_salida (
     id_doc_salida_origen integer,
     id_sucursal integer NOT NULL,
     id_almacen integer NOT NULL,
+    id_almacen_destino integer,
     id_cliente integer,
     id_destinatario integer,
     id_proveedor integer,
@@ -103,6 +104,9 @@ CREATE UNIQUE INDEX uq_doc_salida_serie_numero ON public.doc_salida USING btree 
 
 ALTER TABLE doc_salida
     ADD CONSTRAINT doc_salida_id_almacen_fkey FOREIGN KEY (id_almacen) REFERENCES public.gen_almacen(id);
+
+ALTER TABLE doc_salida
+    ADD CONSTRAINT doc_salida_id_almacen_destino_fkey FOREIGN KEY (id_almacen_destino) REFERENCES public.gen_almacen(id);
 
 ALTER TABLE doc_salida
     ADD CONSTRAINT doc_salida_id_archivo_pdf_fkey FOREIGN KEY (id_archivo_pdf) REFERENCES public.gen_archivo(id);

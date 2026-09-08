@@ -4,9 +4,14 @@
 -- Generated: 2026-09-03T16:50:38.958Z
 -- p_peso_bruto / p_numero_bultos: se piden al crear la orden y los reutiliza la
 -- guía de remisión. Van al final para no romper llamadas posicionales previas.
+--
+-- p_id_almacen_destino: obligatorio en TRASLADO. Sin él la orden no se podía
+-- generar — inv_registrar_movimiento exige destino para mover producto entre
+-- almacenes — así que el tipo existía en el catálogo pero reventaba al generar.
 DROP FUNCTION IF EXISTS doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer, p_id_cliente integer, p_id_destinatario integer, p_id_proveedor integer, p_id_doc_salida_origen integer, p_fecha date, p_fecha_traslado date, p_observaciones character varying, p_id_usuario_auditoria integer);
+DROP FUNCTION IF EXISTS doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer, p_id_cliente integer, p_id_destinatario integer, p_id_proveedor integer, p_id_doc_salida_origen integer, p_fecha date, p_fecha_traslado date, p_observaciones character varying, p_id_usuario_auditoria integer, p_peso_bruto numeric, p_numero_bultos integer);
 
-CREATE OR REPLACE FUNCTION doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_id_destinatario integer DEFAULT NULL::integer, p_id_proveedor integer DEFAULT NULL::integer, p_id_doc_salida_origen integer DEFAULT NULL::integer, p_fecha date DEFAULT NULL::date, p_fecha_traslado date DEFAULT NULL::date, p_observaciones character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_peso_bruto numeric DEFAULT NULL::numeric, p_numero_bultos integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_id_destinatario integer DEFAULT NULL::integer, p_id_proveedor integer DEFAULT NULL::integer, p_id_doc_salida_origen integer DEFAULT NULL::integer, p_fecha date DEFAULT NULL::date, p_fecha_traslado date DEFAULT NULL::date, p_observaciones character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_peso_bruto numeric DEFAULT NULL::numeric, p_numero_bultos integer DEFAULT NULL::integer, p_id_almacen_destino integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -48,6 +53,23 @@ BEGIN
         RETURN json_build_object('error', 'El almacén no existe o no pertenece a la sucursal indicada', 'registro', NULL);
     END IF;
 
+    -- El destino solo tiene sentido en un traslado, y ahí es obligatorio: es el
+    -- dato que necesita el movimiento para descontar de un almacén y sumar en
+    -- el otro. Puede estar en otra sucursal (traslado entre sedes).
+    IF UPPER(TRIM(COALESCE(p_codigo_tipo_orden, ''))) = 'TRASLADO' THEN
+        IF p_id_almacen_destino IS NULL THEN
+            RETURN json_build_object('error', 'El traslado requiere almacén de destino', 'registro', NULL);
+        END IF;
+
+        IF p_id_almacen_destino = v_id_almacen THEN
+            RETURN json_build_object('error', 'El almacén de destino debe ser distinto al de origen', 'registro', NULL);
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM gen_almacen WHERE id = p_id_almacen_destino AND estado = 1) THEN
+            RETURN json_build_object('error', 'El almacén de destino no existe o está inactivo', 'registro', NULL);
+        END IF;
+    END IF;
+
     IF p_id_venta IS NOT NULL THEN
         IF NOT EXISTS (SELECT 1 FROM ven_comprobante WHERE id = p_id_venta AND estado = 1) THEN
             RETURN json_build_object('error', 'La venta indicada no existe o está anulada', 'registro', NULL);
@@ -68,14 +90,14 @@ BEGIN
     INSERT INTO doc_salida (
         numero, id_tipo_orden, id_estado_ciclo, emitido_sunat,
         id_venta, id_doc_salida_origen,
-        id_sucursal, id_almacen, id_cliente, id_destinatario, id_proveedor,
+        id_sucursal, id_almacen, id_almacen_destino, id_cliente, id_destinatario, id_proveedor,
         fecha, fecha_traslado, observaciones,
         peso_bruto, numero_bultos,
         id_usuario_creacion, id_usuario_modificacion
     ) VALUES (
         v_numero, v_id_tipo_orden, v_id_borrador, FALSE,
         p_id_venta, p_id_doc_salida_origen,
-        p_id_sucursal, v_id_almacen,
+        p_id_sucursal, v_id_almacen, p_id_almacen_destino,
         COALESCE(p_id_cliente, (SELECT id_cliente FROM ven_comprobante WHERE id = p_id_venta)),
         p_id_destinatario, p_id_proveedor,
         v_fecha, p_fecha_traslado, p_observaciones,

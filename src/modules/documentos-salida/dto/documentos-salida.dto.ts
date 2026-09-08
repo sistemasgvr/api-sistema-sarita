@@ -19,7 +19,7 @@ export class CreateDocSalidaDto extends AuditoriaDto {
   @ApiProperty({
     example: 'ORDEN_SALIDA_INTERNA',
     description:
-      'Código TipoOrdenSalida: ORDEN_SALIDA_VENTA, ORDEN_SALIDA_INTERNA, RECARGA_PLANTA_EXTERNA, RETORNO_PLANTA_EXTERNA, TRASLADO',
+      'Código TipoOrdenSalida: ORDEN_SALIDA_VENTA, ORDEN_SALIDA_INTERNA, RECARGA_PLANTA_EXTERNA, TRASLADO',
   })
   @IsString()
   @IsNotEmpty()
@@ -34,6 +34,14 @@ export class CreateDocSalidaDto extends AuditoriaDto {
   @Type(() => Number)
   @IsInt()
   idAlmacen!: number;
+
+  @ApiPropertyOptional({
+    description: 'Obligatorio en TRASLADO: almacén al que va la carga. Debe ser distinto al origen',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idAlmacenDestino?: number;
 
   @ApiPropertyOptional({
     description: 'Solo para ORDEN_SALIDA_VENTA armada a mano; usar POST /crear-desde-venta en el caso normal',
@@ -139,6 +147,29 @@ export class CreateDocSalidaDetalleDto extends AuditoriaDto {
   @IsString()
   @MaxLength(255)
   glosa?: string;
+}
+
+export class ActualizarDocSalidaDetalleDto extends AuditoriaDto {
+  @ApiPropertyOptional({ example: 5, description: 'Omitir para no cambiarla' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.0001)
+  cantidad?: number;
+
+  @ApiPropertyOptional({ description: 'Cadena vacía para borrarla; omitir para no cambiarla' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  glosa?: string;
+}
+
+export class ActualizarDocSalidaDto extends AuditoriaDto {
+  @ApiPropertyOptional({ description: 'Cadena vacía para borrarlas; omitir para no cambiarlas' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observaciones?: string;
 }
 
 export class CrearDesdeVentaDto extends AuditoriaDto {
