@@ -44,14 +44,14 @@ BEGIN
         LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
         WHERE b.id = v_det.id_balon AND b.estado = 1;
 
-        IF COALESCE(v_estado, '') NOT IN ('EN_ALMACEN', 'EN_RECARGA_EXTERNA') THEN
+        IF COALESCE(v_estado, '') NOT IN ('DISPONIBLE', 'EN_RECARGA_EXTERNA') THEN
             RAISE EXCEPTION
                 'No se puede anular la compra: el cilindro % ya no está en almacén ni en recarga externa (estado %).',
                 v_det.id_balon,
                 COALESCE(v_estado, 'sin estado');
         END IF;
 
-        IF COALESCE(v_estado, '') = 'EN_ALMACEN' AND v_id_recarga_ext IS NOT NULL THEN
+        IF COALESCE(v_estado, '') = 'DISPONIBLE' AND v_id_recarga_ext IS NOT NULL THEN
             UPDATE bal_balon
             SET
                 id_estado_balon = v_id_recarga_ext,
@@ -95,7 +95,7 @@ BEGIN
     -- Revierte entradas aún bajo RECARGA (orden) y las que acabamos de reapuntar.
     PERFORM inv_revertir_por_documento('RECARGA', p_id_recarga_planta, p_id_usuario);
 
-    -- inv_revertir deja cilindros en EN_ALMACEN; al anular compra deben volver a EN_RECARGA_EXTERNA.
+    -- inv_revertir deja cilindros en DISPONIBLE; al anular compra deben volver a EN_RECARGA_EXTERNA.
     IF v_id_recarga_ext IS NOT NULL THEN
         UPDATE bal_balon b
         SET

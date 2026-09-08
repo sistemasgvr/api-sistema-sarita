@@ -146,7 +146,7 @@ BEGIN
         SELECT lo.id INTO v_id_en_almacen
         FROM gen_lista_opciones lo
         INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
+        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
         LIMIT 1;
 
         UPDATE bal_balon b

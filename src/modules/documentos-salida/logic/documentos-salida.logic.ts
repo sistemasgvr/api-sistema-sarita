@@ -24,6 +24,7 @@ import {
   GenerarRecojoDocSalidaDto,
   RegistrarDireccionEntregaDto,
   SiguienteNumeroDocSalidaQueryDto,
+  ActualizarTrasladoDto,
 } from '../dto/documentos-salida.dto';
 import { DocSalidaDespatchMapper } from '../mappers/doc-salida-despatch.mapper';
 import { DocumentosSalidaModel } from '../models/documentos-salida.model';
@@ -86,6 +87,11 @@ export class DocumentosSalidaLogic {
   async eliminarDetalle(idDetalle: number, dto: AuditoriaDto) {
     const result = await this.model.eliminarDetalle(idDetalle, dto.idUsuarioAuditoria);
     return mapDeleteResult(result, `Línea ${idDetalle} no encontrada`);
+  }
+
+  async actualizarTraslado(id: number, dto: ActualizarTrasladoDto) {
+    const result = await this.model.actualizarTraslado(id, dto);
+    return mapSingleResult(result, `Documento de salida ${id} no encontrado`);
   }
 
   async generar(id: number, dto: AuditoriaDto) {

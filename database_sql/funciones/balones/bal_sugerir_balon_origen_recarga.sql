@@ -65,7 +65,7 @@ BEGIN
             LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
             WHERE b.estado = 1
               AND COALESCE(prop.nombre, '') IN ('EMPRESA', 'PROPIA')
-              AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
+              AND COALESCE(eb.nombre, '') = 'DISPONIBLE'
               AND b.id_producto_gas = p_id_producto_gas
               AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
             -- Sin filtro por capacidad: el balón origen es solo trazabilidad; la

@@ -49,10 +49,10 @@ BEGIN
     SELECT lo.id INTO v_id_estado_almacen
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1;
+    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1;
 
     IF v_id_estado_almacen IS NULL THEN
-        RETURN json_build_object('error', 'No está configurado el estado EN_ALMACEN', 'registro', NULL);
+        RETURN json_build_object('error', 'No está configurado el estado DISPONIBLE', 'registro', NULL);
     END IF;
 
     SELECT bb.id, bb.id_motivo_baja

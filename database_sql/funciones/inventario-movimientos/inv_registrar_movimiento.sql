@@ -260,9 +260,9 @@ BEGIN
         WHEN 'SALIDA_PLANTA_EXTERNA' THEN
             v_codigo_estado_destino := 'EN_RECARGA_EXTERNA'; v_limpiar_almacen := TRUE; v_codigo_contenido := 'VACIO';
         WHEN 'ENTRADA_DEVOLUCION', 'ENTRADA_MANTENIMIENTO', 'RETORNO_LIMA' THEN
-            v_codigo_estado_destino := 'EN_ALMACEN';
+            v_codigo_estado_destino := 'DISPONIBLE';
         WHEN 'ENTRADA_LLENADO', 'ENTRADA_PLANTA_EXTERNA' THEN
-            v_codigo_estado_destino := 'EN_ALMACEN'; v_codigo_contenido := 'LLENO';
+            v_codigo_estado_destino := 'DISPONIBLE'; v_codigo_contenido := 'LLENO';
         WHEN 'RECARGA_CLIENTE' THEN
             v_codigo_estado_destino := 'EN_PODER_CLIENTE'; v_cliente_destino := p_id_cliente; v_limpiar_almacen := TRUE;
         WHEN 'TRASLADO_LIMA' THEN

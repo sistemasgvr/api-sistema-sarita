@@ -159,7 +159,7 @@ export class FiltroBalonesDto extends FiltroPaginacionDto {
   idProductoGas?: number;
 
   @ApiPropertyOptional({
-    description: 'true = solo cilindros LLENO fuera de almacén (no EN_ALMACEN)',
+    description: 'true = solo cilindros LLENO fuera de almacén (no DISPONIBLE)',
   })
   @Transform(({ value }) => toOptionalBoolean(value))
   @IsOptional()

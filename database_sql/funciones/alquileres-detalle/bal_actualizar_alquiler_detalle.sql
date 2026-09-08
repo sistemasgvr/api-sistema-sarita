@@ -93,12 +93,12 @@ BEGIN
         SELECT lo.id INTO v_id_estado_en_almacen
         FROM gen_lista_opciones lo
         INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
+        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
         LIMIT 1;
 
         IF v_id_estado_en_almacen IS NULL THEN
             RETURN json_build_object(
-                'error', 'Faltan estados ALQUILADO / EN_ALMACEN en el catálogo EstadoBalon',
+                'error', 'Faltan estados ALQUILADO / DISPONIBLE en el catálogo EstadoBalon',
                 'registro', NULL
             );
         END IF;
@@ -127,7 +127,7 @@ BEGIN
             RAISE EXCEPTION '%', v_mov->>'error';
         END IF;
 
-        -- inv_registrar_movimiento ya deja el balón devuelto en EN_ALMACEN/v_id_almacen
+        -- inv_registrar_movimiento ya deja el balón devuelto en DISPONIBLE/v_id_almacen
         -- (mapeo ENTRADA_DEVOLUCION), no hace falta repetirlo aquí.
 
         v_mov := inv_registrar_movimiento(

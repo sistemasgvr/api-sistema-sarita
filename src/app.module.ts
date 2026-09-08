@@ -47,6 +47,7 @@ import { ProductoImagenesModule } from './modules/producto-imagenes/producto-ima
 import { ProductosModule } from './modules/productos/productos.module';
 import { TiposBalonModule } from './modules/tipos-balon/tipos-balon.module';
 import { BalonesModule } from './modules/balones/balones.module';
+import { LotesProtocoloModule } from './modules/lotes-protocolo/lotes-protocolo.module';
 import { MovimientosRecargaModule } from './modules/movimientos-recarga/movimientos-recarga.module';
 import { PrestamosBalonModule } from './modules/prestamos-balon/prestamos-balon.module';
 import { PrestamosDetalleModule } from './modules/prestamos-detalle/prestamos-detalle.module';
@@ -121,6 +122,7 @@ import { CajaModule } from './modules/caja/caja.module';
     ProductoImagenesModule,
     ProductosModule,
     TiposBalonModule,
+    LotesProtocoloModule,
     MovimientosRecargaModule,
     PrestamosBalonModule,
     PrestamosDetalleModule,

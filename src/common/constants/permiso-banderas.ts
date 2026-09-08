@@ -225,6 +225,11 @@ export const PermisoBanderas = {
   PRESTAMOS_DETALLE_EDITAR: 'prestamos_detalle.editar',
   PRESTAMOS_DETALLE_ELIMINAR: 'prestamos_detalle.eliminar',
 
+  LOTES_PROTOCOLO_LISTAR: 'lotes_protocolo.listar',
+  LOTES_PROTOCOLO_VER: 'lotes_protocolo.ver',
+  LOTES_PROTOCOLO_CREAR: 'lotes_protocolo.crear',
+  LOTES_PROTOCOLO_EDITAR: 'lotes_protocolo.editar',
+  LOTES_PROTOCOLO_ELIMINAR: 'lotes_protocolo.eliminar',
   RECOJOS_BALON_LISTAR: 'recojos_balon.listar',
   RECOJOS_BALON_VER: 'recojos_balon.ver',
   RECOJOS_BALON_CREAR: 'recojos_balon.crear',

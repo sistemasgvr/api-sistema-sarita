@@ -109,7 +109,7 @@ BEGIN
         RETURN json_build_object('error', v_mov->>'error', 'ok', FALSE);
     END IF;
 
-    IF COALESCE(v_nombre_estado, '') IN ('EN_ALMACEN', '', 'PRESTADO_CLIENTE', 'EN_RUTA_LIMA')
+    IF COALESCE(v_nombre_estado, '') IN ('DISPONIBLE', '', 'PRESTADO_CLIENTE', 'EN_RUTA_LIMA')
        OR v_nombre_estado IS NULL
     THEN
         UPDATE bal_balon
@@ -122,7 +122,7 @@ BEGIN
         WHERE id = p_id_balon AND estado = 1;
     END IF;
 
-    IF COALESCE(v_nombre_estado, '') = 'EN_ALMACEN' THEN
+    IF COALESCE(v_nombre_estado, '') = 'DISPONIBLE' THEN
         v_custodia := TRUE;
     END IF;
 

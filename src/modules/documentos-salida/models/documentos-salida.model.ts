@@ -12,6 +12,7 @@ import {
   GenerarRecojoDocSalidaDto,
   RegistrarDireccionEntregaDto,
   SiguienteNumeroDocSalidaQueryDto,
+  ActualizarTrasladoDto,
 } from '../dto/documentos-salida.dto';
 import type {
   DocSalidaEliminarDetalleResult,
@@ -78,6 +79,8 @@ export class DocumentosSalidaModel {
       dto.fechaTraslado ?? null,
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.pesoBruto ?? null,
+      dto.numeroBultos ?? null,
     ]);
   }
 
@@ -108,6 +111,18 @@ export class DocumentosSalidaModel {
       'doc_eliminar_salida_detalle',
       [idDetalle, idUsuarioAuditoria ?? null],
     );
+  }
+
+  actualizarTraslado(id: number, dto: ActualizarTrasladoDto) {
+    return this.db.callFunctionJson<DocumentoSalidaCompletoResult>('doc_actualizar_traslado', [
+      id,
+      dto.idMotivoTraslado ?? null,
+      dto.idModalidadTraslado ?? null,
+      dto.pesoBruto ?? null,
+      dto.numeroBultos ?? null,
+      dto.idUnidadMedida ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
   }
 
   generar(id: number, idUsuarioAuditoria?: number) {
@@ -174,6 +189,7 @@ export class DocumentosSalidaModel {
         dto.fechaVencimientoLote ?? null,
         dto.fechaPruebaHidrostatica ?? null,
         dto.idUsuarioAuditoria ?? null,
+        dto.idLoteProtocolo ?? null,
       ],
     );
   }

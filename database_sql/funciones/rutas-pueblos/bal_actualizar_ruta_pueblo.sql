@@ -82,7 +82,7 @@ BEGIN
                         'RUTA_PUEBLO',
                         NULL,
                         NULL,
-                        'EN_ALMACEN',
+                        'DISPONIBLE',
                         FALSE,
                         v_id_almacen,
                         format(
@@ -105,7 +105,7 @@ BEGIN
                             SELECT lo.id
                             FROM gen_lista_opciones lo
                             INNER JOIN gen_lista l ON l.id = lo.id_lista
-                            WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
+                            WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
                             LIMIT 1
                         ),
                         id_usuario_modificacion = p_id_usuario_auditoria,

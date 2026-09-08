@@ -12,6 +12,13 @@ export interface DocumentoSalidaDetalleRegistro {
   descripcion: string | null;
   id_balon: number | null;
   codigo_balon: string | null;
+  nombre_tipo_balon?: string | null;
+  nombre_almacen_balon?: string | null;
+  /** Gas del cilindro: una ficha de lote y protocolo cubre un solo gas. */
+  id_producto_gas_balon?: number | null;
+  nombre_producto_gas_balon?: string | null;
+  numero_serie_balon?: string | null;
+  id_lote_protocolo_vigente?: number | null;
   cantidad: number;
   id_unidad_medida: number | null;
   nombre_unidad_medida: string | null;
@@ -61,7 +68,8 @@ export interface DocumentoSalidaRegistro {
   documento_cliente: string | null;
   nombre_tipo_doc_cliente: string | null;
   id_proveedor: number | null;
-  nombre_proveedor: string | null;
+  nombre_proveedor: string | null
+  documento_proveedor?: string | null;
   fecha: string;
   fecha_traslado: string | null;
   fecha_retorno: string | null;
@@ -181,7 +189,8 @@ export interface DocumentoSalidaListItem {
   id_cliente: number | null;
   nombre_cliente: string | null;
   id_proveedor: number | null;
-  nombre_proveedor: string | null;
+  nombre_proveedor: string | null
+  documento_proveedor?: string | null;
   id_comprobante_compra: number | null;
   lote: string | null;
   observaciones: string | null;

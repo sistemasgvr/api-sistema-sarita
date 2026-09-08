@@ -50,7 +50,7 @@ BEGIN
    WHERE l.nombre = 'PropietarioBalon' AND lo.nombre = 'EMPRESA' AND lo.estado = 1 LIMIT 1;
   SELECT lo.id INTO v_estado_almacen FROM gen_lista_opciones lo
     JOIN gen_lista l ON l.id = lo.id_lista
-   WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1 LIMIT 1;
+   WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1 LIMIT 1;
   SELECT lo.id INTO v_marca FROM gen_lista_opciones lo
     JOIN gen_lista l ON l.id = lo.id_lista
    WHERE l.nombre = 'MarcaCilindro' AND lo.nombre = 'BTIC-JP' AND lo.estado = 1 LIMIT 1;

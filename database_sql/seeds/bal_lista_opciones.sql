@@ -70,7 +70,9 @@ INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
 SELECT l.id, v.nombre, v.descripcion
 FROM (
     VALUES
-        ('EN_ALMACEN', 'En almacén'),
+        ('DISPONIBLE', 'Cuando el cilindro tiene un id almacen de la empresa'),
+        ('PENDIENTE_ENVIO', 'En preparación para entrega a cliente'),
+        ('EN_TRANSITO', 'Se cambia el estado cuando se inicie la actividad'),
         ('POR_RECOGER', 'Por recoger'),
         ('PRESTADO_CLIENTE', 'Prestado'),
         ('EN_RUTA_LIMA', 'En ruta Lima'),

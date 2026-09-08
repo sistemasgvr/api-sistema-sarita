@@ -146,7 +146,7 @@ export class CreatePrestamosBalonDto extends AuditoriaDto {
 export class RenovarPrestamosBalonDto extends AuditoriaDto {
   @ApiPropertyOptional({
     description:
-      'Cilindro EN_ALMACEN a entregar en canje. Si se omite, se busca uno de las mismas características; si no hay, se extiende el préstamo con el mismo cilindro.',
+      'Cilindro DISPONIBLE a entregar en canje. Si se omite, se busca uno de las mismas características; si no hay, se extiende el préstamo con el mismo cilindro.',
   })
   @Type(() => Number)
   @IsOptional()

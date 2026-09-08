@@ -2,9 +2,10 @@
 -- Function: bal_actualizar_movimiento_recarga
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.943Z
+-- p_id_lote_protocolo (Fase 5) va al final para no romper llamadas posicionales.
 DROP FUNCTION IF EXISTS bal_actualizar_movimiento_recarga(p_id integer, p_fecha_salida_almacen date, p_id_producto integer, p_capacidad numeric, p_id_unidad_medida integer, p_serie_guia_salida character varying, p_numero_guia_salida character varying, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_serie_factura character varying, p_numero_factura character varying, p_id_comprobante integer, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_id_proveedor integer, p_observacion character varying, p_id_almacen integer, p_id_comprobante_compra integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION bal_actualizar_movimiento_recarga(p_id integer, p_fecha_salida_almacen date DEFAULT NULL::date, p_id_producto integer DEFAULT NULL::integer, p_capacidad numeric DEFAULT NULL::numeric, p_id_unidad_medida integer DEFAULT NULL::integer, p_serie_guia_salida character varying DEFAULT NULL::character varying, p_numero_guia_salida character varying DEFAULT NULL::character varying, p_serie_guia_ingreso character varying DEFAULT NULL::character varying, p_numero_guia_ingreso character varying DEFAULT NULL::character varying, p_serie_factura character varying DEFAULT NULL::character varying, p_numero_factura character varying DEFAULT NULL::character varying, p_id_comprobante integer DEFAULT NULL::integer, p_fecha_llegada_almacen date DEFAULT NULL::date, p_lote character varying DEFAULT NULL::character varying, p_fecha_vencimiento_lote date DEFAULT NULL::date, p_fecha_prueba_hidrostatica date DEFAULT NULL::date, p_id_proveedor integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_almacen integer DEFAULT NULL::integer, p_id_comprobante_compra integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION bal_actualizar_movimiento_recarga(p_id integer, p_fecha_salida_almacen date DEFAULT NULL::date, p_id_producto integer DEFAULT NULL::integer, p_capacidad numeric DEFAULT NULL::numeric, p_id_unidad_medida integer DEFAULT NULL::integer, p_serie_guia_salida character varying DEFAULT NULL::character varying, p_numero_guia_salida character varying DEFAULT NULL::character varying, p_serie_guia_ingreso character varying DEFAULT NULL::character varying, p_numero_guia_ingreso character varying DEFAULT NULL::character varying, p_serie_factura character varying DEFAULT NULL::character varying, p_numero_factura character varying DEFAULT NULL::character varying, p_id_comprobante integer DEFAULT NULL::integer, p_fecha_llegada_almacen date DEFAULT NULL::date, p_lote character varying DEFAULT NULL::character varying, p_fecha_vencimiento_lote date DEFAULT NULL::date, p_fecha_prueba_hidrostatica date DEFAULT NULL::date, p_id_proveedor integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_almacen integer DEFAULT NULL::integer, p_id_comprobante_compra integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_lote_protocolo integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -67,6 +68,7 @@ BEGIN
         END,
         fecha_vencimiento_lote = COALESCE(p_fecha_vencimiento_lote, fecha_vencimiento_lote),
         fecha_prueba_hidrostatica = COALESCE(p_fecha_prueba_hidrostatica, fecha_prueba_hidrostatica),
+        id_lote_protocolo = COALESCE(p_id_lote_protocolo, id_lote_protocolo),
         id_proveedor = COALESCE(p_id_proveedor, id_proveedor),
         observacion = COALESCE(p_observacion, observacion),
         id_almacen = COALESCE(p_id_almacen, id_almacen),
@@ -80,17 +82,26 @@ BEGIN
         RETURN json_build_object('registro', NULL);
     END IF;
 
+    -- Fase 5: si se corrige la ficha ICP, el cilindro pasa a tenerla vigente.
+    IF p_id_lote_protocolo IS NOT NULL AND v_id_balon IS NOT NULL THEN
+        PERFORM bal_aplicar_lote_protocolo_balones(
+            p_id_lote_protocolo,
+            json_build_array(v_id_balon),
+            p_id_usuario_auditoria
+        );
+    END IF;
+
     IF v_fecha_llegada IS NOT NULL AND v_id_balon IS NOT NULL THEN
         SELECT lo.id INTO v_id_estado_en_almacen
         FROM gen_lista_opciones lo
         INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
+        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
         LIMIT 1;
 
         IF v_id_estado_en_almacen IS NULL THEN
             RETURN json_build_object(
                 'error',
-                'No se encontró el estado EN_ALMACEN del cilindro. Revise el catálogo EstadoBalon.',
+                'No se encontró el estado DISPONIBLE del cilindro. Revise el catálogo EstadoBalon.',
                 'registro',
                 NULL
             );

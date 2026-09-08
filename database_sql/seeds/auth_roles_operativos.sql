@@ -227,10 +227,12 @@ WHERE r.nombre = 'Supervisor'
       OR p.nombre LIKE 'prestamos_detalle.%'
       OR p.nombre LIKE 'alquileres_balon.%'
       OR p.nombre LIKE 'alquileres_detalle.%'
+      OR p.nombre LIKE 'lotes_protocolo.%'
   )
   AND p.nombre NOT IN (
       'tipos_balon.eliminar',
-      'balones.eliminar'
+      'balones.eliminar',
+      'lotes_protocolo.eliminar'
   )
   AND NOT EXISTS (
       SELECT 1

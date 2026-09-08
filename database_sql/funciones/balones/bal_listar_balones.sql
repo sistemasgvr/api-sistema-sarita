@@ -23,9 +23,7 @@ BEGIN
         COUNT(*),
         json_build_object(
             'total', COUNT(*),
-            'en_almacen', COUNT(*) FILTER (WHERE eb.nombre = 'EN_ALMACEN'),
-            'llenos', COUNT(*) FILTER (WHERE eb.nombre = 'EN_ALMACEN'),
-            'vacios', COUNT(*) FILTER (WHERE eb.nombre = 'EN_ALMACEN')
+            'en_almacen', COUNT(*) FILTER (WHERE eb.nombre = 'DISPONIBLE')
         )
     INTO v_total, v_resumen
     FROM bal_balon b
@@ -68,7 +66,7 @@ BEGIN
       AND (
           p_solo_llenos_fuera IS NOT TRUE
           OR (
-              COALESCE(eb.nombre, '') IS DISTINCT FROM 'EN_ALMACEN'
+              COALESCE(eb.nombre, '') IS DISTINCT FROM 'DISPONIBLE'
               AND COALESCE(eb.nombre, '') NOT IN ('DADO_DE_BAJA', 'ROBO')
           )
       )
@@ -258,7 +256,7 @@ BEGIN
           AND (
               p_solo_llenos_fuera IS NOT TRUE
               OR (
-                  COALESCE(eb.nombre, '') IS DISTINCT FROM 'EN_ALMACEN'
+                  COALESCE(eb.nombre, '') IS DISTINCT FROM 'DISPONIBLE'
                   AND COALESCE(eb.nombre, '') NOT IN ('DADO_DE_BAJA', 'ROBO')
               )
           )

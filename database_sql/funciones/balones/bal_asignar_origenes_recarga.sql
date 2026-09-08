@@ -56,7 +56,7 @@ BEGIN
         );
     END IF;
 
-    -- Balón de referencia: el preferido si es válido, si no el EMPRESA/EN_ALMACEN más
+    -- Balón de referencia: el preferido si es válido, si no el EMPRESA/DISPONIBLE más
     -- antiguo del mismo gas (solo para trazabilidad, no reparte m³ real por cilindro).
     IF p_id_balon_preferido IS NOT NULL THEN
         SELECT b.id, b.codigo_balon INTO v_id_balon_origen, v_codigo_balon_origen
@@ -71,7 +71,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
         WHERE b.estado = 1
           AND COALESCE(prop.nombre, '') IN ('EMPRESA', 'PROPIA')
-          AND COALESCE(eb.nombre, '') = 'EN_ALMACEN'
+          AND COALESCE(eb.nombre, '') = 'DISPONIBLE'
           AND b.id_producto_gas = p_id_producto_gas
           AND b.id_almacen = p_id_almacen
         ORDER BY b.fecha_creacion ASC NULLS LAST, b.id ASC

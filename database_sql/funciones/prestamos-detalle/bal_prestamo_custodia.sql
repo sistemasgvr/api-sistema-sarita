@@ -154,7 +154,7 @@ BEGIN
         RETURN json_build_object('error', v_mov->>'error', 'ok', FALSE);
     END IF;
 
-    IF COALESCE(v_nombre_estado, '') IN ('EN_ALMACEN', '', 'PRESTADO_CLIENTE', 'EN_RUTA_LIMA')
+    IF COALESCE(v_nombre_estado, '') IN ('DISPONIBLE', '', 'PRESTADO_CLIENTE', 'EN_RUTA_LIMA')
        OR v_nombre_estado IS NULL
     THEN
         UPDATE bal_balon
@@ -167,7 +167,7 @@ BEGIN
         WHERE id = p_id_balon AND estado = 1;
     END IF;
 
-    IF COALESCE(v_nombre_estado, '') = 'EN_ALMACEN' THEN
+    IF COALESCE(v_nombre_estado, '') = 'DISPONIBLE' THEN
         v_custodia := TRUE;
     END IF;
 
@@ -214,10 +214,10 @@ BEGIN
 
     v_en_campo := COALESCE(v_nombre_estado, '') IN (
         'PRESTADO_CLIENTE', 'POR_RECOGER', 'EN_PODER_CLIENTE', 'EN_RUTA_LIMA'
-    ) OR (COALESCE(v_nombre_estado, '') = 'EN_ALMACEN' AND v_id_almacen IS NULL);
+    ) OR (COALESCE(v_nombre_estado, '') = 'DISPONIBLE' AND v_id_almacen IS NULL);
 
     -- Ya está en almacén (p. ej. volvió por otro flujo): no pisar contenido/stock.
-    IF COALESCE(v_nombre_estado, '') = 'EN_ALMACEN' AND v_id_almacen IS NOT NULL THEN
+    IF COALESCE(v_nombre_estado, '') = 'DISPONIBLE' AND v_id_almacen IS NOT NULL THEN
         RETURN json_build_object('ok', TRUE, 'skipped', TRUE);
     END IF;
 
@@ -245,12 +245,12 @@ BEGIN
     SELECT lo.id INTO v_id_estado_en_almacen
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
+    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
     LIMIT 1;
 
     IF v_id_estado_en_almacen IS NULL THEN
         RETURN json_build_object(
-            'error', 'No se encontró el estado EN_ALMACEN del cilindro. Revise el catálogo EstadoBalon.',
+            'error', 'No se encontró el estado DISPONIBLE del cilindro. Revise el catálogo EstadoBalon.',
             'ok', FALSE
         );
     END IF;

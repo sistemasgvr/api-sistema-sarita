@@ -74,12 +74,12 @@ BEGIN
     SELECT lo.id INTO v_id_estado_en_almacen
     FROM gen_lista_opciones lo
     INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
+    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
     LIMIT 1;
 
     IF v_id_estado_en_almacen IS NULL THEN
         RETURN json_build_object(
-            'error', 'No se encontró el estado EN_ALMACEN del cilindro. Revise el catálogo EstadoBalon.',
+            'error', 'No se encontró el estado DISPONIBLE del cilindro. Revise el catálogo EstadoBalon.',
             'registro', NULL
         );
     END IF;

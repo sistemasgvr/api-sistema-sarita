@@ -104,7 +104,7 @@ BEGIN
             RAISE EXCEPTION 'Cilindro % no existe o está inactivo', v_id_balon;
         END IF;
 
-        IF v_estado_balon NOT IN ('EN_ALMACEN') THEN
+        IF v_estado_balon NOT IN ('DISPONIBLE') THEN
             RAISE EXCEPTION 'Cilindro % debe estar en almacén (estado actual: %)', v_id_balon, v_estado_balon;
         END IF;
 

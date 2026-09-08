@@ -82,6 +82,23 @@ export class CreateDocSalidaDto extends AuditoriaDto {
   @IsString()
   @MaxLength(500)
   observaciones?: string;
+
+  @ApiPropertyOptional({
+    example: 82.5,
+    description: 'Peso bruto total. Se pide al crear y lo reutiliza la guía de remisión',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  pesoBruto?: number;
+
+  @ApiPropertyOptional({ example: 3, description: 'N° de bultos. Lo reutiliza la guía de remisión' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  numeroBultos?: number;
 }
 
 export class CreateDocSalidaDetalleDto extends AuditoriaDto {
@@ -272,8 +289,17 @@ export class FinalizarRecargaDto extends AuditoriaDto {
   fechaPruebaHidrostatica?: string;
 
   @ApiPropertyOptional({
+    description:
+      'Ficha ICP (lote y protocolo) con la que volvieron los cilindros. Queda como ficha vigente de cada balón del documento',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idLoteProtocolo?: number;
+
+  @ApiPropertyOptional({
     default: false,
-    description: 'Si true, además actualiza la custodia de cada balón (EN_ALMACEN) y registra su entrada de gas',
+    description: 'Si true, además actualiza la custodia de cada balón (DISPONIBLE) y registra su entrada de gas',
   })
   @IsOptional()
   @IsBoolean()
@@ -411,4 +437,38 @@ export class SiguienteNumeroDocSalidaQueryDto {
   @IsOptional()
   @IsDateString()
   fecha?: string;
+}
+
+export class ActualizarTrasladoDto extends AuditoriaDto {
+  @ApiPropertyOptional({ description: 'Motivo de traslado (catálogo SUNAT)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idMotivoTraslado?: number;
+
+  @ApiPropertyOptional({ description: 'Modalidad de traslado (público / privado)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idModalidadTraslado?: number;
+
+  @ApiPropertyOptional({ example: 25.5, description: 'Peso bruto total de la carga' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  pesoBruto?: number;
+
+  @ApiPropertyOptional({ example: 3 })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  numeroBultos?: number;
+
+  @ApiPropertyOptional({ description: 'Unidad del peso bruto (kg por defecto)' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idUnidadMedida?: number;
 }

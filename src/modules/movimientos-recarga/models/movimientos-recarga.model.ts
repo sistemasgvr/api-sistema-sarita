@@ -91,6 +91,7 @@ export class MovimientosRecargaModel {
       dto.idAlmacen ?? null,
       dto.idComprobanteCompra ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idLoteProtocolo ?? null,
     ]);
   }
 
@@ -155,6 +156,7 @@ export class MovimientosRecargaModel {
       dto.idAlmacen ?? null,
       dto.idComprobanteCompra ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idLoteProtocolo ?? null,
     ]);
   }
 

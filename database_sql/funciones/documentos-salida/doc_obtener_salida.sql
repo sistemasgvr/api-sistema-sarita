@@ -120,6 +120,16 @@ BEGIN
                 COALESCE(dd.descripcion, p.nombre, b.codigo_balon) AS descripcion,
                 dd.id_balon,
                 b.codigo_balon,
+                -- Tipo y almacén del cilindro: la card del detalle los muestra
+                -- igual que el selector, y el detalle no los tenía.
+                tb.nombre AS nombre_tipo_balon,
+                alm.nombre AS nombre_almacen_balon,
+                -- Gas del cilindro: decide si la orden puede asociarse a una
+                -- ficha de lote y protocolo (una ficha cubre un solo gas).
+                b.id_producto_gas AS id_producto_gas_balon,
+                pgb.nombre AS nombre_producto_gas_balon,
+                b.numero_serie AS numero_serie_balon,
+                b.id_lote_protocolo_vigente,
                 dd.cantidad,
                 dd.id_unidad_medida,
                 um.nombre AS nombre_unidad_medida,
@@ -131,6 +141,9 @@ BEGIN
             FROM doc_salida_detalle dd
             LEFT JOIN pro_producto p ON p.id = dd.id_producto
             LEFT JOIN bal_balon b ON b.id = dd.id_balon
+            LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+            LEFT JOIN pro_producto pgb ON pgb.id = b.id_producto_gas
+            LEFT JOIN gen_almacen alm ON alm.id = b.id_almacen
             LEFT JOIN gen_lista_opciones um ON um.id = dd.id_unidad_medida
             WHERE dd.id_doc_salida = p_id AND dd.estado = 1
         ) t;
@@ -147,6 +160,14 @@ BEGIN
             d.id_doc_salida_origen,
             d.id_sucursal, suc.nombre AS nombre_sucursal,
             d.id_almacen, alm.nombre AS nombre_almacen,
+            -- Ubicación del almacén: es el punto de partida por defecto de la
+            -- guía de remisión, para no volver a tipear el origen.
+            alm.ubicacion AS direccion_almacen,
+            alm.id_distrito AS id_distrito_almacen,
+            alm.id_provincia AS id_provincia_almacen,
+            alm.id_departamento AS id_departamento_almacen,
+            distalm.codigo_ubigeo AS ubigeo_almacen,
+            depalm.id_pais AS id_pais_almacen,
             d.id_cliente,
             COALESCE(NULLIF(TRIM(cli.razon_social), ''),
                      NULLIF(TRIM(CONCAT_WS(' ', cli.nombres, cli.apellido_paterno, cli.apellido_materno)), '')) AS nombre_cliente,
@@ -161,6 +182,7 @@ BEGIN
             d.id_proveedor,
             COALESCE(NULLIF(TRIM(prov.razon_social), ''),
                      NULLIF(TRIM(CONCAT_WS(' ', prov.nombres, prov.apellido_paterno, prov.apellido_materno)), '')) AS nombre_proveedor,
+            prov.numero_documento AS documento_proveedor,
             d.fecha, d.fecha_traslado, d.fecha_retorno,
             d.id_tipo_guia_remision, tgr.nombre AS nombre_tipo_guia_remision,
             tgr.descripcion AS codigo_tipo_guia,
@@ -241,6 +263,8 @@ BEGIN
         LEFT JOIN cli_clientes prov ON prov.id = d.id_proveedor
         LEFT JOIN gen_vehiculo veh ON veh.id = d.id_vehiculo
         LEFT JOIN gen_lista_opciones umd ON umd.id = d.id_unidad_medida
+        LEFT JOIN gen_distrito distalm ON distalm.id = alm.id_distrito
+        LEFT JOIN gen_departamento depalm ON depalm.id = alm.id_departamento
         LEFT JOIN gen_distrito disto ON disto.id = d.id_distrito_origen
         LEFT JOIN gen_provincia provo ON provo.id = disto.id_provincia
         LEFT JOIN gen_departamento depo ON depo.id = provo.id_departamento

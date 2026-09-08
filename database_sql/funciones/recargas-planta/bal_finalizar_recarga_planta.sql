@@ -3,12 +3,15 @@
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.946Z
 DROP FUNCTION IF EXISTS bal_finalizar_recarga_planta(p_id_recarga_planta integer, p_id_comprobante_compra integer, p_fecha_llegada_almacen date, p_id_almacen integer, p_id_proveedor integer, p_guardar_balones_almacen boolean, p_id_usuario_auditoria integer);
+DROP FUNCTION IF EXISTS bal_finalizar_recarga_planta(p_id_recarga_planta integer, p_id_comprobante_compra integer, p_fecha_llegada_almacen date, p_id_almacen integer, p_id_proveedor integer, p_guardar_balones_almacen boolean, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_id_usuario_auditoria integer);
 
 -- p_lote / p_fecha_vencimiento_lote / p_fecha_prueba_hidrostatica: antes los
 -- llenaba bal_actualizar_recarga_planta (eliminada en la unificación a
 -- doc_salida). Es el mismo paso del flujo — registrar el retorno — así que
 -- se agregan aquí en vez de crear otra función.
-CREATE OR REPLACE FUNCTION bal_finalizar_recarga_planta(p_id_recarga_planta integer, p_id_comprobante_compra integer, p_fecha_llegada_almacen date, p_id_almacen integer, p_id_proveedor integer DEFAULT NULL::integer, p_guardar_balones_almacen boolean DEFAULT false, p_lote character varying DEFAULT NULL::character varying, p_fecha_vencimiento_lote date DEFAULT NULL::date, p_fecha_prueba_hidrostatica date DEFAULT NULL::date, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+-- p_id_lote_protocolo (Fase 5): ficha ICP con la que volvieron los cilindros.
+-- Va al final de la firma para no romper las llamadas posicionales existentes.
+CREATE OR REPLACE FUNCTION bal_finalizar_recarga_planta(p_id_recarga_planta integer, p_id_comprobante_compra integer, p_fecha_llegada_almacen date, p_id_almacen integer, p_id_proveedor integer DEFAULT NULL::integer, p_guardar_balones_almacen boolean DEFAULT false, p_lote character varying DEFAULT NULL::character varying, p_fecha_vencimiento_lote date DEFAULT NULL::date, p_fecha_prueba_hidrostatica date DEFAULT NULL::date, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_lote_protocolo integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -18,6 +21,7 @@ DECLARE
     v_codigo_doc VARCHAR;
     v_det RECORD;
     v_mov JSON;
+    v_id_balones INTEGER[] := ARRAY[]::INTEGER[];
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -40,6 +44,7 @@ BEGIN
         lote = COALESCE(p_lote, lote),
         fecha_vencimiento_lote = COALESCE(p_fecha_vencimiento_lote, fecha_vencimiento_lote),
         fecha_prueba_hidrostatica = COALESCE(p_fecha_prueba_hidrostatica, fecha_prueba_hidrostatica),
+        id_lote_protocolo = COALESCE(p_id_lote_protocolo, id_lote_protocolo),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id_recarga_planta;
@@ -48,7 +53,7 @@ BEGIN
         SELECT lo.id INTO v_id_estado_en_almacen
         FROM gen_lista_opciones lo
         JOIN gen_lista l ON l.id = lo.id_lista
-        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
+        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
         LIMIT 1;
 
         -- Con factura vinculada el documento de referencia es la compra; si no, la orden.
@@ -76,6 +81,8 @@ BEGIN
               AND d.estado = 1
               AND d.id_balon IS NOT NULL
         LOOP
+            v_id_balones := v_id_balones || v_det.id_balon;
+
             PERFORM bal_actualizar_balon(
                 p_id                   => v_det.id_balon,
                 p_id_almacen           => p_id_almacen,
@@ -106,6 +113,15 @@ BEGIN
                     v_det.id_balon, v_mov->>'error';
             END IF;
         END LOOP;
+    END IF;
+
+    -- Fase 5: los cilindros que volvieron quedan con esta ficha como vigente.
+    IF p_id_lote_protocolo IS NOT NULL AND array_length(v_id_balones, 1) IS NOT NULL THEN
+        PERFORM bal_aplicar_lote_protocolo_balones(
+            p_id_lote_protocolo,
+            array_to_json(v_id_balones),
+            p_id_usuario_auditoria
+        );
     END IF;
 
     RETURN json_build_object('error', NULL, 'registro', json_build_object(

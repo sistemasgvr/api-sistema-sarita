@@ -2,9 +2,11 @@
 -- Function: doc_crear_salida
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.958Z
+-- p_peso_bruto / p_numero_bultos: se piden al crear la orden y los reutiliza la
+-- guía de remisión. Van al final para no romper llamadas posicionales previas.
 DROP FUNCTION IF EXISTS doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer, p_id_cliente integer, p_id_destinatario integer, p_id_proveedor integer, p_id_doc_salida_origen integer, p_fecha date, p_fecha_traslado date, p_observaciones character varying, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_id_destinatario integer DEFAULT NULL::integer, p_id_proveedor integer DEFAULT NULL::integer, p_id_doc_salida_origen integer DEFAULT NULL::integer, p_fecha date DEFAULT NULL::date, p_fecha_traslado date DEFAULT NULL::date, p_observaciones character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_id_destinatario integer DEFAULT NULL::integer, p_id_proveedor integer DEFAULT NULL::integer, p_id_doc_salida_origen integer DEFAULT NULL::integer, p_fecha date DEFAULT NULL::date, p_fecha_traslado date DEFAULT NULL::date, p_observaciones character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_peso_bruto numeric DEFAULT NULL::numeric, p_numero_bultos integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -68,6 +70,7 @@ BEGIN
         id_venta, id_doc_salida_origen,
         id_sucursal, id_almacen, id_cliente, id_destinatario, id_proveedor,
         fecha, fecha_traslado, observaciones,
+        peso_bruto, numero_bultos,
         id_usuario_creacion, id_usuario_modificacion
     ) VALUES (
         v_numero, v_id_tipo_orden, v_id_borrador, FALSE,
@@ -76,6 +79,7 @@ BEGIN
         COALESCE(p_id_cliente, (SELECT id_cliente FROM ven_comprobante WHERE id = p_id_venta)),
         p_id_destinatario, p_id_proveedor,
         v_fecha, p_fecha_traslado, p_observaciones,
+        p_peso_bruto, p_numero_bultos,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;

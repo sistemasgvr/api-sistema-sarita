@@ -641,7 +641,6 @@ export class EfectosPosDto {
   generarGre?: boolean;
 }
 
-/** Una línea de cobro de la venta (Fase 3: cobro multi-medio). */
 export class ComprobantePagoDto {
   @ApiProperty({ example: 265, description: 'ID de opción de lista MedioPago' })
   @Type(() => Number)

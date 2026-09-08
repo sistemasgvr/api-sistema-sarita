@@ -65,7 +65,7 @@ BEGIN
         SELECT lo.id INTO v_id_estado_en_almacen
         FROM gen_lista_opciones lo
         INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
+        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
         LIMIT 1;
 
         IF NOT EXISTS (
@@ -100,7 +100,7 @@ BEGIN
         SELECT lo.id INTO v_id_estado_en_almacen
         FROM gen_lista_opciones lo
         INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_ALMACEN' AND lo.estado = 1
+        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
         LIMIT 1;
 
         SELECT b.id INTO v_id_balon_swap
@@ -113,7 +113,7 @@ BEGIN
           AND COALESCE(b.id_producto_gas, -1) = COALESCE(origen.id_producto_gas, -1)
           AND (v_prestamo.id_almacen IS NULL OR b.id_almacen = v_prestamo.id_almacen)
           -- Un cilindro con detalle de prestamo abierto no esta libre aunque
-          -- figure EN_ALMACEN: el caso tipico es el que el propio cliente dejo
+          -- figure DISPONIBLE: el caso tipico es el que el propio cliente dejo
           -- en garantia, que esta fisicamente en la empresa pero comprometido
           -- (rol GARANTIA). Sin este filtro la renovacion lo elegia como
           -- reemplazo y moria en bal_crear_prestamo_detalle con "El cilindro ya
@@ -197,7 +197,7 @@ BEGIN
 
     -- 3. Detalle ENTREGADO del préstamo nuevo — balón nuevo (canje) o el mismo
     -- (extensión). bal_prestamo_aplicar_salida_cilindro ya tolera un balón que
-    -- sigue PRESTADO_CLIENTE (no exige que esté EN_ALMACEN), así que funciona
+    -- sigue PRESTADO_CLIENTE (no exige que esté DISPONIBLE), así que funciona
     -- igual en los dos casos.
     v_result := bal_crear_prestamo_detalle(
         p_id_prestamo            => v_id_prestamo_nuevo,

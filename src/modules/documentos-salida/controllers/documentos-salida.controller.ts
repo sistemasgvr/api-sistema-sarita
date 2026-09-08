@@ -6,6 +6,7 @@ import {
   Header,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   StreamableFile,
@@ -26,6 +27,7 @@ import {
   GenerarRecojoDocSalidaDto,
   RegistrarDireccionEntregaDto,
   SiguienteNumeroDocSalidaQueryDto,
+  ActualizarTrasladoDto,
 } from '../dto/documentos-salida.dto';
 import { DocumentosSalidaLogic } from '../logic/documentos-salida.logic';
 
@@ -104,6 +106,20 @@ export class DocumentosSalidaController {
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   eliminarDetalle(@Param('detalleId', ParseIntPipe) detalleId: number, @Body() dto: AuditoriaDto) {
     return this.logic.eliminarDetalle(detalleId, dto);
+  }
+
+  @Patch(':id/traslado')
+  @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EDITAR)
+  @ApiOperation({
+    summary:
+      'Actualiza motivo, modalidad, peso y bultos — los datos de traslado que imprime el PDF',
+  })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  actualizarTraslado(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarTrasladoDto,
+  ) {
+    return this.logic.actualizarTraslado(id, dto);
   }
 
   @Post(':id/generar')

@@ -17,7 +17,7 @@ BEGIN
   SELECT glo.id INTO v_id_estado
   FROM gen_lista_opciones glo
   JOIN gen_lista gl ON gl.id = glo.id_lista
-  WHERE gl.nombre = 'EstadoBalon' AND glo.nombre = 'EN_ALMACEN'
+  WHERE gl.nombre = 'EstadoBalon' AND glo.nombre = 'DISPONIBLE'
   LIMIT 1;
 
   SELECT json_build_object(

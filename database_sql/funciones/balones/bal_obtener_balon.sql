@@ -53,6 +53,15 @@ BEGIN
             pg.nombre AS nombre_producto_gas,
             b.id_estado_balon,
             eb.nombre AS nombre_estado_balon,
+            -- Fase 5: ficha ICP vigente del cilindro (oxígeno medicinal).
+            b.id_lote_protocolo_vigente,
+            lp.numero_lote AS numero_lote_vigente,
+            lp.numero_protocolo AS numero_protocolo_vigente,
+            lp.fecha_vencimiento AS fecha_vencimiento_lote_vigente,
+            (
+                lp.fecha_vencimiento IS NOT NULL
+                AND lp.fecha_vencimiento < CURRENT_DATE
+            ) AS lote_vigente_vencido,
             b.fecha_ultima_prueba_hidrostatica,
             b.vigencia_prueba_hidrostatica_anios,
             b.fecha_proxima_prueba_hidrostatica,
@@ -127,6 +136,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones um ON tb.id_unidad_medida = um.id
         LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
         LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
+        LEFT JOIN bal_lote_protocolo lp ON lp.id = b.id_lote_protocolo_vigente AND lp.estado = 1
         LEFT JOIN auth_usuarios uc ON b.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios umu ON b.id_usuario_modificacion = umu.id
         WHERE b.id = p_id AND b.estado = 1

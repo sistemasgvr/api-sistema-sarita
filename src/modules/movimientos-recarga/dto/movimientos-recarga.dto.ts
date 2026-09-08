@@ -136,6 +136,15 @@ export class CreateMovimientosRecargaDto extends AuditoriaDto {
   @IsDateString()
   fechaPruebaHidrostatica?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Ficha ICP (lote y protocolo) de esta recarga. Queda como ficha vigente del cilindro',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idLoteProtocolo?: number;
+
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
@@ -426,6 +435,15 @@ export class UpdateMovimientosRecargaDto extends AuditoriaDto {
   @IsOptional()
   @IsDateString()
   fechaPruebaHidrostatica?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Ficha ICP (lote y protocolo) de esta recarga. Queda como ficha vigente del cilindro',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idLoteProtocolo?: number;
 
   @ApiPropertyOptional()
   @Type(() => Number)
