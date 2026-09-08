@@ -24,6 +24,10 @@ import {
   FiltroActividadesDto,
   FiltroActividadesProximasDto,
   UpdateActividadDto,
+  CrearRecojoPrestamoDto,
+  FiltroRankingActividadesDto,
+  GenerarRecojosDto,
+  VerificarActividadDto,
 } from '../dto/actividades.dto';
 import { ActividadesLogic } from '../logic/actividades.logic';
 
@@ -46,6 +50,48 @@ export class ActividadesController {
   })
   listarProximas(@Query() filtros: FiltroActividadesProximasDto) {
     return this.actividadesLogic.listarProximas(filtros.minutos ?? 60);
+  }
+
+  @Get('ranking')
+  @Permisos(PermisoBanderas.ACTIVIDADES_RANKING)
+  @ApiOperation({
+    summary: 'Ranking de colaboradores por actividades en un rango de fechas',
+  })
+  ranking(@Query() filtros: FiltroRankingActividadesDto) {
+    return this.actividadesLogic.ranking(filtros);
+  }
+
+  @Post('recojo-prestamo')
+  @Permisos(PermisoBanderas.ACTIVIDADES_CREAR)
+  @ApiOperation({
+    summary:
+      'Crea la actividad de recojo de un préstamo con sus cilindros pendientes',
+  })
+  crearRecojoPrestamo(@Body() dto: CrearRecojoPrestamoDto) {
+    return this.actividadesLogic.crearRecojoPrestamo(dto);
+  }
+
+  @Post('generar-recojos')
+  @Permisos(PermisoBanderas.ACTIVIDADES_CREAR)
+  @ApiOperation({
+    summary:
+      'Genera las actividades de recojo de los préstamos vencidos o por vencer',
+  })
+  generarRecojos(@Body() dto: GenerarRecojosDto) {
+    return this.actividadesLogic.generarRecojosPorVencer(dto);
+  }
+
+  @Post(':id/verificar')
+  @Permisos(PermisoBanderas.ACTIVIDADES_VERIFICAR)
+  @ApiOperation({
+    summary:
+      'Verifica por escaneo los ítems de la actividad (salida o llegada)',
+  })
+  verificar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: VerificarActividadDto,
+  ) {
+    return this.actividadesLogic.verificar(id, dto);
   }
 
   @Get(':id')

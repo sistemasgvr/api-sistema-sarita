@@ -1,3 +1,15 @@
+-- ============================================================
+-- Migración: age_obtener_actividad expone el estado de verificación por ítem
+-- Fecha: 2026-09-08
+--
+-- Sin estos campos la pantalla de escaneo no sabe qué está pendiente ni qué
+-- quedó con observación. También se exponen las referencias al detalle de
+-- origen (orden, venta o préstamo) y el estado del producto recogido.
+--
+-- Aplicar con:
+--   node database_sql/scripts/apply-migration.js database_sql/migraciones/20260908_f6_obtener_actividad_verificacion.sql
+-- ============================================================
+
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: age_obtener_actividad
 -- Overloads: 1

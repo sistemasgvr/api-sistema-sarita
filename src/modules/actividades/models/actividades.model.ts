@@ -5,7 +5,26 @@ import {
   AuthSingleResult,
 } from '../../../common/interfaces/auth-db.interface';
 import { DatabaseService } from '../../../database/database.service';
-import { ActividadItemDto, FiltroActividadesDto } from '../dto/actividades.dto';
+import {
+  ActividadItemDto,
+  CrearRecojoPrestamoDto,
+  FiltroActividadesDto,
+  FiltroRankingActividadesDto,
+  GenerarRecojosDto,
+  VerificarActividadDto,
+} from '../dto/actividades.dto';
+
+/** Resultado de un lote de escaneos sobre una actividad. */
+export interface VerificacionActividadResult {
+  error: string | null;
+  registro: {
+    momento: 'SALIDA' | 'LLEGADA';
+    coincidencias: number;
+    no_pertenecen: number;
+    pendientes: number;
+    completo: boolean;
+  } | null;
+}
 
 @Injectable()
 export class ActividadesModel {
@@ -30,6 +49,56 @@ export class ActividadesModel {
       'age_listar_actividades_proximas',
       [minutos],
     );
+  }
+
+  verificar(id: number, dto: VerificarActividadDto) {
+    return this.db.callFunctionJson<VerificacionActividadResult>(
+      'age_registrar_verificacion',
+      [
+        id,
+        dto.momento,
+        JSON.stringify(dto.codigos),
+        dto.observacion ?? null,
+        dto.idUsuarioAuditoria ?? null,
+      ],
+    );
+  }
+
+  crearRecojoPrestamo(dto: CrearRecojoPrestamoDto) {
+    return this.db.callFunctionJson<{
+      error: string | null;
+      registro: { id: number; creada: boolean; items: number } | null;
+    }>('age_crear_recojo_prestamo', [
+      dto.idPrestamo,
+      dto.fechaProgramada ?? null,
+      dto.idTrabajadorResponsable ?? null,
+      dto.observaciones ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  generarRecojosPorVencer(dto: GenerarRecojosDto) {
+    return this.db.callFunctionJson<{
+      error: string | null;
+      registro: {
+        dias_antes: number;
+        creadas: number;
+        ya_existian: number;
+        id_actividades: number[];
+      } | null;
+    }>('age_generar_recojos_por_vencer', [
+      dto.diasAntes ?? null,
+      dto.idTrabajadorResponsable ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  ranking(filtros: FiltroRankingActividadesDto) {
+    return this.db.callFunctionJson<AuthListResult>('age_ranking_usuarios', [
+      filtros.fechaDesde ?? null,
+      filtros.fechaHasta ?? null,
+      filtros.limite ?? 20,
+    ]);
   }
 
   obtenerPorId(id: number) {
@@ -144,11 +213,7 @@ export class ActividadesModel {
   ) {
     return this.db.callFunctionJson<AuthSingleResult>(
       'age_asignar_responsable_actividad',
-      [
-        id,
-        idUsuarioAuditoria ?? null,
-        idTrabajadorResponsable ?? null,
-      ],
+      [id, idUsuarioAuditoria ?? null, idTrabajadorResponsable ?? null],
     );
   }
 }

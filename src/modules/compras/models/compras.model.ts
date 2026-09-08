@@ -12,6 +12,7 @@ import {
   CreateCompraDetalleLineaDto,
   CreateCompraDto,
   FiltroComprasDto,
+  RegistrarBalonesCompraDto,
 } from '../dto/compras.dto';
 
 function mapDetallesToJson(detalles: CreateCompraDetalleDto[]) {
@@ -44,6 +45,34 @@ export class ComprasModel {
       filtros.estado ?? null,
       filtros.idTipoRegistro ?? null,
       filtros.idCategoriaGasto ?? null,
+      filtros.sinComprobante ?? null,
+    ]);
+  }
+
+  registrarBalones(id: number, dto: RegistrarBalonesCompraDto) {
+    return this.db.callFunctionJson<{
+      error: string | null;
+      registro: {
+        creados: number;
+        id_balones: number[];
+        gas_ingresado: number;
+      } | null;
+    }>('com_registrar_balones_compra', [
+      id,
+      JSON.stringify(
+        dto.balones.map((balon) => ({
+          codigo_balon: balon.codigoBalon,
+          numero_serie: balon.numeroSerie ?? null,
+          id_tipo_balon: balon.idTipoBalon,
+          id_producto_gas: balon.idProductoGas ?? null,
+          id_marca_cilindro: balon.idMarcaCilindro ?? null,
+          fecha_fabricacion: balon.fechaFabricacion ?? null,
+          fecha_ultima_prueba_hidrostatica:
+            balon.fechaUltimaPruebaHidrostatica ?? null,
+          cantidad_gas: balon.cantidadGas ?? null,
+        })),
+      ),
+      dto.idUsuarioAuditoria ?? null,
     ]);
   }
 

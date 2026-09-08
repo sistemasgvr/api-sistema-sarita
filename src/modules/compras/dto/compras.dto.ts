@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayNotEmpty,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -17,7 +18,22 @@ import { MONEY_NUMBER_OPTIONS } from '../../../common/constants/money';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
+function toOptionalBoolean(value: unknown) {
+  if (value === 'true' || value === true) return true;
+  if (value === 'false' || value === false) return false;
+  return undefined;
+}
+
 export class FiltroComprasDto extends FiltroPaginacionDto {
+  @ApiPropertyOptional({
+    description:
+      'true = solo compras sin comprobante del proveedor (sin serie o sin número); false = solo las que sí lo tienen',
+  })
+  @Transform(({ value }) => toOptionalBoolean(value))
+  @IsOptional()
+  @IsBoolean()
+  sinComprobante?: boolean;
+
   @ApiPropertyOptional({ description: 'Filtrar desde la fecha (YYYY-MM-DD)' })
   @IsOptional()
   @IsDateString()
@@ -49,13 +65,17 @@ export class FiltroComprasDto extends FiltroPaginacionDto {
   @IsInt()
   estado?: number;
 
-  @ApiPropertyOptional({ description: 'ID de gen_lista_opciones (lista TipoRegistroCompra)' })
+  @ApiPropertyOptional({
+    description: 'ID de gen_lista_opciones (lista TipoRegistroCompra)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   idTipoRegistro?: number;
 
-  @ApiPropertyOptional({ description: 'ID de gen_lista_opciones (lista CategoriaGasto)' })
+  @ApiPropertyOptional({
+    description: 'ID de gen_lista_opciones (lista CategoriaGasto)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -420,4 +440,69 @@ export class CreateCompraDetalleLineaDto extends AuditoriaDto {
   @Type(() => Number)
   @IsInt()
   idAlmacen?: number;
+}
+
+export class CompraBalonDto {
+  @ApiProperty({
+    example: 'BAL-OXM10-020',
+    description: 'Código con el que entra al libro',
+  })
+  @IsString()
+  @MaxLength(50)
+  codigoBalon!: string;
+
+  @ApiPropertyOptional({ example: 'J25642171' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  numeroSerie?: string;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  idTipoBalon!: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idProductoGas?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idMarcaCilindro?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaFabricacion?: string;
+
+  @ApiPropertyOptional({
+    description: 'Última prueba hidrostática del cilindro comprado',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaUltimaPruebaHidrostatica?: string;
+
+  @ApiPropertyOptional({
+    example: 10,
+    description:
+      'Gas que trae el cilindro. Si es mayor a cero, entra al stock del producto como INGRESO',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  cantidadGas?: number;
+}
+
+export class RegistrarBalonesCompraDto extends AuditoriaDto {
+  @ApiProperty({ type: () => [CompraBalonDto] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @ValidateNested({ each: true })
+  @Type(() => CompraBalonDto)
+  balones!: CompraBalonDto[];
 }

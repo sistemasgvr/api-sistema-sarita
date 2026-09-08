@@ -1,17 +1,3 @@
--- Function: ven_pagos_de_comprobante
--- Fase 3 — fuente única de "cómo se cobró esta venta".
---
--- Devuelve las líneas de ven_comprobante_pago (cobro multi-medio) y, si el
--- comprobante todavía no tiene ninguna, una línea sintética a partir de la
--- cabecera. Así cada consumidor (totales de caja, libro diario, resúmenes)
--- escribe una sola consulta y funciona igual con comprobantes anteriores a la
--- Fase 3 que con los nuevos.
---
--- FIX: Cuando no hay líneas de pago y la venta es a crédito (dias_credito > 0
--- o numero_cuotas > 1), se usa el ID del medio "CREDITO" en vez de
--- c.id_medio_pago (que puede ser NULL o no-reflejar la naturaleza de la venta).
--- Así los totales de caja clasifican correctamente ventas contado vs crédito.
-
 DROP FUNCTION IF EXISTS ven_pagos_de_comprobante(p_id_comprobante integer);
 
 CREATE OR REPLACE FUNCTION ven_pagos_de_comprobante(p_id_comprobante integer)

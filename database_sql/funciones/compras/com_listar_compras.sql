@@ -3,8 +3,9 @@
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.954Z
 DROP FUNCTION IF EXISTS com_listar_compras(p_busqueda character varying, p_limite integer, p_offset integer, p_id_proveedor integer, p_id_almacen integer, p_fecha_desde date, p_fecha_hasta date, p_estado integer, p_id_tipo_registro integer, p_id_categoria_gasto integer);
+DROP FUNCTION IF EXISTS com_listar_compras(p_busqueda character varying, p_limite integer, p_offset integer, p_id_proveedor integer, p_id_almacen integer, p_fecha_desde date, p_fecha_hasta date, p_estado integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_sin_comprobante boolean);
 
-CREATE OR REPLACE FUNCTION com_listar_compras(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_proveedor integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_estado integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION com_listar_compras(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_proveedor integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_estado integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_sin_comprobante boolean DEFAULT NULL::boolean)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -24,6 +25,20 @@ BEGIN
       AND (p_estado IS NULL OR c.estado = p_estado)
       AND (p_id_tipo_registro IS NULL OR c.id_tipo_registro = p_id_tipo_registro)
       AND (p_id_categoria_gasto IS NULL OR c.id_categoria_gasto = p_id_categoria_gasto)
+      -- Una compra "sin comprobante" es la que no tiene serie o no tiene número:
+      -- el ingreso quedó registrado pero el documento del proveedor nunca llegó.
+      AND (
+          p_sin_comprobante IS NULL
+          OR (
+              p_sin_comprobante = TRUE
+              AND (COALESCE(TRIM(c.serie), '') = '' OR COALESCE(TRIM(c.numero), '') = '')
+          )
+          OR (
+              p_sin_comprobante = FALSE
+              AND COALESCE(TRIM(c.serie), '') <> ''
+              AND COALESCE(TRIM(c.numero), '') <> ''
+          )
+      )
       AND (
           p_busqueda = ''
           OR LOWER(COALESCE(c.serie, '')) LIKE LOWER('%' || p_busqueda || '%')
@@ -50,6 +65,9 @@ BEGIN
             c.id_categoria_gasto, cat.nombre AS categoria_gasto,
             c.sub_total, c.total_importe,
             c.estado,
+            (
+                COALESCE(TRIM(c.serie), '') <> '' AND COALESCE(TRIM(c.numero), '') <> ''
+            ) AS tiene_comprobante,
             com_tiene_movimientos_inventario(c.id) AS tiene_movimientos_inventario,
             c.id_comprobante_referencia
         FROM com_comprobante_compra c
@@ -64,6 +82,20 @@ BEGIN
           AND (p_estado IS NULL OR c.estado = p_estado)
           AND (p_id_tipo_registro IS NULL OR c.id_tipo_registro = p_id_tipo_registro)
           AND (p_id_categoria_gasto IS NULL OR c.id_categoria_gasto = p_id_categoria_gasto)
+      -- Una compra "sin comprobante" es la que no tiene serie o no tiene número:
+      -- el ingreso quedó registrado pero el documento del proveedor nunca llegó.
+      AND (
+          p_sin_comprobante IS NULL
+          OR (
+              p_sin_comprobante = TRUE
+              AND (COALESCE(TRIM(c.serie), '') = '' OR COALESCE(TRIM(c.numero), '') = '')
+          )
+          OR (
+              p_sin_comprobante = FALSE
+              AND COALESCE(TRIM(c.serie), '') <> ''
+              AND COALESCE(TRIM(c.numero), '') <> ''
+          )
+      )
           AND (
               p_busqueda = ''
               OR LOWER(COALESCE(c.serie, '')) LIKE LOWER('%' || p_busqueda || '%')

@@ -1,15 +1,26 @@
--- p_id_doc_salida: antes se llamaba p_id_recarga_planta. Desde la Fase 2 la
--- orden de recarga vive en doc_salida, así que el nombre viejo apuntaba a una
--- tabla que ya no existe. Misma posición en la firma: las llamadas posicionales
--- no cambian.
+-- ============================================================
+-- Migración: com_crear_compra deja de llamar a una función eliminada
+-- Fecha: 2026-09-08
+--
+-- Al vincular una compra con una orden de recarga en planta, com_crear_compra
+-- llamaba a bal_actualizar_recarga_planta, que desapareció en la unificación a
+-- doc_salida (Fase 2). La compra fallaba con "function ... does not exist".
+--
+-- Ahora escribe directo sobre doc_salida y, cuando se marca el retorno, delega
+-- el retorno físico (custodia de cilindros + entrada de gas) en
+-- bal_finalizar_recarga_planta, que es la función viva de ese flujo.
+--
+-- Aplicar con:
+--   node database_sql/scripts/apply-migration.js database_sql/migraciones/20260908_f7_com_crear_compra_doc_salida.sql
+-- ============================================================
+
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: com_crear_compra
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.954Z
 DROP FUNCTION IF EXISTS com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer, p_id_recarga_planta integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_id_sucursal integer, p_id_moneda integer, p_id_condicion_pago integer, p_declarar_sunat boolean, p_glosa character varying, p_id_usuario_auditoria integer, p_registrar_retorno_balones boolean, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_id_guia_retorno integer, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb);
-DROP FUNCTION IF EXISTS com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer, p_id_doc_salida integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_id_sucursal integer, p_id_moneda integer, p_id_condicion_pago integer, p_declarar_sunat boolean, p_glosa character varying, p_id_usuario_auditoria integer, p_registrar_retorno_balones boolean, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_id_guia_retorno integer, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb);
 
-CREATE OR REPLACE FUNCTION com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer DEFAULT NULL::integer, p_id_doc_salida integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_declarar_sunat boolean DEFAULT false, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_registrar_retorno_balones boolean DEFAULT false, p_fecha_llegada_almacen date DEFAULT NULL::date, p_lote character varying DEFAULT NULL::character varying, p_fecha_vencimiento_lote date DEFAULT NULL::date, p_fecha_prueba_hidrostatica date DEFAULT NULL::date, p_id_guia_retorno integer DEFAULT NULL::integer, p_serie_guia_ingreso character varying DEFAULT NULL::character varying, p_numero_guia_ingreso character varying DEFAULT NULL::character varying, p_fecha_vencimiento_cxp date DEFAULT NULL::date, p_cuotas_cxp jsonb DEFAULT NULL::jsonb)
+CREATE OR REPLACE FUNCTION com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer DEFAULT NULL::integer, p_id_recarga_planta integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_declarar_sunat boolean DEFAULT false, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_registrar_retorno_balones boolean DEFAULT false, p_fecha_llegada_almacen date DEFAULT NULL::date, p_lote character varying DEFAULT NULL::character varying, p_fecha_vencimiento_lote date DEFAULT NULL::date, p_fecha_prueba_hidrostatica date DEFAULT NULL::date, p_id_guia_retorno integer DEFAULT NULL::integer, p_serie_guia_ingreso character varying DEFAULT NULL::character varying, p_numero_guia_ingreso character varying DEFAULT NULL::character varying, p_fecha_vencimiento_cxp date DEFAULT NULL::date, p_cuotas_cxp jsonb DEFAULT NULL::jsonb)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -97,12 +108,12 @@ BEGIN
     -- (id_comprobante_compra ya seteado por bal_finalizar_recarga_planta en
     -- una compra anterior) — si no, se estaría facturando la misma orden
     -- dos veces.
-    IF p_id_doc_salida IS NOT NULL THEN
+    IF p_id_recarga_planta IS NOT NULL THEN
         SELECT rp.id_comprobante_compra, est.nombre
         INTO v_recarga_id_comprobante, v_recarga_estado_nombre
         FROM doc_salida rp
         LEFT JOIN gen_lista_opciones est ON est.id = rp.id_estado_ciclo
-        WHERE rp.id = p_id_doc_salida AND rp.estado = 1;
+        WHERE rp.id = p_id_recarga_planta AND rp.estado = 1;
 
         IF NOT FOUND THEN
             RETURN json_build_object('error', 'La orden de recarga en planta externa indicada no existe o está inactiva', 'registro', NULL);
@@ -145,7 +156,7 @@ BEGIN
         p_id_tipo_comprobante, p_serie, p_numero, p_fecha, p_id_proveedor,
         p_id_tipo_registro, p_id_categoria_gasto, p_id_sucursal, p_id_almacen,
         p_id_moneda, p_id_condicion_pago, 0, 0, 0,
-        p_declarar_sunat, v_glosa_final, p_id_comprobante_referencia, p_id_doc_salida,
+        p_declarar_sunat, v_glosa_final, p_id_comprobante_referencia, p_id_recarga_planta,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id_compra;
@@ -248,9 +259,9 @@ BEGIN
     -- El gas NO ingresa a pro_stock: el retorno físico va por bal_actualizar_recarga_planta.
     v_id_almacen_compra := p_id_almacen;
 
-    IF p_id_doc_salida IS NOT NULL THEN
+    IF p_id_recarga_planta IS NOT NULL THEN
         IF NOT EXISTS (
-            SELECT 1 FROM doc_salida WHERE id = p_id_doc_salida AND estado = 1
+            SELECT 1 FROM doc_salida WHERE id = p_id_recarga_planta AND estado = 1
         ) THEN
             RAISE EXCEPTION 'Orden de recarga planta no encontrada o inactiva';
         END IF;
@@ -258,7 +269,7 @@ BEGIN
         IF EXISTS (
             SELECT 1
             FROM doc_salida
-            WHERE id = p_id_doc_salida
+            WHERE id = p_id_recarga_planta
               AND estado = 1
               AND id_proveedor IS NOT NULL
               AND p_id_proveedor IS NOT NULL
@@ -270,7 +281,7 @@ BEGIN
         IF EXISTS (
             SELECT 1
             FROM doc_salida
-            WHERE id = p_id_doc_salida
+            WHERE id = p_id_recarga_planta
               AND estado = 1
               AND id_comprobante_compra IS NOT NULL
               AND id_comprobante_compra <> v_id_compra
@@ -289,7 +300,7 @@ BEGIN
             COALESCE(p_fecha_prueba_hidrostatica, rp.fecha_prueba_hidrostatica)
         INTO v_lote, v_fecha_venc_lote, v_fecha_ph
         FROM doc_salida rp
-        WHERE rp.id = p_id_doc_salida AND rp.estado = 1;
+        WHERE rp.id = p_id_recarga_planta AND rp.estado = 1;
 
         IF v_registrar_retorno THEN
             v_fecha_llegada := COALESCE(p_fecha_llegada_almacen, p_fecha);
@@ -321,13 +332,13 @@ BEGIN
             fecha_prueba_hidrostatica = COALESCE(v_fecha_ph, fecha_prueba_hidrostatica),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion      = NOW()
-        WHERE id = p_id_doc_salida AND estado = 1;
+        WHERE id = p_id_recarga_planta AND estado = 1;
 
         -- El retorno físico de los cilindros (custodia + entrada de gas) lo hace
         -- bal_finalizar_recarga_planta desde el documento de salida.
         IF v_registrar_retorno THEN
             v_link_planta := bal_finalizar_recarga_planta(
-                p_id_doc_salida        => p_id_doc_salida,
+                p_id_recarga_planta        => p_id_recarga_planta,
                 p_id_comprobante_compra    => v_id_compra,
                 p_fecha_llegada_almacen    => v_fecha_llegada,
                 p_id_almacen               => COALESCE(p_id_almacen, v_id_almacen_compra),

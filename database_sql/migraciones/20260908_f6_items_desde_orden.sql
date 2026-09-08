@@ -1,3 +1,20 @@
+-- ============================================================
+-- Migración: los ítems del reparto guardan su línea de origen
+-- Fecha: 2026-09-08
+--
+-- Fase 6 (apuntes 8.b.i.1 y 8.b.i.2). age_crear_actividad ya copiaba el detalle
+-- de la orden, pero sin guardar de qué línea salía cada ítem ni dejarlo
+-- pendiente de verificar. Sin el vínculo, la pantalla de escaneo no sabe qué
+-- línea del documento está mirando.
+--
+-- Solo se enlazan las líneas propias del documento: las que doc_obtener_salida
+-- arma por JOIN desde la venta o el préstamo no tienen id estable en
+-- doc_salida_detalle.
+--
+-- Aplicar con:
+--   node database_sql/scripts/apply-migration.js database_sql/migraciones/20260908_f6_items_desde_orden.sql
+-- ============================================================
+
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: age_crear_actividad
 -- Overloads: 1

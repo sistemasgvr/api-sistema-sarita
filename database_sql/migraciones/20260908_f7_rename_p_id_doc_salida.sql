@@ -1,3 +1,19 @@
+-- ============================================================
+-- Migración: com_crear_compra — p_id_recarga_planta pasa a p_id_doc_salida
+-- Fecha: 2026-09-08
+--
+-- Desde la Fase 2 la orden de recarga en planta vive en doc_salida; el
+-- parámetro conservaba el nombre de una tabla que ya no existe y el cuerpo de
+-- la función ya solo consulta doc_salida.
+--
+-- El parámetro mantiene su posición en la firma, así que las llamadas
+-- posicionales (el modelo NestJS) no cambian. El DROP de la firma anterior va
+-- incluido para que no queden dos sobrecargas.
+--
+-- Aplicar con:
+--   node database_sql/scripts/apply-migration.js database_sql/migraciones/20260908_f7_rename_p_id_doc_salida.sql
+-- ============================================================
+
 -- p_id_doc_salida: antes se llamaba p_id_recarga_planta. Desde la Fase 2 la
 -- orden de recarga vive en doc_salida, así que el nombre viejo apuntaba a una
 -- tabla que ya no existe. Misma posición en la firma: las llamadas posicionales

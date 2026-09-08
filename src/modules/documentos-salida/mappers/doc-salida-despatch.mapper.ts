@@ -84,11 +84,15 @@ export class DocSalidaDespatchMapper {
       const licencia = (cabecera.licencia_chofer ?? '').trim();
 
       if (!placa) {
-        throw new BadRequestException('Transporte privado requiere placa del vehículo');
+        throw new BadRequestException(
+          'Transporte privado requiere placa del vehículo',
+        );
       }
 
       if (!docChofer) {
-        throw new BadRequestException('Transporte privado requiere documento del chofer');
+        throw new BadRequestException(
+          'Transporte privado requiere documento del chofer',
+        );
       }
 
       if (!licencia) {
@@ -101,7 +105,10 @@ export class DocSalidaDespatchMapper {
       envio.choferes = [
         {
           tipo: 'Principal',
-          tipoDoc: this.mapTipoDocChofer(cabecera.codigo_tipo_doc_chofer, docChofer),
+          tipoDoc: this.mapTipoDocChofer(
+            cabecera.codigo_tipo_doc_chofer,
+            docChofer,
+          ),
           nroDoc: docChofer,
           licencia,
           nombres: this.splitNombre(cabecera.nombre_chofer).nombres,
@@ -114,7 +121,9 @@ export class DocSalidaDespatchMapper {
           tipoDoc: '6',
           numDoc: empresa.ruc,
           rznSocial:
-            empresa.razon_social?.trim() || empresa.nombre_comercial?.trim() || 'TRANSPORTISTA',
+            empresa.razon_social?.trim() ||
+            empresa.nombre_comercial?.trim() ||
+            'TRANSPORTISTA',
         };
       }
     } else if (modalidad === '01') {
@@ -122,7 +131,9 @@ export class DocSalidaDespatchMapper {
       const razonTrans = (cabecera.nombre_transportista ?? '').trim();
 
       if (!rucTrans || rucTrans.length !== 11) {
-        throw new BadRequestException('Transporte público requiere RUC del transportista');
+        throw new BadRequestException(
+          'Transporte público requiere RUC del transportista',
+        );
       }
 
       envio.transportista = {
@@ -135,7 +146,9 @@ export class DocSalidaDespatchMapper {
     const destinatarioDoc = (cabecera.documento_destinatario ?? '').trim();
 
     if (!destinatarioDoc) {
-      throw new BadRequestException('El destinatario no tiene número de documento');
+      throw new BadRequestException(
+        'El destinatario no tiene número de documento',
+      );
     }
 
     const payload: FacturacionApisperuPayload = {
@@ -146,7 +159,10 @@ export class DocSalidaDespatchMapper {
       fechaEmision: this.formatFecha(cabecera.fecha),
       company: this.mapEmpresa(empresa),
       destinatario: {
-        tipoDoc: this.mapTipoDocCliente(cabecera.nombre_tipo_doc_destinatario, destinatarioDoc),
+        tipoDoc: this.mapTipoDocCliente(
+          cabecera.nombre_tipo_doc_destinatario,
+          destinatarioDoc,
+        ),
         numDoc: destinatarioDoc,
         rznSocial: (cabecera.nombre_destinatario ?? 'DESTINATARIO').trim(),
       },
@@ -162,7 +178,10 @@ export class DocSalidaDespatchMapper {
         );
       }
       payload.remitente = {
-        tipoDoc: this.mapTipoDocCliente(cabecera.nombre_tipo_doc_cliente, remitenteDoc),
+        tipoDoc: this.mapTipoDocCliente(
+          cabecera.nombre_tipo_doc_cliente,
+          remitenteDoc,
+        ),
         numDoc: remitenteDoc,
         rznSocial: (cabecera.nombre_cliente ?? 'REMITENTE').trim(),
       };
@@ -183,7 +202,9 @@ export class DocSalidaDespatchMapper {
     if (mappedRefs.length > 0) {
       payload.relDoc = mappedRefs[0];
       if (mappedRefs.length > 1) {
-        payload.addDocs = mappedRefs.slice(1).map((r) => ({ tipo: r.tipoDoc, nro: r.nroDoc }));
+        payload.addDocs = mappedRefs
+          .slice(1)
+          .map((r) => ({ tipo: r.tipoDoc, nro: r.nroDoc }));
       }
     }
 
@@ -200,8 +221,13 @@ export class DocSalidaDespatchMapper {
         detalle.glosa?.trim() ||
         detalle.descripcion?.trim() ||
         detalle.nombre_producto ||
-        (detalle.id_producto != null ? `Producto ${detalle.id_producto}` : 'Ítem'),
-      unidad: this.mapUnidadItem(detalle.codigo_unidad_medida, detalle.nombre_unidad_medida),
+        (detalle.id_producto != null
+          ? `Producto ${detalle.id_producto}`
+          : 'Ítem'),
+      unidad: this.mapUnidadItem(
+        detalle.codigo_unidad_medida,
+        detalle.nombre_unidad_medida,
+      ),
       cantidad: Number(detalle.cantidad ?? 0),
     };
   }
@@ -209,8 +235,10 @@ export class DocSalidaDespatchMapper {
   private mapEmpresa(empresa: EmpresaEmisora) {
     return {
       ruc: empresa.ruc,
-      razonSocial: empresa.razon_social ?? empresa.nombre_comercial ?? 'Empresa',
-      nombreComercial: empresa.nombre_comercial ?? empresa.razon_social ?? 'Empresa',
+      razonSocial:
+        empresa.razon_social ?? empresa.nombre_comercial ?? 'Empresa',
+      nombreComercial:
+        empresa.nombre_comercial ?? empresa.razon_social ?? 'Empresa',
       address: {
         direccion: empresa.direccion?.trim() || 'S/N',
         provincia: 'LIMA',
@@ -243,30 +271,75 @@ export class DocSalidaDespatchMapper {
     return (codigo ?? 'TRASLADO').trim() || 'TRASLADO';
   }
 
+  /**
+   * Códigos de unidad de SUNAT (catálogo 03). El catálogo interno usa códigos
+   * propios ("MT3", "UNID", "LB") que SUNAT no reconoce, así que hay que
+   * traducirlos: un metro cúbico es MTQ, no MT3.
+   *
+   * Se indexa por código y por etiqueta porque doc_obtener_salida devuelve los
+   * dos campos cruzados respecto a su nombre (`codigo_unidad_medida` trae la
+   * etiqueta y `nombre_unidad_medida` el código), y este mapper no puede
+   * depender de cuál de los dos le llegue primero.
+   */
+  private static readonly UNIDADES_SUNAT: Record<string, string> = {
+    UNID: 'NIU',
+    UND: 'NIU',
+    UNI: 'NIU',
+    UNIDAD: 'NIU',
+    NIU: 'NIU',
+    BOT: 'NIU',
+    BOTELLA: 'NIU',
+    BOTELLAS: 'NIU',
+    PAR: 'PR',
+    PR: 'PR',
+    KG: 'KGM',
+    KGM: 'KGM',
+    KILOGRAMO: 'KGM',
+    LB: 'LBR',
+    LBR: 'LBR',
+    MT3: 'MTQ',
+    MTQ: 'MTQ',
+    'METRO CUBICO': 'MTQ',
+    'METRO CÚBICO': 'MTQ',
+    M3: 'MTQ',
+    MTS: 'MTR',
+    MTR: 'MTR',
+    METRO: 'MTR',
+    LTR: 'LTR',
+    LITRO: 'LTR',
+    GLN: 'GLL',
+    GLL: 'GLL',
+    GALON: 'GLL',
+    GALÓN: 'GLL',
+  };
+
+  /** Resuelve el código SUNAT probando ambos campos del catálogo. */
+  private resolverUnidadSunat(
+    valores: (string | null | undefined)[],
+    porDefecto: string,
+  ): string {
+    for (const valor of valores) {
+      const raw = (valor ?? '').trim().toUpperCase();
+      if (!raw) continue;
+      const mapeado = DocSalidaDespatchMapper.UNIDADES_SUNAT[raw];
+      if (mapeado) return mapeado;
+    }
+    return porDefecto;
+  }
+
   private mapUnidadPeso(codigo?: string | null, nombre?: string | null) {
-    const raw = (codigo ?? nombre ?? 'KGM').trim().toUpperCase();
-    if (raw === 'KG' || raw === 'KGM' || raw.includes('KILO')) return 'KGM';
-    return raw.length >= 2 && raw.length <= 4 ? raw : 'KGM';
+    return this.resolverUnidadSunat([nombre, codigo], 'KGM');
   }
 
   private mapUnidadItem(codigo?: string | null, nombre?: string | null) {
-    const raw = (codigo ?? nombre ?? 'NIU').trim().toUpperCase();
-    if (
-      raw === 'UNID' ||
-      raw === 'UND' ||
-      raw === 'UNI' ||
-      raw === 'BOTELLAS' ||
-      raw === 'BOTELLA' ||
-      raw === 'BOT' ||
-      raw.includes('BOTELL')
-    ) {
-      return 'NIU';
-    }
-    return raw.length >= 2 && raw.length <= 4 ? raw : 'NIU';
+    return this.resolverUnidadSunat([nombre, codigo], 'NIU');
   }
 
   private splitNombre(nombreCompleto?: string | null) {
-    const parts = (nombreCompleto ?? 'CHOFER').trim().split(/\s+/).filter(Boolean);
+    const parts = (nombreCompleto ?? 'CHOFER')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
     if (parts.length === 1) {
       return { nombres: parts[0], apellidos: parts[0] };
     }

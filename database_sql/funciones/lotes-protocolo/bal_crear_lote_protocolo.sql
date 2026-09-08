@@ -31,6 +31,36 @@ BEGIN
         );
     END IF;
 
+    -- Una ficha vigente cubre el lote en curso: mientras no venza, registrar otra
+    -- del mismo proveedor y gas significa casi siempre que se está duplicando.
+    IF EXISTS (
+        SELECT 1
+        FROM bal_lote_protocolo lp
+        WHERE lp.estado = 1
+          AND COALESCE(lp.id_proveedor, 0) = COALESCE(p_id_proveedor, 0)
+          AND COALESCE(lp.id_producto_gas, 0) = COALESCE(p_id_producto_gas, 0)
+          AND lp.fecha_vencimiento IS NOT NULL
+          AND lp.fecha_vencimiento >= CURRENT_DATE
+    ) THEN
+        RETURN json_build_object(
+            'error', (
+                SELECT format(
+                    'Ya hay una ficha vigente para este proveedor y gas: lote %s, vence %s. No se puede registrar otra hasta que venza.',
+                    lp.numero_lote, TO_CHAR(lp.fecha_vencimiento, 'MM/YYYY')
+                )
+                FROM bal_lote_protocolo lp
+                WHERE lp.estado = 1
+                  AND COALESCE(lp.id_proveedor, 0) = COALESCE(p_id_proveedor, 0)
+                  AND COALESCE(lp.id_producto_gas, 0) = COALESCE(p_id_producto_gas, 0)
+                  AND lp.fecha_vencimiento IS NOT NULL
+                  AND lp.fecha_vencimiento >= CURRENT_DATE
+                ORDER BY lp.fecha_vencimiento DESC
+                LIMIT 1
+            ),
+            'registro', NULL
+        );
+    END IF;
+
     INSERT INTO bal_lote_protocolo (
         numero_lote, numero_protocolo, id_proveedor, id_producto_gas,
         descripcion_producto, forma_farmaceutica, presentacion, norma_tecnica,

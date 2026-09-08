@@ -1,11 +1,12 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: doc_obtener_salida
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
+-- Migración: Corregir nombre de producto de gas en detalle de documentos de salida
 --
--- Actualizada por database_sql/migraciones/20260905_venta_gas_prestamo_garantia_join.sql:
--- con id_venta el detalle une los items de la venta con los cilindros
--- entregados en prestamo (rol ENTREGADO) y descarta las lineas de garantia.
+-- Problema: En la ruta VENTA de doc_obtener_salida, nombre_producto siempre
+-- mostraba p.nombre (producto genérico). Para ventas de gas, debería mostrar
+-- el gas específico del cilindro (b.id_producto_gas -> pgb.nombre).
+--
+-- Solución: Agregar JOIN con pro_producto pgb para el gas del cilindro y usar
+-- COALESCE(pgb.nombre, p.nombre) para nombre_producto.
+
 DROP FUNCTION IF EXISTS doc_obtener_salida(p_id integer);
 
 CREATE OR REPLACE FUNCTION doc_obtener_salida(p_id integer)
@@ -30,23 +31,6 @@ BEGIN
     IF v_id_venta IS NOT NULL THEN
         SELECT (vc.estado = 0) INTO v_venta_anulada FROM ven_comprobante vc WHERE vc.id = v_id_venta;
 
-        -- El detalle de una orden ligada a venta se arma por JOIN (principio
-        -- "detalle no duplicado") y tiene dos orígenes:
-        --   VENTA    — los ítems/productos del comprobante. Si la venta fue
-        --              anulada sus líneas quedaron en estado=0
-        --              (ven_eliminar_comprobante), así que el OR con
-        --              v_venta_anulada evita que el documento se vea vacío en
-        --              vez de mostrar qué se vendió originalmente.
-        --   PRESTAMO — los cilindros entregados en préstamo por esa misma venta.
-        --              Van como fila propia aunque la línea de gas ya traiga ese
-        --              mismo id_balon: son dos cosas distintas que el cliente se
-        --              lleva a la vez (el contenido y el envase), y la orden de
-        --              salida tiene que mencionar ambas.
-        -- Se excluyen dos cosas: las líneas de garantía antiguas (garantía es
-        -- dinero, no se despacha) y los cilindros de rol GARANTIA, que entran al
-        -- almacén en vez de salir.
-        -- El item de los cilindros continúa la numeración de la venta, así que
-        -- se calcula antes: dentro del UNION no hay forma de mirar el otro lado.
         SELECT COALESCE(MAX(vd.item), 0) INTO v_ultimo_item_venta
         FROM ven_comprobante_detalle vd
         WHERE vd.id_comprobante = v_id_venta
@@ -121,12 +105,8 @@ BEGIN
                 COALESCE(dd.descripcion, p.nombre, b.codigo_balon) AS descripcion,
                 dd.id_balon,
                 b.codigo_balon,
-                -- Tipo y almacén del cilindro: la card del detalle los muestra
-                -- igual que el selector, y el detalle no los tenía.
                 tb.nombre AS nombre_tipo_balon,
                 alm.nombre AS nombre_almacen_balon,
-                -- Gas del cilindro: decide si la orden puede asociarse a una
-                -- ficha de lote y protocolo (una ficha cubre un solo gas).
                 b.id_producto_gas AS id_producto_gas_balon,
                 pgb.nombre AS nombre_producto_gas_balon,
                 b.numero_serie AS numero_serie_balon,
@@ -161,8 +141,6 @@ BEGIN
             d.id_doc_salida_origen,
             d.id_sucursal, suc.nombre AS nombre_sucursal,
             d.id_almacen, alm.nombre AS nombre_almacen,
-            -- Ubicación del almacén: es el punto de partida por defecto de la
-            -- guía de remisión, para no volver a tipear el origen.
             alm.ubicacion AS direccion_almacen,
             alm.id_distrito AS id_distrito_almacen,
             alm.id_provincia AS id_provincia_almacen,

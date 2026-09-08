@@ -1,15 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   mapDeleteResult,
   mapListResult,
   mapSingleResult,
 } from '../../../common/helpers/auth-response.helper';
+import { ResponseHelper } from '../../../common/helpers/response.helper';
 import {
   ActualizarCompraCabeceraDto,
   ActualizarCompraDetalleDto,
   CreateCompraDetalleLineaDto,
   CreateCompraDto,
   FiltroComprasDto,
+  RegistrarBalonesCompraDto,
 } from '../dto/compras.dto';
 import { ComprasModel } from '../models/compras.model';
 
@@ -20,6 +22,18 @@ export class ComprasLogic {
   async listar(filtros: FiltroComprasDto) {
     const result = await this.comprasModel.listar(filtros);
     return mapListResult(result, filtros);
+  }
+
+  async registrarBalones(id: number, dto: RegistrarBalonesCompraDto) {
+    const result = await this.comprasModel.registrarBalones(id, dto);
+    if (result.error) {
+      throw new BadRequestException(result.error);
+    }
+    return ResponseHelper.success({
+      creados: result.registro?.creados ?? 0,
+      idBalones: result.registro?.id_balones ?? [],
+      gasIngresado: Number(result.registro?.gas_ingresado ?? 0),
+    });
   }
 
   async obtenerPorId(id: number) {

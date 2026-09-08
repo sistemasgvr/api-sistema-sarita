@@ -24,6 +24,7 @@ import {
   CreateCompraDetalleLineaDto,
   CreateCompraDto,
   FiltroComprasDto,
+  RegistrarBalonesCompraDto,
 } from '../dto/compras.dto';
 import { ComprasLogic } from '../logic/compras.logic';
 
@@ -37,6 +38,19 @@ export class ComprasController {
   @ApiOperation({ summary: 'Listar comprobantes de compra' })
   listar(@Query() filtros: FiltroComprasDto) {
     return this.comprasLogic.listar(filtros);
+  }
+
+  @Post(':id/balones')
+  @Permisos(PermisoBanderas.COMPRAS_EDITAR)
+  @ApiOperation({
+    summary:
+      'Registra los cilindros comprados: los da de alta en el libro y genera un movimiento por cada uno',
+  })
+  registrarBalones(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RegistrarBalonesCompraDto,
+  ) {
+    return this.comprasLogic.registrarBalones(id, dto);
   }
 
   @Get(':id')

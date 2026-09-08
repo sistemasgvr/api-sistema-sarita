@@ -1,7 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayNotEmpty,
+  Min,
   IsArray,
+  IsIn,
   IsDateString,
   IsInt,
   IsNotEmpty,
@@ -337,4 +340,97 @@ export class AsignarResponsableActividadDto extends AuditoriaDto {
   @Type(() => Number)
   @IsInt()
   idTrabajadorResponsable?: number | null;
+}
+
+export class VerificarActividadDto extends AuditoriaDto {
+  @ApiProperty({ enum: ['SALIDA', 'LLEGADA'], example: 'SALIDA' })
+  @IsString()
+  @IsIn(['SALIDA', 'LLEGADA'])
+  momento!: 'SALIDA' | 'LLEGADA';
+
+  @ApiProperty({
+    type: [String],
+    example: ['BAL-OXM10-001'],
+    description:
+      'Códigos leídos con la pistola: de cilindro, número de serie o código de producto',
+  })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  codigos!: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Si viene, los ítems escaneados quedan CON_OBSERVACION en vez de OK',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observacion?: string;
+}
+
+export class CrearRecojoPrestamoDto extends AuditoriaDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  idPrestamo!: number;
+
+  @ApiPropertyOptional({
+    description: 'Por defecto, la fecha de retorno pactada del préstamo',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaProgramada?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idTrabajadorResponsable?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observaciones?: string;
+}
+
+export class GenerarRecojosDto extends AuditoriaDto {
+  @ApiPropertyOptional({
+    default: 3,
+    description:
+      'Ventana hacia adelante en días. 0 = solo préstamos ya vencidos',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  diasAntes?: number;
+
+  @ApiPropertyOptional({
+    description: 'A quién se asignan. Sin valor, quedan sin asignar',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idTrabajadorResponsable?: number;
+}
+
+export class FiltroRankingActividadesDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaDesde?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaHasta?: string;
+
+  @ApiPropertyOptional({ default: 20 })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  limite?: number;
 }

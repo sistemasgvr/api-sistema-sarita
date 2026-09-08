@@ -46,8 +46,7 @@ export class FacturacionApisperuClient {
     return {
       enabled,
       configured:
-        enabled &&
-        (Boolean(token) || (Boolean(username) && Boolean(password))),
+        enabled && (Boolean(token) || (Boolean(username) && Boolean(password))),
       baseUrl: creds.baseUrl,
       hasToken: Boolean(token),
       hasCredentials: Boolean(username) && Boolean(password),
@@ -166,12 +165,19 @@ export class FacturacionApisperuClient {
   async consultarEstadoFacturaBoleta(
     query: FacturacionComprobanteStatusQuery,
   ): Promise<FacturacionApisperuPayload> {
-    return this.request<FacturacionApisperuPayload>('GET', '/invoice/status', undefined, {
-      params: await this.withDefaultRuc(query),
-    });
+    return this.request<FacturacionApisperuPayload>(
+      'GET',
+      '/invoice/status',
+      undefined,
+      {
+        params: await this.withDefaultRuc(query),
+      },
+    );
   }
 
-  async enviarNota(payload: FacturacionApisperuPayload): Promise<FacturacionApisperuDocumentResponse> {
+  async enviarNota(
+    payload: FacturacionApisperuPayload,
+  ): Promise<FacturacionApisperuDocumentResponse> {
     return this.request<FacturacionApisperuDocumentResponse>(
       'POST',
       '/note/send',
@@ -208,9 +214,14 @@ export class FacturacionApisperuClient {
   async consultarEstadoResumen(
     query: FacturacionResumenStatusQuery,
   ): Promise<FacturacionApisperuPayload> {
-    return this.request<FacturacionApisperuPayload>('GET', '/summary/status', undefined, {
-      params: await this.withDefaultRuc(query),
-    });
+    return this.request<FacturacionApisperuPayload>(
+      'GET',
+      '/summary/status',
+      undefined,
+      {
+        params: await this.withDefaultRuc(query),
+      },
+    );
   }
 
   async enviarComunicacionBaja(
@@ -226,9 +237,14 @@ export class FacturacionApisperuClient {
   async consultarEstadoComunicacionBaja(
     query: FacturacionResumenStatusQuery,
   ): Promise<FacturacionApisperuPayload> {
-    return this.request<FacturacionApisperuPayload>('GET', '/voided/status', undefined, {
-      params: await this.withDefaultRuc(query),
-    });
+    return this.request<FacturacionApisperuPayload>(
+      'GET',
+      '/voided/status',
+      undefined,
+      {
+        params: await this.withDefaultRuc(query),
+      },
+    );
   }
 
   async enviarGuiaRemision(
@@ -247,9 +263,14 @@ export class FacturacionApisperuClient {
   async consultarEstadoGuiaRemision(
     query: FacturacionResumenStatusQuery,
   ): Promise<FacturacionApisperuPayload> {
-    return this.request<FacturacionApisperuPayload>('GET', '/despatch/status', undefined, {
-      params: await this.withDefaultRuc(query),
-    });
+    return this.request<FacturacionApisperuPayload>(
+      'GET',
+      '/despatch/status',
+      undefined,
+      {
+        params: await this.withDefaultRuc(query),
+      },
+    );
   }
 
   /**
@@ -460,11 +481,11 @@ export class FacturacionApisperuClient {
   private async withDefaultRuc<T extends { ruc?: string }>(
     query: T,
   ): Promise<Record<string, string | undefined>> {
-    if (query.ruc) return { ...query } as Record<string, string | undefined>;
+    if (query.ruc) return { ...query };
 
     const creds = await this.credentialsService.resolve();
     if (!creds.defaultRuc) {
-      return { ...query } as Record<string, string | undefined>;
+      return { ...query };
     }
 
     return { ...query, ruc: creds.defaultRuc };
@@ -542,6 +563,9 @@ export class FacturacionApisperuClient {
       }
 
       if (response.status >= 400) {
+        this.logger.error(
+          `APIsPERU ${response.status} ${method} ${path}: ${this.safeJson(response.data)}`,
+        );
         throw new BadGatewayException(
           `APIsPERU Facturación respondió con estado ${response.status}`,
         );
@@ -558,9 +582,13 @@ export class FacturacionApisperuClient {
       }
 
       const axiosError = error as AxiosError;
+
+      // El cuerpo de la respuesta se serializa a mano: pasarlo como segundo
+      // argumento del logger lo imprime como "[object Object]" y ahí se pierde
+      // justo el detalle que dice por qué el PSE rechazó el documento.
       this.logger.error(
-        `Error APIsPERU ${method} ${path}: ${axiosError.message}`,
-        axiosError.response?.data,
+        `Error APIsPERU ${method} ${path} (HTTP ${axiosError.response?.status ?? '—'}): ` +
+          `${axiosError.message} | respuesta=${this.safeJson(axiosError.response?.data)}`,
       );
 
       const providerMessage = this.extractProviderErrorMessage(
@@ -581,7 +609,32 @@ export class FacturacionApisperuClient {
       return obj.error.trim();
     }
     if (typeof obj.message === 'string' && obj.message.trim()) {
-      return obj.message.trim();
+      const detalle = this.extractProviderErrorDetail(obj);
+      return detalle
+        ? `${obj.message.trim()} — ${detalle}`
+        : obj.message.trim();
+    }
+    return null;
+  }
+
+  /**
+   * APIsPERU anida el motivo real ("errors", "detail", "sunatResponse") bajo un
+   * mensaje genérico. Sin esto el usuario solo ve "error del servidor interno".
+   */
+  private extractProviderErrorDetail(
+    obj: Record<string, unknown>,
+  ): string | null {
+    for (const clave of [
+      'detail',
+      'details',
+      'errors',
+      'error_description',
+      'sunatResponse',
+    ]) {
+      const valor = obj[clave];
+      if (!valor) continue;
+      if (typeof valor === 'string' && valor.trim()) return valor.trim();
+      if (typeof valor === 'object') return this.safeJson(valor);
     }
     return null;
   }
@@ -601,7 +654,9 @@ export class FacturacionApisperuClient {
 
       if (typeof obj.message === 'string' && obj.message.trim()) {
         const payloadHint =
-          obj.payload != null ? ` | ${this.safeJson(obj.payload).slice(0, 400)}` : '';
+          obj.payload != null
+            ? ` | ${this.safeJson(obj.payload).slice(0, 400)}`
+            : '';
         return `${obj.message}${payloadHint}`;
       }
 
@@ -632,7 +687,12 @@ export class FacturacionApisperuClient {
       if (obj.error && typeof obj.error === 'object') {
         const err = obj.error as Record<string, unknown>;
         if (typeof err.message === 'string') {
-          const code = err.code != null ? `[${String(err.code)}] ` : '';
+          // err.code llega como unknown: solo se antepone si es escalar, para no
+          // terminar imprimiendo "[object Object]" delante del mensaje.
+          const code =
+            typeof err.code === 'string' || typeof err.code === 'number'
+              ? `[${err.code}] `
+              : '';
           return `${code}${err.message}`;
         }
       }
