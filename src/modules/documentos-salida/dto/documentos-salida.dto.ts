@@ -456,6 +456,15 @@ export class FiltroDocSalidaDto extends FiltroPaginacionDto {
   @IsOptional()
   @IsDateString()
   fechaHasta?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Si true, solo órdenes sin actividad vigente (excluye BORRADOR/ANULADA)',
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  sinActividadVigente?: boolean;
 }
 
 export class SiguienteNumeroDocSalidaQueryDto {

@@ -152,7 +152,7 @@ export class ActividadItemDto {
 
 export class CreateActividadDto extends AuditoriaDto {
   @ApiProperty({ example: 'Visita de seguimiento', maxLength: 150 })
-  @ValidateIf((o: CreateActividadDto) => !o.idComprobante)
+  @ValidateIf((o: CreateActividadDto) => !o.idComprobante && !o.idDocSalida)
   @IsString()
   @IsNotEmpty()
   @MaxLength(150)
@@ -218,12 +218,12 @@ export class CreateActividadDto extends AuditoriaDto {
 
   @ApiPropertyOptional({
     example: 5,
-    description: 'Guía de remisión origen del reparto',
+    description: 'Orden de salida (doc_salida) origen del reparto',
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idGuiaRemision?: number;
+  idDocSalida?: number;
 
   @ApiPropertyOptional({ type: [ActividadItemDto] })
   @IsOptional()
@@ -305,11 +305,13 @@ export class UpdateActividadDto extends AuditoriaDto {
   @IsInt()
   idComprobante?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Orden de salida (doc_salida) origen del reparto',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idGuiaRemision?: number;
+  idDocSalida?: number;
 
   @ApiPropertyOptional({ type: [ActividadItemDto] })
   @IsOptional()

@@ -1,4 +1,14 @@
-﻿-- Function: age_obtener_actividad
+-- ============================================================
+-- Migracion: age_obtener_actividad items con tipo/unidad/gas
+-- Fecha: 2026-09-08
+--
+-- El detalle de la actividad muestra tipo de balon, gas y unidad
+-- al registrar/consultar el reparto.
+--
+-- Aplicar con:
+--   node database_sql/scripts/apply-migration.js database_sql/migraciones/20260908_age_obtener_actividad_item_detalle.sql
+-- ============================================================
+-- Function: age_obtener_actividad
 -- Source: migraciones/20260908_age_id_doc_salida_y_ordenes_disponibles.sql
 
 CREATE OR REPLACE FUNCTION age_obtener_actividad(p_id integer)

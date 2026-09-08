@@ -1,12 +1,29 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: age_actualizar_actividad
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.941Z
+﻿-- Function: age_actualizar_actividad
+-- Source: migraciones/20260908_age_id_doc_salida_y_ordenes_disponibles.sql
+
 DROP FUNCTION IF EXISTS age_actualizar_actividad(p_id integer, p_titulo character varying, p_descripcion text, p_fecha_programada date, p_hora_inicio_estimada time without time zone, p_hora_fin_estimada time without time zone, p_fecha_hora_cierre timestamp without time zone, p_id_tipo_actividad integer, p_id_prioridad integer, p_id_cliente integer, p_id_trabajador_responsable integer, p_id_estado_actividad integer, p_observaciones character varying, p_id_usuario_auditoria integer, p_id_comprobante integer, p_id_guia_remision integer, p_items json);
 
-CREATE OR REPLACE FUNCTION age_actualizar_actividad(p_id integer, p_titulo character varying, p_descripcion text, p_fecha_programada date, p_hora_inicio_estimada time without time zone, p_hora_fin_estimada time without time zone, p_fecha_hora_cierre timestamp without time zone, p_id_tipo_actividad integer, p_id_prioridad integer, p_id_cliente integer DEFAULT NULL::integer, p_id_trabajador_responsable integer DEFAULT NULL::integer, p_id_estado_actividad integer DEFAULT NULL::integer, p_observaciones character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_comprobante integer DEFAULT NULL::integer, p_id_guia_remision integer DEFAULT NULL::integer, p_items json DEFAULT NULL::json)
- RETURNS json
- LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION age_actualizar_actividad(
+    p_id integer,
+    p_titulo character varying,
+    p_descripcion text,
+    p_fecha_programada date,
+    p_hora_inicio_estimada time without time zone,
+    p_hora_fin_estimada time without time zone,
+    p_fecha_hora_cierre timestamp without time zone,
+    p_id_tipo_actividad integer,
+    p_id_prioridad integer,
+    p_id_cliente integer DEFAULT NULL::integer,
+    p_id_trabajador_responsable integer DEFAULT NULL::integer,
+    p_id_estado_actividad integer DEFAULT NULL::integer,
+    p_observaciones character varying DEFAULT NULL::character varying,
+    p_id_usuario_auditoria integer DEFAULT NULL::integer,
+    p_id_comprobante integer DEFAULT NULL::integer,
+    p_id_doc_salida integer DEFAULT NULL::integer,
+    p_items json DEFAULT NULL::json
+)
+RETURNS json
+LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_tipo VARCHAR;
@@ -42,7 +59,7 @@ BEGIN
           AND o.estado = 1
           AND (l.nombre = 'TipoActividad' OR l.id = 48)
     ) THEN
-        RETURN json_build_object('registro', NULL, 'error', 'El tipo de actividad indicado no es válido.');
+        RETURN json_build_object('registro', NULL, 'error', 'El tipo de actividad indicado no es vÃ¡lido.');
     END IF;
 
     IF p_id_prioridad IS NOT NULL AND NOT EXISTS (
@@ -53,7 +70,7 @@ BEGIN
           AND o.estado = 1
           AND (l.nombre = 'PrioridadActividad' OR l.id = 50)
     ) THEN
-        RETURN json_build_object('registro', NULL, 'error', 'La prioridad indicada no es válida.');
+        RETURN json_build_object('registro', NULL, 'error', 'La prioridad indicada no es vÃ¡lida.');
     END IF;
 
     IF p_id_estado_actividad IS NOT NULL AND NOT EXISTS (
@@ -64,7 +81,13 @@ BEGIN
           AND o.estado = 1
           AND (l.nombre = 'EstadoActividad' OR l.id = 49)
     ) THEN
-        RETURN json_build_object('registro', NULL, 'error', 'El estado de actividad indicado no es válido.');
+        RETURN json_build_object('registro', NULL, 'error', 'El estado de actividad indicado no es vÃ¡lido.');
+    END IF;
+
+    IF p_id_doc_salida IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM doc_salida WHERE id = p_id_doc_salida AND estado = 1
+    ) THEN
+        RETURN json_build_object('registro', NULL, 'error', 'La orden de salida indicada no existe.');
     END IF;
 
     IF p_id_tipo_actividad IS NOT NULL THEN
@@ -121,7 +144,7 @@ BEGIN
         id_cliente = COALESCE(p_id_cliente, id_cliente),
         id_trabajador_responsable = COALESCE(p_id_trabajador_responsable, id_trabajador_responsable),
         id_comprobante = COALESCE(p_id_comprobante, id_comprobante),
-        id_guia_remision = COALESCE(p_id_guia_remision, id_guia_remision),
+        id_doc_salida = COALESCE(p_id_doc_salida, id_doc_salida),
         id_estado_actividad = COALESCE(p_id_estado_actividad, id_estado_actividad),
         observaciones = COALESCE(p_observaciones, observaciones),
         id_usuario_modificacion = p_id_usuario_auditoria,
@@ -157,3 +180,6 @@ BEGIN
     RETURN age_obtener_actividad(p_id);
 END;
 $function$;
+
+-- =============================================================================
+

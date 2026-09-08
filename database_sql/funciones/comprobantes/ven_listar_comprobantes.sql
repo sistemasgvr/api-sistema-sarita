@@ -90,6 +90,8 @@ BEGIN
             act.nombre_tipo_actividad,
             act.nombre_estado_actividad,
             (act.id IS NOT NULL) AS tiene_actividad,
+            docsal.id AS id_doc_salida,
+            docsal.numero AS numero_doc_salida,
             c.estado,
             c.fecha_creacion,
             (
@@ -141,6 +143,16 @@ BEGIN
             ORDER BY a.id DESC
             LIMIT 1
         ) act ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT d.id, d.numero
+            FROM doc_salida d
+            JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
+            WHERE d.id_venta = c.id
+              AND d.estado = 1
+              AND ec.nombre <> 'ANULADA'
+            ORDER BY d.id DESC
+            LIMIT 1
+        ) docsal ON TRUE
         WHERE (p_solo_activos IS NULL OR c.estado = p_solo_activos)
           AND (p_id_tipo_comprobante IS NULL OR c.id_tipo_comprobante = p_id_tipo_comprobante)
           AND (p_id_cliente IS NULL OR c.id_cliente = p_id_cliente)

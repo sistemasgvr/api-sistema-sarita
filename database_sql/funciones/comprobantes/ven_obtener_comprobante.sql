@@ -96,7 +96,11 @@ BEGIN
             act.nombre_tipo_actividad,
             act.nombre_estado_actividad,
             act.nombre_chofer_responsable,
-            (act.id IS NOT NULL) AS tiene_actividad
+            (act.id IS NOT NULL) AS tiene_actividad,
+            -- Orden de salida vigente de esta venta: el detalle del comprobante
+            -- muestra «Ver orden» en vez de «Generar» cuando ya existe.
+            docsal.id AS id_doc_salida,
+            docsal.numero AS numero_doc_salida
         FROM ven_comprobante c
         LEFT JOIN gen_lista_opciones tc ON c.id_tipo_comprobante = tc.id
         LEFT JOIN gen_lista_opciones es ON c.id_estado_sunat = es.id
@@ -144,6 +148,16 @@ BEGIN
             ORDER BY a.id DESC
             LIMIT 1
         ) act ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT d.id, d.numero
+            FROM doc_salida d
+            JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
+            WHERE d.id_venta = c.id
+              AND d.estado = 1
+              AND ec.nombre <> 'ANULADA'
+            ORDER BY d.id DESC
+            LIMIT 1
+        ) docsal ON TRUE
         WHERE c.id = p_id AND c.estado = 1
     ) t;
 

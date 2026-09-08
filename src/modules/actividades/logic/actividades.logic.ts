@@ -101,7 +101,7 @@ export class ActividadesLogic {
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria,
       dto.idComprobante ?? null,
-      dto.idGuiaRemision ?? null,
+      dto.idDocSalida ?? null,
       dto.items ?? null,
     );
     return mapSingleResult(result, 'No se pudo crear la actividad');
@@ -123,7 +123,7 @@ export class ActividadesLogic {
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria,
       dto.idComprobante ?? null,
-      dto.idGuiaRemision ?? null,
+      dto.idDocSalida ?? null,
       dto.items ?? null,
     );
     return mapSingleResult(result, `Actividad ${id} no encontrada`);
