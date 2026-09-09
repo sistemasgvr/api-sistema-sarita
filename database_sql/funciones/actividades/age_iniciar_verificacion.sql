@@ -1,4 +1,7 @@
--- Function: age_iniciar_verificacion\n-- Synced from migracion 20260908_age_recojo_vencidos_fk.sql\n\nDROP FUNCTION IF EXISTS age_iniciar_verificacion(integer, integer);
+-- Function: age_iniciar_verificacion
+-- Source: migraciones/20260909_age_reparto_flujo_entrega.sql
+
+DROP FUNCTION IF EXISTS age_iniciar_verificacion(integer, integer);
 
 CREATE OR REPLACE FUNCTION age_iniciar_verificacion(
     p_id_actividad integer,
@@ -15,7 +18,7 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT a.id, a.id_prestamo, a.id_alquiler
+    SELECT a.id, a.id_prestamo, a.id_alquiler, a.id_doc_salida, a.id_comprobante
     INTO v_act
     FROM age_actividad a
     WHERE a.id = p_id_actividad AND a.estado = 1;
@@ -120,13 +123,20 @@ BEGIN
 
             v_items := v_items + 1;
         END IF;
+    ELSIF v_act.id_doc_salida IS NOT NULL OR v_act.id_comprobante IS NOT NULL THEN
+        -- REPARTO sin items materializados: no hay nada que derivar aqui, los
+        -- items los crea age_crear_actividad desde el detalle del documento.
+        RETURN json_build_object(
+            'error', 'La actividad de reparto no tiene items: revisa el documento de origen',
+            'registro', NULL
+        );
     ELSE
         RETURN json_build_object(
-            'error', 'La actividad no tiene origen de recojo (prestamo/alquiler)',
+            'error', 'La actividad no tiene origen del que derivar items',
             'registro', NULL
         );
     END IF;
 
     RETURN age_obtener_actividad(p_id_actividad);
 END;
-$function$;\n
+$function$;

@@ -1,5 +1,43 @@
--- Function: age_asignar_responsable_actividad
--- Source: migraciones/20260909_age_responsable_apoyo.sql
+-- ============================================================
+-- Migracion: responsable sin restriccion de chofer + persona de apoyo
+-- Fecha: 2026-09-09
+--
+-- Dos cambios de regla de negocio:
+--
+--   1. El responsable de un REPARTO ya no tiene que ser chofer de flota propia.
+--      age_crear_actividad y age_actualizar_actividad exigian
+--      "trabajador chofer de flota propia (repartidor)", pero en la practica
+--      reparte cualquier trabajador vigente. Esa validacion se relaja en los
+--      archivos de funciones correspondientes (no aqui).
+--
+--   2. En la entrega suelen ir dos personas: el chofer y alguien de apoyo,
+--      porque hay que subir los balones a un tercer o cuarto piso. Se anade
+--      id_trabajador_apoyo junto al responsable.
+--
+-- age_asignar_responsable_actividad se reescribe porque no validaba nada: hacia
+-- un UPDATE directo con lo que le llegara. Su peor efecto era que "Tomar
+-- actividad" mandaba el trabajador del usuario y, si el usuario no tenia ficha
+-- de trabajador, llegaba NULL y la actividad se quedaba SIN asignar mostrando
+-- exito. Ahora se distingue explicitamente tomar de liberar.
+--
+-- Aplicar con:
+--   node database_sql/scripts/apply-migration.js database_sql/migraciones/20260909_age_responsable_apoyo.sql
+-- ============================================================
+
+ALTER TABLE age_actividad
+    ADD COLUMN IF NOT EXISTS id_trabajador_apoyo INT NULL REFERENCES tra_trabajadores(id);
+
+CREATE INDEX IF NOT EXISTS idx_age_actividad_apoyo
+    ON age_actividad (id_trabajador_apoyo)
+    WHERE id_trabajador_apoyo IS NOT NULL;
+
+-- ------------------------------------------------------------
+-- age_asignar_responsable_actividad
+--
+-- p_liberar distingue las dos intenciones que antes se confundian:
+--   FALSE (por defecto) -> se asigna; un responsable NULL es un error.
+--   TRUE                -> se libera; se limpian responsable y apoyo.
+-- ------------------------------------------------------------
 
 DROP FUNCTION IF EXISTS age_asignar_responsable_actividad(p_id integer, p_id_usuario_auditoria integer, p_id_trabajador_responsable integer);
 DROP FUNCTION IF EXISTS age_asignar_responsable_actividad(integer, integer, integer, integer, boolean);

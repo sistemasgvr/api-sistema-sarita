@@ -24,6 +24,7 @@ export interface VerificacionActividadResult {
     coincidencias: number;
     no_pertenecen: number;
     pendientes: number;
+    observados: number;
     completo: boolean;
   } | null;
 }
@@ -54,16 +55,38 @@ export class ActividadesModel {
   }
 
   verificar(id: number, dto: VerificarActividadDto) {
+    // La función SQL lee las claves en snake_case, como el resto del dominio.
+    const lecturas = dto.lecturas.map((lectura) => ({
+      codigo: lectura.codigo ?? null,
+      id_item: lectura.idItem ?? null,
+      cantidad: lectura.cantidad ?? null,
+      conforme: lectura.conforme ?? true,
+      observacion: lectura.observacion ?? null,
+    }));
+
     return this.db.callFunctionJson<VerificacionActividadResult>(
       'age_registrar_verificacion',
       [
         id,
         dto.momento,
-        JSON.stringify(dto.codigos),
-        dto.observacion ?? null,
+        JSON.stringify(lecturas),
         dto.idUsuarioAuditoria ?? null,
       ],
     );
+  }
+
+  iniciarEntrega(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('age_iniciar_entrega', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  culminarEntrega(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('age_culminar_entrega', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
   }
 
   listarVencidosRecojo(filtros: FiltroVencidosRecojoDto) {
@@ -242,10 +265,18 @@ export class ActividadesModel {
     id: number,
     idUsuarioAuditoria?: number,
     idTrabajadorResponsable?: number | null,
+    idTrabajadorApoyo?: number | null,
+    liberar = false,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>(
       'age_asignar_responsable_actividad',
-      [id, idUsuarioAuditoria ?? null, idTrabajadorResponsable ?? null],
+      [
+        id,
+        idUsuarioAuditoria ?? null,
+        idTrabajadorResponsable ?? null,
+        idTrabajadorApoyo ?? null,
+        liberar,
+      ],
     );
   }
 }

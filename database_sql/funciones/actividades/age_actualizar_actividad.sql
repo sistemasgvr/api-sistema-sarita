@@ -1,4 +1,4 @@
-﻿-- Function: age_actualizar_actividad
+-- Function: age_actualizar_actividad
 -- Source: migraciones/20260908_age_id_doc_salida_y_ordenes_disponibles.sql
 
 DROP FUNCTION IF EXISTS age_actualizar_actividad(p_id integer, p_titulo character varying, p_descripcion text, p_fecha_programada date, p_hora_inicio_estimada time without time zone, p_hora_fin_estimada time without time zone, p_fecha_hora_cierre timestamp without time zone, p_id_tipo_actividad integer, p_id_prioridad integer, p_id_cliente integer, p_id_trabajador_responsable integer, p_id_estado_actividad integer, p_observaciones character varying, p_id_usuario_auditoria integer, p_id_comprobante integer, p_id_guia_remision integer, p_items json);
@@ -95,16 +95,18 @@ BEGIN
         FROM gen_lista_opciones
         WHERE id = p_id_tipo_actividad;
 
-        IF v_tipo = 'REPARTO' THEN
-            IF p_id_trabajador_responsable IS NOT NULL THEN
-                IF NOT EXISTS (
-                    SELECT 1 FROM tra_trabajadores t
-                    INNER JOIN gen_chofer c ON c.id_trabajador = t.id
-                    WHERE t.id = p_id_trabajador_responsable AND t.estado = 1 AND c.estado = 1 AND c.id_cliente IS NULL
-                ) THEN
-                    RETURN json_build_object('registro', NULL, 'error', 'El responsable debe ser un trabajador chofer de flota propia (repartidor).');
-                END IF;
-            END IF;
+    END IF;
+
+    -- El responsable de un reparto ya no tiene que ser chofer de flota propia:
+    -- en la entrega suelen ir el chofer y alguien de apoyo, y cualquiera de los
+    -- dos puede figurar como responsable. Se comprueba fuera del IF del tipo
+    -- para que también valide cuando se cambia solo el responsable.
+    IF p_id_trabajador_responsable IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM tra_trabajadores t
+            WHERE t.id = p_id_trabajador_responsable AND t.estado = 1
+        ) THEN
+            RETURN json_build_object('registro', NULL, 'error', 'El responsable debe ser un trabajador vigente.');
         END IF;
     END IF;
 

@@ -1,4 +1,7 @@
--- Function: age_obtener_actividad\n-- Synced from migracion 20260908_age_recojo_vencidos_fk.sql\n\nCREATE OR REPLACE FUNCTION age_obtener_actividad(p_id integer)
+-- Function: age_obtener_actividad
+-- Synced from migracion 20260908_age_recojo_vencidos_fk.sql
+
+CREATE OR REPLACE FUNCTION age_obtener_actividad(p_id integer)
 RETURNS json
 LANGUAGE plpgsql
 STABLE
@@ -192,6 +195,8 @@ BEGIN
             dir.longitud AS longitud_cliente,
             act.id_trabajador_responsable,
             TRIM(CONCAT_WS(' ', tr.nombres, tr.apellido_paterno, tr.apellido_materno)) AS nombre_trabajador_responsable,
+            act.id_trabajador_apoyo,
+            TRIM(CONCAT_WS(' ', ap.nombres, ap.apellido_paterno, ap.apellido_materno)) AS nombre_trabajador_apoyo,
             act.id_usuario_responsable,
             au.nombre AS nombre_usuario_responsable,
             act.id_chofer_responsable,
@@ -243,6 +248,7 @@ BEGIN
             LIMIT 1
         ) dir ON TRUE
         LEFT JOIN tra_trabajadores tr ON tr.id = act.id_trabajador_responsable
+        LEFT JOIN tra_trabajadores ap ON ap.id = act.id_trabajador_apoyo
         LEFT JOIN auth_usuarios au ON au.id_trabajador = tr.id AND au.estado = TRUE
         LEFT JOIN gen_chofer ch ON ch.id_trabajador = tr.id AND ch.estado = 1
         LEFT JOIN ven_comprobante vc ON act.id_comprobante = vc.id
@@ -256,4 +262,4 @@ BEGIN
 
     RETURN json_build_object('registro', v_registro);
 END;
-$function$;\n
+$function$;

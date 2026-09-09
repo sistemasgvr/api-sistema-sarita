@@ -4,6 +4,7 @@ import {
   ArrayNotEmpty,
   Min,
   IsArray,
+  IsBoolean,
   IsIn,
   IsDateString,
   IsInt,
@@ -336,12 +337,77 @@ export class UpdateActividadDto extends AuditoriaDto {
 export class AsignarResponsableActividadDto extends AuditoriaDto {
   @ApiPropertyOptional({
     example: 12,
-    description: 'Trabajador responsable (tra_trabajadores). null lo libera.',
+    description:
+      'Trabajador responsable (tra_trabajadores). Obligatorio salvo que liberar sea true.',
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   idTrabajadorResponsable?: number | null;
+
+  @ApiPropertyOptional({
+    example: 15,
+    description:
+      'Segunda persona que acompaña la entrega (sube los balones). Opcional.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idTrabajadorApoyo?: number | null;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'true libera la actividad (limpia responsable y apoyo). Antes se liberaba mandando el responsable en null, lo que hacía que "tomar" sin trabajador vinculado dejara la actividad sin asignar en silencio.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  liberar?: boolean;
+}
+
+export class LecturaVerificacionDto {
+  @ApiPropertyOptional({
+    example: 'BAL-OXM10-001',
+    description:
+      'Código leído con la pistola: de cilindro, número de serie o código de producto',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  codigo?: string;
+
+  @ApiPropertyOptional({
+    example: 45,
+    description:
+      'Ítem a confirmar por cantidad (accesorios). Alternativa a codigo.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idItem?: number;
+
+  @ApiPropertyOptional({
+    example: 5,
+    description: 'Unidades confirmadas. Solo aplica a ítems de accesorio.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  cantidad?: number;
+
+  @ApiPropertyOptional({
+    default: true,
+    description: 'false deja el ítem CON_OBSERVACION en vez de OK',
+  })
+  @IsOptional()
+  @IsBoolean()
+  conforme?: boolean;
+
+  @ApiPropertyOptional({ description: 'Observación de esta lectura concreta' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observacion?: string;
 }
 
 export class VerificarActividadDto extends AuditoriaDto {
@@ -351,24 +417,15 @@ export class VerificarActividadDto extends AuditoriaDto {
   momento!: 'SALIDA' | 'LLEGADA';
 
   @ApiProperty({
-    type: [String],
-    example: ['BAL-OXM10-001'],
+    type: [LecturaVerificacionDto],
     description:
-      'Códigos leídos con la pistola: de cilindro, número de serie o código de producto',
+      'Cada lectura trae su propia conformidad: un escaneo (codigo) o una confirmación de cantidad (idItem + cantidad)',
   })
   @IsArray()
   @ArrayNotEmpty()
-  @IsString({ each: true })
-  codigos!: string[];
-
-  @ApiPropertyOptional({
-    description:
-      'Si viene, los ítems escaneados quedan CON_OBSERVACION en vez de OK',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  observacion?: string;
+  @ValidateNested({ each: true })
+  @Type(() => LecturaVerificacionDto)
+  lecturas!: LecturaVerificacionDto[];
 }
 
 export class FiltroVencidosRecojoDto extends FiltroPaginacionDto {}

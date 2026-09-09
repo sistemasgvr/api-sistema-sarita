@@ -1,4 +1,7 @@
--- Function: age_listar_vencidos_recojo\n-- Synced from migracion 20260908_age_recojo_vencidos_fk.sql\n\nDROP FUNCTION IF EXISTS age_listar_vencidos_recojo(character varying, integer, integer);
+-- Function: age_listar_vencidos_recojo
+-- Synced from migracion 20260908_age_recojo_vencidos_fk.sql
+
+DROP FUNCTION IF EXISTS age_listar_vencidos_recojo(character varying, integer, integer);
 
 CREATE OR REPLACE FUNCTION age_listar_vencidos_recojo(
     p_busqueda character varying DEFAULT ''::character varying,
@@ -153,4 +156,4 @@ BEGIN
 
     RETURN json_build_object('registros', v_rows, 'total', v_total);
 END;
-$function$;\n
+$function$;

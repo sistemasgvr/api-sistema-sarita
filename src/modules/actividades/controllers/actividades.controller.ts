@@ -197,6 +197,32 @@ export class ActividadesController {
     return this.actividadesLogic.cancelar(id, dto.idUsuarioAuditoria);
   }
 
+  @Patch(':id/iniciar-entrega')
+  @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
+  @ApiOperation({
+    summary:
+      'Pone el reparto EN_RUTA. Exige responsable y la salida verificada al 100%',
+  })
+  iniciarEntrega(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.actividadesLogic.iniciarEntrega(id, dto.idUsuarioAuditoria);
+  }
+
+  @Patch(':id/culminar-entrega')
+  @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
+  @ApiOperation({
+    summary:
+      'Cierra el reparto como REALIZADA. Exige estar EN_RUTA y la llegada verificada al 100%',
+  })
+  culminarEntrega(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.actividadesLogic.culminarEntrega(id, dto.idUsuarioAuditoria);
+  }
+
   @Patch(':id/responsable')
   @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
   @ApiOperation({
@@ -211,6 +237,8 @@ export class ActividadesController {
       id,
       dto.idUsuarioAuditoria,
       dto.idTrabajadorResponsable ?? null,
+      dto.idTrabajadorApoyo ?? null,
+      dto.liberar ?? false,
     );
   }
 }

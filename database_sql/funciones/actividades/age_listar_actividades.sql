@@ -1,4 +1,4 @@
-﻿-- Function: age_listar_actividades
+-- Function: age_listar_actividades
 -- Source: migraciones/20260908_age_id_doc_salida_y_ordenes_disponibles.sql
 
 CREATE OR REPLACE FUNCTION age_listar_actividades(
@@ -59,6 +59,8 @@ BEGIN
             c.razon_social AS razon_social_cliente,
             act.id_trabajador_responsable,
             TRIM(CONCAT_WS(' ', tr.nombres, tr.apellido_paterno, tr.apellido_materno)) AS nombre_trabajador_responsable,
+            act.id_trabajador_apoyo,
+            TRIM(CONCAT_WS(' ', ap.nombres, ap.apellido_paterno, ap.apellido_materno)) AS nombre_trabajador_apoyo,
             act.id_usuario_responsable,
             au.nombre AS nombre_usuario_responsable,
             act.id_chofer_responsable,
@@ -91,6 +93,7 @@ BEGIN
            AND ea.id_lista IN (SELECT gl.id FROM gen_lista gl WHERE gl.nombre = 'EstadoActividad' OR gl.id = 49)
         LEFT JOIN cli_clientes c ON act.id_cliente = c.id
         LEFT JOIN tra_trabajadores tr ON tr.id = act.id_trabajador_responsable
+        LEFT JOIN tra_trabajadores ap ON ap.id = act.id_trabajador_apoyo
         LEFT JOIN auth_usuarios au ON au.id_trabajador = tr.id AND au.estado = TRUE
         LEFT JOIN gen_chofer ch ON ch.id_trabajador = tr.id AND ch.estado = 1
         LEFT JOIN ven_comprobante vc ON act.id_comprobante = vc.id

@@ -47,8 +47,25 @@ export class ActividadesLogic {
       coincidencias: result.registro?.coincidencias ?? 0,
       noPertenecen: result.registro?.no_pertenecen ?? 0,
       pendientes: result.registro?.pendientes ?? 0,
+      observados: result.registro?.observados ?? 0,
       completo: result.registro?.completo ?? false,
     });
+  }
+
+  async iniciarEntrega(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.actividadesModel.iniciarEntrega(
+      id,
+      idUsuarioAuditoria,
+    );
+    return mapSingleResult(result, `Actividad ${id} no encontrada`);
+  }
+
+  async culminarEntrega(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.actividadesModel.culminarEntrega(
+      id,
+      idUsuarioAuditoria,
+    );
+    return mapSingleResult(result, `Actividad ${id} no encontrada`);
   }
 
   async crearRecojoOrigen(dto: CrearRecojoOrigenDto) {
@@ -184,11 +201,15 @@ export class ActividadesLogic {
     id: number,
     idUsuarioAuditoria?: number,
     idTrabajadorResponsable?: number | null,
+    idTrabajadorApoyo?: number | null,
+    liberar = false,
   ) {
     const result = await this.actividadesModel.asignarResponsable(
       id,
       idUsuarioAuditoria,
       idTrabajadorResponsable,
+      idTrabajadorApoyo,
+      liberar,
     );
     return mapSingleResult(result, `Actividad ${id} no encontrada`);
   }
