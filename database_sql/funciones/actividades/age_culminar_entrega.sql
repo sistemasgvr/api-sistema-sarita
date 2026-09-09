@@ -16,6 +16,7 @@ DECLARE
     v_id_ok          INTEGER;
     v_id_observado   INTEGER;
     v_id_pend_envio  INTEGER;
+    v_id_transito    INTEGER;
     v_id_en_poder    INTEGER;
     v_id_cliente     INTEGER;
     v_items          INTEGER;
@@ -80,15 +81,8 @@ BEGIN
         );
     END IF;
 
-    IF v_observados > 0 THEN
-        RETURN json_build_object(
-            'error', format(
-                '%s item(s) llegaron con observacion: resuelvelos volviendo a verificarlos como conformes',
-                v_observados
-            ),
-            'registro', NULL
-        );
-    END IF;
+    -- CON_OBSERVACION no bloquea: un arañazo o detalle leve queda en la
+    -- bitacora y en el item, pero la entrega puede culminarse.
 
     UPDATE age_actividad
     SET id_estado_actividad = v_id_realizada,
@@ -105,12 +99,20 @@ BEGIN
     WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'PENDIENTE_ENVIO' AND lo.estado = 1
     LIMIT 1;
 
+    -- Lo normal es venir de EN_TRANSITO (lo puso iniciar entrega), pero se
+    -- acepta tambien PENDIENTE_ENVIO: hay actividades anteriores a que
+    -- existiera el transito, y el catalogo podria faltar en alguna instalacion.
+    SELECT lo.id INTO v_id_transito
+    FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'EN_TRANSITO' AND lo.estado = 1
+    LIMIT 1;
+
     SELECT lo.id INTO v_id_en_poder
     FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
     WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'EN_PODER_CLIENTE' AND lo.estado = 1
     LIMIT 1;
 
-    IF v_id_pend_envio IS NOT NULL AND v_id_en_poder IS NOT NULL THEN
+    IF v_id_en_poder IS NOT NULL THEN
         UPDATE bal_balon b
         SET id_estado_balon = v_id_en_poder,
             -- Un cilindro en poder del cliente sin cliente_ubicacion seria un
@@ -124,7 +126,7 @@ BEGIN
           AND ai.estado = 1
           AND ai.id_balon = b.id
           AND b.estado = 1
-          AND b.id_estado_balon = v_id_pend_envio;
+          AND b.id_estado_balon IN (v_id_transito, v_id_pend_envio);
 
         GET DIAGNOSTICS v_cilindros = ROW_COUNT;
     END IF;

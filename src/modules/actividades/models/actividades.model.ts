@@ -89,6 +89,25 @@ export class ActividadesModel {
     ]);
   }
 
+  iniciarRecojo(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('age_iniciar_recojo', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  culminarRecojo(
+    id: number,
+    idAlmacenDestino: number,
+    idUsuarioAuditoria?: number,
+  ) {
+    return this.db.callFunctionJson<AuthSingleResult>('age_culminar_recojo', [
+      id,
+      idAlmacenDestino,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
   listarVencidosRecojo(filtros: FiltroVencidosRecojoDto) {
     return this.db.callFunctionJson<AuthListResult>(
       'age_listar_vencidos_recojo',

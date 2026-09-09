@@ -21,6 +21,7 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   AsignarResponsableActividadDto,
   CreateActividadDto,
+  CulminarRecojoDto,
   CrearRecojoOrigenDto,
   FiltroActividadesDto,
   FiltroActividadesProximasDto,
@@ -221,6 +222,36 @@ export class ActividadesController {
     @Body() dto: AuditoriaDto,
   ) {
     return this.actividadesLogic.culminarEntrega(id, dto.idUsuarioAuditoria);
+  }
+
+  @Patch(':id/iniciar-recojo')
+  @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
+  @ApiOperation({
+    summary:
+      'Pone el recojo EN_RUTA. Exige responsable e ítems del préstamo/alquiler',
+  })
+  iniciarRecojo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.actividadesLogic.iniciarRecojo(id, dto.idUsuarioAuditoria);
+  }
+
+  @Patch(':id/culminar-recojo')
+  @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
+  @ApiOperation({
+    summary:
+      'Cierra el recojo como REALIZADA e ingresa los cilindros al almacén destino',
+  })
+  culminarRecojo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CulminarRecojoDto,
+  ) {
+    return this.actividadesLogic.culminarRecojo(
+      id,
+      dto.idAlmacenDestino,
+      dto.idUsuarioAuditoria,
+    );
   }
 
   @Patch(':id/responsable')

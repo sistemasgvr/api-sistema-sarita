@@ -17,6 +17,8 @@ DECLARE
     v_id_en_ruta     INTEGER;
     v_id_ok          INTEGER;
     v_id_observado   INTEGER;
+    v_id_pend_envio  INTEGER;
+    v_id_transito    INTEGER;
     v_items          INTEGER;
     v_pendientes     INTEGER;
     v_observados     INTEGER;
@@ -94,21 +96,52 @@ BEGIN
         );
     END IF;
 
-    IF v_observados > 0 THEN
-        RETURN json_build_object(
-            'error', format(
-                '%s item(s) quedaron con observacion: resuelvelos volviendo a verificarlos como conformes',
-                v_observados
-            ),
-            'registro', NULL
-        );
-    END IF;
+    -- CON_OBSERVACION no bloquea: es un aviso leve que queda registrado.
+    -- Solo los pendientes impiden salir del almacen.
 
     UPDATE age_actividad
     SET id_estado_actividad = v_id_en_ruta,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;
+
+    -- ------------------------------------------------------------
+    -- Custodia: PENDIENTE_ENVIO -> EN_TRANSITO
+    --
+    -- Sin esto el cilindro sigue diciendo "en preparacion, en el almacen"
+    -- mientras va en el camion. EN_TRANSITO ya existia en el catalogo, creado
+    -- justo para esto ("Se cambia el estado cuando se inicie la actividad") y
+    -- nunca cableado.
+    --
+    -- Como en doc_crear_desde_venta, es un UPDATE directo y no un movimiento de
+    -- inventario: el stock ya salio con la venta, registrar otro movimiento lo
+    -- contaria dos veces. Esto solo marca donde esta fisicamente el envase.
+    --
+    -- El camino de vuelta lo hace age_cancelar_actividad. Sin el, un reparto
+    -- cancelado dejaria cilindros en transito para siempre.
+    -- ------------------------------------------------------------
+    SELECT lo.id INTO v_id_pend_envio
+    FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'PENDIENTE_ENVIO' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_transito
+    FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'EN_TRANSITO' AND lo.estado = 1
+    LIMIT 1;
+
+    IF v_id_pend_envio IS NOT NULL AND v_id_transito IS NOT NULL THEN
+        UPDATE bal_balon b
+        SET id_estado_balon = v_id_transito,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        FROM age_actividad_item ai
+        WHERE ai.id_actividad = p_id
+          AND ai.estado = 1
+          AND ai.id_balon = b.id
+          AND b.estado = 1
+          AND b.id_estado_balon = v_id_pend_envio;
+    END IF;
 
     RETURN age_obtener_actividad(p_id);
 END;

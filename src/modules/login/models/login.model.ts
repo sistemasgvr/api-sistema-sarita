@@ -13,8 +13,20 @@ export class LoginModel {
       correo: string;
       contrasena: string;
       estado: boolean;
+      id_trabajador: number | null;
       roles: unknown[];
     }>>('auth_obtener_usuario_por_correo', [correo]);
+  }
+
+  obtenerUsuarioPorId(id: number) {
+    return this.db.callFunctionJson<AuthSingleResult<{
+      id: number;
+      nombre: string;
+      correo: string;
+      estado: boolean;
+      id_trabajador: number | null;
+      roles: unknown[];
+    }>>('auth_obtener_usuario', [id]);
   }
 
   crearSesion(

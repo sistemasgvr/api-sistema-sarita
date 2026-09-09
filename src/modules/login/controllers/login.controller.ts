@@ -31,14 +31,11 @@ export class LoginController {
 
   @Get('me')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Usuario autenticado y banderas de permiso' })
+  @ApiOperation({
+    summary:
+      'Perfil autenticado vivo (incluye id_trabajador y permisos actualizados)',
+  })
   me(@Req() req: Request & { user: AuthenticatedUser }) {
-    const { id, correo, permisos, sesion } = req.user;
-    return {
-      id,
-      correo,
-      permisos,
-      sesion,
-    };
+    return this.loginLogic.me(req.user.id, req.user.sesion);
   }
 }

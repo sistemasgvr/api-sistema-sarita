@@ -68,6 +68,27 @@ export class ActividadesLogic {
     return mapSingleResult(result, `Actividad ${id} no encontrada`);
   }
 
+  async iniciarRecojo(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.actividadesModel.iniciarRecojo(
+      id,
+      idUsuarioAuditoria,
+    );
+    return mapSingleResult(result, `Actividad ${id} no encontrada`);
+  }
+
+  async culminarRecojo(
+    id: number,
+    idAlmacenDestino: number,
+    idUsuarioAuditoria?: number,
+  ) {
+    const result = await this.actividadesModel.culminarRecojo(
+      id,
+      idAlmacenDestino,
+      idUsuarioAuditoria,
+    );
+    return mapSingleResult(result, `Actividad ${id} no encontrada`);
+  }
+
   async crearRecojoOrigen(dto: CrearRecojoOrigenDto) {
     const result = await this.actividadesModel.crearRecojoOrigen(dto);
     if (result.error) {

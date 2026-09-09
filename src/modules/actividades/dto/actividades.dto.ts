@@ -506,6 +506,17 @@ export class CrearRecojoPrestamoDto extends AuditoriaDto {
 
 export class IniciarVerificacionDto extends AuditoriaDto {}
 
+export class CulminarRecojoDto extends AuditoriaDto {
+  @ApiProperty({
+    example: 1,
+    description:
+      'Almacén donde ingresan los cilindros / accesorios al culminar el recojo',
+  })
+  @Type(() => Number)
+  @IsInt()
+  idAlmacenDestino!: number;
+}
+
 export class GenerarRecojosDto extends AuditoriaDto {
   @ApiPropertyOptional({
     default: 3,
