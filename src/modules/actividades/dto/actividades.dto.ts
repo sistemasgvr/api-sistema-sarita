@@ -391,6 +391,14 @@ export class CrearRecojoOrigenDto extends AuditoriaDto {
   @IsDateString()
   fechaProgramada?: string;
 
+  @ApiProperty({
+    example: '09:00',
+    description: 'Hora de inicio estimada del recojo (obligatoria)',
+  })
+  @IsString()
+  @IsNotEmpty()
+  horaInicioEstimada!: string;
+
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
@@ -417,6 +425,14 @@ export class CrearRecojoPrestamoDto extends AuditoriaDto {
   @IsOptional()
   @IsDateString()
   fechaProgramada?: string;
+
+  @ApiPropertyOptional({
+    example: '09:00',
+    description: 'Hora de inicio estimada del recojo',
+  })
+  @IsOptional()
+  @IsString()
+  horaInicioEstimada?: string;
 
   @ApiPropertyOptional()
   @Type(() => Number)

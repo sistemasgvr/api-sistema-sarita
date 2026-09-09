@@ -81,6 +81,7 @@ export class ActividadesModel {
       dto.tipoOrigen,
       dto.idOrigen,
       dto.fechaProgramada ?? null,
+      dto.horaInicioEstimada ?? null,
       dto.idTrabajadorResponsable ?? null,
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria ?? null,
@@ -94,6 +95,7 @@ export class ActividadesModel {
     }>('age_crear_recojo_prestamo', [
       dto.idPrestamo,
       dto.fechaProgramada ?? null,
+      dto.horaInicioEstimada ?? null,
       dto.idTrabajadorResponsable ?? null,
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria ?? null,

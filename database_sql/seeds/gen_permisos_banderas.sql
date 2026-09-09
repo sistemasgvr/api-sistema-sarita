@@ -14,7 +14,7 @@ FROM (
         ('actividades.ver',      'Ver detalle de actividad'),
         ('actividades.crear',    'Crear actividades'),
         ('actividades.editar',   'Editar actividades'),
-        ('actividades.eliminar', 'Eliminar actividades');
+        ('actividades.eliminar', 'Eliminar actividades'),
         ('almacenes.listar', 'Listar almacenes'),
         ('almacenes.ver', 'Ver detalle de almacén'),
         ('almacenes.crear', 'Crear almacenes'),
@@ -55,6 +55,7 @@ WHERE r.nombre = 'Administrador'
   AND (
       p.nombre = 'configuracion.ver'
       OR p.nombre LIKE 'sucursales.%'
+      OR p.nombre LIKE 'actividades.%'
       OR p.nombre LIKE 'almacenes.%'
       OR p.nombre LIKE 'condiciones_pago.%'
       OR p.nombre LIKE 'empresas.%'
