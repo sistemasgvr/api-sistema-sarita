@@ -7,10 +7,12 @@ import {
 import { ResponseHelper } from '../../../common/helpers/response.helper';
 import {
   CreateActividadDto,
+  CrearRecojoOrigenDto,
   FiltroActividadesDto,
   UpdateActividadDto,
   CrearRecojoPrestamoDto,
   FiltroRankingActividadesDto,
+  FiltroVencidosRecojoDto,
   GenerarRecojosDto,
   VerificarActividadDto,
 } from '../dto/actividades.dto';
@@ -30,6 +32,11 @@ export class ActividadesLogic {
     return result.registros ?? [];
   }
 
+  async listarVencidosRecojo(filtros: FiltroVencidosRecojoDto) {
+    const result = await this.actividadesModel.listarVencidosRecojo(filtros);
+    return mapListResult(result, filtros);
+  }
+
   async verificar(id: number, dto: VerificarActividadDto) {
     const result = await this.actividadesModel.verificar(id, dto);
     if (result.error) {
@@ -44,6 +51,18 @@ export class ActividadesLogic {
     });
   }
 
+  async crearRecojoOrigen(dto: CrearRecojoOrigenDto) {
+    const result = await this.actividadesModel.crearRecojoOrigen(dto);
+    if (result.error) {
+      throw new BadRequestException(result.error);
+    }
+    return ResponseHelper.success({
+      id: result.registro?.id,
+      creada: result.registro?.creada ?? false,
+      items: result.registro?.items ?? 0,
+    });
+  }
+
   async crearRecojoPrestamo(dto: CrearRecojoPrestamoDto) {
     const result = await this.actividadesModel.crearRecojoPrestamo(dto);
     if (result.error) {
@@ -54,6 +73,20 @@ export class ActividadesLogic {
       creada: result.registro?.creada ?? false,
       items: result.registro?.items ?? 0,
     });
+  }
+
+  async iniciarVerificacion(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.actividadesModel.iniciarVerificacion(
+      id,
+      idUsuarioAuditoria,
+    );
+    if (result.error) {
+      throw new BadRequestException(result.error);
+    }
+    if (!result.registro) {
+      throw new BadRequestException(`Actividad ${id} no encontrada`);
+    }
+    return result.registro;
   }
 
   async generarRecojosPorVencer(dto: GenerarRecojosDto) {

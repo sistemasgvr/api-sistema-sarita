@@ -371,6 +371,40 @@ export class VerificarActividadDto extends AuditoriaDto {
   observacion?: string;
 }
 
+export class FiltroVencidosRecojoDto extends FiltroPaginacionDto {}
+
+export class CrearRecojoOrigenDto extends AuditoriaDto {
+  @ApiProperty({ enum: ['PRESTAMO', 'ALQUILER'], example: 'PRESTAMO' })
+  @IsString()
+  @IsIn(['PRESTAMO', 'ALQUILER'])
+  tipoOrigen!: 'PRESTAMO' | 'ALQUILER';
+
+  @ApiProperty({ example: 12, description: 'Id del préstamo o alquiler' })
+  @Type(() => Number)
+  @IsInt()
+  idOrigen!: number;
+
+  @ApiPropertyOptional({
+    description: 'Por defecto, la fecha pactada del origen',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaProgramada?: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idTrabajadorResponsable?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observaciones?: string;
+}
+
+/** @deprecated Preferir CrearRecojoOrigenDto / POST recojo */
 export class CrearRecojoPrestamoDto extends AuditoriaDto {
   @ApiProperty()
   @Type(() => Number)
@@ -396,6 +430,8 @@ export class CrearRecojoPrestamoDto extends AuditoriaDto {
   @MaxLength(500)
   observaciones?: string;
 }
+
+export class IniciarVerificacionDto extends AuditoriaDto {}
 
 export class GenerarRecojosDto extends AuditoriaDto {
   @ApiPropertyOptional({

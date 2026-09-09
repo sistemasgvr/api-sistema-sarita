@@ -7,9 +7,11 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import {
   ActividadItemDto,
+  CrearRecojoOrigenDto,
   CrearRecojoPrestamoDto,
   FiltroActividadesDto,
   FiltroRankingActividadesDto,
+  FiltroVencidosRecojoDto,
   GenerarRecojosDto,
   VerificarActividadDto,
 } from '../dto/actividades.dto';
@@ -64,6 +66,27 @@ export class ActividadesModel {
     );
   }
 
+  listarVencidosRecojo(filtros: FiltroVencidosRecojoDto) {
+    return this.db.callFunctionJson<AuthListResult>(
+      'age_listar_vencidos_recojo',
+      [filtros.buscar ?? '', filtros.limite ?? 30, filtros.offset],
+    );
+  }
+
+  crearRecojoOrigen(dto: CrearRecojoOrigenDto) {
+    return this.db.callFunctionJson<{
+      error: string | null;
+      registro: { id: number; creada: boolean; items: number } | null;
+    }>('age_crear_recojo_origen', [
+      dto.tipoOrigen,
+      dto.idOrigen,
+      dto.fechaProgramada ?? null,
+      dto.idTrabajadorResponsable ?? null,
+      dto.observaciones ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
   crearRecojoPrestamo(dto: CrearRecojoPrestamoDto) {
     return this.db.callFunctionJson<{
       error: string | null;
@@ -75,6 +98,13 @@ export class ActividadesModel {
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
+  }
+
+  iniciarVerificacion(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<{
+      error: string | null;
+      registro: unknown;
+    }>('age_iniciar_verificacion', [id, idUsuarioAuditoria ?? null]);
   }
 
   generarRecojosPorVencer(dto: GenerarRecojosDto) {
