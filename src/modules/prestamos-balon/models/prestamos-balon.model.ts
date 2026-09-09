@@ -108,6 +108,13 @@ export class PrestamosBalonModel {
       id,
       dto.idBalonNuevo ?? null,
       dto.idUsuarioAuditoria ?? null,
+      // Sin comprobante de venta: la renovación desde el POS pasa por
+      // ven_aplicar_efectos_pos, que sí liga la venta.
+      null,
+      // Mantener la garantía es el comportamiento por defecto de la función;
+      // va explícito porque un NULL aquí la trataría como "no mantener".
+      true,
+      dto.fechaRetornoPactada ?? null,
     ]);
   }
 }

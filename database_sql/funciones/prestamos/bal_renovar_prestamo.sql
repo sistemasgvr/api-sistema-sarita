@@ -5,9 +5,17 @@
 -- Actualizada por database_sql/migraciones/20260905_bal_renovar_prestamo_cilindro_comprometido.sql:
 -- la busqueda de cilindro de canje descarta los que tienen un detalle de
 -- prestamo abierto (por ejemplo, los recibidos en garantia).
+--
+-- Actualizada por database_sql/migraciones/20260909_prestamo_renovacion_fecha_y_garantia.sql:
+-- (1) recibe la fecha de retorno pactada, que antes se perdia: el prestamo de
+--     renovacion nacia sin vencimiento y quedaba fuera de los reportes de
+--     antiguedad; (2) la garantia ya no se re-apunta con un UPDATE, sino que se
+--     cierra y se abre otra encadenada al prestamo nuevo, apuntando al detalle
+--     del cilindro entregado — el mismo patron que el prestamo.
 DROP FUNCTION IF EXISTS bal_renovar_prestamo(p_id_prestamo integer, p_id_balon_nuevo integer, p_id_usuario integer);
+DROP FUNCTION IF EXISTS bal_renovar_prestamo(p_id_prestamo integer, p_id_balon_nuevo integer, p_id_usuario integer, p_id_comprobante_venta_nuevo integer, p_mantener_garantia boolean);
 
-CREATE OR REPLACE FUNCTION bal_renovar_prestamo(p_id_prestamo integer, p_id_balon_nuevo integer DEFAULT NULL::integer, p_id_usuario integer DEFAULT NULL::integer, p_id_comprobante_venta_nuevo integer DEFAULT NULL::integer, p_mantener_garantia boolean DEFAULT true)
+CREATE OR REPLACE FUNCTION bal_renovar_prestamo(p_id_prestamo integer, p_id_balon_nuevo integer DEFAULT NULL::integer, p_id_usuario integer DEFAULT NULL::integer, p_id_comprobante_venta_nuevo integer DEFAULT NULL::integer, p_mantener_garantia boolean DEFAULT true, p_fecha_retorno_pactada date DEFAULT NULL::date)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -21,6 +29,11 @@ DECLARE
     v_id_estado_prestamo_activo INTEGER;
     v_result JSON;
     v_id_prestamo_nuevo INTEGER;
+    v_fecha_retorno DATE;
+    v_id_detalle_entregado_nuevo INTEGER;
+    v_detalle_garantia RECORD;
+    v_id_estado_detalle_transferido INTEGER;
+    v_garantia RECORD;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -31,6 +44,17 @@ BEGIN
 
     IF NOT FOUND THEN
         RETURN json_build_object('error', 'El préstamo indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    -- La fecha que pactó el mostrador manda; si no llega, se hereda la del
+    -- préstamo que se renueva para no dejar el nuevo sin vencimiento.
+    v_fecha_retorno := COALESCE(p_fecha_retorno_pactada, v_prestamo.fecha_retorno_pactada);
+
+    IF v_fecha_retorno IS NOT NULL AND v_fecha_retorno < CURRENT_DATE THEN
+        RETURN json_build_object(
+            'error', 'La fecha de retorno pactada no puede ser anterior a hoy',
+            'registro', NULL
+        );
     END IF;
 
     SELECT pd.*
@@ -178,6 +202,7 @@ BEGIN
         p_id_proveedor          => v_prestamo.id_proveedor,
         p_id_almacen            => v_prestamo.id_almacen,
         p_fecha_salida          => CURRENT_DATE,
+        p_fecha_retorno_pactada => v_fecha_retorno,
         p_titulo                => 'Renovación · ' || COALESCE(v_prestamo.titulo, v_prestamo.numero_prestamo),
         p_observacion           => 'Renovación del préstamo ' || COALESCE(v_prestamo.numero_prestamo, p_id_prestamo::text),
         p_id_estado             => v_id_estado_prestamo_activo,
@@ -205,6 +230,7 @@ BEGIN
         p_id_producto            => v_detalle_entregado.id_producto,
         p_fecha_entregado        => CURRENT_DATE,
         p_fecha_prestamo         => CURRENT_DATE,
+        p_fecha_vencimiento      => v_fecha_retorno,
         p_observacion            => CASE
             WHEN v_id_balon_swap IS NOT NULL THEN 'Cilindro de reemplazo por renovación'
             ELSE 'Mismo cilindro, préstamo renovado'
@@ -213,23 +239,77 @@ BEGIN
         p_rol                    => 'ENTREGADO'
     );
     PERFORM ven_raise_si_error(v_result);
+    v_id_detalle_entregado_nuevo := (v_result->'registro'->>'id')::INTEGER;
 
     -- 4. Garantía del préstamo anterior — por defecto se reutiliza (dinero y/o
     -- cilindro), sin tocar su custodia. Si p_mantener_garantia es false, se deja
     -- tal cual en el préstamo anterior (ya cerrado) y el llamador es responsable
     -- de registrar una garantía nueva para el préstamo nuevo si corresponde.
+    --
+    -- Reutilizar no es re-apuntar el registro: igual que con el préstamo, la
+    -- garantía del anterior se cierra y se abre otra en el nuevo, encadenada.
+    -- Con el UPDATE anterior el préstamo cerrado se quedaba sin rastro de la
+    -- garantía que sí tuvo, y no había forma de saber desde cuándo respalda al
+    -- cilindro que está en la calle hoy.
     IF p_mantener_garantia THEN
+        -- 4.a Cilindro que el cliente dejó en custodia (rol GARANTIA).
         IF v_id_detalle_garantia IS NOT NULL THEN
+            SELECT pd.* INTO v_detalle_garantia
+            FROM bal_prestamo_detalle pd
+            WHERE pd.id = v_id_detalle_garantia;
+
+            SELECT lo.id INTO v_id_estado_detalle_transferido
+            FROM gen_lista_opciones lo
+            INNER JOIN gen_lista l ON lo.id_lista = l.id
+            WHERE l.nombre = 'EstadoPrestamoDetalle' AND lo.nombre = 'DEVUELTO' AND lo.estado = 1
+            LIMIT 1;
+
+            -- Cierre administrativo: el cilindro no se mueve de la empresa, solo
+            -- deja de colgar del préstamo viejo. Por eso no pasa por
+            -- bal_devolver_prestamo_detalle, que lo devolvería al cliente.
             UPDATE bal_prestamo_detalle
-            SET id_prestamo = v_id_prestamo_nuevo,
+            SET fecha_devolucion = CURRENT_DATE,
+                id_estado = v_id_estado_detalle_transferido,
+                observacion = TRIM(COALESCE(observacion || ' — ', '')
+                    || 'Garantía trasladada a la renovación'),
                 id_usuario_modificacion = p_id_usuario,
                 fecha_modificacion = NOW()
             WHERE id = v_id_detalle_garantia;
+
+            v_result := bal_crear_prestamo_detalle(
+                p_id_prestamo            => v_id_prestamo_nuevo,
+                p_id_balon               => v_detalle_garantia.id_balon,
+                p_id_producto            => v_detalle_garantia.id_producto,
+                p_fecha_entregado        => COALESCE(v_detalle_garantia.fecha_entregado, CURRENT_DATE),
+                p_fecha_prestamo         => CURRENT_DATE,
+                p_fecha_vencimiento      => v_fecha_retorno,
+                p_observacion            => 'Garantía que viene del préstamo '
+                    || COALESCE(v_prestamo.numero_prestamo, p_id_prestamo::TEXT),
+                p_id_usuario_auditoria   => p_id_usuario,
+                p_rol                    => 'GARANTIA'
+            );
+            PERFORM ven_raise_si_error(v_result);
         END IF;
 
-        UPDATE ven_garantia
-        SET id_prestamo = v_id_prestamo_nuevo
-        WHERE id_prestamo = p_id_prestamo AND estado = 1;
+        -- 4.b Garantía en dinero: cada saldo vivo se cierra y se reabre en el
+        -- préstamo nuevo, ligado al detalle del cilindro que respalda. No hay
+        -- movimiento de caja: el dinero ya está en la empresa.
+        FOR v_garantia IN
+            SELECT g.id
+            FROM ven_garantia g
+            WHERE g.id_prestamo = p_id_prestamo
+              AND g.estado = 1
+              AND COALESCE(g.monto_saldo, 0) > 0
+            ORDER BY g.id
+        LOOP
+            v_result := ven_transferir_garantia_prestamo(
+                p_id_garantia          => v_garantia.id,
+                p_id_prestamo_destino  => v_id_prestamo_nuevo,
+                p_id_prestamo_detalle  => v_id_detalle_entregado_nuevo,
+                p_id_usuario_auditoria => p_id_usuario
+            );
+            PERFORM ven_raise_si_error(v_result);
+        END LOOP;
     END IF;
 
     -- 5. Cierra el préstamo anterior (ya no le queda detalle pendiente).

@@ -2,6 +2,10 @@
 -- Function: ven_obtener_garantia
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.966Z
+-- Actualizada por database_sql/migraciones/20260909_prestamo_renovacion_fecha_y_garantia.sql:
+-- expone el detalle del cilindro que respalda, la garantía de la que viene y
+-- el monto transferido a la renovación.
+
 DROP FUNCTION IF EXISTS ven_obtener_garantia(p_id integer);
 
 CREATE OR REPLACE FUNCTION ven_obtener_garantia(p_id integer)
@@ -24,6 +28,8 @@ BEGIN
             ) AS nombre_cliente,
             c.numero_documento AS documento_cliente,
             g.id_prestamo,
+            g.id_prestamo_detalle,
+            g.id_garantia_origen,
             pr.numero_prestamo,
             pr.titulo AS titulo_prestamo,
             g.id_alquiler,
@@ -39,6 +45,7 @@ BEGIN
             g.fecha_registro,
             g.monto_cobrado,
             g.monto_devuelto,
+            g.monto_transferido,
             g.monto_saldo,
             g.id_estado,
             eg.nombre AS nombre_estado,

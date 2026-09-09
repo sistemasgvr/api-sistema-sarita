@@ -152,6 +152,14 @@ export class RenovarPrestamosBalonDto extends AuditoriaDto {
   @IsOptional()
   @IsNumber()
   idBalonNuevo?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Fecha de retorno pactada del préstamo nuevo. Si se omite, se hereda la del préstamo que se renueva.',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaRetornoPactada?: string;
 }
 
 export class UpdatePrestamosBalonDto extends AuditoriaDto {

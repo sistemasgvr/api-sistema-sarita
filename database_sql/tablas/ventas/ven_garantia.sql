@@ -6,6 +6,10 @@ CREATE TABLE ven_garantia (
     id integer NOT NULL,
     id_cliente integer NOT NULL,
     id_prestamo integer,
+    -- Detalle del cilindro que respalda la garantía (bal_prestamo_detalle).
+    id_prestamo_detalle integer,
+    -- Garantía de la que viene por renovación del préstamo.
+    id_garantia_origen integer,
     ubicacion character varying(150),
     id_producto integer,
     cantidad_venta numeric(12,4),
@@ -13,6 +17,8 @@ CREATE TABLE ven_garantia (
     fecha_registro date NOT NULL,
     monto_cobrado numeric(12,4) DEFAULT 0 NOT NULL,
     monto_devuelto numeric(12,4) DEFAULT 0 NOT NULL,
+    -- Saldo que pasó a la garantía del préstamo que renueva a este.
+    monto_transferido numeric(12,4) DEFAULT 0 NOT NULL,
     monto_saldo numeric(12,4) DEFAULT 0 NOT NULL,
     id_estado integer,
     observacion character varying(500),
@@ -68,6 +74,14 @@ ALTER TABLE ven_garantia
 
 ALTER TABLE ven_garantia
     ADD CONSTRAINT ven_garantia_id_prestamo_fkey FOREIGN KEY (id_prestamo) REFERENCES public.bal_prestamo(id);
+
+ALTER TABLE ven_garantia
+    ADD CONSTRAINT ven_garantia_id_prestamo_detalle_fkey FOREIGN KEY (id_prestamo_detalle) REFERENCES public.bal_prestamo_detalle(id);
+
+ALTER TABLE ven_garantia
+    ADD CONSTRAINT ven_garantia_id_garantia_origen_fkey FOREIGN KEY (id_garantia_origen) REFERENCES public.ven_garantia(id);
+
+CREATE INDEX idx_ven_garantia_origen ON ven_garantia USING btree (id_garantia_origen) WHERE (id_garantia_origen IS NOT NULL);
 
 ALTER TABLE ven_garantia
     ADD CONSTRAINT ven_garantia_id_producto_fkey FOREIGN KEY (id_producto) REFERENCES public.pro_producto(id);

@@ -1,4 +1,8 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Actualizada por database_sql/migraciones/20260909_prestamo_renovacion_fecha_y_garantia.sql:
+-- la renovación recibe la fecha de retorno pactada (antes se perdía) y la
+-- garantía queda ligada al detalle del cilindro que respalda.
+
 -- Function: ven_aplicar_efectos_pos
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.965Z
@@ -86,7 +90,8 @@ BEGIN
                 p_id_balon_nuevo             => NULLIF(v_item->>'idBalon', '')::INTEGER,
                 p_id_usuario                 => p_id_usuario,
                 p_id_comprobante_venta_nuevo => p_id_comprobante,
-                p_mantener_garantia          => COALESCE((v_item->>'mantenerGarantiaPrestamo')::BOOLEAN, TRUE)
+                p_mantener_garantia          => COALESCE((v_item->>'mantenerGarantiaPrestamo')::BOOLEAN, TRUE),
+                p_fecha_retorno_pactada      => NULLIF(v_item->>'fechaRetornoPactada', '')::DATE
             );
             PERFORM ven_raise_si_error(v_result);
             v_id_prestamo := (v_result->'registro'->>'id')::INTEGER;
@@ -191,7 +196,8 @@ BEGIN
                 NULL,
                 NULLIF(v_garantia->>'idMedioPago', '')::INTEGER,
                 NULLIF(v_garantia->>'idCuentaBancaria', '')::INTEGER,
-                NULLIF(TRIM(COALESCE(v_garantia->>'numeroOperacion', '')), '')
+                NULLIF(TRIM(COALESCE(v_garantia->>'numeroOperacion', '')), ''),
+                v_id_prestamo_detalle
             );
             PERFORM ven_raise_si_error(v_result);
         END IF;
