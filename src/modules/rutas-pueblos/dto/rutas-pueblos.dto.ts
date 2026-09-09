@@ -62,6 +62,44 @@ export class RutaPuebloDetalleSalidaDto {
   observacion?: string;
 }
 
+export class RutaPuebloDetalleProductoDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  idProducto: number;
+
+  @ApiProperty({ description: 'Cantidad a enviar del producto' })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.0001)
+  cantidad: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observacion?: string;
+}
+
+export class RutaPuebloDetalleRetornoProductoDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  idProducto: number;
+
+  @ApiProperty({ description: 'Cantidad retornada al almacén' })
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  cantidadRetorno: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observacion?: string;
+}
+
 export class CreateRutaPuebloDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -111,11 +149,22 @@ export class CreateRutaPuebloDto extends AuditoriaDto {
   @MaxLength(500)
   observacion?: string;
 
-  @ApiProperty({ type: [RutaPuebloDetalleSalidaDto] })
+  @ApiPropertyOptional({ type: [RutaPuebloDetalleSalidaDto] })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => RutaPuebloDetalleSalidaDto)
-  detalles: RutaPuebloDetalleSalidaDto[];
+  detalles?: RutaPuebloDetalleSalidaDto[];
+
+  @ApiPropertyOptional({
+    type: [RutaPuebloDetalleProductoDto],
+    description: 'Productos a enviar en la ruta (opcional)',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RutaPuebloDetalleProductoDto)
+  detallesProductos?: RutaPuebloDetalleProductoDto[];
 }
 
 export class UpdateRutaPuebloDto extends AuditoriaDto {
@@ -188,12 +237,22 @@ export class RutaPuebloDetalleRetornoDto {
 }
 
 export class RegistrarRetornoRutaPuebloDto extends AuditoriaDto {
-  @ApiProperty({ type: [RutaPuebloDetalleRetornoDto] })
+  @ApiPropertyOptional({ type: [RutaPuebloDetalleRetornoDto] })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => RutaPuebloDetalleRetornoDto)
-  @IsNotEmpty()
-  detalles: RutaPuebloDetalleRetornoDto[];
+  detalles?: RutaPuebloDetalleRetornoDto[];
+
+  @ApiPropertyOptional({
+    type: [RutaPuebloDetalleRetornoProductoDto],
+    description: 'Retorno de productos (opcional)',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RutaPuebloDetalleRetornoProductoDto)
+  detallesProductos?: RutaPuebloDetalleRetornoProductoDto[];
 }
 
 export class CerrarRutaPuebloDto extends AuditoriaDto {

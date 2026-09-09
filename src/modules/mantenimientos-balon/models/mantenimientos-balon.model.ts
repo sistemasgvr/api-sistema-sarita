@@ -34,7 +34,7 @@ export class MantenimientosBalonModel {
 
   crear(dto: CreateMantenimientosBalonDto) {
     return this.db.callFunctionJson<AuthSingleResult>('bal_crear_mantenimiento', [
-      dto.idBalon ?? null,
+      dto.idBalon ?? dto.idProducto ?? null,
       dto.fechaIngreso ?? null,
       dto.idTipoMantenimiento ?? null,
       dto.fechaSalida ?? null,

@@ -47,10 +47,17 @@ export class FiltroMantenimientosBalonDto extends FiltroPaginacionDto {
 }
 
 export class CreateMantenimientosBalonDto extends AuditoriaDto {
-  @ApiProperty()
+  @ApiPropertyOptional({ description: 'ID del cilindro (requerido si no se envía idProducto)' })
   @Type(() => Number)
+  @IsOptional()
   @IsNumber()
-  idBalon!: number;
+  idBalon?: number;
+
+  @ApiPropertyOptional({ description: 'ID del producto (regulador/accesorio). Requerido si no se envía idBalon.' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  idProducto?: number;
 
   @ApiProperty()
   @IsDateString()

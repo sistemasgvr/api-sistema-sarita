@@ -53,6 +53,13 @@ export class RutasPueblosModel {
         })),
       ),
       dto.idUsuarioAuditoria ?? null,
+      JSON.stringify(
+        (dto.detallesProductos ?? []).map((d) => ({
+          idProducto: d.idProducto,
+          cantidad: d.cantidad,
+          observacion: d.observacion ?? null,
+        })),
+      ),
     ]);
   }
 
@@ -94,6 +101,13 @@ export class RutasPueblosModel {
           })),
         ),
         dto.idUsuarioAuditoria ?? null,
+        JSON.stringify(
+          (dto.detallesProductos ?? []).map((d) => ({
+            idProducto: d.idProducto,
+            cantidadRetorno: d.cantidadRetorno,
+            observacion: d.observacion ?? null,
+          })),
+        ),
       ],
     );
   }
