@@ -21,12 +21,16 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   AsignarResponsableActividadDto,
   CreateActividadDto,
+  CulminarRecojoDto,
+  CrearRecojoOrigenDto,
   FiltroActividadesDto,
   FiltroActividadesProximasDto,
   UpdateActividadDto,
   CrearRecojoPrestamoDto,
   FiltroRankingActividadesDto,
+  FiltroVencidosRecojoDto,
   GenerarRecojosDto,
+  IniciarVerificacionDto,
   VerificarActividadDto,
 } from '../dto/actividades.dto';
 import { ActividadesLogic } from '../logic/actividades.logic';
@@ -61,11 +65,31 @@ export class ActividadesController {
     return this.actividadesLogic.ranking(filtros);
   }
 
+  @Get('vencidos-recojo')
+  @Permisos(PermisoBanderas.ACTIVIDADES_LISTAR)
+  @ApiOperation({
+    summary:
+      'Préstamos y alquileres vencidos disponibles para programar recojo',
+  })
+  listarVencidosRecojo(@Query() filtros: FiltroVencidosRecojoDto) {
+    return this.actividadesLogic.listarVencidosRecojo(filtros);
+  }
+
+  @Post('recojo')
+  @Permisos(PermisoBanderas.ACTIVIDADES_CREAR)
+  @ApiOperation({
+    summary:
+      'Crea actividad RECOJO desde un préstamo o alquiler vencido (solo FK)',
+  })
+  crearRecojo(@Body() dto: CrearRecojoOrigenDto) {
+    return this.actividadesLogic.crearRecojoOrigen(dto);
+  }
+
   @Post('recojo-prestamo')
   @Permisos(PermisoBanderas.ACTIVIDADES_CREAR)
   @ApiOperation({
     summary:
-      'Crea la actividad de recojo de un préstamo con sus cilindros pendientes',
+      'Alias: crea recojo de un préstamo (delegado a age_crear_recojo_origen)',
   })
   crearRecojoPrestamo(@Body() dto: CrearRecojoPrestamoDto) {
     return this.actividadesLogic.crearRecojoPrestamo(dto);
@@ -79,6 +103,22 @@ export class ActividadesController {
   })
   generarRecojos(@Body() dto: GenerarRecojosDto) {
     return this.actividadesLogic.generarRecojosPorVencer(dto);
+  }
+
+  @Post(':id/iniciar-verificacion')
+  @Permisos(PermisoBanderas.ACTIVIDADES_VERIFICAR)
+  @ApiOperation({
+    summary:
+      'Materializa ítems del origen (préstamo/alquiler) antes del escaneo',
+  })
+  iniciarVerificacion(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: IniciarVerificacionDto,
+  ) {
+    return this.actividadesLogic.iniciarVerificacion(
+      id,
+      dto.idUsuarioAuditoria,
+    );
   }
 
   @Post(':id/verificar')
@@ -158,6 +198,62 @@ export class ActividadesController {
     return this.actividadesLogic.cancelar(id, dto.idUsuarioAuditoria);
   }
 
+  @Patch(':id/iniciar-entrega')
+  @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
+  @ApiOperation({
+    summary:
+      'Pone el reparto EN_RUTA. Exige responsable y la salida verificada al 100%',
+  })
+  iniciarEntrega(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.actividadesLogic.iniciarEntrega(id, dto.idUsuarioAuditoria);
+  }
+
+  @Patch(':id/culminar-entrega')
+  @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
+  @ApiOperation({
+    summary:
+      'Cierra el reparto como REALIZADA. Exige estar EN_RUTA y la llegada verificada al 100%',
+  })
+  culminarEntrega(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.actividadesLogic.culminarEntrega(id, dto.idUsuarioAuditoria);
+  }
+
+  @Patch(':id/iniciar-recojo')
+  @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
+  @ApiOperation({
+    summary:
+      'Pone el recojo EN_RUTA. Exige responsable e ítems del préstamo/alquiler',
+  })
+  iniciarRecojo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+  ) {
+    return this.actividadesLogic.iniciarRecojo(id, dto.idUsuarioAuditoria);
+  }
+
+  @Patch(':id/culminar-recojo')
+  @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
+  @ApiOperation({
+    summary:
+      'Cierra el recojo como REALIZADA e ingresa los cilindros al almacén destino',
+  })
+  culminarRecojo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CulminarRecojoDto,
+  ) {
+    return this.actividadesLogic.culminarRecojo(
+      id,
+      dto.idAlmacenDestino,
+      dto.idUsuarioAuditoria,
+    );
+  }
+
   @Patch(':id/responsable')
   @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
   @ApiOperation({
@@ -172,6 +268,8 @@ export class ActividadesController {
       id,
       dto.idUsuarioAuditoria,
       dto.idTrabajadorResponsable ?? null,
+      dto.idTrabajadorApoyo ?? null,
+      dto.liberar ?? false,
     );
   }
 }

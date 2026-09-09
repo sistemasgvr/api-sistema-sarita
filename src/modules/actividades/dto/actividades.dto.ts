@@ -4,6 +4,7 @@ import {
   ArrayNotEmpty,
   Min,
   IsArray,
+  IsBoolean,
   IsIn,
   IsDateString,
   IsInt,
@@ -152,7 +153,7 @@ export class ActividadItemDto {
 
 export class CreateActividadDto extends AuditoriaDto {
   @ApiProperty({ example: 'Visita de seguimiento', maxLength: 150 })
-  @ValidateIf((o: CreateActividadDto) => !o.idComprobante)
+  @ValidateIf((o: CreateActividadDto) => !o.idComprobante && !o.idDocSalida)
   @IsString()
   @IsNotEmpty()
   @MaxLength(150)
@@ -218,12 +219,12 @@ export class CreateActividadDto extends AuditoriaDto {
 
   @ApiPropertyOptional({
     example: 5,
-    description: 'Guía de remisión origen del reparto',
+    description: 'Orden de salida (doc_salida) origen del reparto',
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idGuiaRemision?: number;
+  idDocSalida?: number;
 
   @ApiPropertyOptional({ type: [ActividadItemDto] })
   @IsOptional()
@@ -305,11 +306,13 @@ export class UpdateActividadDto extends AuditoriaDto {
   @IsInt()
   idComprobante?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Orden de salida (doc_salida) origen del reparto',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idGuiaRemision?: number;
+  idDocSalida?: number;
 
   @ApiPropertyOptional({ type: [ActividadItemDto] })
   @IsOptional()
@@ -334,12 +337,77 @@ export class UpdateActividadDto extends AuditoriaDto {
 export class AsignarResponsableActividadDto extends AuditoriaDto {
   @ApiPropertyOptional({
     example: 12,
-    description: 'Trabajador responsable (tra_trabajadores). null lo libera.',
+    description:
+      'Trabajador responsable (tra_trabajadores). Obligatorio salvo que liberar sea true.',
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   idTrabajadorResponsable?: number | null;
+
+  @ApiPropertyOptional({
+    example: 15,
+    description:
+      'Segunda persona que acompaña la entrega (sube los balones). Opcional.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idTrabajadorApoyo?: number | null;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'true libera la actividad (limpia responsable y apoyo). Antes se liberaba mandando el responsable en null, lo que hacía que "tomar" sin trabajador vinculado dejara la actividad sin asignar en silencio.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  liberar?: boolean;
+}
+
+export class LecturaVerificacionDto {
+  @ApiPropertyOptional({
+    example: 'BAL-OXM10-001',
+    description:
+      'Código leído con la pistola: de cilindro, número de serie o código de producto',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  codigo?: string;
+
+  @ApiPropertyOptional({
+    example: 45,
+    description:
+      'Ítem a confirmar por cantidad (accesorios). Alternativa a codigo.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idItem?: number;
+
+  @ApiPropertyOptional({
+    example: 5,
+    description: 'Unidades confirmadas. Solo aplica a ítems de accesorio.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  cantidad?: number;
+
+  @ApiPropertyOptional({
+    default: true,
+    description: 'false deja el ítem CON_OBSERVACION en vez de OK',
+  })
+  @IsOptional()
+  @IsBoolean()
+  conforme?: boolean;
+
+  @ApiPropertyOptional({ description: 'Observación de esta lectura concreta' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  observacion?: string;
 }
 
 export class VerificarActividadDto extends AuditoriaDto {
@@ -349,26 +417,59 @@ export class VerificarActividadDto extends AuditoriaDto {
   momento!: 'SALIDA' | 'LLEGADA';
 
   @ApiProperty({
-    type: [String],
-    example: ['BAL-OXM10-001'],
+    type: [LecturaVerificacionDto],
     description:
-      'Códigos leídos con la pistola: de cilindro, número de serie o código de producto',
+      'Cada lectura trae su propia conformidad: un escaneo (codigo) o una confirmación de cantidad (idItem + cantidad)',
   })
   @IsArray()
   @ArrayNotEmpty()
-  @IsString({ each: true })
-  codigos!: string[];
+  @ValidateNested({ each: true })
+  @Type(() => LecturaVerificacionDto)
+  lecturas!: LecturaVerificacionDto[];
+}
+
+export class FiltroVencidosRecojoDto extends FiltroPaginacionDto {}
+
+export class CrearRecojoOrigenDto extends AuditoriaDto {
+  @ApiProperty({ enum: ['PRESTAMO', 'ALQUILER'], example: 'PRESTAMO' })
+  @IsString()
+  @IsIn(['PRESTAMO', 'ALQUILER'])
+  tipoOrigen!: 'PRESTAMO' | 'ALQUILER';
+
+  @ApiProperty({ example: 12, description: 'Id del préstamo o alquiler' })
+  @Type(() => Number)
+  @IsInt()
+  idOrigen!: number;
 
   @ApiPropertyOptional({
-    description:
-      'Si viene, los ítems escaneados quedan CON_OBSERVACION en vez de OK',
+    description: 'Por defecto, la fecha pactada del origen',
   })
+  @IsOptional()
+  @IsDateString()
+  fechaProgramada?: string;
+
+  @ApiProperty({
+    example: '09:00',
+    description: 'Hora de inicio estimada del recojo (obligatoria)',
+  })
+  @IsString()
+  @IsNotEmpty()
+  horaInicioEstimada!: string;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  idTrabajadorResponsable?: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  observacion?: string;
+  observaciones?: string;
 }
 
+/** @deprecated Preferir CrearRecojoOrigenDto / POST recojo */
 export class CrearRecojoPrestamoDto extends AuditoriaDto {
   @ApiProperty()
   @Type(() => Number)
@@ -382,6 +483,14 @@ export class CrearRecojoPrestamoDto extends AuditoriaDto {
   @IsDateString()
   fechaProgramada?: string;
 
+  @ApiPropertyOptional({
+    example: '09:00',
+    description: 'Hora de inicio estimada del recojo',
+  })
+  @IsOptional()
+  @IsString()
+  horaInicioEstimada?: string;
+
   @ApiPropertyOptional()
   @Type(() => Number)
   @IsOptional()
@@ -393,6 +502,19 @@ export class CrearRecojoPrestamoDto extends AuditoriaDto {
   @IsString()
   @MaxLength(500)
   observaciones?: string;
+}
+
+export class IniciarVerificacionDto extends AuditoriaDto {}
+
+export class CulminarRecojoDto extends AuditoriaDto {
+  @ApiProperty({
+    example: 1,
+    description:
+      'Almacén donde ingresan los cilindros / accesorios al culminar el recojo',
+  })
+  @Type(() => Number)
+  @IsInt()
+  idAlmacenDestino!: number;
 }
 
 export class GenerarRecojosDto extends AuditoriaDto {

@@ -1,3 +1,15 @@
+-- ============================================================
+-- Migracion: doc_obtener_salida expone tipo/gas/almacen en VENTA+PRESTAMO
+-- Fecha: 2026-09-08
+--
+-- La rama PROPIO ya devolvia id_tipo_balon, nombre_tipo_balon, gas del
+-- cilindro, capacidad y almacen. Las ramas VENTA y PRESTAMO (detalle tomado
+-- de la venta) solo devolvia codigo_balon, asi que la UI mostraba
+-- «Sin tipo» y «Sin gas asociado» aunque el cilindro si tuviera ficha.
+--
+-- Aplicar con:
+--   node database_sql/scripts/apply-migration.js database_sql/migraciones/20260908_doc_obtener_salida_venta_prestamo_tipo_gas.sql
+-- ============================================================
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: doc_obtener_salida
 -- Overloads: 1
@@ -31,28 +43,27 @@ BEGIN
         SELECT (vc.estado = 0) INTO v_venta_anulada FROM ven_comprobante vc WHERE vc.id = v_id_venta;
 
         -- El detalle de una orden ligada a venta se arma por JOIN (principio
-        -- "detalle no duplicado") y tiene dos orígenes:
-        --   VENTA    — los ítems/productos del comprobante. Si la venta fue
-        --              anulada sus líneas quedaron en estado=0
-        --              (ven_eliminar_comprobante), así que el OR con
-        --              v_venta_anulada evita que el documento se vea vacío en
-        --              vez de mostrar qué se vendió originalmente. Cuando el
-        --              ítem ya trae id_balon, esa fila representa el cilindro
-        --              y el gas despachado.
-        --   PRESTAMO — cilindros entregados en préstamo por esa misma venta
-        --              que NO aparezcan ya en el detalle de la venta. Si el
-        --              gas se vendió ligado al mismo cilindro, repetirlo aquí
-        --              duplicaba el balón en la orden de salida.
-        -- Se excluyen dos cosas: las líneas de garantía antiguas (garantía es
+        -- "detalle no duplicado") y tiene dos orÃ­genes:
+        --   VENTA    â€” los Ã­tems/productos del comprobante. Si la venta fue
+        --              anulada sus lÃ­neas quedaron en estado=0
+        --              (ven_eliminar_comprobante), asÃ­ que el OR con
+        --              v_venta_anulada evita que el documento se vea vacÃ­o en
+        --              vez de mostrar quÃ© se vendiÃ³ originalmente.
+        --   PRESTAMO â€” los cilindros entregados en prÃ©stamo por esa misma venta.
+        --              Van como fila propia aunque la lÃ­nea de gas ya traiga ese
+        --              mismo id_balon: son dos cosas distintas que el cliente se
+        --              lleva a la vez (el contenido y el envase), y la orden de
+        --              salida tiene que mencionar ambas.
+        -- Se excluyen dos cosas: las lÃ­neas de garantÃ­a antiguas (garantÃ­a es
         -- dinero, no se despacha) y los cilindros de rol GARANTIA, que entran al
-        -- almacén en vez de salir.
-        -- El item de los cilindros continúa la numeración de la venta, así que
+        -- almacÃ©n en vez de salir.
+        -- El item de los cilindros continÃºa la numeraciÃ³n de la venta, asÃ­ que
         -- se calcula antes: dentro del UNION no hay forma de mirar el otro lado.
         SELECT COALESCE(MAX(vd.item), 0) INTO v_ultimo_item_venta
         FROM ven_comprobante_detalle vd
         WHERE vd.id_comprobante = v_id_venta
           AND (vd.estado = 1 OR v_venta_anulada)
-          AND COALESCE(vd.descripcion, '') !~* 'garant[ií]a';
+          AND COALESCE(vd.descripcion, '') !~* 'garant[iÃ­]a';
 
         SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.item), '[]'::JSON) INTO v_detalle
         FROM (
@@ -91,7 +102,7 @@ BEGIN
             LEFT JOIN gen_lista_opciones um ON um.id = vd.id_unidad_medida
             WHERE vd.id_comprobante = v_id_venta
               AND (vd.estado = 1 OR v_venta_anulada)
-              AND COALESCE(vd.descripcion, '') !~* 'garant[ií]a'
+              AND COALESCE(vd.descripcion, '') !~* 'garant[iÃ­]a'
             UNION ALL
             SELECT
                 pd.id,
@@ -99,8 +110,8 @@ BEGIN
                 NULL::INTEGER AS id_producto,
                 b.codigo_balon AS codigo_producto,
                 (
-                    'Cilindro en préstamo — '
-                    || COALESCE(b.codigo_balon, 'sin código')
+                    'Cilindro en prÃ©stamo â€” '
+                    || COALESCE(b.codigo_balon, 'sin cÃ³digo')
                     || COALESCE(' (' || tb.nombre || ')', '')
                 )::VARCHAR AS descripcion,
                 pd.id_balon,
@@ -134,14 +145,6 @@ BEGIN
               AND pr.estado = 1
               AND pd.rol = 'ENTREGADO'
               AND pd.id_balon IS NOT NULL
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM ven_comprobante_detalle vd_bal
-                  WHERE vd_bal.id_comprobante = v_id_venta
-                    AND vd_bal.id_balon = pd.id_balon
-                    AND (vd_bal.estado = 1 OR v_venta_anulada)
-                    AND COALESCE(vd_bal.descripcion, '') !~* 'garant[ií]a'
-              )
         ) t;
     ELSE
         SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.item), '[]'::JSON) INTO v_detalle
@@ -154,14 +157,14 @@ BEGIN
                 COALESCE(dd.descripcion, p.nombre, b.codigo_balon) AS descripcion,
                 dd.id_balon,
                 b.codigo_balon,
-                -- Tipo y almacén del cilindro: la card del detalle los muestra
-                -- igual que el selector, y el detalle no los tenía.
+                -- Tipo y almacÃ©n del cilindro: la card del detalle los muestra
+                -- igual que el selector, y el detalle no los tenÃ­a.
                 b.id_tipo_balon,
                 tb.nombre AS nombre_tipo_balon,
                 alm.nombre AS nombre_almacen_balon,
                 -- Capacidad del tipo: en planta externa el editor la suma por
-                -- gas para topar cuánto se puede declarar que sale. Sin esto,
-                -- al recargar un documento ya guardado no habría con qué
+                -- gas para topar cuÃ¡nto se puede declarar que sale. Sin esto,
+                -- al recargar un documento ya guardado no habrÃ­a con quÃ©
                 -- calcular ese tope.
                 tb.capacidad AS capacidad_balon,
                 umtb.nombre AS unidad_capacidad_balon,
@@ -202,8 +205,8 @@ BEGIN
             d.id_doc_salida_origen,
             d.id_sucursal, suc.nombre AS nombre_sucursal,
             d.id_almacen, alm.nombre AS nombre_almacen,
-            -- Destino del traslado: además de mover el stock, es la dirección
-            -- de llegada por defecto de la guía de remisión.
+            -- Destino del traslado: ademÃ¡s de mover el stock, es la direcciÃ³n
+            -- de llegada por defecto de la guÃ­a de remisiÃ³n.
             d.id_almacen_destino,
             almdest.nombre AS nombre_almacen_destino,
             almdest.ubicacion AS direccion_almacen_destino,
@@ -211,8 +214,8 @@ BEGIN
             almdest.id_provincia AS id_provincia_almacen_destino,
             almdest.id_departamento AS id_departamento_almacen_destino,
             depalmdest.id_pais AS id_pais_almacen_destino,
-            -- Ubicación del almacén: es el punto de partida por defecto de la
-            -- guía de remisión, para no volver a tipear el origen.
+            -- UbicaciÃ³n del almacÃ©n: es el punto de partida por defecto de la
+            -- guÃ­a de remisiÃ³n, para no volver a tipear el origen.
             alm.ubicacion AS direccion_almacen,
             alm.id_distrito AS id_distrito_almacen,
             alm.id_provincia AS id_provincia_almacen,

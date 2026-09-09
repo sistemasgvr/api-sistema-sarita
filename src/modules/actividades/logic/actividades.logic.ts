@@ -7,10 +7,12 @@ import {
 import { ResponseHelper } from '../../../common/helpers/response.helper';
 import {
   CreateActividadDto,
+  CrearRecojoOrigenDto,
   FiltroActividadesDto,
   UpdateActividadDto,
   CrearRecojoPrestamoDto,
   FiltroRankingActividadesDto,
+  FiltroVencidosRecojoDto,
   GenerarRecojosDto,
   VerificarActividadDto,
 } from '../dto/actividades.dto';
@@ -30,6 +32,11 @@ export class ActividadesLogic {
     return result.registros ?? [];
   }
 
+  async listarVencidosRecojo(filtros: FiltroVencidosRecojoDto) {
+    const result = await this.actividadesModel.listarVencidosRecojo(filtros);
+    return mapListResult(result, filtros);
+  }
+
   async verificar(id: number, dto: VerificarActividadDto) {
     const result = await this.actividadesModel.verificar(id, dto);
     if (result.error) {
@@ -40,7 +47,57 @@ export class ActividadesLogic {
       coincidencias: result.registro?.coincidencias ?? 0,
       noPertenecen: result.registro?.no_pertenecen ?? 0,
       pendientes: result.registro?.pendientes ?? 0,
+      observados: result.registro?.observados ?? 0,
       completo: result.registro?.completo ?? false,
+    });
+  }
+
+  async iniciarEntrega(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.actividadesModel.iniciarEntrega(
+      id,
+      idUsuarioAuditoria,
+    );
+    return mapSingleResult(result, `Actividad ${id} no encontrada`);
+  }
+
+  async culminarEntrega(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.actividadesModel.culminarEntrega(
+      id,
+      idUsuarioAuditoria,
+    );
+    return mapSingleResult(result, `Actividad ${id} no encontrada`);
+  }
+
+  async iniciarRecojo(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.actividadesModel.iniciarRecojo(
+      id,
+      idUsuarioAuditoria,
+    );
+    return mapSingleResult(result, `Actividad ${id} no encontrada`);
+  }
+
+  async culminarRecojo(
+    id: number,
+    idAlmacenDestino: number,
+    idUsuarioAuditoria?: number,
+  ) {
+    const result = await this.actividadesModel.culminarRecojo(
+      id,
+      idAlmacenDestino,
+      idUsuarioAuditoria,
+    );
+    return mapSingleResult(result, `Actividad ${id} no encontrada`);
+  }
+
+  async crearRecojoOrigen(dto: CrearRecojoOrigenDto) {
+    const result = await this.actividadesModel.crearRecojoOrigen(dto);
+    if (result.error) {
+      throw new BadRequestException(result.error);
+    }
+    return ResponseHelper.success({
+      id: result.registro?.id,
+      creada: result.registro?.creada ?? false,
+      items: result.registro?.items ?? 0,
     });
   }
 
@@ -54,6 +111,20 @@ export class ActividadesLogic {
       creada: result.registro?.creada ?? false,
       items: result.registro?.items ?? 0,
     });
+  }
+
+  async iniciarVerificacion(id: number, idUsuarioAuditoria?: number) {
+    const result = await this.actividadesModel.iniciarVerificacion(
+      id,
+      idUsuarioAuditoria,
+    );
+    if (result.error) {
+      throw new BadRequestException(result.error);
+    }
+    if (!result.registro) {
+      throw new BadRequestException(`Actividad ${id} no encontrada`);
+    }
+    return result.registro;
   }
 
   async generarRecojosPorVencer(dto: GenerarRecojosDto) {
@@ -101,7 +172,7 @@ export class ActividadesLogic {
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria,
       dto.idComprobante ?? null,
-      dto.idGuiaRemision ?? null,
+      dto.idDocSalida ?? null,
       dto.items ?? null,
     );
     return mapSingleResult(result, 'No se pudo crear la actividad');
@@ -123,7 +194,7 @@ export class ActividadesLogic {
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria,
       dto.idComprobante ?? null,
-      dto.idGuiaRemision ?? null,
+      dto.idDocSalida ?? null,
       dto.items ?? null,
     );
     return mapSingleResult(result, `Actividad ${id} no encontrada`);
@@ -151,11 +222,15 @@ export class ActividadesLogic {
     id: number,
     idUsuarioAuditoria?: number,
     idTrabajadorResponsable?: number | null,
+    idTrabajadorApoyo?: number | null,
+    liberar = false,
   ) {
     const result = await this.actividadesModel.asignarResponsable(
       id,
       idUsuarioAuditoria,
       idTrabajadorResponsable,
+      idTrabajadorApoyo,
+      liberar,
     );
     return mapSingleResult(result, `Actividad ${id} no encontrada`);
   }

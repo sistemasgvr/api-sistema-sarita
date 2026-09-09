@@ -64,4 +64,36 @@ export class LoginLogic {
 
     return result;
   }
+
+  /**
+   * Perfil vivo desde BD (no el snapshot del JWT): incluye id_trabajador
+   * recién vinculado sin forzar re-login.
+   */
+  async me(idUsuario: number, sesion: {
+    id: number;
+    id_usuario: number;
+    nombre_usuario: string;
+    correo: string;
+    fecha_inicio: string;
+  }) {
+    const result = await this.loginModel.obtenerUsuarioPorId(idUsuario);
+    const usuario = result.registro;
+
+    if (!usuario) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo');
+    }
+
+    const permisosResult = await this.loginModel.obtenerPermisosUsuario(idUsuario);
+
+    return {
+      id: usuario.id,
+      nombre: usuario.nombre,
+      correo: usuario.correo,
+      estado: usuario.estado,
+      id_trabajador: usuario.id_trabajador ?? null,
+      roles: usuario.roles ?? [],
+      permisos: permisosResult.permisos ?? [],
+      sesion,
+    };
+  }
 }

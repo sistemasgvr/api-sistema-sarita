@@ -1,7 +1,6 @@
 -- Synced from DEV via database_sql/scripts/sync-tables-from-dev.js
 -- Table: age_actividad
--- Generated: 2026-09-02T21:40:38.061Z
-
+-- Generated: 2026-09-09T16:16:48.728Z
 CREATE TABLE age_actividad (
     id integer NOT NULL,
     titulo character varying(150) NOT NULL,
@@ -23,8 +22,11 @@ CREATE TABLE age_actividad (
     fecha_modificacion timestamp without time zone DEFAULT now(),
     id_chofer_responsable integer,
     id_comprobante integer,
-    id_guia_remision integer,
-    id_trabajador_responsable integer
+    id_trabajador_responsable integer,
+    id_doc_salida integer,
+    id_prestamo integer,
+    id_tipo_origen integer,
+    id_alquiler integer
 );
 
 CREATE SEQUENCE age_actividad_id_seq
@@ -46,7 +48,16 @@ CREATE INDEX idx_age_actividad_chofer ON age_actividad USING btree (id_chofer_re
 
 CREATE INDEX idx_age_actividad_comprobante ON age_actividad USING btree (id_comprobante) WHERE (id_comprobante IS NOT NULL);
 
+CREATE INDEX idx_age_actividad_doc ON age_actividad USING btree (id_doc_salida);
+
+CREATE INDEX idx_age_actividad_id_alquiler ON age_actividad USING btree (id_alquiler) WHERE (id_alquiler IS NOT NULL);
+
+CREATE INDEX idx_age_actividad_prestamo ON age_actividad USING btree (id_prestamo);
+
 CREATE INDEX idx_age_actividad_trabajador ON age_actividad USING btree (id_trabajador_responsable) WHERE (id_trabajador_responsable IS NOT NULL);
+
+ALTER TABLE age_actividad
+    ADD CONSTRAINT age_actividad_id_alquiler_fkey FOREIGN KEY (id_alquiler) REFERENCES public.bal_alquiler(id);
 
 ALTER TABLE age_actividad
     ADD CONSTRAINT age_actividad_id_chofer_responsable_fkey FOREIGN KEY (id_chofer_responsable) REFERENCES public.gen_chofer(id);
@@ -58,16 +69,22 @@ ALTER TABLE age_actividad
     ADD CONSTRAINT age_actividad_id_comprobante_fkey FOREIGN KEY (id_comprobante) REFERENCES public.ven_comprobante(id);
 
 ALTER TABLE age_actividad
+    ADD CONSTRAINT age_actividad_id_doc_salida_fkey FOREIGN KEY (id_doc_salida) REFERENCES public.doc_salida(id);
+
+ALTER TABLE age_actividad
     ADD CONSTRAINT age_actividad_id_estado_actividad_fkey FOREIGN KEY (id_estado_actividad) REFERENCES public.gen_lista_opciones(id);
 
 ALTER TABLE age_actividad
-    ADD CONSTRAINT age_actividad_id_guia_remision_fkey FOREIGN KEY (id_guia_remision) REFERENCES public.gre_guia_remision(id);
+    ADD CONSTRAINT age_actividad_id_prestamo_fkey FOREIGN KEY (id_prestamo) REFERENCES public.bal_prestamo(id);
 
 ALTER TABLE age_actividad
     ADD CONSTRAINT age_actividad_id_prioridad_fkey FOREIGN KEY (id_prioridad) REFERENCES public.gen_lista_opciones(id);
 
 ALTER TABLE age_actividad
     ADD CONSTRAINT age_actividad_id_tipo_actividad_fkey FOREIGN KEY (id_tipo_actividad) REFERENCES public.gen_lista_opciones(id);
+
+ALTER TABLE age_actividad
+    ADD CONSTRAINT age_actividad_id_tipo_origen_fkey FOREIGN KEY (id_tipo_origen) REFERENCES public.gen_lista_opciones(id);
 
 ALTER TABLE age_actividad
     ADD CONSTRAINT age_actividad_id_trabajador_responsable_fkey FOREIGN KEY (id_trabajador_responsable) REFERENCES public.tra_trabajadores(id);

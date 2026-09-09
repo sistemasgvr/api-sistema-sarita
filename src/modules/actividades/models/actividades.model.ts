@@ -7,9 +7,11 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import {
   ActividadItemDto,
+  CrearRecojoOrigenDto,
   CrearRecojoPrestamoDto,
   FiltroActividadesDto,
   FiltroRankingActividadesDto,
+  FiltroVencidosRecojoDto,
   GenerarRecojosDto,
   VerificarActividadDto,
 } from '../dto/actividades.dto';
@@ -22,6 +24,7 @@ export interface VerificacionActividadResult {
     coincidencias: number;
     no_pertenecen: number;
     pendientes: number;
+    observados: number;
     completo: boolean;
   } | null;
 }
@@ -52,16 +55,79 @@ export class ActividadesModel {
   }
 
   verificar(id: number, dto: VerificarActividadDto) {
+    // La función SQL lee las claves en snake_case, como el resto del dominio.
+    const lecturas = dto.lecturas.map((lectura) => ({
+      codigo: lectura.codigo ?? null,
+      id_item: lectura.idItem ?? null,
+      cantidad: lectura.cantidad ?? null,
+      conforme: lectura.conforme ?? true,
+      observacion: lectura.observacion ?? null,
+    }));
+
     return this.db.callFunctionJson<VerificacionActividadResult>(
       'age_registrar_verificacion',
       [
         id,
         dto.momento,
-        JSON.stringify(dto.codigos),
-        dto.observacion ?? null,
+        JSON.stringify(lecturas),
         dto.idUsuarioAuditoria ?? null,
       ],
     );
+  }
+
+  iniciarEntrega(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('age_iniciar_entrega', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  culminarEntrega(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('age_culminar_entrega', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  iniciarRecojo(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('age_iniciar_recojo', [
+      id,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  culminarRecojo(
+    id: number,
+    idAlmacenDestino: number,
+    idUsuarioAuditoria?: number,
+  ) {
+    return this.db.callFunctionJson<AuthSingleResult>('age_culminar_recojo', [
+      id,
+      idAlmacenDestino,
+      idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  listarVencidosRecojo(filtros: FiltroVencidosRecojoDto) {
+    return this.db.callFunctionJson<AuthListResult>(
+      'age_listar_vencidos_recojo',
+      [filtros.buscar ?? '', filtros.limite ?? 30, filtros.offset],
+    );
+  }
+
+  crearRecojoOrigen(dto: CrearRecojoOrigenDto) {
+    return this.db.callFunctionJson<{
+      error: string | null;
+      registro: { id: number; creada: boolean; items: number } | null;
+    }>('age_crear_recojo_origen', [
+      dto.tipoOrigen,
+      dto.idOrigen,
+      dto.fechaProgramada ?? null,
+      dto.horaInicioEstimada ?? null,
+      dto.idTrabajadorResponsable ?? null,
+      dto.observaciones ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
   }
 
   crearRecojoPrestamo(dto: CrearRecojoPrestamoDto) {
@@ -71,10 +137,18 @@ export class ActividadesModel {
     }>('age_crear_recojo_prestamo', [
       dto.idPrestamo,
       dto.fechaProgramada ?? null,
+      dto.horaInicioEstimada ?? null,
       dto.idTrabajadorResponsable ?? null,
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);
+  }
+
+  iniciarVerificacion(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<{
+      error: string | null;
+      registro: unknown;
+    }>('age_iniciar_verificacion', [id, idUsuarioAuditoria ?? null]);
   }
 
   generarRecojosPorVencer(dto: GenerarRecojosDto) {
@@ -121,7 +195,7 @@ export class ActividadesModel {
     observaciones: string | null,
     idUsuarioAuditoria?: number,
     idComprobante?: number | null,
-    idGuiaRemision?: number | null,
+    idDocSalida?: number | null,
     items?: ActividadItemDto[] | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('age_crear_actividad', [
@@ -138,7 +212,7 @@ export class ActividadesModel {
       observaciones,
       idUsuarioAuditoria ?? null,
       idComprobante ?? null,
-      idGuiaRemision ?? null,
+      idDocSalida ?? null,
       items?.length ? JSON.stringify(items) : null,
     ]);
   }
@@ -158,7 +232,7 @@ export class ActividadesModel {
     observaciones: string | null,
     idUsuarioAuditoria?: number,
     idComprobante?: number | null,
-    idGuiaRemision?: number | null,
+    idDocSalida?: number | null,
     items?: ActividadItemDto[] | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>(
@@ -179,7 +253,7 @@ export class ActividadesModel {
         observaciones,
         idUsuarioAuditoria ?? null,
         idComprobante ?? null,
-        idGuiaRemision ?? null,
+        idDocSalida ?? null,
         items ? JSON.stringify(items) : null,
       ],
     );
@@ -210,10 +284,18 @@ export class ActividadesModel {
     id: number,
     idUsuarioAuditoria?: number,
     idTrabajadorResponsable?: number | null,
+    idTrabajadorApoyo?: number | null,
+    liberar = false,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>(
       'age_asignar_responsable_actividad',
-      [id, idUsuarioAuditoria ?? null, idTrabajadorResponsable ?? null],
+      [
+        id,
+        idUsuarioAuditoria ?? null,
+        idTrabajadorResponsable ?? null,
+        idTrabajadorApoyo ?? null,
+        liberar,
+      ],
     );
   }
 }

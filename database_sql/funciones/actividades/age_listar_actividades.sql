@@ -1,12 +1,19 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: age_listar_actividades
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.941Z
-DROP FUNCTION IF EXISTS age_listar_actividades(p_busqueda character varying, p_limite integer, p_offset integer, p_fecha_desde date, p_fecha_hasta date, p_id_estado integer, p_id_tipo integer, p_id_prioridad integer, p_sin_responsable boolean);
+-- Source: migraciones/20260908_age_id_doc_salida_y_ordenes_disponibles.sql
 
-CREATE OR REPLACE FUNCTION age_listar_actividades(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_id_estado integer DEFAULT NULL::integer, p_id_tipo integer DEFAULT NULL::integer, p_id_prioridad integer DEFAULT NULL::integer, p_sin_responsable boolean DEFAULT NULL::boolean)
- RETURNS json
- LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION age_listar_actividades(
+    p_busqueda character varying DEFAULT ''::character varying,
+    p_limite integer DEFAULT 10,
+    p_offset integer DEFAULT 0,
+    p_fecha_desde date DEFAULT NULL::date,
+    p_fecha_hasta date DEFAULT NULL::date,
+    p_id_estado integer DEFAULT NULL::integer,
+    p_id_tipo integer DEFAULT NULL::integer,
+    p_id_prioridad integer DEFAULT NULL::integer,
+    p_sin_responsable boolean DEFAULT NULL::boolean
+)
+RETURNS json
+LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -23,10 +30,10 @@ BEGIN
       AND (p_id_estado IS NULL OR act.id_estado_actividad = p_id_estado)
       AND (p_id_tipo IS NULL OR act.id_tipo_actividad = p_id_tipo)
       AND (p_id_prioridad IS NULL OR act.id_prioridad = p_id_prioridad)
-       AND (p_sin_responsable IS NULL OR (
-           (p_sin_responsable AND act.id_trabajador_responsable IS NULL)
-           OR (NOT p_sin_responsable AND act.id_trabajador_responsable IS NOT NULL)
-       ))
+      AND (p_sin_responsable IS NULL OR (
+          (p_sin_responsable AND act.id_trabajador_responsable IS NULL)
+          OR (NOT p_sin_responsable AND act.id_trabajador_responsable IS NOT NULL)
+      ))
       AND (
           p_busqueda = ''
           OR gen_texto_coincide(act.titulo, p_busqueda)
@@ -52,6 +59,8 @@ BEGIN
             c.razon_social AS razon_social_cliente,
             act.id_trabajador_responsable,
             TRIM(CONCAT_WS(' ', tr.nombres, tr.apellido_paterno, tr.apellido_materno)) AS nombre_trabajador_responsable,
+            act.id_trabajador_apoyo,
+            TRIM(CONCAT_WS(' ', ap.nombres, ap.apellido_paterno, ap.apellido_materno)) AS nombre_trabajador_apoyo,
             act.id_usuario_responsable,
             au.nombre AS nombre_usuario_responsable,
             act.id_chofer_responsable,
@@ -60,9 +69,9 @@ BEGIN
             vc.serie AS serie_comprobante,
             vc.numero AS numero_comprobante,
             act.id_doc_salida,
-            gr.serie AS serie_guia_remision,
-            gr.numero_sunat AS numero_guia_remision,
-            gr.numero AS numero_doc_salida,
+            ds.serie AS serie_doc_salida,
+            ds.numero_sunat AS numero_sunat_doc_salida,
+            ds.numero AS numero_doc_salida,
             act.id_estado_actividad,
             ea.nombre AS nombre_estado_actividad,
             act.observaciones,
@@ -84,10 +93,11 @@ BEGIN
            AND ea.id_lista IN (SELECT gl.id FROM gen_lista gl WHERE gl.nombre = 'EstadoActividad' OR gl.id = 49)
         LEFT JOIN cli_clientes c ON act.id_cliente = c.id
         LEFT JOIN tra_trabajadores tr ON tr.id = act.id_trabajador_responsable
+        LEFT JOIN tra_trabajadores ap ON ap.id = act.id_trabajador_apoyo
         LEFT JOIN auth_usuarios au ON au.id_trabajador = tr.id AND au.estado = TRUE
         LEFT JOIN gen_chofer ch ON ch.id_trabajador = tr.id AND ch.estado = 1
         LEFT JOIN ven_comprobante vc ON act.id_comprobante = vc.id
-        LEFT JOIN doc_salida gr ON act.id_doc_salida = gr.id
+        LEFT JOIN doc_salida ds ON act.id_doc_salida = ds.id
         LEFT JOIN auth_usuarios uc ON act.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON act.id_usuario_modificacion = um.id
         WHERE act.estado = 1
@@ -97,8 +107,8 @@ BEGIN
           AND (p_id_tipo IS NULL OR act.id_tipo_actividad = p_id_tipo)
           AND (p_id_prioridad IS NULL OR act.id_prioridad = p_id_prioridad)
           AND (p_sin_responsable IS NULL OR (
-              (p_sin_responsable AND act.id_usuario_responsable IS NULL AND act.id_chofer_responsable IS NULL)
-              OR (NOT p_sin_responsable AND (act.id_usuario_responsable IS NOT NULL OR act.id_chofer_responsable IS NOT NULL))
+              (p_sin_responsable AND act.id_trabajador_responsable IS NULL)
+              OR (NOT p_sin_responsable AND act.id_trabajador_responsable IS NOT NULL)
           ))
           AND (
               p_busqueda = ''
@@ -123,3 +133,6 @@ BEGIN
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
 $function$;
+
+-- =============================================================================
+

@@ -1,12 +1,25 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: doc_listar_salidas
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
+﻿-- Function: doc_listar_salidas
+-- Source: migraciones/20260908_age_id_doc_salida_y_ordenes_disponibles.sql
+
 DROP FUNCTION IF EXISTS doc_listar_salidas(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_orden integer, p_id_estado_ciclo integer, p_id_sucursal integer, p_id_almacen integer, p_id_cliente integer, p_emitido_sunat boolean, p_fecha_desde date, p_fecha_hasta date, p_codigo_tipo_orden character varying);
 
-CREATE OR REPLACE FUNCTION doc_listar_salidas(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_tipo_orden integer DEFAULT NULL::integer, p_id_estado_ciclo integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_emitido_sunat boolean DEFAULT NULL::boolean, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_codigo_tipo_orden character varying DEFAULT NULL::character varying)
- RETURNS json
- LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION doc_listar_salidas(
+    p_busqueda character varying DEFAULT ''::character varying,
+    p_limite integer DEFAULT 10,
+    p_offset integer DEFAULT 0,
+    p_id_tipo_orden integer DEFAULT NULL::integer,
+    p_id_estado_ciclo integer DEFAULT NULL::integer,
+    p_id_sucursal integer DEFAULT NULL::integer,
+    p_id_almacen integer DEFAULT NULL::integer,
+    p_id_cliente integer DEFAULT NULL::integer,
+    p_emitido_sunat boolean DEFAULT NULL::boolean,
+    p_fecha_desde date DEFAULT NULL::date,
+    p_fecha_hasta date DEFAULT NULL::date,
+    p_codigo_tipo_orden character varying DEFAULT NULL::character varying,
+    p_sin_actividad_vigente boolean DEFAULT NULL::boolean
+)
+RETURNS json
+LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -38,6 +51,20 @@ BEGIN
       AND (p_emitido_sunat IS NULL OR d.emitido_sunat = p_emitido_sunat)
       AND (p_fecha_desde IS NULL OR d.fecha >= p_fecha_desde)
       AND (p_fecha_hasta IS NULL OR d.fecha <= p_fecha_hasta)
+      AND (
+          p_sin_actividad_vigente IS NOT TRUE
+          OR (
+              ec.nombre NOT IN ('BORRADOR', 'ANULADA')
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM age_actividad a
+                  LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
+                  WHERE a.id_doc_salida = d.id
+                    AND a.estado = 1
+                    AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO')
+              )
+          )
+      )
       AND (
           COALESCE(p_busqueda, '') = ''
           OR gen_texto_coincide(COALESCE(d.numero, ''), p_busqueda)
@@ -101,6 +128,20 @@ BEGIN
           AND (p_fecha_desde IS NULL OR d.fecha >= p_fecha_desde)
           AND (p_fecha_hasta IS NULL OR d.fecha <= p_fecha_hasta)
           AND (
+              p_sin_actividad_vigente IS NOT TRUE
+              OR (
+                  ec.nombre NOT IN ('BORRADOR', 'ANULADA')
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM age_actividad a
+                      LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
+                      WHERE a.id_doc_salida = d.id
+                        AND a.estado = 1
+                        AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO')
+                  )
+              )
+          )
+          AND (
               COALESCE(p_busqueda, '') = ''
               OR gen_texto_coincide(COALESCE(d.numero, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(d.serie, '') || '-' || COALESCE(d.numero_sunat, ''), p_busqueda)
@@ -114,3 +155,4 @@ BEGIN
     RETURN json_build_object('registros', v_registros, 'total', v_total, 'resumen', v_resumen);
 END;
 $function$;
+

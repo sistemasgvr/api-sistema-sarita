@@ -53,6 +53,7 @@ export class DocumentosSalidaModel {
       filtros.fechaDesde ?? null,
       filtros.fechaHasta ?? null,
       filtros.codigoTipoOrden ?? null,
+      filtros.sinActividadVigente ?? null,
     ]);
   }
 

@@ -12,6 +12,8 @@ DECLARE
     v_id_estado_cancelada INTEGER;
     v_id_estado_actual INTEGER;
     v_nombre_estado_actual VARCHAR;
+    v_id_pend_envio INTEGER;
+    v_id_transito INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -47,6 +49,40 @@ BEGIN
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;
+
+    -- ------------------------------------------------------------
+    -- Camino de vuelta de la custodia: EN_TRANSITO -> PENDIENTE_ENVIO
+    --
+    -- Si se cancela un reparto que ya habia salido, los cilindros vuelven a
+    -- estar comprometidos pero sin viaje en curso. Sin esto quedarian en
+    -- transito para siempre, que es justo el atasco que ya sufrio
+    -- PENDIENTE_ENVIO por no tener salida.
+    --
+    -- Se filtra por el estado actual del cilindro y no por el de la actividad:
+    -- asi es idempotente y no toca cilindros que ya siguieron otro camino.
+    -- ------------------------------------------------------------
+    SELECT lo.id INTO v_id_transito
+    FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'EN_TRANSITO' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_pend_envio
+    FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'PENDIENTE_ENVIO' AND lo.estado = 1
+    LIMIT 1;
+
+    IF v_id_transito IS NOT NULL AND v_id_pend_envio IS NOT NULL THEN
+        UPDATE bal_balon b
+        SET id_estado_balon = v_id_pend_envio,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        FROM age_actividad_item ai
+        WHERE ai.id_actividad = p_id
+          AND ai.estado = 1
+          AND ai.id_balon = b.id
+          AND b.estado = 1
+          AND b.id_estado_balon = v_id_transito;
+    END IF;
 
     RETURN age_obtener_actividad(p_id);
 END;

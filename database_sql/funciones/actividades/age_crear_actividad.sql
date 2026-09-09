@@ -1,17 +1,31 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: age_crear_actividad
--- Overloads: 1
---
--- Actualizada por database_sql/migraciones/20260905_age_crear_actividad_items_orden_salida.sql:
--- los items del reparto se copian del detalle de doc_obtener_salida.
+-- Source: migraciones/20260908_age_id_doc_salida_y_ordenes_disponibles.sql
+
 DROP FUNCTION IF EXISTS age_crear_actividad(p_titulo character varying, p_descripcion text, p_fecha_programada date, p_hora_inicio_estimada time without time zone, p_hora_fin_estimada time without time zone, p_id_tipo_actividad integer, p_id_prioridad integer, p_id_cliente integer, p_id_trabajador_responsable integer, p_id_estado_actividad integer, p_observaciones character varying, p_id_usuario_auditoria integer, p_id_comprobante integer, p_id_guia_remision integer, p_items json);
 
-CREATE OR REPLACE FUNCTION age_crear_actividad(p_titulo character varying, p_descripcion text, p_fecha_programada date, p_hora_inicio_estimada time without time zone, p_hora_fin_estimada time without time zone, p_id_tipo_actividad integer, p_id_prioridad integer, p_id_cliente integer DEFAULT NULL::integer, p_id_trabajador_responsable integer DEFAULT NULL::integer, p_id_estado_actividad integer DEFAULT NULL::integer, p_observaciones character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_comprobante integer DEFAULT NULL::integer, p_id_guia_remision integer DEFAULT NULL::integer, p_items json DEFAULT NULL::json)
- RETURNS json
- LANGUAGE plpgsql
+CREATE OR REPLACE FUNCTION age_crear_actividad(
+    p_titulo character varying,
+    p_descripcion text,
+    p_fecha_programada date,
+    p_hora_inicio_estimada time without time zone,
+    p_hora_fin_estimada time without time zone,
+    p_id_tipo_actividad integer,
+    p_id_prioridad integer,
+    p_id_cliente integer DEFAULT NULL::integer,
+    p_id_trabajador_responsable integer DEFAULT NULL::integer,
+    p_id_estado_actividad integer DEFAULT NULL::integer,
+    p_observaciones character varying DEFAULT NULL::character varying,
+    p_id_usuario_auditoria integer DEFAULT NULL::integer,
+    p_id_comprobante integer DEFAULT NULL::integer,
+    p_id_doc_salida integer DEFAULT NULL::integer,
+    p_items json DEFAULT NULL::json
+)
+RETURNS json
+LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_verif_pendiente INTEGER;
+    v_id_tipo_origen INTEGER;
     v_id INTEGER;
     v_tipo VARCHAR;
     v_cliente INTEGER;
@@ -26,6 +40,12 @@ BEGIN
     FROM gen_lista_opciones lo
     JOIN gen_lista l ON l.id = lo.id_lista
     WHERE l.nombre = 'EstadoVerificacionItem' AND lo.nombre = 'PENDIENTE' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_tipo_origen
+    FROM gen_lista_opciones lo
+    JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'TipoOrigenActividad' AND lo.nombre = 'ORDEN_SALIDA' AND lo.estado = 1
     LIMIT 1;
 
     SET TIME ZONE 'America/Lima';
@@ -60,25 +80,21 @@ BEGIN
         END IF;
     END IF;
 
-    IF p_id_guia_remision IS NOT NULL THEN
-        SELECT gr.id_cliente, gr.id_destinatario, gr.serie, gr.numero
+    IF p_id_doc_salida IS NOT NULL THEN
+        SELECT ds.id_cliente, ds.id_destinatario, ds.serie, ds.numero
         INTO v_cliente, v_destinatario, v_serie, v_numero
-        FROM doc_salida gr
-        WHERE gr.id = p_id_guia_remision AND gr.estado = 1;
+        FROM doc_salida ds
+        WHERE ds.id = p_id_doc_salida AND ds.estado = 1;
 
         IF NOT FOUND THEN
-            RETURN json_build_object('registro', NULL, 'error', 'La guía de remisión indicada no existe.');
+            RETURN json_build_object('registro', NULL, 'error', 'La orden de salida indicada no existe.');
         END IF;
 
         v_cliente := COALESCE(p_id_cliente, v_cliente, v_destinatario);
         IF v_titulo IS NULL THEN
-            -- gr.serie es la serie de la GRE y esta vacia mientras la orden no
-            -- se convierta; concatenarla dejaba titulos como
-            -- "Reparto GRE -OS-01-2026-000005". Con GRE se nombra la guia, y sin
-            -- ella el numero propio de la orden.
             v_titulo := CASE
                 WHEN NULLIF(TRIM(COALESCE(v_serie, '')), '') IS NOT NULL
-                THEN CONCAT('Reparto GRE ', TRIM(v_serie), '-', COALESCE(v_numero, ''))
+                THEN CONCAT('Reparto ', TRIM(v_serie), '-', COALESCE(v_numero, ''))
                 ELSE CONCAT('Reparto ', COALESCE(v_numero, ''))
             END;
         END IF;
@@ -87,16 +103,16 @@ BEGIN
             SELECT 1
             FROM age_actividad a
             LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
-            WHERE a.id_doc_salida = p_id_guia_remision
+            WHERE a.id_doc_salida = p_id_doc_salida
               AND a.estado = 1
               AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO')
         ) THEN
-            RETURN json_build_object('registro', NULL, 'error', 'Esta guía de remisión ya tiene un reparto / actividad vigente.');
+            RETURN json_build_object('registro', NULL, 'error', 'Esta orden de salida ya tiene un reparto / actividad vigente.');
         END IF;
     END IF;
 
     IF v_titulo IS NULL THEN
-        RETURN json_build_object('registro', NULL, 'error', 'El título es obligatorio.');
+        RETURN json_build_object('registro', NULL, 'error', 'El tÃ­tulo es obligatorio.');
     END IF;
 
     IF NOT EXISTS (
@@ -107,7 +123,7 @@ BEGIN
           AND o.estado = 1
           AND (l.nombre = 'TipoActividad' OR l.id = 48)
     ) THEN
-        RETURN json_build_object('registro', NULL, 'error', 'El tipo de actividad indicado no es válido.');
+        RETURN json_build_object('registro', NULL, 'error', 'El tipo de actividad indicado no es vÃ¡lido.');
     END IF;
 
     IF NOT EXISTS (
@@ -118,7 +134,7 @@ BEGIN
           AND o.estado = 1
           AND (l.nombre = 'PrioridadActividad' OR l.id = 50)
     ) THEN
-        RETURN json_build_object('registro', NULL, 'error', 'La prioridad indicada no es válida.');
+        RETURN json_build_object('registro', NULL, 'error', 'La prioridad indicada no es vÃ¡lida.');
     END IF;
 
     IF p_id_estado_actividad IS NOT NULL AND NOT EXISTS (
@@ -129,7 +145,7 @@ BEGIN
           AND o.estado = 1
           AND (l.nombre = 'EstadoActividad' OR l.id = 49)
     ) THEN
-        RETURN json_build_object('registro', NULL, 'error', 'El estado de actividad indicado no es válido.');
+        RETURN json_build_object('registro', NULL, 'error', 'El estado de actividad indicado no es vÃ¡lido.');
     END IF;
 
     IF p_hora_inicio_estimada IS NOT NULL AND p_hora_fin_estimada IS NOT NULL THEN
@@ -142,15 +158,16 @@ BEGIN
     FROM gen_lista_opciones
     WHERE id = p_id_tipo_actividad;
 
-    IF v_tipo = 'REPARTO' THEN
-        IF p_id_trabajador_responsable IS NOT NULL THEN
-            IF NOT EXISTS (
-                SELECT 1 FROM tra_trabajadores t
-                INNER JOIN gen_chofer c ON c.id_trabajador = t.id
-                WHERE t.id = p_id_trabajador_responsable AND t.estado = 1 AND c.estado = 1 AND c.id_cliente IS NULL
-            ) THEN
-                RETURN json_build_object('error', 'El responsable debe ser un trabajador chofer de flota propia (repartidor).');
-            END IF;
+    -- El responsable de un reparto ya no tiene que ser chofer de flota propia:
+    -- en la entrega suelen ir el chofer y alguien de apoyo (hay que subir los
+    -- balones a un tercer o cuarto piso), y cualquiera de los dos puede figurar
+    -- como responsable. Solo se exige que sea un trabajador vigente.
+    IF p_id_trabajador_responsable IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM tra_trabajadores t
+            WHERE t.id = p_id_trabajador_responsable AND t.estado = 1
+        ) THEN
+            RETURN json_build_object('error', 'El responsable debe ser un trabajador vigente.');
         END IF;
     END IF;
 
@@ -181,7 +198,7 @@ BEGIN
         hora_inicio_estimada, hora_fin_estimada,
         id_tipo_actividad, id_prioridad, id_cliente,
         id_trabajador_responsable, id_comprobante,
-        id_doc_salida,
+        id_doc_salida, id_tipo_origen,
         id_estado_actividad, observaciones,
         id_usuario_creacion, id_usuario_modificacion
     )
@@ -190,7 +207,8 @@ BEGIN
         p_hora_inicio_estimada, p_hora_fin_estimada,
         p_id_tipo_actividad, p_id_prioridad, v_cliente,
         p_id_trabajador_responsable, p_id_comprobante,
-        p_id_guia_remision,
+        p_id_doc_salida,
+        CASE WHEN p_id_doc_salida IS NOT NULL THEN v_id_tipo_origen ELSE NULL END,
         p_id_estado_actividad, p_observaciones,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
@@ -223,8 +241,6 @@ BEGIN
             v_id,
             d.item,
             d.id_producto,
-            -- Con id_producto/id_balon el nombre se resuelve por JOIN en la lectura;
-            -- solo se copia el texto propio de la línea (líneas libres lo necesitan).
             NULLIF(TRIM(COALESCE(d.descripcion, '')), ''),
             d.cantidad,
             d.id_balon,
@@ -233,19 +249,8 @@ BEGIN
         FROM ven_comprobante_detalle d
         WHERE d.id_comprobante = p_id_comprobante AND d.estado = 1
         ORDER BY d.item;
-    ELSIF p_id_guia_remision IS NOT NULL THEN
-        -- Los items del reparto salen del mismo detalle que muestra la orden de
-        -- salida, con doc_obtener_salida como unica fuente. Dos motivos:
-        --   * doc_salida_detalle se filtraba por d.id_guia_remision, columna que
-        --     ya no existe (la Fase 2 la renombro a id_doc_salida), asi que la
-        --     copia fallaba con "column d.id_guia_remision does not exist".
-        --   * En una orden nacida de una venta esa tabla esta vacia a proposito:
-        --     el detalle se arma por JOIN (lineas de la venta + cilindros
-        --     entregados en prestamo). Copiando de la tabla el reparto quedaba
-        --     sin items justo en el caso normal.
-        -- Fase 6: el ítem guarda de qué línea de la orden salió (id_doc_salida_detalle)
-        -- y arranca pendiente de verificar en salida y en llegada. Sin ese vínculo,
-        -- al verificar no se sabe qué línea del documento se está mirando.
+    ELSIF p_id_doc_salida IS NOT NULL THEN
+        -- Detalle vÃ­a doc_obtener_salida (venta/prÃ©stamo/propio); no re-teclear.
         INSERT INTO age_actividad_item (
             id_actividad, item, id_producto, descripcion, cantidad, id_balon,
             id_doc_salida_detalle,
@@ -259,8 +264,6 @@ BEGIN
             NULLIF(TRIM(COALESCE(d->>'descripcion', d->>'glosa', '')), ''),
             COALESCE((d->>'cantidad')::NUMERIC, 1),
             NULLIF(d->>'id_balon', '')::INTEGER,
-            -- Solo las líneas propias del documento tienen id estable acá; las que
-            -- vienen por JOIN de la venta o del préstamo se quedan sin vínculo.
             CASE WHEN COALESCE(d->>'origen_detalle', '') = 'PROPIO'
                  THEN NULLIF(d->>'id', '')::INTEGER END,
             v_id_verif_pendiente,
@@ -268,7 +271,7 @@ BEGIN
             p_id_usuario_auditoria,
             p_id_usuario_auditoria
         FROM json_array_elements(
-            COALESCE(doc_obtener_salida(p_id_guia_remision)->'registro'->'detalle', '[]'::JSON)
+            COALESCE(doc_obtener_salida(p_id_doc_salida)->'registro'->'detalle', '[]'::JSON)
         ) AS d
         ORDER BY (d->>'item')::INTEGER;
     END IF;
@@ -276,3 +279,6 @@ BEGIN
     RETURN age_obtener_actividad(v_id);
 END;
 $function$;
+
+-- =============================================================================
+
