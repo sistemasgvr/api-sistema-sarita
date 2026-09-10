@@ -8,11 +8,14 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import { CajaLogic } from '../logic/caja.logic';
 import {
   AbrirCajaDto,
@@ -26,6 +29,8 @@ import {
   FiltroCajaSesionesDto,
   FiltroLibroDiarioDto,
 } from '../dto/caja.dto';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Caja / Libro diario')
 @Controller('caja')
@@ -69,14 +74,20 @@ export class CajaController {
   @Post('sesiones/abrir')
   @Permisos(PermisoBanderas.CAJA_ABRIR)
   @ApiOperation({ summary: 'Abrir sesión de caja' })
-  abrir(@Body() dto: AbrirCajaDto) {
+  abrir(@Body() dto: AbrirCajaDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.cajaLogic.abrirSesion(dto);
   }
 
   @Patch('sesiones/:id/cerrar')
   @Permisos(PermisoBanderas.CAJA_CERRAR)
   @ApiOperation({ summary: 'Cerrar / arquear sesión de caja' })
-  cerrar(@Param('id', ParseIntPipe) id: number, @Body() dto: CerrarCajaDto) {
+  cerrar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CerrarCajaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.cajaLogic.cerrarSesion(id, dto);
   }
 
@@ -97,49 +108,72 @@ export class CajaController {
   @Post('gastos')
   @Permisos(PermisoBanderas.CAJA_REGISTRAR_GASTO)
   @ApiOperation({ summary: 'Registrar gasto menudo de caja' })
-  crearGasto(@Body() dto: CrearCajaGastoDto) {
+  crearGasto(@Body() dto: CrearCajaGastoDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.cajaLogic.crearGasto(dto);
   }
 
   @Patch('gastos/:id')
   @Permisos(PermisoBanderas.CAJA_REGISTRAR_GASTO)
   @ApiOperation({ summary: 'Editar gasto de caja (solo mientras la caja esté abierta)' })
-  actualizarGasto(@Param('id', ParseIntPipe) id: number, @Body() dto: ActualizarCajaGastoDto) {
+  actualizarGasto(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarCajaGastoDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.cajaLogic.actualizarGasto(id, dto);
   }
 
   @Delete('gastos/:id')
   @Permisos(PermisoBanderas.CAJA_REGISTRAR_GASTO)
   @ApiOperation({ summary: 'Eliminar (baja lógica) gasto de caja' })
-  eliminarGasto(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  eliminarGasto(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.cajaLogic.eliminarGasto(id, dto.idUsuarioAuditoria);
   }
 
   @Post('depositos')
   @Permisos(PermisoBanderas.CAJA_REGISTRAR_DEPOSITO)
   @ApiOperation({ summary: 'Registrar depósito a banco desde caja' })
-  crearDeposito(@Body() dto: CrearCajaDepositoDto) {
+  crearDeposito(@Body() dto: CrearCajaDepositoDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.cajaLogic.crearDeposito(dto);
   }
 
   @Delete('depositos/:id')
   @Permisos(PermisoBanderas.CAJA_REGISTRAR_DEPOSITO)
   @ApiOperation({ summary: 'Eliminar (baja lógica) depósito de caja' })
-  eliminarDeposito(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  eliminarDeposito(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.cajaLogic.eliminarDeposito(id, dto.idUsuarioAuditoria);
   }
 
   @Post('observaciones')
   @Permisos(PermisoBanderas.CAJA_OBSERVACION)
   @ApiOperation({ summary: 'Registrar observación del libro diario' })
-  crearObservacion(@Body() dto: CrearCajaObservacionDto) {
+  crearObservacion(@Body() dto: CrearCajaObservacionDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.cajaLogic.crearObservacion(dto);
   }
 
   @Delete('observaciones/:id')
   @Permisos(PermisoBanderas.CAJA_OBSERVACION)
   @ApiOperation({ summary: 'Eliminar observación del libro diario' })
-  eliminarObservacion(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  eliminarObservacion(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.cajaLogic.eliminarObservacion(id, dto.idUsuarioAuditoria);
   }
 

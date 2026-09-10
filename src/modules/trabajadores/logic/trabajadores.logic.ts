@@ -73,9 +73,14 @@ export class TrabajadoresLogic {
     const idTrabajador = (trabajador as { id: number }).id;
 
     if (dto.esChofer && dto.datosChofer) {
-      const actual = (await this.obtenerPorId(id)) as { idChofer?: number };
-      if (actual.idChofer) {
-        await this.choferesLogic.actualizar(actual.idChofer, {
+      // SQL devuelve snake_case (id_chofer); no asumir camelCase del mapSingleResult.
+      const actual = (await this.obtenerPorId(id)) as {
+        idChofer?: number | null;
+        id_chofer?: number | null;
+      };
+      const idChoferExistente = Number(actual.idChofer ?? actual.id_chofer ?? 0) || null;
+      if (idChoferExistente) {
+        await this.choferesLogic.actualizar(idChoferExistente, {
           idTrabajador,
           ...this.mapearDatosChofer(dto.datosChofer),
           idUsuarioAuditoria: dto.idUsuarioAuditoria,

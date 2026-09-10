@@ -8,12 +8,15 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import { DireccionesLogic } from '../logic/direcciones.logic';
 import {
   CreateDireccionDto,
@@ -21,8 +24,8 @@ import {
   ObtenerCoordenadasDto,
   UpdateDireccionDto,
 } from '../dto/filtros-direcciones.dto';
-import { publicDecrypt } from 'crypto';
-import { Public } from '../../../common/decorators/public.decorator';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Direcciones')
 @Controller('direcciones')
@@ -47,7 +50,8 @@ export class DireccionesController {
   @Post()
   @Permisos(PermisoBanderas.DIRECCIONES_CREAR)
   @ApiOperation({ summary: 'Crear nueva dirección para un cliente' })
-  crear(@Body() dto: CreateDireccionDto) {
+  crear(@Body() dto: CreateDireccionDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.direccionesLogic.crear(dto);
   }
 
@@ -58,7 +62,9 @@ export class DireccionesController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateDireccionDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.direccionesLogic.actualizar(id, dto);
   }
 
@@ -66,7 +72,12 @@ export class DireccionesController {
   @Permisos(PermisoBanderas.DIRECCIONES_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar dirección (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  eliminar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.direccionesLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 

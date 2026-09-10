@@ -26,6 +26,9 @@ export interface ComprobanteRegistro {
   id_sucursal?: number | null;
   id_almacen?: number | null;
   id_condicion_pago?: number | null;
+  nombre_condicion_pago?: string | null;
+  dias_credito?: number | null;
+  numero_cuotas?: number | null;
   id_moneda?: number | null;
   codigo_moneda?: string | null;
   id_medio_pago?: number | null;
@@ -43,6 +46,7 @@ export interface ComprobanteRegistro {
   ticket_sunat?: string | null;
   hash_documento?: string | null;
   xml_firmado?: string | null;
+  cdr_respuesta?: string | null;
 }
 
 export interface ComprobanteDetalleRegistro {
@@ -55,6 +59,10 @@ export interface ComprobanteDetalleRegistro {
   id_unidad_medida?: number | null;
   nombre_unidad_medida?: string | null;
   cantidad: number;
+  /** Suma de cantidades en NCs previas (07) del mismo producto sobre este comprobante. */
+  cantidad_nc_previa?: number | null;
+  /** cantidad − cantidad_nc_previa (piso 0), útil al armar una NC. */
+  cantidad_disponible_nc?: number | null;
   precio_unitario: number;
   descuento?: number | null;
   valor_venta: number;

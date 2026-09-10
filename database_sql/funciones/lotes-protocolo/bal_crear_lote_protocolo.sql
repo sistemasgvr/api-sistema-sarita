@@ -19,6 +19,15 @@ BEGIN
         RETURN json_build_object('error', 'El número de lote es obligatorio', 'registro', NULL);
     END IF;
 
+    IF p_fecha_vencimiento IS NULL THEN
+        RETURN json_build_object(
+            'error',
+            'La fecha de vencimiento de la ficha ICP es obligatoria',
+            'registro',
+            NULL
+        );
+    END IF;
+
     IF EXISTS (
         SELECT 1 FROM bal_lote_protocolo lp
         WHERE lp.estado = 1
@@ -31,30 +40,38 @@ BEGIN
         );
     END IF;
 
-    -- Una ficha vigente cubre el lote en curso: mientras no venza, registrar otra
-    -- del mismo proveedor y gas significa casi siempre que se está duplicando.
+    -- Una ficha vigente (con vencimiento futuro) o abierta (sin vencimiento) bloquea otra
+    -- del mismo proveedor y gas.
     IF EXISTS (
         SELECT 1
         FROM bal_lote_protocolo lp
         WHERE lp.estado = 1
           AND COALESCE(lp.id_proveedor, 0) = COALESCE(p_id_proveedor, 0)
           AND COALESCE(lp.id_producto_gas, 0) = COALESCE(p_id_producto_gas, 0)
-          AND lp.fecha_vencimiento IS NOT NULL
-          AND lp.fecha_vencimiento >= CURRENT_DATE
+          AND (
+            lp.fecha_vencimiento IS NULL
+            OR lp.fecha_vencimiento >= CURRENT_DATE
+          )
     ) THEN
         RETURN json_build_object(
             'error', (
                 SELECT format(
-                    'Ya hay una ficha vigente para este proveedor y gas: lote %s, vence %s. No se puede registrar otra hasta que venza.',
-                    lp.numero_lote, TO_CHAR(lp.fecha_vencimiento, 'MM/YYYY')
+                    'Ya hay una ficha vigente/abierta para este proveedor y gas: lote %s%s. No se puede registrar otra hasta que venza o se cierre.',
+                    lp.numero_lote,
+                    CASE
+                        WHEN lp.fecha_vencimiento IS NULL THEN ' (sin vencimiento)'
+                        ELSE ', vence ' || TO_CHAR(lp.fecha_vencimiento, 'MM/YYYY')
+                    END
                 )
                 FROM bal_lote_protocolo lp
                 WHERE lp.estado = 1
                   AND COALESCE(lp.id_proveedor, 0) = COALESCE(p_id_proveedor, 0)
                   AND COALESCE(lp.id_producto_gas, 0) = COALESCE(p_id_producto_gas, 0)
-                  AND lp.fecha_vencimiento IS NOT NULL
-                  AND lp.fecha_vencimiento >= CURRENT_DATE
-                ORDER BY lp.fecha_vencimiento DESC
+                  AND (
+                    lp.fecha_vencimiento IS NULL
+                    OR lp.fecha_vencimiento >= CURRENT_DATE
+                  )
+                ORDER BY lp.fecha_vencimiento DESC NULLS FIRST
                 LIMIT 1
             ),
             'registro', NULL

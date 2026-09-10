@@ -1,4 +1,8 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import {
   mapDeleteResult,
   mapListResult,
@@ -88,7 +92,22 @@ export class FinanzasLogic {
     return this.finanzasModel.verificarDuplicadoPago(dto);
   }
 
-  async registrarPago(tipo: TipoCuenta, dto: RegistrarPagoDto) {
+  async registrarPago(
+    tipo: TipoCuenta,
+    dto: RegistrarPagoDto,
+    permisosUsuario: string[] = [],
+  ) {
+    if (dto.forzarDuplicado) {
+      const puedeForzar =
+        permisosUsuario.includes(PermisoBanderas.AUTH_TODO) ||
+        permisosUsuario.includes(PermisoBanderas.FINANZAS_FORZAR_DUPLICADO);
+      if (!puedeForzar) {
+        throw new ForbiddenException(
+          `Permiso requerido: ${PermisoBanderas.FINANZAS_FORZAR_DUPLICADO}`,
+        );
+      }
+    }
+
     // Chequeo de duplicados salvo que el usuario haya confirmado con forzarDuplicado=true
     if (!dto.forzarDuplicado) {
       const check = await this.finanzasModel.verificarDuplicadoPago({
@@ -105,6 +124,8 @@ export class FinanzasLogic {
       }
     }
 
+    // Sucursal la resuelve fin_registrar_pago desde la cuenta / caja abierta
+    // (ignora body.idSucursal si no coincide).
     const result = await this.finanzasModel.registrarPago(tipo, dto);
     const pago = mapSingleResult(result, 'No se pudo registrar el pago');
 

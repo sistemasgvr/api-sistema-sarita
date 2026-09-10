@@ -27,7 +27,7 @@ export class UsuariosLogic {
     return mapSingleResult(result, `Usuario ${id} no encontrado`);
   }
 
-  async crear(dto: CreateUsuarioDto) {
+  async crear(dto: CreateUsuarioDto, permisosCaller: string[] = []) {
     const hash = await UsuariosModel.hashPassword(dto.contrasena);
     const result = await this.usuariosModel.crear(
       dto.nombre,
@@ -38,11 +38,14 @@ export class UsuariosLogic {
     );
     const usuario = mapSingleResult(result, 'No se pudo crear el usuario');
     if (dto.idRol) {
-      await this.usuariosRolesLogic.asignar({
-        idUsuario: (usuario as { id: number }).id,
-        idRol: dto.idRol,
-        idUsuarioAuditoria: dto.idUsuarioAuditoria,
-      });
+      await this.usuariosRolesLogic.asignar(
+        {
+          idUsuario: (usuario as { id: number }).id,
+          idRol: dto.idRol,
+          idUsuarioAuditoria: dto.idUsuarioAuditoria,
+        },
+        permisosCaller,
+      );
     }
 
     return usuario;
@@ -61,6 +64,7 @@ export class UsuariosLogic {
       dto.idTrabajador ?? null,
       dto.idUsuarioAuditoria,
     );
+    // auth_actualizar_usuario cierra sesiones del usuario si se actualiza la contraseña
     return mapSingleResult(result, `Usuario ${id} no encontrado`);
   }
 

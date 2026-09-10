@@ -8,18 +8,23 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   CreateCuentaBancariaDto,
   FiltroCuentaBancariaDto,
   UpdateCuentaBancariaDto,
 } from '../dto/cuentas-bancarias.dto';
 import { CuentasBancariasLogic } from '../logic/cuentas-bancarias.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Cuentas Bancarias')
 @Controller('cuentas-bancarias')
@@ -44,7 +49,8 @@ export class CuentasBancariasController {
   @Post()
   @Permisos(PermisoBanderas.CUENTAS_BANCARIAS_CREAR)
   @ApiOperation({ summary: 'Crear cuenta bancaria' })
-  crear(@Body() dto: CreateCuentaBancariaDto) {
+  crear(@Body() dto: CreateCuentaBancariaDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.cuentasBancariasLogic.crear(dto);
   }
 
@@ -55,7 +61,9 @@ export class CuentasBancariasController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCuentaBancariaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.cuentasBancariasLogic.actualizar(id, dto);
   }
 
@@ -63,7 +71,12 @@ export class CuentasBancariasController {
   @Permisos(PermisoBanderas.CUENTAS_BANCARIAS_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar cuenta bancaria (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  eliminar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.cuentasBancariasLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

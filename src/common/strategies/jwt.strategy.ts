@@ -43,6 +43,16 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Sesión inválida o expirada');
     }
 
+    const sesion = result.registro as { id_usuario?: number };
+    if (
+      sesion.id_usuario == null ||
+      Number(sesion.id_usuario) !== Number(payload.sub)
+    ) {
+      throw new UnauthorizedException(
+        'El token no corresponde a la sesión activa',
+      );
+    }
+
     const permisosResult = await this.db.callFunctionJson<{ permisos: string[] }>(
       'auth_obtener_permisos_usuario',
       [payload.sub],

@@ -54,8 +54,11 @@ DECLARE
     v_mov_result JSON;
     v_glosa_mov VARCHAR;
     v_qty_origen NUMERIC(12,4);
+    v_qty_nc_previas NUMERIC(12,4);
     v_qty_nueva NUMERIC(12,4);
     v_delta_stock NUMERIC(12,4);
+    v_estado_sunat_origen VARCHAR;
+    v_id_afectacion_igv INTEGER;
     v_nombre_unidad VARCHAR;
     v_es_gas BOOLEAN;
     v_es_servicio BOOLEAN;
@@ -179,6 +182,25 @@ BEGIN
         RETURN json_build_object('error', 'El comprobante de origen no existe o está inactivo', 'registro', NULL);
     END IF;
 
+    -- NC/ND solo sobre CPE ACEPTADO (alineado a FE puedeNotaCredito).
+    IF v_codigo_tipo IN ('07', '08') AND p_id_comprobante_origen IS NOT NULL THEN
+        SELECT es.nombre
+        INTO v_estado_sunat_origen
+        FROM ven_comprobante c
+        LEFT JOIN gen_lista_opciones es ON es.id = c.id_estado_sunat
+        WHERE c.id = p_id_comprobante_origen
+          AND c.estado = 1;
+
+        IF COALESCE(v_estado_sunat_origen, '') <> 'ACEPTADO' THEN
+            RETURN json_build_object(
+                'error',
+                'Solo se puede crear nota de crédito/débito sobre un comprobante ACEPTADO por SUNAT',
+                'registro',
+                NULL
+            );
+        END IF;
+    END IF;
+
     v_es_nota_credito := (v_codigo_tipo = '07');
 
     -- Conversión VSD/NV → boleta/factura: el stock ya se descontó en el origen
@@ -239,11 +261,12 @@ BEGIN
         END IF;
     END IF;
 
-    IF NULLIF(TRIM(p_numero), '') IS NULL THEN
-        SELECT (ven_obtener_siguiente_numero(p_id_tipo_comprobante, v_serie)->>'numero')
-        INTO v_numero;
-    ELSE
-        v_numero := LPAD(TRIM(p_numero), 8, '0');
+    -- No confiar en el correlativo del cliente: se asigna bajo candado de serie en la TX.
+    SELECT (ven_obtener_siguiente_numero(p_id_tipo_comprobante, v_serie)->>'numero')
+    INTO v_numero;
+
+    IF v_numero IS NULL OR TRIM(v_numero) = '' THEN
+        RETURN json_build_object('error', 'No se pudo asignar el correlativo del comprobante', 'registro', NULL);
     END IF;
 
     IF EXISTS (
@@ -382,9 +405,36 @@ BEGIN
         -- precio_unitario del catálogo ya incluye IGV
         v_importe_linea := ROUND((v_cantidad * v_precio_unitario) - v_descuento_linea, 4);
 
-        SELECT lo.descripcion INTO v_codigo_afectacion
-        FROM gen_lista_opciones lo
-        WHERE lo.id = NULLIF((v_detalle->>'id_afectacion_igv')::INTEGER, 0);
+        v_id_afectacion_igv := NULLIF((v_detalle->>'id_afectacion_igv')::INTEGER, 0);
+        v_codigo_afectacion := NULL;
+
+        IF v_id_afectacion_igv IS NOT NULL THEN
+            SELECT lo.descripcion INTO v_codigo_afectacion
+            FROM gen_lista_opciones lo
+            WHERE lo.id = v_id_afectacion_igv
+              AND lo.estado = 1;
+        END IF;
+
+        -- Sin afectación: default explícito a Gravado 10 (no tratar NULL como no gravado).
+        IF v_codigo_afectacion IS NULL OR TRIM(v_codigo_afectacion) = '' THEN
+            SELECT lo.id, lo.descripcion
+            INTO v_id_afectacion_igv, v_codigo_afectacion
+            FROM gen_lista_opciones lo
+            INNER JOIN gen_lista l ON lo.id_lista = l.id
+            WHERE l.nombre = 'AfectacionIgv'
+              AND lo.descripcion = '10'
+              AND lo.estado = 1
+            LIMIT 1;
+
+            IF v_id_afectacion_igv IS NULL THEN
+                RETURN json_build_object(
+                    'error',
+                    'Cada detalle debe indicar id_afectacion_igv (no se encontró Gravado 10 en catálogo)',
+                    'registro',
+                    NULL
+                );
+            END IF;
+        END IF;
 
         IF v_codigo_afectacion = '10' THEN
             v_valor_linea := ROUND(v_importe_linea / (1 + v_porcentaje_igv / 100), 4);
@@ -403,6 +453,55 @@ BEGIN
         v_sub_total := v_sub_total + v_importe_linea;
         v_total_importe := v_total_importe + v_importe_linea;
     END LOOP;
+
+    -- Cap NC (siempre, aunque no mueva kardex): qty ≤ origen − NCs previas por producto.
+    IF v_es_nota_credito THEN
+        FOR v_id_producto, v_cantidad IN
+            SELECT
+                (value->>'id_producto')::INTEGER,
+                SUM(COALESCE((value->>'cantidad')::NUMERIC, 0))
+            FROM json_array_elements(p_detalles)
+            GROUP BY 1
+        LOOP
+            SELECT COALESCE(SUM(d.cantidad), 0)
+            INTO v_qty_origen
+            FROM ven_comprobante_detalle d
+            WHERE d.id_comprobante = p_id_comprobante_origen
+              AND d.id_producto = v_id_producto
+              AND d.estado = 1;
+
+            SELECT COALESCE(SUM(d.cantidad), 0)
+            INTO v_qty_nc_previas
+            FROM ven_comprobante nc
+            INNER JOIN gen_lista_opciones tc
+                ON tc.id = nc.id_tipo_comprobante
+               AND tc.descripcion = '07'
+            INNER JOIN ven_comprobante_detalle d
+                ON d.id_comprobante = nc.id
+               AND d.estado = 1
+               AND d.id_producto = v_id_producto
+            LEFT JOIN gen_lista_opciones es ON es.id = nc.id_estado_sunat
+            WHERE nc.id_comprobante_origen = p_id_comprobante_origen
+              AND nc.estado = 1
+              AND COALESCE(es.nombre, '') NOT IN ('BAJA', 'RECHAZADO');
+
+            IF v_cantidad > (v_qty_origen - v_qty_nc_previas) THEN
+                RETURN json_build_object(
+                    'error',
+                    format(
+                        'La cantidad a acreditar de %s (%s) supera lo disponible para devolver (%s). Vendida: %s, ya acreditada: %s',
+                        COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
+                        v_cantidad,
+                        GREATEST(v_qty_origen - v_qty_nc_previas, 0),
+                        v_qty_origen,
+                        v_qty_nc_previas
+                    ),
+                    'registro',
+                    NULL
+                );
+            END IF;
+        END LOOP;
+    END IF;
 
     IF v_requiere_stock THEN
         IF p_id_almacen IS NULL THEN
@@ -561,9 +660,26 @@ BEGIN
         -- precio_unitario del catálogo ya incluye IGV
         v_importe_linea := ROUND((v_cantidad * v_precio_unitario) - v_descuento_linea, 4);
 
-        SELECT lo.descripcion INTO v_codigo_afectacion
-        FROM gen_lista_opciones lo
-        WHERE lo.id = NULLIF((v_detalle->>'id_afectacion_igv')::INTEGER, 0);
+        v_id_afectacion_igv := NULLIF((v_detalle->>'id_afectacion_igv')::INTEGER, 0);
+        v_codigo_afectacion := NULL;
+
+        IF v_id_afectacion_igv IS NOT NULL THEN
+            SELECT lo.descripcion INTO v_codigo_afectacion
+            FROM gen_lista_opciones lo
+            WHERE lo.id = v_id_afectacion_igv
+              AND lo.estado = 1;
+        END IF;
+
+        IF v_codigo_afectacion IS NULL OR TRIM(v_codigo_afectacion) = '' THEN
+            SELECT lo.id, lo.descripcion
+            INTO v_id_afectacion_igv, v_codigo_afectacion
+            FROM gen_lista_opciones lo
+            INNER JOIN gen_lista l ON lo.id_lista = l.id
+            WHERE l.nombre = 'AfectacionIgv'
+              AND lo.descripcion = '10'
+              AND lo.estado = 1
+            LIMIT 1;
+        END IF;
 
         IF v_codigo_afectacion = '10' THEN
             v_valor_linea := ROUND(v_importe_linea / (1 + v_porcentaje_igv / 100), 4);
@@ -591,7 +707,7 @@ BEGIN
             v_descuento_linea,
             v_valor_linea,
             v_porcentaje_igv,
-            NULLIF((v_detalle->>'id_afectacion_igv')::INTEGER, 0),
+            v_id_afectacion_igv,
             v_impuesto_linea,
             v_importe_linea,
             NULLIF((v_detalle->>'id_balon')::INTEGER, 0),

@@ -85,9 +85,21 @@ BEGIN
           AND (p_id_sucursal IS NULL OR c.id_sucursal = p_id_sucursal OR c.id_sucursal IS NULL)
           AND COALESCE(UPPER(est.nombre), '') <> 'ANULADO'
           AND COALESCE(UPPER(es.nombre), '') <> 'BAJA'
+          -- VSD/NV convertida a boleta/factura: el cobro ya cuenta en el CPE destino.
+          -- Marca: existe otro comprobante activo con id_comprobante_origen = VSD.
+          AND NOT (
+              UPPER(COALESCE(tip.descripcion, '')) IN ('NV', 'VSD')
+              AND EXISTS (
+                  SELECT 1
+                  FROM ven_comprobante conv
+                  WHERE conv.id_comprobante_origen = c.id
+                    AND conv.estado = 1
+              )
+          )
     ) x;
 
-    -- Cobranzas de cuentas por cobrar.
+    -- Cobranzas de cuentas por cobrar (excluye abonos contables AJUSTE_NC:
+    -- no son cobranzas reales; evitan inflar el total operativo).
     SELECT
         COALESCE(SUM(p.monto), 0),
         COALESCE(SUM(CASE
@@ -100,9 +112,11 @@ BEGIN
     FROM fin_pago p
     INNER JOIN fin_cuenta cu ON cu.id = p.id_cuenta AND cu.estado = 1
     INNER JOIN gen_lista_opciones tc ON tc.id = cu.id_tipo_cuenta
+    LEFT JOIN gen_lista_opciones mp ON mp.id = p.id_medio_pago
     WHERE p.estado = 1
       AND p.fecha_pago = p_fecha
       AND UPPER(tc.nombre) = 'COBRAR'
+      AND COALESCE(UPPER(mp.nombre), '') <> 'AJUSTE_NC'
       AND (
           p_id_sucursal IS NULL
           OR COALESCE(p.id_sucursal, fin_sucursal_de_cuenta(cu.id)) = p_id_sucursal

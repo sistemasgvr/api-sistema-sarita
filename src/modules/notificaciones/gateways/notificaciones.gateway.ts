@@ -60,6 +60,15 @@ export class NotificacionesGateway
         return;
       }
 
+      const registro = sesion.registro as { id_usuario?: number };
+      if (
+        registro.id_usuario == null ||
+        Number(registro.id_usuario) !== Number(payload.sub)
+      ) {
+        client.disconnect(true);
+        return;
+      }
+
       const userId = payload.sub;
       client.data.userId = userId;
       await client.join(this.userRoom(userId));

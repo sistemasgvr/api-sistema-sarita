@@ -173,7 +173,8 @@ BEGIN
         p_id_usuario_auditoria      => p_id_usuario_auditoria
     );
     IF v_mov->>'error' IS NOT NULL THEN
-        RETURN json_build_object('error', v_mov->>'error', 'registro', NULL);
+        -- Ya hubo INSERT: forzar rollback (RETURN dejaría la recarga huérfana sin kardex).
+        RAISE EXCEPTION '%', v_mov->>'error';
     END IF;
 
     IF p_fecha_llegada_almacen IS NOT NULL THEN
@@ -203,13 +204,21 @@ BEGIN
             p_id_usuario_auditoria      => p_id_usuario_auditoria
         );
         IF v_mov->>'error' IS NOT NULL THEN
-            RETURN json_build_object('error', v_mov->>'error', 'registro', NULL);
+            RAISE EXCEPTION '%', v_mov->>'error';
         END IF;
     ELSE
         -- inv_registrar_movimiento (SALIDA_PLANTA_EXTERNA) ya puso EN_RECARGA_EXTERNA + limpió almacén.
         NULL;
     END IF;
 
+    -- Idempotente: historial PH si la recarga trae fecha de prueba.
+    IF p_fecha_prueba_hidrostatica IS NOT NULL THEN
+        PERFORM bal_sync_ph_desde_recarga(v_id, p_id_usuario_auditoria);
+    END IF;
+
     RETURN bal_obtener_movimiento_recarga(v_id);
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN json_build_object('error', SQLERRM, 'registro', NULL);
 END;
 $function$;

@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: auth_actualizar_usuario
 -- Overloads: 1
--- Generated: 2026-09-03T16:50:38.941Z
+-- Updated: 2026-09-09 — al cambiar contraseña cierra sesiones activas del usuario
 DROP FUNCTION IF EXISTS auth_actualizar_usuario(p_id integer, p_nombre character varying, p_correo character varying, p_contrasena character varying, p_id_trabajador integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION auth_actualizar_usuario(p_id integer, p_nombre character varying DEFAULT NULL::character varying, p_correo character varying DEFAULT NULL::character varying, p_contrasena character varying DEFAULT NULL::character varying, p_id_trabajador integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -36,6 +36,17 @@ BEGIN
 
     IF NOT FOUND THEN
         RETURN json_build_object('registro', NULL);
+    END IF;
+
+    -- Cambio de contraseña: invalidar todas las sesiones activas del usuario
+    IF p_contrasena IS NOT NULL THEN
+        UPDATE auth_sesiones
+        SET
+            estado = FALSE,
+            fecha_fin = NOW()
+        WHERE id_usuario = p_id
+          AND estado = TRUE
+          AND fecha_fin IS NULL;
     END IF;
 
     RETURN auth_obtener_usuario(p_id);

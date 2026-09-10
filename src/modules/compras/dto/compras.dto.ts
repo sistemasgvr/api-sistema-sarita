@@ -146,6 +146,15 @@ export class CreateCompraDetalleDto {
   @Type(() => Number)
   @IsInt()
   idAlmacen?: number;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'Si false, no genera INGRESO (p.ej. costo de recarga en planta). Si se omite, usa el flag del producto.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  afectaStock?: boolean;
 }
 
 export class CreateCompraDto extends AuditoriaDto {

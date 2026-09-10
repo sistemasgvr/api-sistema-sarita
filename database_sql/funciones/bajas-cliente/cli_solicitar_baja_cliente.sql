@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: cli_solicitar_baja_cliente
 -- Overloads: 1
--- Generated: 2026-09-03T16:50:38.953Z
+-- Updated: 2026-09-09 — bloquea si CxC con saldo > 0 o préstamos/alquileres ACTIVO
 DROP FUNCTION IF EXISTS cli_solicitar_baja_cliente(p_id_cliente integer, p_id_motivo_baja integer, p_motivo_detalle character varying, p_id_usuario_auditoria integer, p_id_tipo_solicitud integer);
 
 CREATE OR REPLACE FUNCTION cli_solicitar_baja_cliente(p_id_cliente integer, p_id_motivo_baja integer DEFAULT NULL::integer, p_motivo_detalle character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_tipo_solicitud integer DEFAULT NULL::integer)
@@ -13,6 +13,7 @@ DECLARE
     v_estado_cliente INT;
     v_id_pendiente INTEGER;
     v_id_tipo INTEGER;
+    v_id_tipo_cobrar INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -24,6 +25,55 @@ BEGIN
 
     IF v_estado_cliente = 0 THEN
         RETURN json_build_object('registro', NULL, 'error', 'El cliente ya está inactivo');
+    END IF;
+
+    -- Bloqueo: cuentas por cobrar con saldo pendiente
+    SELECT glo.id INTO v_id_tipo_cobrar
+    FROM gen_lista_opciones glo
+    JOIN gen_lista gl ON gl.id = glo.id_lista
+    WHERE gl.nombre = 'TipoCuentaFinanciera' AND glo.nombre = 'COBRAR'
+    LIMIT 1;
+
+    IF v_id_tipo_cobrar IS NOT NULL AND EXISTS (
+        SELECT 1
+        FROM fin_cuenta fc
+        WHERE fc.id_tercero = p_id_cliente
+          AND fc.id_tipo_cuenta = v_id_tipo_cobrar
+          AND fc.estado = 1
+          AND COALESCE(fc.monto_saldo, 0) > 0
+    ) THEN
+        RETURN json_build_object(
+            'registro', NULL,
+            'error', 'No se puede solicitar la baja: el cliente tiene cuentas por cobrar con saldo pendiente'
+        );
+    END IF;
+
+    -- Bloqueo: préstamos activos
+    IF EXISTS (
+        SELECT 1
+        FROM bal_prestamo p
+        JOIN gen_lista_opciones ep ON ep.id = p.id_estado AND ep.nombre = 'ACTIVO'
+        WHERE p.id_cliente = p_id_cliente
+          AND p.estado = 1
+    ) THEN
+        RETURN json_build_object(
+            'registro', NULL,
+            'error', 'No se puede solicitar la baja: el cliente tiene préstamos activos'
+        );
+    END IF;
+
+    -- Bloqueo: alquileres activos
+    IF EXISTS (
+        SELECT 1
+        FROM bal_alquiler a
+        JOIN gen_lista_opciones ea ON ea.id = a.id_estado AND ea.nombre = 'ACTIVO'
+        WHERE a.id_cliente = p_id_cliente
+          AND a.estado = 1
+    ) THEN
+        RETURN json_build_object(
+            'registro', NULL,
+            'error', 'No se puede solicitar la baja: el cliente tiene alquileres activos'
+        );
     END IF;
 
     SELECT lo.id INTO v_id_pendiente

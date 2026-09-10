@@ -65,6 +65,8 @@ BEGIN
             al.nombre AS nombre_almacen,
             c.id_condicion_pago,
             cp.nombre AS nombre_condicion_pago,
+            COALESCE(cp.dias_credito, 0) AS dias_credito,
+            COALESCE(cp.numero_cuotas, 0) AS numero_cuotas,
             c.id_moneda,
             mo.nombre AS nombre_moneda,
             mo.descripcion AS codigo_moneda,
@@ -188,6 +190,39 @@ BEGIN
             d.id_unidad_medida,
             um.nombre AS nombre_unidad_medida,
             d.cantidad,
+            COALESCE((
+                SELECT SUM(nd.cantidad)
+                FROM ven_comprobante nc
+                INNER JOIN gen_lista_opciones tc
+                    ON tc.id = nc.id_tipo_comprobante
+                   AND tc.descripcion = '07'
+                INNER JOIN ven_comprobante_detalle nd
+                    ON nd.id_comprobante = nc.id
+                   AND nd.estado = 1
+                   AND nd.id_producto = d.id_producto
+                LEFT JOIN gen_lista_opciones es ON es.id = nc.id_estado_sunat
+                WHERE nc.id_comprobante_origen = p_id
+                  AND nc.estado = 1
+                  AND COALESCE(es.nombre, '') NOT IN ('BAJA', 'RECHAZADO')
+            ), 0) AS cantidad_nc_previa,
+            GREATEST(
+                d.cantidad - COALESCE((
+                    SELECT SUM(nd.cantidad)
+                    FROM ven_comprobante nc
+                    INNER JOIN gen_lista_opciones tc
+                        ON tc.id = nc.id_tipo_comprobante
+                       AND tc.descripcion = '07'
+                    INNER JOIN ven_comprobante_detalle nd
+                        ON nd.id_comprobante = nc.id
+                       AND nd.estado = 1
+                       AND nd.id_producto = d.id_producto
+                    LEFT JOIN gen_lista_opciones es ON es.id = nc.id_estado_sunat
+                    WHERE nc.id_comprobante_origen = p_id
+                      AND nc.estado = 1
+                      AND COALESCE(es.nombre, '') NOT IN ('BAJA', 'RECHAZADO')
+                ), 0),
+                0
+            ) AS cantidad_disponible_nc,
             d.precio_unitario,
             d.descuento,
             d.valor_venta,

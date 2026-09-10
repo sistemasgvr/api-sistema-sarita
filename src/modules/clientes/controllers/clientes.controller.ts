@@ -8,18 +8,23 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import { FiltroClienteDto } from '../dto/filtros-cliente.dto';
 import { FiltroClienteMapaDto } from '../dto/filtros-cliente-mapa.dto';
 import { ClientesLogic } from '../logic/clientes.logic';
 import { ValidarDocumentoClienteDto } from '../dto/validar-documento.dto';
 import { CreateClienteDto, UpdateClienteDto } from '../dto/crear-cliente.dto';
 import { ExportarRelacionadosClienteDto } from '../dto/exportar-relacionados-cliente.dto';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Clientes')
 @Controller('clientes')
@@ -73,15 +78,24 @@ export class ClientesController {
   @Post()
   @Permisos(PermisoBanderas.CLIENTES_CREAR)
   @ApiOperation({ summary: 'Crear cliente' })
-  crear(@Body() dto: CreateClienteDto) {
+  crear(@Body() dto: CreateClienteDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.clientesLogic.crear(dto);
   }
 
   @Patch(':id/restaurar')
-  @Permisos(PermisoBanderas.CLIENTES_RESTAURAR)
-  @ApiOperation({ summary: 'Restaurar cliente (reactivar)' })
+  @Permisos(PermisoBanderas.AUTH_TODO)
+  @ApiOperation({
+    summary:
+      'Restaurar cliente (reactivar) — solo auth.todo; preferir flujo de solicitud/aprobación de baja',
+  })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  restaurar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  restaurar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.clientesLogic.restaurar(id, dto.idUsuarioAuditoria);
   }
 
@@ -92,15 +106,25 @@ export class ClientesController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateClienteDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.clientesLogic.actualizar(id, dto);
   }
 
   @Delete(':id')
-  @Permisos(PermisoBanderas.CLIENTES_ELIMINAR)
-  @ApiOperation({ summary: 'Eliminar cliente (baja lógica)' })
+  @Permisos(PermisoBanderas.AUTH_TODO)
+  @ApiOperation({
+    summary:
+      'Eliminar cliente (baja lógica) — solo auth.todo; valida deudas/préstamos/alquileres; preferir flujo de solicitud/aprobación',
+  })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  eliminar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.clientesLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

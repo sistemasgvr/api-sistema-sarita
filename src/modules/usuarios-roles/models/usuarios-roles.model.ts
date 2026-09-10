@@ -20,6 +20,33 @@ export class UsuariosRolesModel {
     ]);
   }
 
+  async esRolPrivilegiado(idRol: number): Promise<boolean> {
+    const result = await this.db.query<{ privilegiado: boolean }>(
+      `
+      SELECT EXISTS (
+        SELECT 1
+        FROM auth_roles r
+        WHERE r.id = $1
+          AND r.estado = TRUE
+          AND (
+            LOWER(TRIM(r.nombre)) = 'administrador'
+            OR EXISTS (
+              SELECT 1
+              FROM auth_roles_permisos rp
+              INNER JOIN auth_permisos p ON p.id = rp.id_permiso
+              WHERE rp.id_rol = r.id
+                AND rp.estado = TRUE
+                AND p.estado = TRUE
+                AND p.nombre = 'auth.todo'
+            )
+          )
+      ) AS privilegiado
+      `,
+      [idRol],
+    );
+    return Boolean(result.rows[0]?.privilegiado);
+  }
+
   asignar(idUsuario: number, idRol: number, idUsuarioAuditoria?: number) {
     return this.db.callFunctionJson<AuthSingleResult>('auth_asignar_usuario_rol', [
       idUsuario,

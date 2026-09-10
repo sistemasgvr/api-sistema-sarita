@@ -31,11 +31,10 @@ export class RegistrarPagoDto extends AuditoriaDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'fechaPago debe tener formato YYYY-MM-DD' })
   fechaPago?: string;
 
-  @ApiPropertyOptional({ example: 1, description: 'ID del medio de pago' })
-  @IsOptional()
+  @ApiProperty({ example: 1, description: 'ID del medio de pago (obligatorio)' })
   @Type(() => Number)
   @IsInt()
-  idMedioPago?: number;
+  idMedioPago!: number;
 
   @ApiPropertyOptional({
     example: 7,
@@ -74,7 +73,8 @@ export class RegistrarPagoDto extends AuditoriaDto {
 
   @ApiPropertyOptional({
     example: 1,
-    description: 'Sucursal de la cobranza (si se omite, se toma del comprobante de la cuenta)',
+    description:
+      'Sucursal informativa. Se ignora si la cuenta ya tiene sucursal; si se envía y difiere, el pago se rechaza.',
   })
   @IsOptional()
   @Type(() => Number)

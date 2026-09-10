@@ -31,6 +31,17 @@ BEGIN
         RETURN json_build_object('error', 'El trabajador indicado no existe.', 'registro', NULL);
     END IF;
 
+    IF p_id_trabajador IS NOT NULL AND EXISTS (
+        SELECT 1 FROM gen_chofer WHERE id_trabajador = p_id_trabajador AND estado = 1
+    ) THEN
+        RETURN json_build_object(
+            'error',
+            'El trabajador ya tiene un chofer de flota propia vinculado.',
+            'registro',
+            NULL
+        );
+    END IF;
+
     IF p_numero_documento IS NOT NULL AND EXISTS (
         SELECT 1 FROM gen_chofer WHERE numero_documento = p_numero_documento AND estado = 1
     ) THEN

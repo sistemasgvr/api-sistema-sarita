@@ -6,17 +6,22 @@ import {
   ParseIntPipe,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   CreateGarantiaDto,
   DevolverGarantiaDto,
   FiltroGarantiasDto,
 } from '../dto/garantias.dto';
 import { GarantiasLogic } from '../logic/garantias.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Ventas - Garantías')
 @Controller('garantias')
@@ -41,7 +46,8 @@ export class GarantiasController {
   @Post()
   @Permisos(PermisoBanderas.PRESTAMOS_BALON_CREAR)
   @ApiOperation({ summary: 'Cobrar garantía (crea ACTIVA + movimiento COBRO)' })
-  crear(@Body() dto: CreateGarantiaDto) {
+  crear(@Body() dto: CreateGarantiaDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crear(dto);
   }
 
@@ -54,7 +60,9 @@ export class GarantiasController {
   devolver(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: DevolverGarantiaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.devolver(id, dto);
   }
 }

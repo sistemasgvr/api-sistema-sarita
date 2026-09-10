@@ -18,7 +18,8 @@ FROM (
         ('PLIN',           'Pago con Plin'),
         ('TARJETA',        'Tarjeta débito/crédito'),
         ('CHEQUE',         'Pago con cheque'),
-        ('CREDITO',        'Venta a crédito (sin pago inmediato)')
+        ('CREDITO',        'Venta a crédito (sin pago inmediato)'),
+        ('AJUSTE_NC',      'Abono automático por nota de crédito (no afecta caja)')
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'MedioPago'

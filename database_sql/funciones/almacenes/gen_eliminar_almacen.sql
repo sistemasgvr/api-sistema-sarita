@@ -11,6 +11,20 @@ AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
 
+    IF EXISTS (
+        SELECT 1
+        FROM pro_stock
+        WHERE id_almacen = p_id
+          AND estado = 1
+          AND COALESCE(stock, 0) > 0
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede eliminar el almacén: tiene stock activo con cantidad mayor a cero. Traslade o ajuste el inventario primero.'
+        );
+    END IF;
+
     UPDATE gen_almacen
     SET estado = 0,
         id_usuario_modificacion = p_id_usuario_auditoria,

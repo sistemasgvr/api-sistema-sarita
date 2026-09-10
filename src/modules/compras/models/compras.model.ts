@@ -25,6 +25,7 @@ function mapDetallesToJson(detalles: CreateCompraDetalleDto[]) {
       descripcion: d.descripcion ?? null,
       id_unidad_medida: d.idUnidadMedida ?? null,
       id_almacen: d.idAlmacen ?? null,
+      ...(d.afectaStock !== undefined ? { afecta_stock: d.afectaStock } : {}),
     })),
   );
 }

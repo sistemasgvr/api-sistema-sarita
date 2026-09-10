@@ -1,7 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: fin_registrar_pago
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.959Z
+-- P0: SELECT cuenta FOR UPDATE antes de leer saldo; exige id_medio_pago;
+--     sucursal preferida de la cuenta (body solo si no hay o si coincide).
+
 DROP FUNCTION IF EXISTS fin_registrar_pago(p_id_cuenta integer, p_tipo character varying, p_fecha_pago date, p_monto numeric, p_id_medio_pago integer, p_id_cuenta_bancaria integer, p_numero_operacion character varying, p_referencia character varying, p_observacion character varying, p_id_usuario integer, p_id_sucursal integer);
 
 CREATE OR REPLACE FUNCTION fin_registrar_pago(p_id_cuenta integer, p_tipo character varying, p_fecha_pago date DEFAULT NULL::date, p_monto numeric DEFAULT NULL::numeric, p_id_medio_pago integer DEFAULT NULL::integer, p_id_cuenta_bancaria integer DEFAULT NULL::integer, p_numero_operacion character varying DEFAULT NULL::character varying, p_referencia character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer)
@@ -17,10 +17,26 @@ DECLARE
     v_id_pago     INT;
     v_err_caja TEXT;
     v_id_sucursal INT;
+    v_id_sucursal_cuenta INT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    v_id_sucursal := COALESCE(p_id_sucursal, fin_sucursal_de_cuenta(p_id_cuenta));
+    IF p_id_medio_pago IS NULL THEN
+        RETURN json_build_object('registro', NULL, 'error', 'El medio de pago es obligatorio');
+    END IF;
+
+    -- Sucursal: preferir la de la cuenta/comprobante; rechazar body distinto.
+    v_id_sucursal_cuenta := fin_sucursal_de_cuenta(p_id_cuenta);
+    IF p_id_sucursal IS NOT NULL
+       AND v_id_sucursal_cuenta IS NOT NULL
+       AND p_id_sucursal <> v_id_sucursal_cuenta
+    THEN
+        RETURN json_build_object(
+            'registro', NULL,
+            'error', 'La sucursal del pago no coincide con la sucursal de la cuenta'
+        );
+    END IF;
+    v_id_sucursal := COALESCE(v_id_sucursal_cuenta, p_id_sucursal);
 
     v_err_caja := fin_caja_assert_abierta(COALESCE(p_fecha_pago, CURRENT_DATE), v_id_sucursal);
     IF v_err_caja IS NOT NULL THEN
@@ -41,7 +57,12 @@ BEGIN
       AND glo.nombre = UPPER(p_tipo)
     LIMIT 1;
 
-    SELECT * INTO v_cuenta FROM fin_cuenta WHERE id = p_id_cuenta AND estado = 1;
+    -- Bloqueo pesimista: evita overpay concurrente sobre el mismo saldo.
+    SELECT * INTO v_cuenta
+    FROM fin_cuenta
+    WHERE id = p_id_cuenta AND estado = 1
+    FOR UPDATE;
+
     IF NOT FOUND THEN
         RETURN json_build_object('registro', NULL, 'error', 'La cuenta no existe o está inactiva');
     END IF;

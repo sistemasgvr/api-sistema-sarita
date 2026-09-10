@@ -8,18 +8,23 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   FiltroBajaClienteDto,
   SolicitarBajaClienteDto,
   SolicitarReactivacionClienteDto,
 } from '../dto/bajas-cliente.dto';
 import { BajasClienteLogic } from '../logic/bajas-cliente.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Bajas de Cliente')
 @Controller('bajas-cliente')
@@ -44,14 +49,21 @@ export class BajasClienteController {
   @Post()
   @Permisos(PermisoBanderas.BAJAS_CLIENTE_SOLICITAR)
   @ApiOperation({ summary: 'Solicitar baja de cliente (estado PENDIENTE)' })
-  solicitar(@Body() dto: SolicitarBajaClienteDto) {
+  solicitar(@Body() dto: SolicitarBajaClienteDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.bajasClienteLogic.solicitar(dto);
   }
 
   @Post('solicitar-reactivacion')
   @Permisos(PermisoBanderas.BAJAS_CLIENTE_SOLICITAR)
-  @ApiOperation({ summary: 'Solicitar reactivación de cliente (estado PENDIENTE)' })
-  solicitarReactivacion(@Body() dto: SolicitarReactivacionClienteDto) {
+  @ApiOperation({
+    summary: 'Solicitar reactivación de cliente (estado PENDIENTE)',
+  })
+  solicitarReactivacion(
+    @Body() dto: SolicitarReactivacionClienteDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.bajasClienteLogic.solicitarReactivacion(dto);
   }
 
@@ -62,15 +74,27 @@ export class BajasClienteController {
       'Aprobar solicitud (admin + permiso). Baja desactiva cliente; reactivación lo activa.',
   })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  aprobar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  aprobar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.bajasClienteLogic.aprobar(id, dto.idUsuarioAuditoria);
   }
 
   @Patch(':id/rechazar')
   @Permisos(PermisoBanderas.BAJAS_CLIENTE_RECHAZAR)
-  @ApiOperation({ summary: 'Rechazar solicitud de baja/reactivación (admin + permiso)' })
+  @ApiOperation({
+    summary: 'Rechazar solicitud de baja/reactivación (admin + permiso)',
+  })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  rechazar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  rechazar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.bajasClienteLogic.rechazar(id, dto.idUsuarioAuditoria);
   }
 
@@ -78,7 +102,12 @@ export class BajasClienteController {
   @Permisos(PermisoBanderas.BAJAS_CLIENTE_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar solicitud de baja (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  eliminar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.bajasClienteLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

@@ -62,9 +62,9 @@ BEGIN
         END IF;
 
         -- Revertir stock (producto, o gas cargado por un movimiento de balón).
+        -- Misma estrictitud que inv_eliminar_movimiento: si no se puede revertir
+        -- el stock, NO soft-deletear el movimiento (RAISE → rollback).
         IF v_mov.id_producto IS NOT NULL AND v_mov.stock_anterior IS NOT NULL AND v_mov.stock_nuevo IS NOT NULL THEN
-            -- PRODUCTO siempre mueve el almacén origen. BALON+gas puede haber movido el destino
-            -- (p.ej. ENTRADA_LLENADO), según la misma resolución que usó inv_registrar_movimiento.
             IF v_mov.naturaleza = 'PRODUCTO' THEN
                 v_id_almacen_stock := v_mov.id_almacen_origen;
             ELSE
@@ -80,14 +80,22 @@ BEGIN
             WHERE id_almacen = v_id_almacen_stock AND id_producto = v_mov.id_producto AND estado = 1
             FOR UPDATE;
 
-            IF v_id_stock IS NOT NULL THEN
-                v_stock_revertido := v_stock_actual + (CASE WHEN v_es_salida THEN v_mov.cantidad ELSE -v_mov.cantidad END);
-                IF v_stock_revertido >= 0 THEN
-                    UPDATE pro_stock
-                    SET stock = v_stock_revertido, id_usuario_modificacion = p_id_usuario_auditoria, fecha_modificacion = NOW()
-                    WHERE id = v_id_stock;
-                END IF;
+            IF v_id_stock IS NULL THEN
+                RAISE EXCEPTION
+                    'No se encontró el registro de stock para revertir el movimiento %',
+                    v_mov.id;
             END IF;
+
+            v_stock_revertido := v_stock_actual + (CASE WHEN v_es_salida THEN v_mov.cantidad ELSE -v_mov.cantidad END);
+            IF v_stock_revertido < 0 THEN
+                RAISE EXCEPTION
+                    'No se puede revertir el movimiento % porque dejaría stock negativo',
+                    v_mov.id;
+            END IF;
+
+            UPDATE pro_stock
+            SET stock = v_stock_revertido, id_usuario_modificacion = p_id_usuario_auditoria, fecha_modificacion = NOW()
+            WHERE id = v_id_stock;
 
             IF v_es_traslado AND v_mov.id_almacen_destino IS NOT NULL THEN
                 SELECT id, stock INTO v_id_stock, v_stock_actual
@@ -95,14 +103,22 @@ BEGIN
                 WHERE id_almacen = v_mov.id_almacen_destino AND id_producto = v_mov.id_producto AND estado = 1
                 FOR UPDATE;
 
-                IF v_id_stock IS NOT NULL THEN
-                    v_stock_revertido := v_stock_actual - v_mov.cantidad;
-                    IF v_stock_revertido >= 0 THEN
-                        UPDATE pro_stock
-                        SET stock = v_stock_revertido, id_usuario_modificacion = p_id_usuario_auditoria, fecha_modificacion = NOW()
-                        WHERE id = v_id_stock;
-                    END IF;
+                IF v_id_stock IS NULL THEN
+                    RAISE EXCEPTION
+                        'No se encontró el stock de destino para revertir el traslado %',
+                        v_mov.id;
                 END IF;
+
+                v_stock_revertido := v_stock_actual - v_mov.cantidad;
+                IF v_stock_revertido < 0 THEN
+                    RAISE EXCEPTION
+                        'No se puede revertir el traslado % porque el destino ya no tiene esa cantidad',
+                        v_mov.id;
+                END IF;
+
+                UPDATE pro_stock
+                SET stock = v_stock_revertido, id_usuario_modificacion = p_id_usuario_auditoria, fecha_modificacion = NOW()
+                WHERE id = v_id_stock;
             END IF;
         END IF;
 

@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
+import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import {
   mapDeleteResult,
   mapListResult,
@@ -17,7 +18,19 @@ export class RolesPermisosLogic {
     return mapListResult(result, filtros);
   }
 
-  async asignar(dto: AsignarRolPermisoDto) {
+  async asignar(dto: AsignarRolPermisoDto, permisosCaller: string[] = []) {
+    const callerTieneTodo = permisosCaller.includes(PermisoBanderas.AUTH_TODO);
+    if (!callerTieneTodo) {
+      const esAuthTodo = await this.rolesPermisosModel.esPermisoAuthTodo(
+        dto.idPermiso,
+      );
+      if (esAuthTodo) {
+        throw new ForbiddenException(
+          'Solo un usuario con auth.todo puede asignar el permiso auth.todo',
+        );
+      }
+    }
+
     const result = await this.rolesPermisosModel.asignar(
       dto.idRol,
       dto.idPermiso,

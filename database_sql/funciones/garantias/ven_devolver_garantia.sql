@@ -30,7 +30,8 @@ BEGIN
 
     SELECT * INTO v_garantia
     FROM ven_garantia
-    WHERE id = p_id AND estado = 1;
+    WHERE id = p_id AND estado = 1
+    FOR UPDATE;
 
     IF NOT FOUND THEN
         RETURN json_build_object('error', 'Garantía no encontrada', 'registro', NULL);

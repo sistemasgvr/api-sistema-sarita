@@ -15,10 +15,11 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
+    -- Flota propia tiene id_cliente NULL: no confundir NULL cliente con "no existe".
     SELECT id_cliente, id_trabajador INTO v_id_cliente_actual, v_id_trabajador_actual
     FROM gen_chofer WHERE id = p_id AND estado = 1;
 
-    IF v_id_cliente_actual IS NULL THEN
+    IF NOT FOUND THEN
         RETURN json_build_object('registro', NULL, 'error', 'No existe un chofer con id ' || p_id);
     END IF;
 

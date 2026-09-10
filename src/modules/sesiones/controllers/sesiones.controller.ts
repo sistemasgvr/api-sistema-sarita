@@ -7,16 +7,20 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
-import { Public } from '../../../common/decorators/public.decorator';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import { CreateSesionDto, ValidarSesionDto } from '../dto/create-sesion.dto';
 import { FiltroSesionesDto } from '../dto/sesiones.dto';
 import { SesionesLogic } from '../logic/sesiones.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Auth - Sesiones')
 @Controller('auth/sesiones')
@@ -41,13 +45,13 @@ export class SesionesController {
   @Post()
   @Permisos(PermisoBanderas.SESIONES_CREAR)
   @ApiOperation({ summary: 'Crear sesión' })
-  crear(@Body() dto: CreateSesionDto) {
+  crear(@Body() dto: CreateSesionDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.sesionesLogic.crear(dto);
   }
 
-  @Public()
   @Post('validar')
-  @ApiOperation({ summary: 'Validar token de sesión activa' })
+  @ApiOperation({ summary: 'Validar token de sesión activa (requiere JWT)' })
   validar(@Body() dto: ValidarSesionDto) {
     return this.sesionesLogic.validar(dto);
   }
@@ -55,7 +59,12 @@ export class SesionesController {
   @Patch(':id/cerrar')
   @Permisos(PermisoBanderas.SESIONES_CERRAR)
   @ApiOperation({ summary: 'Cerrar sesión' })
-  cerrar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  cerrar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.sesionesLogic.cerrar(id, dto.idUsuarioAuditoria);
   }
 }

@@ -21,7 +21,10 @@ BEGIN
     INTO v_ganancia_total, v_total_items
     FROM ven_comprobante_detalle vd
     INNER JOIN ven_comprobante v ON vd.id_comprobante = v.id
-    LEFT JOIN pro_catalogo_precio cp ON vd.id_producto = cp.id_producto
+    LEFT JOIN pro_catalogo_precio cp
+        ON vd.id_producto = cp.id_producto
+       AND cp.estado = 1
+       AND cp.periodo = TO_CHAR(p_fecha, 'YYYY-MM')
     WHERE v.fecha = p_fecha AND v.estado = 1 AND vd.estado = 1;
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -39,7 +42,10 @@ BEGIN
         FROM ven_comprobante_detalle vd
         INNER JOIN ven_comprobante v ON vd.id_comprobante = v.id
         INNER JOIN pro_producto p ON vd.id_producto = p.id
-        LEFT JOIN pro_catalogo_precio cp ON vd.id_producto = cp.id_producto
+        LEFT JOIN pro_catalogo_precio cp
+            ON vd.id_producto = cp.id_producto
+           AND cp.estado = 1
+           AND cp.periodo = TO_CHAR(p_fecha, 'YYYY-MM')
         WHERE v.fecha = p_fecha AND v.estado = 1 AND vd.estado = 1
         ORDER BY ganancia_neta DESC
         LIMIT p_limite OFFSET p_offset

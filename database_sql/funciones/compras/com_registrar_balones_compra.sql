@@ -149,6 +149,9 @@ BEGIN
         -- A partir de acá el cilindro ya existe en el libro: si el movimiento
         -- falla se levanta excepción para que la transacción entera se deshaga
         -- y no quede un balón dado de alta sin su entrada de inventario.
+        -- id_documento_detalle = id_balon: cada cilindro es un hecho distinto para
+        -- la idempotencia de inv_registrar_movimiento (sin esto, el 2.º gas del
+        -- mismo producto reusa el 1.er movimiento y se pierde stock).
         v_res := inv_registrar_movimiento(
             p_naturaleza                   => 'BALON',
             p_codigo_tipo_movimiento       => 'ENTRADA_COMPRA',
@@ -159,6 +162,7 @@ BEGIN
             p_id_cliente                   => v_compra.id_proveedor,
             p_codigo_tipo_documento_origen => 'COMPRA',
             p_id_documento_origen          => p_id_comprobante,
+            p_id_documento_detalle         => v_id_balon,
             p_glosa                        => format('Ingreso del cilindro %s por compra', v_codigo),
             p_id_usuario_auditoria         => p_id_usuario_auditoria
         );
@@ -181,6 +185,7 @@ BEGIN
                 p_id_cliente                   => v_compra.id_proveedor,
                 p_codigo_tipo_documento_origen => 'COMPRA',
                 p_id_documento_origen          => p_id_comprobante,
+                p_id_documento_detalle         => v_id_balon,
                 p_glosa                        => format('Gas del cilindro %s por compra', v_codigo),
                 p_id_usuario_auditoria         => p_id_usuario_auditoria
             );

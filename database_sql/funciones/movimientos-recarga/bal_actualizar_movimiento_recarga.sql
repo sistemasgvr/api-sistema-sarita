@@ -18,6 +18,7 @@ DECLARE
     v_id_proveedor INTEGER;
     v_capacidad_tipo NUMERIC;
     v_id_estado_en_almacen INTEGER;
+    v_id_estado_recarga_externa INTEGER;
     v_id_documento_ref INTEGER;
     v_id_compra INTEGER;
     v_mov JSON;
@@ -91,7 +92,9 @@ BEGIN
         );
     END IF;
 
-    IF v_fecha_llegada IS NOT NULL AND v_id_balon IS NOT NULL THEN
+    -- Solo forzar DISPONIBLE al registrar llegada por primera vez, y solo si el
+    -- cilindro sigue en EN_RECARGA_EXTERNA (no pisar otros estados en updates posteriores).
+    IF v_fecha_llegada IS NOT NULL AND v_id_balon IS NOT NULL AND v_fecha_llegada_antes IS NULL THEN
         SELECT lo.id INTO v_id_estado_en_almacen
         FROM gen_lista_opciones lo
         INNER JOIN gen_lista l ON lo.id_lista = l.id
@@ -107,6 +110,12 @@ BEGIN
             );
         END IF;
 
+        SELECT lo.id INTO v_id_estado_recarga_externa
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON lo.id_lista = l.id
+        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_RECARGA_EXTERNA' AND lo.estado = 1
+        LIMIT 1;
+
         SELECT COALESCE(tb.capacidad, p_capacidad, 0)
         INTO v_capacidad_tipo
         FROM bal_balon b
@@ -115,7 +124,12 @@ BEGIN
 
         UPDATE bal_balon
         SET
-            id_estado_balon = v_id_estado_en_almacen,
+            id_estado_balon = CASE
+                WHEN v_id_estado_recarga_externa IS NOT NULL
+                     AND id_estado_balon = v_id_estado_recarga_externa
+                THEN v_id_estado_en_almacen
+                ELSE id_estado_balon
+            END,
             id_almacen = COALESCE(v_id_almacen, id_almacen),
             id_producto_gas = COALESCE(v_id_producto, id_producto_gas),
             id_usuario_modificacion = p_id_usuario_auditoria,
@@ -124,70 +138,68 @@ BEGIN
 
         -- Primera vez que se registra llegada: movimiento de entrada.
         -- Si ya hay compra vinculada, el documento de referencia es COMPRA (no GRE/RECARGA).
-        IF v_fecha_llegada_antes IS NULL THEN
-            SELECT COALESCE(p_id_comprobante_compra, id_comprobante_compra)
-            INTO v_id_compra
-            FROM bal_movimiento_recarga
-            WHERE id = p_id;
+        SELECT COALESCE(p_id_comprobante_compra, id_comprobante_compra)
+        INTO v_id_compra
+        FROM bal_movimiento_recarga
+        WHERE id = p_id;
 
-            IF v_id_compra IS NOT NULL THEN
-                v_id_documento_ref := v_id_compra;
-            ELSE
-                v_id_documento_ref := p_id;
-            END IF;
-
-            SELECT EXISTS (
-                SELECT 1
-                FROM inv_movimiento m
-                INNER JOIN gen_lista_opciones tm ON tm.id = m.id_tipo_movimiento
-                WHERE m.estado = 1
-                  AND m.naturaleza = 'BALON'
-                  AND m.id_balon = v_id_balon
-                  AND tm.nombre = 'ENTRADA_PLANTA_EXTERNA'
-                  AND (
-                    m.id_documento_origen = p_id
-                    OR (v_id_compra IS NOT NULL AND m.id_documento_origen = v_id_compra)
-                  )
-            ) INTO v_ya_tiene_entrada;
-
-            IF NOT COALESCE(v_ya_tiene_entrada, FALSE) THEN
-                v_mov := inv_registrar_movimiento(
-                    p_naturaleza                => 'BALON',
-                    p_codigo_tipo_movimiento    => 'ENTRADA_PLANTA_EXTERNA',
-                    p_fecha                     => v_fecha_llegada,
-                    p_id_producto               => v_id_producto,
-                    p_id_balon                  => v_id_balon,
-                    p_cantidad                  => COALESCE(v_capacidad, 1),
-                    p_id_almacen_destino        => v_id_almacen,
-                    p_id_cliente                => v_id_proveedor,
-                    p_codigo_tipo_documento_origen => CASE
-                        WHEN v_id_compra IS NOT NULL THEN 'COMPRA'
-                        ELSE 'RECARGA'
-                    END,
-                    p_id_documento_origen       => v_id_documento_ref,
-                    p_glosa                     => COALESCE(
-                        NULLIF(TRIM(v_obs), ''),
-                        CASE
-                            WHEN v_id_compra IS NOT NULL THEN 'Retorno planta externa (compra #' || v_id_compra || ')'
-                            ELSE 'Retorno planta externa'
-                        END
-                    ),
-                    p_id_usuario_auditoria      => p_id_usuario_auditoria
-                );
-                IF v_mov->>'error' IS NOT NULL THEN
-                    RETURN json_build_object('error', v_mov->>'error', 'registro', NULL);
-                END IF;
-            END IF;
-        ELSIF p_id_comprobante_compra IS NOT NULL THEN
-            -- Compra vinculada después de la entrada: reapunta el kardex a COMPRA.
-            v_mov := inv_repuntar_documento(
-                p_codigo_tipo_documento_origen_actual => 'RECARGA',
-                p_id_documento_origen_actual          => p_id,
-                p_codigo_tipo_documento_origen_nuevo  => 'COMPRA',
-                p_id_documento_origen_nuevo           => p_id_comprobante_compra,
-                p_id_usuario_auditoria                => p_id_usuario_auditoria
-            );
+        IF v_id_compra IS NOT NULL THEN
+            v_id_documento_ref := v_id_compra;
+        ELSE
+            v_id_documento_ref := p_id;
         END IF;
+
+        SELECT EXISTS (
+            SELECT 1
+            FROM inv_movimiento m
+            INNER JOIN gen_lista_opciones tm ON tm.id = m.id_tipo_movimiento
+            WHERE m.estado = 1
+              AND m.naturaleza = 'BALON'
+              AND m.id_balon = v_id_balon
+              AND tm.nombre = 'ENTRADA_PLANTA_EXTERNA'
+              AND (
+                m.id_documento_origen = p_id
+                OR (v_id_compra IS NOT NULL AND m.id_documento_origen = v_id_compra)
+              )
+        ) INTO v_ya_tiene_entrada;
+
+        IF NOT COALESCE(v_ya_tiene_entrada, FALSE) THEN
+            v_mov := inv_registrar_movimiento(
+                p_naturaleza                => 'BALON',
+                p_codigo_tipo_movimiento    => 'ENTRADA_PLANTA_EXTERNA',
+                p_fecha                     => v_fecha_llegada,
+                p_id_producto               => v_id_producto,
+                p_id_balon                  => v_id_balon,
+                p_cantidad                  => COALESCE(v_capacidad, 1),
+                p_id_almacen_destino        => v_id_almacen,
+                p_id_cliente                => v_id_proveedor,
+                p_codigo_tipo_documento_origen => CASE
+                    WHEN v_id_compra IS NOT NULL THEN 'COMPRA'
+                    ELSE 'RECARGA'
+                END,
+                p_id_documento_origen       => v_id_documento_ref,
+                p_glosa                     => COALESCE(
+                    NULLIF(TRIM(v_obs), ''),
+                    CASE
+                        WHEN v_id_compra IS NOT NULL THEN 'Retorno planta externa (compra #' || v_id_compra || ')'
+                        ELSE 'Retorno planta externa'
+                    END
+                ),
+                p_id_usuario_auditoria      => p_id_usuario_auditoria
+            );
+            IF v_mov->>'error' IS NOT NULL THEN
+                RETURN json_build_object('error', v_mov->>'error', 'registro', NULL);
+            END IF;
+        END IF;
+    ELSIF v_fecha_llegada IS NOT NULL AND p_id_comprobante_compra IS NOT NULL THEN
+        -- Compra vinculada después de la entrada: reapunta el kardex a COMPRA.
+        v_mov := inv_repuntar_documento(
+            p_codigo_tipo_documento_origen_actual => 'RECARGA',
+            p_id_documento_origen_actual          => p_id,
+            p_codigo_tipo_documento_origen_nuevo  => 'COMPRA',
+            p_id_documento_origen_nuevo           => p_id_comprobante_compra,
+            p_id_usuario_auditoria                => p_id_usuario_auditoria
+        );
     END IF;
 
     -- Idempotente: solo inserta en bal_balon_ph_historial si hay P.H. y aún no hay fila para este movimiento.

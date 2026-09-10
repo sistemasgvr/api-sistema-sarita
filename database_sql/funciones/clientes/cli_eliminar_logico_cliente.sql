@@ -1,7 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: cli_eliminar_logico_cliente
 -- Overloads: 1
--- Generated: 2026-09-03T16:50:38.952Z
+-- Updated: 2026-09-09 — bloquea si CxC con saldo > 0 o préstamos/alquileres ACTIVO
 DROP FUNCTION IF EXISTS cli_eliminar_logico_cliente(p_id integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION cli_eliminar_logico_cliente(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -10,6 +10,7 @@ CREATE OR REPLACE FUNCTION cli_eliminar_logico_cliente(p_id integer, p_id_usuari
 AS $function$
 DECLARE
     v_estado INT;
+    v_id_tipo_cobrar INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -26,6 +27,55 @@ BEGIN
         RETURN json_build_object(
             'eliminado', false,
             'id', p_id
+        );
+    END IF;
+
+    SELECT glo.id INTO v_id_tipo_cobrar
+    FROM gen_lista_opciones glo
+    JOIN gen_lista gl ON gl.id = glo.id_lista
+    WHERE gl.nombre = 'TipoCuentaFinanciera' AND glo.nombre = 'COBRAR'
+    LIMIT 1;
+
+    IF v_id_tipo_cobrar IS NOT NULL AND EXISTS (
+        SELECT 1
+        FROM fin_cuenta fc
+        WHERE fc.id_tercero = p_id
+          AND fc.id_tipo_cuenta = v_id_tipo_cobrar
+          AND fc.estado = 1
+          AND COALESCE(fc.monto_saldo, 0) > 0
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', false,
+            'id', p_id,
+            'error', 'No se puede desactivar el cliente: tiene cuentas por cobrar con saldo pendiente'
+        );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM bal_prestamo p
+        JOIN gen_lista_opciones ep ON ep.id = p.id_estado AND ep.nombre = 'ACTIVO'
+        WHERE p.id_cliente = p_id
+          AND p.estado = 1
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', false,
+            'id', p_id,
+            'error', 'No se puede desactivar el cliente: tiene préstamos activos'
+        );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM bal_alquiler a
+        JOIN gen_lista_opciones ea ON ea.id = a.id_estado AND ea.nombre = 'ACTIVO'
+        WHERE a.id_cliente = p_id
+          AND a.estado = 1
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', false,
+            'id', p_id,
+            'error', 'No se puede desactivar el cliente: tiene alquileres activos'
         );
     END IF;
 

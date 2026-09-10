@@ -12,8 +12,7 @@ DECLARE
     v_det RECORD;
     v_estado VARCHAR;
     v_id_recarga_ext INTEGER;
-    v_id_tipo_doc_compra INTEGER;
-    v_id_tipo_doc_recarga INTEGER;
+    v_result JSON;
 BEGIN
     SELECT lo.id INTO v_id_recarga_ext
     FROM gen_lista_opciones lo
@@ -21,23 +20,12 @@ BEGIN
     WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'EN_RECARGA_EXTERNA' AND lo.estado = 1
     LIMIT 1;
 
-    SELECT lo.id INTO v_id_tipo_doc_compra
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON l.id = lo.id_lista
-    WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'COMPRA' AND lo.estado = 1
-    LIMIT 1;
-
-    SELECT lo.id INTO v_id_tipo_doc_recarga
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON l.id = lo.id_lista
-    WHERE l.nombre = 'TipoDocumentoRef' AND lo.nombre = 'RECARGA' AND lo.estado = 1
-    LIMIT 1;
-
     FOR v_det IN
         SELECT d.id_balon
         FROM doc_salida_detalle d
         WHERE d.id_doc_salida = p_id_recarga_planta
           AND d.estado = 1
+          AND d.id_balon IS NOT NULL
     LOOP
         SELECT eb.nombre INTO v_estado
         FROM bal_balon b
@@ -62,40 +50,22 @@ BEGIN
         END IF;
     END LOOP;
 
-    -- Entradas de cilindro ya repuntadas a COMPRA: reapuntar solo naturaleza BALON
-    -- (no tocar INGRESO de producto; com_anular_compra lo compensa con SALIDA)
-    -- para poder revertirlas con inv_revertir_por_documento('RECARGA', orden).
-    IF v_id_tipo_doc_compra IS NOT NULL AND v_id_tipo_doc_recarga IS NOT NULL THEN
-        UPDATE inv_movimiento m
-        SET
-            id_documento_origen = p_id_recarga_planta,
-            id_tipo_documento_origen = v_id_tipo_doc_recarga,
-            id_usuario_modificacion = p_id_usuario,
-            fecha_modificacion = NOW()
-        WHERE m.estado = 1
-          AND m.naturaleza = 'BALON'
-          AND m.id_tipo_documento_origen = v_id_tipo_doc_compra
-          AND m.id_documento_origen = p_id_comprobante
-          AND m.id_balon IN (
-              SELECT d.id_balon
-              FROM doc_salida_detalle d
-              WHERE d.id_doc_salida = p_id_recarga_planta
-                AND d.estado = 1
-          )
-          AND m.id_tipo_movimiento IN (
-              SELECT lo.id
-              FROM gen_lista_opciones lo
-              INNER JOIN gen_lista l ON l.id = lo.id_lista
-              WHERE l.nombre = 'TipoMovBalon'
-                AND lo.nombre IN ('ENTRADA_LLENADO', 'ENTRADA_PLANTA_EXTERNA')
-                AND lo.estado = 1
-          );
+    -- Entradas de retorno etiquetadas ORDEN_SALIDA (retorno sin factura, o
+    -- legado). Las etiquetadas COMPRA ya las revirtió com_anular_compra.
+    v_result := inv_revertir_por_documento('ORDEN_SALIDA', p_id_recarga_planta, p_id_usuario);
+    IF (v_result->>'error') IS NOT NULL THEN
+        RAISE EXCEPTION '%', v_result->>'error';
     END IF;
 
-    -- Revierte entradas aún bajo RECARGA (orden) y las que acabamos de reapuntar.
-    PERFORM inv_revertir_por_documento('RECARGA', p_id_recarga_planta, p_id_usuario);
+    -- Compatibilidad con movimientos aún etiquetados RECARGA (pre-F2).
+    v_result := inv_revertir_por_documento('RECARGA', p_id_recarga_planta, p_id_usuario);
+    IF (v_result->>'error') IS NOT NULL
+       AND POSITION('no configurado' IN LOWER(COALESCE(v_result->>'error', ''))) = 0
+    THEN
+        RAISE EXCEPTION '%', v_result->>'error';
+    END IF;
 
-    -- inv_revertir deja cilindros en DISPONIBLE; al anular compra deben volver a EN_RECARGA_EXTERNA.
+    -- Al anular la compra los cilindros deben volver a EN_RECARGA_EXTERNA.
     IF v_id_recarga_ext IS NOT NULL THEN
         UPDATE bal_balon b
         SET
@@ -109,6 +79,7 @@ BEGIN
               FROM doc_salida_detalle d
               WHERE d.id_doc_salida = p_id_recarga_planta
                 AND d.estado = 1
+                AND d.id_balon IS NOT NULL
           );
     END IF;
 END;

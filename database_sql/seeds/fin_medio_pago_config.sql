@@ -30,7 +30,9 @@ FROM (
         ('DEPOSITO',      FALSE, FALSE, TRUE,  TRUE,  FALSE, 50),
         ('TARJETA',       FALSE, FALSE, TRUE,  FALSE, FALSE, 60),
         ('CHEQUE',        FALSE, FALSE, TRUE,  TRUE,  FALSE, 70),
-        ('CREDITO',       FALSE, FALSE, FALSE, FALSE, TRUE,  80)
+        ('CREDITO',       FALSE, FALSE, FALSE, FALSE, TRUE,  80),
+        -- Abono automático por NC: no es efectivo ni entra al arqueo.
+        ('AJUSTE_NC',     FALSE, FALSE, FALSE, FALSE, FALSE, 900)
 ) AS v(nombre, es_efectivo, afecta_caja, requiere_cuenta, requiere_op, es_credito, orden)
 JOIN gen_lista l ON l.nombre = 'MedioPago'
 JOIN gen_lista_opciones o ON o.id_lista = l.id AND UPPER(o.nombre) = v.nombre

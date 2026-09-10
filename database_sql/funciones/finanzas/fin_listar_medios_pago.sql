@@ -55,5 +55,8 @@ AS $function$
     FROM gen_lista_opciones glo
     JOIN gen_lista gl ON gl.id = glo.id_lista
     LEFT JOIN fin_medio_pago_config c ON c.id_medio_pago = glo.id AND c.estado = 1
-    WHERE gl.nombre = 'MedioPago' AND glo.estado = 1;
+    WHERE gl.nombre = 'MedioPago'
+      AND glo.estado = 1
+      -- Medio interno de abonos por NC: no se ofrece en UI de cobro.
+      AND UPPER(glo.nombre) <> 'AJUSTE_NC';
 $function$;

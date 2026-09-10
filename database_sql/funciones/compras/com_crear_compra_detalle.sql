@@ -12,6 +12,8 @@ DECLARE
     v_id_detalle          INTEGER;
     v_item                INTEGER;
     v_afecta_stock        BOOLEAN;
+    v_es_gas              BOOLEAN;
+    v_id_doc_salida       INTEGER;
     v_id_almacen_cabecera INTEGER;
     v_id_almacen_linea    INTEGER;
     v_fecha               DATE;
@@ -27,8 +29,8 @@ BEGIN
         RETURN json_build_object('error', 'La cantidad debe ser mayor a cero', 'registro', NULL);
     END IF;
 
-    SELECT id_almacen, fecha, serie, numero
-    INTO v_id_almacen_cabecera, v_fecha, v_serie, v_numero
+    SELECT id_almacen, fecha, serie, numero, id_doc_salida
+    INTO v_id_almacen_cabecera, v_fecha, v_serie, v_numero, v_id_doc_salida
     FROM com_comprobante_compra
     WHERE id = p_id_comprobante AND estado = 1
     FOR UPDATE;
@@ -37,12 +39,18 @@ BEGIN
         RETURN json_build_object('error', 'La compra indicada no existe o está anulada', 'registro', NULL);
     END IF;
 
-    SELECT afecta_stock INTO v_afecta_stock
+    SELECT afecta_stock, COALESCE(es_gas, FALSE)
+    INTO v_afecta_stock, v_es_gas
     FROM pro_producto
     WHERE id = p_id_producto AND estado = 1;
 
     IF v_afecta_stock IS NULL THEN
         RETURN json_build_object('error', 'El producto indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    -- Compra de costo de planta: el gas lo ingresa bal_finalizar_recarga_planta.
+    IF v_id_doc_salida IS NOT NULL AND v_es_gas THEN
+        v_afecta_stock := FALSE;
     END IF;
 
     v_id_almacen_linea := COALESCE(p_id_almacen, v_id_almacen_cabecera);

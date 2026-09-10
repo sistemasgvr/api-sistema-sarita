@@ -8,14 +8,19 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import { FiltroUsuarioDto } from '../dto/filtros-usuario.dto';
 import { CreateUsuarioDto, UpdateUsuarioDto } from '../dto/usuarios.dto';
 import { UsuariosLogic } from '../logic/usuarios.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Auth - Usuarios')
 @Controller('auth/usuarios')
@@ -40,8 +45,9 @@ export class UsuariosController {
   @Post()
   @Permisos(PermisoBanderas.USUARIOS_CREAR)
   @ApiOperation({ summary: 'Crear usuario' })
-  crear(@Body() dto: CreateUsuarioDto) {
-    return this.usuariosLogic.crear(dto);
+  crear(@Body() dto: CreateUsuarioDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
+    return this.usuariosLogic.crear(dto, req.user.permisos);
   }
 
   @Patch(':id/activar')
@@ -55,7 +61,12 @@ export class UsuariosController {
   @Patch(':id')
   @Permisos(PermisoBanderas.USUARIOS_EDITAR)
   @ApiOperation({ summary: 'Actualizar usuario' })
-  actualizar(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUsuarioDto) {
+  actualizar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateUsuarioDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.usuariosLogic.actualizar(id, dto);
   }
 

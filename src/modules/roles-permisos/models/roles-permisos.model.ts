@@ -20,6 +20,22 @@ export class RolesPermisosModel {
     ]);
   }
 
+  async esPermisoAuthTodo(idPermiso: number): Promise<boolean> {
+    const result = await this.db.query<{ es_auth_todo: boolean }>(
+      `
+      SELECT EXISTS (
+        SELECT 1
+        FROM auth_permisos p
+        WHERE p.id = $1
+          AND p.estado = TRUE
+          AND p.nombre = 'auth.todo'
+      ) AS es_auth_todo
+      `,
+      [idPermiso],
+    );
+    return Boolean(result.rows[0]?.es_auth_todo);
+  }
+
   asignar(idRol: number, idPermiso: number, idUsuarioAuditoria?: number) {
     return this.db.callFunctionJson<AuthSingleResult>('auth_asignar_rol_permiso', [
       idRol,

@@ -78,6 +78,13 @@ export class ComprobanteInvoiceMapper {
       detallesVenta.length === detalles.length,
     );
 
+    const formaPago = this.mapFormaPago(
+      cabecera,
+      comprobante.cuotas ?? [],
+      tipoMoneda,
+      totales.mtoImpVenta,
+    );
+
     const payload: FacturacionApisperuPayload = {
       ublVersion: '2.1',
       tipoOperacion: cabecera.codigo_tipo_operacion_sunat ?? '0101',
@@ -85,10 +92,7 @@ export class ComprobanteInvoiceMapper {
       serie: cabecera.serie,
       correlativo,
       fechaEmision,
-      formaPago: {
-        moneda: tipoMoneda,
-        tipo: 'Contado',
-      },
+      formaPago,
       tipoMoneda,
       client: this.mapCliente(cliente, ubigeoCliente),
       company: this.mapEmpresa(empresa),
@@ -276,6 +280,55 @@ export class ComprobanteInvoiceMapper {
     }
 
     return detail;
+  }
+
+  private mapFormaPago(
+    cabecera: NonNullable<ComprobanteCompletoResult['registro']>,
+    cuotas: NonNullable<ComprobanteCompletoResult['cuotas']>,
+    tipoMoneda: string,
+    totalVenta: number,
+  ): Record<string, unknown> {
+    const diasCredito = Number(cabecera.dias_credito ?? 0);
+    const numeroCuotasCondicion = Number(cabecera.numero_cuotas ?? 0);
+    const esCredito =
+      cuotas.length > 0 || diasCredito > 0 || numeroCuotasCondicion > 1;
+
+    if (!esCredito) {
+      return {
+        moneda: tipoMoneda,
+        tipo: 'Contado',
+      };
+    }
+
+    const cuotasPayload =
+      cuotas.length > 0
+        ? cuotas.map((cuota) => ({
+            moneda: tipoMoneda,
+            monto: this.round(Number(cuota.monto), 2),
+            fechaPago: this.formatFechaPago(cuota.fecha_vencimiento),
+          }))
+        : [
+            {
+              moneda: tipoMoneda,
+              monto: this.round(totalVenta, 2),
+              fechaPago: this.formatFechaPago(
+                cabecera.fecha_vencimiento ?? cabecera.fecha,
+              ),
+            },
+          ];
+
+    return {
+      moneda: tipoMoneda,
+      tipo: 'Credito',
+      cuotas: cuotasPayload,
+    };
+  }
+
+  private formatFechaPago(fecha?: string | null) {
+    if (!fecha) {
+      return new Date().toISOString().slice(0, 10);
+    }
+    return fecha.includes('T') ? fecha.slice(0, 10) : fecha.slice(0, 10);
   }
 
   private formatDesMotivo(nombre?: string | null, codigo?: string | null) {

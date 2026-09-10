@@ -8,11 +8,14 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import { FinanzasLogic } from '../logic/finanzas.logic';
 import { FiltroCuentaDto } from '../dto/filtro-cuenta.dto';
 import { RegistrarPagoDto } from '../dto/registrar-pago.dto';
@@ -26,6 +29,8 @@ import {
 } from '../dto/garantia.dto';
 import { VerificarDuplicadoPagoDto } from '../dto/verificar-duplicado.dto';
 import { FiltroSaldosPorTerceroDto } from '../dto/filtro-saldos-tercero.dto';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Finanzas')
 @Controller('finanzas')
@@ -67,7 +72,8 @@ export class FinanzasController {
   @Post('garantias')
   @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_CREAR)
   @ApiOperation({ summary: 'Registrar una garantía manual (sin préstamo/alquiler/POS)' })
-  crearGarantia(@Body() dto: CrearGarantiaDto) {
+  crearGarantia(@Body() dto: CrearGarantiaDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.crearGarantia(dto);
   }
 
@@ -79,7 +85,9 @@ export class FinanzasController {
   actualizarGarantia(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ActualizarGarantiaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.actualizarGarantia(id, dto);
   }
 
@@ -89,7 +97,9 @@ export class FinanzasController {
   eliminarGarantia(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.eliminarGarantia(id, dto.idUsuarioAuditoria);
   }
 
@@ -101,7 +111,9 @@ export class FinanzasController {
   reembolsarGarantia(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ReembolsarGarantiaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.reembolsarGarantia(id, dto);
   }
 
@@ -140,7 +152,8 @@ export class FinanzasController {
   @Post('cuentas-por-cobrar')
   @Permisos(PermisoBanderas.FINANZAS_CXC_CREAR)
   @ApiOperation({ summary: 'Crear una cuenta por cobrar manual (externa a ventas)' })
-  crearCobrar(@Body() dto: CrearCuentaDto) {
+  crearCobrar(@Body() dto: CrearCuentaDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.crearCuenta('COBRAR', dto);
   }
 
@@ -150,15 +163,17 @@ export class FinanzasController {
     summary:
       'Crear una cuenta por cobrar con plan de cuotas (venta a plazos, financiamiento, etc.)',
   })
-  crearCobrarCuotas(@Body() dto: CrearCuentaCuotasDto) {
+  crearCobrarCuotas(@Body() dto: CrearCuentaCuotasDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.crearCuentaCuotas('COBRAR', dto);
   }
 
   @Post('cuentas-por-cobrar/pagos')
   @Permisos(PermisoBanderas.FINANZAS_CXC_REGISTRAR_PAGO)
   @ApiOperation({ summary: 'Registrar una cobranza sobre una cuenta por cobrar' })
-  registrarCobranza(@Body() dto: RegistrarPagoDto) {
-    return this.finanzasLogic.registrarPago('COBRAR', dto);
+  registrarCobranza(@Body() dto: RegistrarPagoDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
+    return this.finanzasLogic.registrarPago('COBRAR', dto, req.user.permisos);
   }
 
   @Patch('cuentas-por-cobrar/pagos/:id/anular')
@@ -167,7 +182,9 @@ export class FinanzasController {
   anularCobranza(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.anularPago(id, 'COBRAR', dto.idUsuarioAuditoria);
   }
 
@@ -177,7 +194,9 @@ export class FinanzasController {
   actualizarCobrar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ActualizarCuentaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.actualizarCuenta(id, 'COBRAR', dto);
   }
 
@@ -187,7 +206,9 @@ export class FinanzasController {
   eliminarCobrar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.eliminarCuenta(id, 'COBRAR', dto.idUsuarioAuditoria);
   }
 
@@ -226,7 +247,8 @@ export class FinanzasController {
   @Post('cuentas-por-pagar')
   @Permisos(PermisoBanderas.FINANZAS_CXP_CREAR)
   @ApiOperation({ summary: 'Crear una cuenta por pagar manual (externa a compras)' })
-  crearPagar(@Body() dto: CrearCuentaDto) {
+  crearPagar(@Body() dto: CrearCuentaDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.crearCuenta('PAGAR', dto);
   }
 
@@ -236,21 +258,28 @@ export class FinanzasController {
     summary:
       'Crear una cuenta por pagar con plan de cuotas (préstamo bancario, compra a plazos, etc.)',
   })
-  crearPagarCuotas(@Body() dto: CrearCuentaCuotasDto) {
+  crearPagarCuotas(@Body() dto: CrearCuentaCuotasDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.crearCuentaCuotas('PAGAR', dto);
   }
 
   @Post('cuentas-por-pagar/pagos')
   @Permisos(PermisoBanderas.FINANZAS_CXP_REGISTRAR_PAGO)
   @ApiOperation({ summary: 'Registrar un pago sobre una cuenta por pagar' })
-  registrarPago(@Body() dto: RegistrarPagoDto) {
-    return this.finanzasLogic.registrarPago('PAGAR', dto);
+  registrarPago(@Body() dto: RegistrarPagoDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
+    return this.finanzasLogic.registrarPago('PAGAR', dto, req.user.permisos);
   }
 
   @Patch('cuentas-por-pagar/pagos/:id/anular')
   @Permisos(PermisoBanderas.FINANZAS_CXP_REGISTRAR_PAGO)
   @ApiOperation({ summary: 'Anular un pago registrado' })
-  anularPago(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  anularPago(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.anularPago(id, 'PAGAR', dto.idUsuarioAuditoria);
   }
 
@@ -260,7 +289,9 @@ export class FinanzasController {
   actualizarPagar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ActualizarCuentaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.actualizarCuenta(id, 'PAGAR', dto);
   }
 
@@ -270,7 +301,9 @@ export class FinanzasController {
   eliminarPagar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.eliminarCuenta(id, 'PAGAR', dto.idUsuarioAuditoria);
   }
 }

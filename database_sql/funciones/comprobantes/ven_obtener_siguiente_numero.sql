@@ -31,6 +31,9 @@ BEGIN
         RETURN json_build_object('error', 'El tipo de comprobante indicado no existe o está inactivo', 'numero', NULL);
     END IF;
 
+    -- Candado por serie dentro de la TX: evita dos creates concurrentes con el mismo correlativo.
+    PERFORM pg_advisory_xact_lock(872015, hashtext(v_serie));
+
     -- UNIQUE(serie, numero) incluye anulados: el siguiente debe considerar todos los estados.
     SELECT COALESCE(MAX(numero::BIGINT), 0) INTO v_ultimo
     FROM ven_comprobante

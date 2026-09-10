@@ -394,6 +394,103 @@ export class ComprobantesModel {
     );
   }
 
+  /**
+   * Candado de sesión + FOR UPDATE: evita doble emisión concurrente al PSE.
+   * El caller debe liberar con liberarEmisionLock en finally.
+   */
+  async reclamarEmision(id: number): Promise<{
+    ok: boolean;
+    error?: string;
+    estadoSunat?: string | null;
+    client: Awaited<ReturnType<DatabaseService['getClient']>>;
+  }> {
+    const client = await this.db.getClient();
+    try {
+      const lock = await client.query<{ ok: boolean }>(
+        'SELECT pg_try_advisory_lock(872016, $1) AS ok',
+        [id],
+      );
+
+      if (!lock.rows[0]?.ok) {
+        client.release();
+        return {
+          ok: false,
+          error: 'Otra emisión está en curso para este comprobante',
+          client: null as never,
+        };
+      }
+
+      await client.query('BEGIN');
+      const row = await client.query<{ estado_sunat: string | null }>(
+        `SELECT es.nombre AS estado_sunat
+         FROM ven_comprobante c
+         LEFT JOIN gen_lista_opciones es ON es.id = c.id_estado_sunat
+         WHERE c.id = $1 AND c.estado = 1
+         FOR UPDATE OF c`,
+        [id],
+      );
+      await client.query('COMMIT');
+
+      const estadoSunat = row.rows[0]?.estado_sunat ?? null;
+      if (!row.rows[0]) {
+        await client.query('SELECT pg_advisory_unlock(872016, $1)', [id]);
+        client.release();
+        return {
+          ok: false,
+          error: `Comprobante ${id} no encontrado`,
+          client: null as never,
+        };
+      }
+
+      if (estadoSunat === 'ACEPTADO' || estadoSunat === 'BAJA') {
+        await client.query('SELECT pg_advisory_unlock(872016, $1)', [id]);
+        client.release();
+        return {
+          ok: false,
+          error:
+            estadoSunat === 'ACEPTADO'
+              ? 'El comprobante ya fue aceptado por SUNAT'
+              : 'El comprobante está dado de baja',
+          estadoSunat,
+          client: null as never,
+        };
+      }
+
+      if (estadoSunat && !['PENDIENTE', 'RECHAZADO', 'NO_APLICA'].includes(estadoSunat)) {
+        await client.query('SELECT pg_advisory_unlock(872016, $1)', [id]);
+        client.release();
+        return {
+          ok: false,
+          error: `No se puede emitir un comprobante en estado SUNAT ${estadoSunat}`,
+          estadoSunat,
+          client: null as never,
+        };
+      }
+
+      return { ok: true, estadoSunat, client };
+    } catch (error) {
+      try {
+        await client.query('SELECT pg_advisory_unlock(872016, $1)', [id]);
+      } catch {
+        /* ignore */
+      }
+      client.release();
+      throw error;
+    }
+  }
+
+  async liberarEmisionLock(
+    id: number,
+    client: Awaited<ReturnType<DatabaseService['getClient']>> | null,
+  ) {
+    if (!client) return;
+    try {
+      await client.query('SELECT pg_advisory_unlock(872016, $1)', [id]);
+    } finally {
+      client.release();
+    }
+  }
+
   registrarRespuestaSunat(id: number, dto: RegistrarRespuestaSunatDto) {
     return this.db.callFunctionJson<AuthSingleResult>('ven_registrar_respuesta_sunat', [
       id,

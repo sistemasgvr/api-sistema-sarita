@@ -40,6 +40,11 @@ CREATE INDEX idx_gen_chofer_documento ON gen_chofer USING btree (numero_document
 
 CREATE INDEX idx_gen_chofer_trabajador ON gen_chofer USING btree (id_trabajador) WHERE (id_trabajador IS NOT NULL);
 
+-- Un trabajador activo solo puede tener un chofer de flota propia.
+CREATE UNIQUE INDEX uq_gen_chofer_id_trabajador_activo
+    ON gen_chofer USING btree (id_trabajador)
+    WHERE (id_trabajador IS NOT NULL AND estado = 1);
+
 ALTER TABLE gen_chofer
     ADD CONSTRAINT gen_chofer_id_cliente_fkey FOREIGN KEY (id_cliente) REFERENCES public.cli_clientes(id);
 

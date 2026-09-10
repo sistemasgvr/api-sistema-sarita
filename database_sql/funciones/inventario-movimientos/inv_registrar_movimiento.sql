@@ -167,9 +167,26 @@ BEGIN
             FOR UPDATE;
 
             IF v_id_stock IS NULL THEN
-                INSERT INTO pro_stock (id_almacen, id_producto, stock, stock_minimo, id_usuario_creacion, id_usuario_modificacion)
-                VALUES (p_id_almacen_origen, p_id_producto, 0, 0, p_id_usuario_auditoria, p_id_usuario_auditoria)
-                RETURNING id, stock INTO v_id_stock, v_stock_anterior;
+                -- Soft-delete previo: UNIQUE(id_almacen, id_producto) bloquea INSERT.
+                -- Reactivar como pro_crear_stock en vez de fallar.
+                SELECT id INTO v_id_stock
+                FROM pro_stock
+                WHERE id_almacen = p_id_almacen_origen AND id_producto = p_id_producto AND estado = 0
+                FOR UPDATE;
+
+                IF v_id_stock IS NOT NULL THEN
+                    UPDATE pro_stock
+                    SET stock = 0,
+                        estado = 1,
+                        id_usuario_modificacion = p_id_usuario_auditoria,
+                        fecha_modificacion = NOW()
+                    WHERE id = v_id_stock;
+                    v_stock_anterior := 0;
+                ELSE
+                    INSERT INTO pro_stock (id_almacen, id_producto, stock, stock_minimo, id_usuario_creacion, id_usuario_modificacion)
+                    VALUES (p_id_almacen_origen, p_id_producto, 0, 0, p_id_usuario_auditoria, p_id_usuario_auditoria)
+                    RETURNING id, stock INTO v_id_stock, v_stock_anterior;
+                END IF;
             END IF;
 
             IF v_es_salida THEN
@@ -193,9 +210,24 @@ BEGIN
                 FOR UPDATE;
 
                 IF v_id_stock_dest IS NULL THEN
-                    INSERT INTO pro_stock (id_almacen, id_producto, stock, stock_minimo, id_usuario_creacion, id_usuario_modificacion)
-                    VALUES (p_id_almacen_destino, p_id_producto, 0, 0, p_id_usuario_auditoria, p_id_usuario_auditoria)
-                    RETURNING id, stock INTO v_id_stock_dest, v_stock_dest_ant;
+                    SELECT id INTO v_id_stock_dest
+                    FROM pro_stock
+                    WHERE id_almacen = p_id_almacen_destino AND id_producto = p_id_producto AND estado = 0
+                    FOR UPDATE;
+
+                    IF v_id_stock_dest IS NOT NULL THEN
+                        UPDATE pro_stock
+                        SET stock = 0,
+                            estado = 1,
+                            id_usuario_modificacion = p_id_usuario_auditoria,
+                            fecha_modificacion = NOW()
+                        WHERE id = v_id_stock_dest;
+                        v_stock_dest_ant := 0;
+                    ELSE
+                        INSERT INTO pro_stock (id_almacen, id_producto, stock, stock_minimo, id_usuario_creacion, id_usuario_modificacion)
+                        VALUES (p_id_almacen_destino, p_id_producto, 0, 0, p_id_usuario_auditoria, p_id_usuario_auditoria)
+                        RETURNING id, stock INTO v_id_stock_dest, v_stock_dest_ant;
+                    END IF;
                 END IF;
 
                 UPDATE pro_stock
@@ -325,9 +357,24 @@ BEGIN
                 FOR UPDATE;
 
                 IF v_id_stock IS NULL THEN
-                    INSERT INTO pro_stock (id_almacen, id_producto, stock, stock_minimo, id_usuario_creacion, id_usuario_modificacion)
-                    VALUES (v_id_almacen_gas, p_id_producto, 0, 0, p_id_usuario_auditoria, p_id_usuario_auditoria)
-                    RETURNING id, stock INTO v_id_stock, v_stock_anterior;
+                    SELECT id INTO v_id_stock
+                    FROM pro_stock
+                    WHERE id_almacen = v_id_almacen_gas AND id_producto = p_id_producto AND estado = 0
+                    FOR UPDATE;
+
+                    IF v_id_stock IS NOT NULL THEN
+                        UPDATE pro_stock
+                        SET stock = 0,
+                            estado = 1,
+                            id_usuario_modificacion = p_id_usuario_auditoria,
+                            fecha_modificacion = NOW()
+                        WHERE id = v_id_stock;
+                        v_stock_anterior := 0;
+                    ELSE
+                        INSERT INTO pro_stock (id_almacen, id_producto, stock, stock_minimo, id_usuario_creacion, id_usuario_modificacion)
+                        VALUES (v_id_almacen_gas, p_id_producto, 0, 0, p_id_usuario_auditoria, p_id_usuario_auditoria)
+                        RETURNING id, stock INTO v_id_stock, v_stock_anterior;
+                    END IF;
                 END IF;
 
                 IF v_es_salida THEN

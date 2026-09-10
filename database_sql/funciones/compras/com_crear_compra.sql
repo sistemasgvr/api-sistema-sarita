@@ -25,6 +25,7 @@ DECLARE
     v_cantidad            NUMERIC(12,4);
     v_precio_unitario     NUMERIC(12,6);
     v_afecta_stock        BOOLEAN;
+    v_es_gas              BOOLEAN;
     v_importe             NUMERIC(12,4);
     v_total_bruto         NUMERIC(12,4) := 0;
     v_tasa_igv            NUMERIC(6,4) := 0.18;
@@ -171,12 +172,24 @@ BEGIN
             RAISE EXCEPTION 'El almacén id=% de la línea % no existe o está inactivo', v_id_almacen_linea, v_item;
         END IF;
  
-        SELECT afecta_stock INTO v_afecta_stock
+        SELECT afecta_stock, COALESCE(es_gas, FALSE)
+        INTO v_afecta_stock, v_es_gas
         FROM pro_producto
         WHERE id = v_id_producto AND estado = 1;
  
         IF v_afecta_stock IS NULL THEN
             RAISE EXCEPTION 'El producto id=% de la línea % no existe o está inactivo', v_id_producto, v_item;
+        END IF;
+
+        -- Payload puede forzar afecta_stock (p.ej. costo de recarga planta = false).
+        IF v_linea ? 'afecta_stock' AND jsonb_typeof(v_linea->'afecta_stock') <> 'null' THEN
+            v_afecta_stock := COALESCE((v_linea->>'afecta_stock')::BOOLEAN, v_afecta_stock);
+        END IF;
+
+        -- Compra vinculada a orden de planta: el gas lo ingresa solo
+        -- bal_finalizar_recarga_planta al marcar retorno. La línea es costo.
+        IF p_id_doc_salida IS NOT NULL AND v_es_gas THEN
+            v_afecta_stock := FALSE;
         END IF;
  
         v_importe := v_cantidad * v_precio_unitario;
@@ -245,7 +258,8 @@ BEGIN
     WHERE id = v_id_compra;
 
     -- Vínculo opcional con orden de recarga planta externa (factura de costo).
-    -- El gas NO ingresa a pro_stock: el retorno físico va por bal_actualizar_recarga_planta.
+    -- El gas NO ingresa por líneas de compra: el retorno físico + INGRESO de gas
+    -- lo hace solo bal_finalizar_recarga_planta.
     v_id_almacen_compra := p_id_almacen;
 
     IF p_id_doc_salida IS NOT NULL THEN

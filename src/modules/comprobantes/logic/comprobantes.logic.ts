@@ -45,6 +45,16 @@ function esCodigoVentaSinDocumento(codigo?: string | null): boolean {
   return value === CODIGO_VENTA_SIN_DOC || value === CODIGO_NOTA_VENTA_LEGACY;
 }
 
+function documentoEsRuc(cliente: {
+  nombre_tipo_documento?: string | null;
+  numero_documento?: string | null;
+}): boolean {
+  const tipo = (cliente.nombre_tipo_documento ?? '').toUpperCase();
+  const doc = (cliente.numero_documento ?? '').trim();
+  if (tipo.includes('RUC')) return /^\d{11}$/.test(doc);
+  return /^\d{11}$/.test(doc);
+}
+
 /** Plazo máximo de emisión SUNAT (días calendario desde la fecha del comprobante). */
 function diasPlazoEmisionSunat(codigoTipo?: string | null): number | null {
   if (codigoTipo === '01') return 3;
@@ -415,6 +425,15 @@ export class ComprobantesLogic {
       throw new NotFoundException(`Comprobante ${id} no encontrado`);
     }
 
+    const cdrMeta = this.parseCdrMeta(comprobante.registro.cdr_respuesta);
+    const ticketBaja = (comprobante.registro.ticket_sunat ?? '').trim();
+    const esBajaPendiente =
+      cdrMeta?.tipo === 'comunicacion_baja' && Boolean(ticketBaja);
+
+    if (esBajaPendiente) {
+      return this.consultarEstadoBaja(id, ticketBaja, dto, comprobante);
+    }
+
     const tipo = comprobante.registro.codigo_tipo_comprobante;
     const serie = comprobante.registro.serie;
     const numero = comprobante.registro.numero;
@@ -483,6 +502,78 @@ export class ComprobantesLogic {
         respuesta,
       },
     };
+  }
+
+  /**
+   * Consulta ticket de comunicación de baja (voided/status).
+   * Si SUNAT acepta, marca BAJA y revierte efectos (stock/CxC).
+   */
+  private async consultarEstadoBaja(
+    id: number,
+    ticket: string,
+    dto: AuditoriaDto,
+    comprobante: Awaited<ReturnType<ComprobantesModel['obtenerCompleto']>>,
+  ) {
+    const respuesta =
+      await this.facturacionClient.consultarEstadoComunicacionBaja({
+        ticket,
+      });
+    const sunatResponse = (respuesta.sunatResponse ??
+      respuesta) as SunatResponsePayload;
+    const estadoSunatNombre =
+      this.resolverEstadoBajaNombre(sunatResponse) ??
+      this.resolverEstadoSunatDesdeConsulta(respuesta);
+    const idEstadoSunat = await this.model.resolverIdEstadoSunat(
+      estadoSunatNombre === 'ACEPTADO' ? 'BAJA' : estadoSunatNombre,
+    );
+
+    const comprobanteActualizado = await this.model.registrarRespuestaSunat(
+      id,
+      {
+        idEstadoSunat: idEstadoSunat ?? undefined,
+        ticketSunat: ticket,
+        hashDocumento: comprobante.registro?.hash_documento ?? undefined,
+        cdrRespuesta: JSON.stringify({
+          tipo: 'comunicacion_baja',
+          ticket,
+          voided: respuesta.sunatResponse ?? respuesta,
+        }),
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      },
+    );
+
+    if (comprobanteActualizado.error) {
+      throw new BadRequestException(comprobanteActualizado.error);
+    }
+
+    if (estadoSunatNombre === 'ACEPTADO') {
+      const revertido = await this.model.revertirEfectos(
+        id,
+        dto.idUsuarioAuditoria,
+      );
+      if (revertido?.error) {
+        throw new BadRequestException(revertido.error);
+      }
+    }
+
+    return {
+      comprobante: comprobanteActualizado.registro,
+      sunat: {
+        estado: estadoSunatNombre === 'ACEPTADO' ? 'BAJA' : estadoSunatNombre,
+        ticket,
+        respuesta,
+      },
+    };
+  }
+
+  private parseCdrMeta(cdrRespuesta?: string | null): { tipo?: string } | null {
+    if (!cdrRespuesta?.trim()) return null;
+    try {
+      const parsed = JSON.parse(cdrRespuesta) as { tipo?: string };
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
   }
 
   async anular(id: number, dto: AnularComprobanteDto) {
@@ -581,164 +672,222 @@ export class ComprobantesLogic {
         hash: respuesta.hash ?? null,
         ticket: sunatResponse.ticket ?? null,
         respuesta: respuesta.sunatResponse ?? null,
+        ...(estadoSunatNombre === 'PENDIENTE' && sunatResponse.ticket
+          ? {
+              mensaje:
+                'Baja en proceso (ticket). Consulte CDR del comprobante para confirmar y revertir efectos.',
+            }
+          : {}),
       },
     };
   }
 
   async emitir(id: number, dto: AuditoriaDto) {
-    const comprobante = await this.model.obtenerCompleto(id);
-
-    if (comprobante.error) {
-      throw new BadRequestException(comprobante.error);
-    }
-
-    if (!comprobante.registro) {
-      throw new NotFoundException(`Comprobante ${id} no encontrado`);
-    }
-
-    await this.assertFacturacionConfigurada();
-
-    if (comprobante.registro.nombre_estado_sunat === 'ACEPTADO') {
-      throw new BadRequestException('El comprobante ya fue aceptado por SUNAT');
-    }
-
-    if (comprobante.registro.nombre_estado_sunat === 'BAJA') {
-      throw new BadRequestException('El comprobante está dado de baja');
-    }
-
-    const plazoDias = diasPlazoEmisionSunat(
-      comprobante.registro.codigo_tipo_comprobante,
-    );
-    if (plazoDias != null && comprobante.registro.fecha) {
-      const transcurridos = diasDesdeFechaComprobante(
-        comprobante.registro.fecha,
-      );
-      if (transcurridos > plazoDias) {
-        const tipoLabel =
-          comprobante.registro.codigo_tipo_comprobante === '01'
-            ? 'factura'
-            : 'boleta';
-        throw new BadRequestException(
-          `No se puede emitir: la ${tipoLabel} supera el plazo de ${plazoDias} días desde su fecha`,
-        );
-      }
-    }
-
-    const empresa = await this.model.obtenerEmpresaEmisora();
-
-    if (!empresa) {
+    const claim = await this.model.reclamarEmision(id);
+    if (!claim.ok) {
       throw new BadRequestException(
-        'No hay empresa emisora configurada en gen_empresa',
+        claim.error ?? 'No se pudo reclamar la emisión del comprobante',
       );
     }
-
-    const clienteResult = await this.clientesModel.obtenerPorId(
-      comprobante.registro.id_cliente,
-    );
-
-    if (!clienteResult.registro) {
-      throw new BadRequestException('El cliente del comprobante no existe');
-    }
-
-    if (
-      esCodigoVentaSinDocumento(
-        comprobante.registro.codigo_tipo_comprobante_origen,
-      ) &&
-      !clienteResult.registro.numero_documento?.trim()
-    ) {
-      clienteResult.registro.numero_documento = '00000000';
-    }
-
-    const ubigeo = clienteResult.registro.id_distrito
-      ? await this.model.obtenerCodigoUbigeoDistrito(
-          clienteResult.registro.id_distrito,
-        )
-      : '150101';
-
-    const payload = this.invoiceMapper.mapComprobanteToInvoicePayload(
-      comprobante,
-      empresa,
-      clienteResult.registro,
-      ubigeo,
-    );
-
-    const tipoDoc = comprobante.registro.codigo_tipo_comprobante;
-    let respuesta: FacturacionApisperuDocumentResponse;
 
     try {
-      if (tipoDoc === '07' || tipoDoc === '08') {
-        respuesta = await this.facturacionClient.enviarNota(payload);
-      } else {
-        respuesta = await this.facturacionClient.enviarFacturaBoleta(payload);
+      const comprobante = await this.model.obtenerCompleto(id);
+
+      if (comprobante.error) {
+        throw new BadRequestException(comprobante.error);
       }
-    } catch (error) {
-      void this.notificarEmisionComprobante({
-        idComprobante: id,
-        serie: comprobante.registro.serie,
-        numero: comprobante.registro.numero,
-        codigoTipo: tipoDoc,
-        estado: 'ERROR',
-        detalle: error instanceof Error ? error.message : String(error),
-        idUsuarioAuditoria: dto.idUsuarioAuditoria,
-      }).catch((notifyError: unknown) => {
-        this.logger.warn(
-          `No se pudo notificar error de emisión: ${
-            notifyError instanceof Error ? notifyError.message : String(notifyError)
-          }`,
+
+      if (!comprobante.registro) {
+        throw new NotFoundException(`Comprobante ${id} no encontrado`);
+      }
+
+      await this.assertFacturacionConfigurada();
+
+      if (comprobante.registro.nombre_estado_sunat === 'ACEPTADO') {
+        throw new BadRequestException('El comprobante ya fue aceptado por SUNAT');
+      }
+
+      if (comprobante.registro.nombre_estado_sunat === 'BAJA') {
+        throw new BadRequestException('El comprobante está dado de baja');
+      }
+
+      const plazoDias = diasPlazoEmisionSunat(
+        comprobante.registro.codigo_tipo_comprobante,
+      );
+      if (plazoDias != null && comprobante.registro.fecha) {
+        const transcurridos = diasDesdeFechaComprobante(
+          comprobante.registro.fecha,
         );
-      });
-      throw error;
-    }
+        if (transcurridos > plazoDias) {
+          const tipoLabel =
+            comprobante.registro.codigo_tipo_comprobante === '01'
+              ? 'factura'
+              : 'boleta';
+          throw new BadRequestException(
+            `No se puede emitir: la ${tipoLabel} supera el plazo de ${plazoDias} días desde su fecha`,
+          );
+        }
+      }
 
-    const sunatResponse = (respuesta.sunatResponse ??
-      {}) as SunatResponsePayload;
-    const estadoSunatNombre = this.resolverEstadoSunatNombre(sunatResponse);
-    const idEstadoSunat =
-      await this.model.resolverIdEstadoSunat(estadoSunatNombre);
+      const empresa = await this.model.obtenerEmpresaEmisora();
 
-    const comprobanteActualizado = await this.model.registrarRespuestaSunat(
-      id,
-      {
-        idEstadoSunat: idEstadoSunat ?? undefined,
-        ticketSunat: sunatResponse.ticket ?? undefined,
-        hashDocumento: respuesta.hash ?? undefined,
-        xmlFirmado: respuesta.xml ?? undefined,
-        cdrRespuesta: JSON.stringify(respuesta.sunatResponse ?? respuesta),
-        idUsuarioAuditoria: dto.idUsuarioAuditoria,
-      },
-    );
-
-    if (comprobanteActualizado.error) {
-      throw new BadRequestException(comprobanteActualizado.error);
-    }
-
-    if (estadoSunatNombre === 'RECHAZADO') {
-      void this.notificarEmisionComprobante({
-        idComprobante: id,
-        serie: comprobante.registro.serie,
-        numero: comprobante.registro.numero,
-        codigoTipo: tipoDoc,
-        estado: 'RECHAZADO',
-        detalle: 'SUNAT rechazó el comprobante',
-        idUsuarioAuditoria: dto.idUsuarioAuditoria,
-      }).catch((notifyError: unknown) => {
-        this.logger.warn(
-          `No se pudo notificar rechazo SUNAT: ${
-            notifyError instanceof Error ? notifyError.message : String(notifyError)
-          }`,
+      if (!empresa) {
+        throw new BadRequestException(
+          'No hay empresa emisora configurada en gen_empresa',
         );
-      });
+      }
+
+      const clienteResult = await this.clientesModel.obtenerPorId(
+        comprobante.registro.id_cliente,
+      );
+
+      if (!clienteResult.registro) {
+        throw new BadRequestException('El cliente del comprobante no existe');
+      }
+
+      if (
+        esCodigoVentaSinDocumento(
+          comprobante.registro.codigo_tipo_comprobante_origen,
+        ) &&
+        !clienteResult.registro.numero_documento?.trim()
+      ) {
+        clienteResult.registro.numero_documento = '00000000';
+      }
+
+      this.assertDocumentoClienteParaEmitir(
+        comprobante.registro.codigo_tipo_comprobante,
+        comprobante.registro.serie,
+        clienteResult.registro,
+      );
+
+      const ubigeo = clienteResult.registro.id_distrito
+        ? await this.model.obtenerCodigoUbigeoDistrito(
+            clienteResult.registro.id_distrito,
+          )
+        : '150101';
+
+      const payload = this.invoiceMapper.mapComprobanteToInvoicePayload(
+        comprobante,
+        empresa,
+        clienteResult.registro,
+        ubigeo,
+      );
+
+      const tipoDoc = comprobante.registro.codigo_tipo_comprobante;
+      let respuesta: FacturacionApisperuDocumentResponse;
+
+      try {
+        if (tipoDoc === '07' || tipoDoc === '08') {
+          respuesta = await this.facturacionClient.enviarNota(payload);
+        } else {
+          respuesta = await this.facturacionClient.enviarFacturaBoleta(payload);
+        }
+      } catch (error) {
+        void this.notificarEmisionComprobante({
+          idComprobante: id,
+          serie: comprobante.registro.serie,
+          numero: comprobante.registro.numero,
+          codigoTipo: tipoDoc,
+          estado: 'ERROR',
+          detalle: error instanceof Error ? error.message : String(error),
+          idUsuarioAuditoria: dto.idUsuarioAuditoria,
+        }).catch((notifyError: unknown) => {
+          this.logger.warn(
+            `No se pudo notificar error de emisión: ${
+              notifyError instanceof Error ? notifyError.message : String(notifyError)
+            }`,
+          );
+        });
+        throw error;
+      }
+
+      const sunatResponse = (respuesta.sunatResponse ??
+        {}) as SunatResponsePayload;
+      const estadoSunatNombre = this.resolverEstadoSunatNombre(sunatResponse);
+      const idEstadoSunat =
+        await this.model.resolverIdEstadoSunat(estadoSunatNombre);
+
+      const comprobanteActualizado = await this.model.registrarRespuestaSunat(
+        id,
+        {
+          idEstadoSunat: idEstadoSunat ?? undefined,
+          ticketSunat: sunatResponse.ticket ?? undefined,
+          hashDocumento: respuesta.hash ?? undefined,
+          xmlFirmado: respuesta.xml ?? undefined,
+          cdrRespuesta: JSON.stringify(respuesta.sunatResponse ?? respuesta),
+          idUsuarioAuditoria: dto.idUsuarioAuditoria,
+        },
+      );
+
+      if (comprobanteActualizado.error) {
+        throw new BadRequestException(comprobanteActualizado.error);
+      }
+
+      if (estadoSunatNombre === 'RECHAZADO') {
+        void this.notificarEmisionComprobante({
+          idComprobante: id,
+          serie: comprobante.registro.serie,
+          numero: comprobante.registro.numero,
+          codigoTipo: tipoDoc,
+          estado: 'RECHAZADO',
+          detalle: 'SUNAT rechazó el comprobante',
+          idUsuarioAuditoria: dto.idUsuarioAuditoria,
+        }).catch((notifyError: unknown) => {
+          this.logger.warn(
+            `No se pudo notificar rechazo SUNAT: ${
+              notifyError instanceof Error ? notifyError.message : String(notifyError)
+            }`,
+          );
+        });
+      }
+
+      return {
+        comprobante: comprobanteActualizado.registro,
+        sunat: {
+          estado: estadoSunatNombre,
+          hash: respuesta.hash ?? null,
+          ticket: sunatResponse.ticket ?? null,
+          respuesta: respuesta.sunatResponse ?? null,
+        },
+      };
+    } finally {
+      await this.model.liberarEmisionLock(id, claim.client);
+    }
+  }
+
+  /** Valida documento del cliente vs tipo CPE (igual que FE). */
+  private assertDocumentoClienteParaEmitir(
+    codigoTipo: string | null | undefined,
+    serie: string | null | undefined,
+    cliente: {
+      nombre_tipo_documento?: string | null;
+      numero_documento?: string | null;
+    },
+  ) {
+    const codigo = (codigoTipo ?? '').trim();
+    if (!['01', '03', '07', '08'].includes(codigo)) {
+      return;
     }
 
-    return {
-      comprobante: comprobanteActualizado.registro,
-      sunat: {
-        estado: estadoSunatNombre,
-        hash: respuesta.hash ?? null,
-        ticket: sunatResponse.ticket ?? null,
-        respuesta: respuesta.sunatResponse ?? null,
-      },
-    };
+    const doc = (cliente.numero_documento ?? '').trim();
+    if (!doc) {
+      throw new BadRequestException(
+        'El cliente no tiene documento. Asigna DNI/RUC al cliente antes de emitir',
+      );
+    }
+
+    const requiereRuc =
+      codigo === '01' ||
+      ((codigo === '07' || codigo === '08') &&
+        (serie ?? '').trim().toUpperCase().startsWith('F'));
+
+    if (requiereRuc && !documentoEsRuc(cliente)) {
+      throw new BadRequestException(
+        codigo === '01'
+          ? 'La factura requiere un cliente con RUC (11 dígitos)'
+          : 'Este comprobante (serie F) requiere un cliente con RUC (11 dígitos)',
+      );
+    }
   }
 
   private async notificarEmisionComprobante(params: {

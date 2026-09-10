@@ -166,45 +166,15 @@ BEGIN
             );
         END IF;
 
-        SELECT s.* INTO v_abierta
-        FROM fin_caja_sesion s
-        WHERE s.estado = 1
-          AND s.id_estado = v_estado_abierta
-          AND s.id <> v_existente.id
-          AND COALESCE(s.id_sucursal, 0) = COALESCE(p_id_sucursal, 0)
-        LIMIT 1;
-
-        IF FOUND THEN
-            v_hora_txt := to_char(
-                v_abierta.fecha_apertura AT TIME ZONE 'America/Lima',
-                'DD/MM/YYYY HH24:MI'
-            );
-            RETURN json_build_object(
-                'error', format(
-                    'Ya hay otra caja ABIERTA del %s (apertura %s). Ciérrala antes de reabrir.',
-                    to_char(v_abierta.fecha, 'DD/MM/YYYY'),
-                    COALESCE(v_hora_txt, '—')
-                ),
-                'registro', NULL
-            );
-        END IF;
-
-        UPDATE fin_caja_sesion
-        SET id_estado = v_estado_abierta,
-            fecha_apertura = NOW(),
-            id_usuario_apertura = p_id_usuario,
-            observacion_apertura = NULLIF(TRIM(p_observacion), ''),
-            monto_inicial = ROUND(COALESCE(p_monto_inicial, 0), 2),
-            fecha_cierre = NULL,
-            id_usuario_cierre = NULL,
-            monto_efectivo_contado = NULL,
-            monto_esperado = NULL,
-            diferencia = NULL,
-            observacion_cierre = NULL,
-            id_usuario_modificacion = p_id_usuario,
-            fecha_modificacion = NOW()
-        WHERE id = v_existente.id
-        RETURNING id INTO v_id;
+        -- Sesión CERRADA del día: no reabrir por fecha. Usar idSesion (flujo Reabrir).
+        RETURN json_build_object(
+            'error', format(
+                'La caja del %s ya fue cerrada. Para reabrirla usa la acción «Reabrir caja» (envía idSesion=%s).',
+                to_char(v_existente.fecha, 'DD/MM/YYYY'),
+                v_existente.id
+            ),
+            'registro', NULL
+        );
     ELSE
         SELECT s.* INTO v_abierta
         FROM fin_caja_sesion s
@@ -241,7 +211,7 @@ BEGIN
             RETURNING id INTO v_id;
         EXCEPTION
             WHEN unique_violation THEN
-                -- Fallback: fila CERRADA existente → reabrir en lugar de fallar.
+                -- No reabrir en silencio: exige flujo explícito con idSesion.
                 SELECT s.* INTO v_existente
                 FROM fin_caja_sesion s
                 WHERE s.estado = 1
@@ -250,28 +220,20 @@ BEGIN
                 LIMIT 1;
 
                 IF FOUND AND v_existente.id_estado IS DISTINCT FROM v_estado_abierta THEN
-                    UPDATE fin_caja_sesion
-                    SET id_estado = v_estado_abierta,
-                        fecha_apertura = NOW(),
-                        id_usuario_apertura = p_id_usuario,
-                        observacion_apertura = NULLIF(TRIM(p_observacion), ''),
-                        monto_inicial = ROUND(COALESCE(p_monto_inicial, 0), 2),
-                        fecha_cierre = NULL,
-                        id_usuario_cierre = NULL,
-                        monto_efectivo_contado = NULL,
-                        monto_esperado = NULL,
-                        diferencia = NULL,
-                        observacion_cierre = NULL,
-                        id_usuario_modificacion = p_id_usuario,
-                        fecha_modificacion = NOW()
-                    WHERE id = v_existente.id
-                    RETURNING id INTO v_id;
-                ELSE
                     RETURN json_build_object(
-                        'error', 'Ya existe una sesión de caja para esa fecha y sucursal.',
+                        'error', format(
+                            'La caja del %s ya fue cerrada. Para reabrirla usa la acción «Reabrir caja» (envía idSesion=%s).',
+                            to_char(v_existente.fecha, 'DD/MM/YYYY'),
+                            v_existente.id
+                        ),
                         'registro', NULL
                     );
                 END IF;
+
+                RETURN json_build_object(
+                    'error', 'Ya existe una sesión de caja para esa fecha y sucursal.',
+                    'registro', NULL
+                );
         END;
     END IF;
 
