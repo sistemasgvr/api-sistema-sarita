@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import {
   ApiNotFoundResponse,
@@ -15,9 +16,11 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   AsignarResponsableActividadDto,
   CreateActividadDto,
@@ -34,6 +37,8 @@ import {
   VerificarActividadDto,
 } from '../dto/actividades.dto';
 import { ActividadesLogic } from '../logic/actividades.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Operativa - Actividades')
 @Controller('operativa/actividades')
@@ -81,7 +86,8 @@ export class ActividadesController {
     summary:
       'Crea actividad RECOJO desde un préstamo o alquiler vencido (solo FK)',
   })
-  crearRecojo(@Body() dto: CrearRecojoOrigenDto) {
+  crearRecojo(@Body() dto: CrearRecojoOrigenDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.crearRecojoOrigen(dto);
   }
 
@@ -91,7 +97,11 @@ export class ActividadesController {
     summary:
       'Alias: crea recojo de un préstamo (delegado a age_crear_recojo_origen)',
   })
-  crearRecojoPrestamo(@Body() dto: CrearRecojoPrestamoDto) {
+  crearRecojoPrestamo(
+    @Body() dto: CrearRecojoPrestamoDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.crearRecojoPrestamo(dto);
   }
 
@@ -101,7 +111,8 @@ export class ActividadesController {
     summary:
       'Genera las actividades de recojo de los préstamos vencidos o por vencer',
   })
-  generarRecojos(@Body() dto: GenerarRecojosDto) {
+  generarRecojos(@Body() dto: GenerarRecojosDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.generarRecojosPorVencer(dto);
   }
 
@@ -114,7 +125,9 @@ export class ActividadesController {
   iniciarVerificacion(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: IniciarVerificacionDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.iniciarVerificacion(
       id,
       dto.idUsuarioAuditoria,
@@ -130,7 +143,9 @@ export class ActividadesController {
   verificar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: VerificarActividadDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.verificar(id, dto);
   }
 
@@ -148,7 +163,8 @@ export class ActividadesController {
   @Post()
   @Permisos(PermisoBanderas.ACTIVIDADES_CREAR)
   @ApiOperation({ summary: 'Crear actividad' })
-  crear(@Body() dto: CreateActividadDto) {
+  crear(@Body() dto: CreateActividadDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.crear(dto);
   }
 
@@ -162,7 +178,9 @@ export class ActividadesController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateActividadDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.actualizar(id, dto);
   }
 
@@ -174,7 +192,12 @@ export class ActividadesController {
     description:
       'La actividad que intenta eliminar no existe o ya fue dada de baja',
   })
-  eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  eliminar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 
@@ -184,7 +207,9 @@ export class ActividadesController {
   marcarComoRealizada(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.marcarComoRealizada(
       id,
       dto.idUsuarioAuditoria,
@@ -194,7 +219,12 @@ export class ActividadesController {
   @Patch(':id/cancelar')
   @Permisos(PermisoBanderas.ACTIVIDADES_EDITAR)
   @ApiOperation({ summary: 'Cancelar actividad / reparto' })
-  cancelar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  cancelar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.cancelar(id, dto.idUsuarioAuditoria);
   }
 
@@ -207,7 +237,9 @@ export class ActividadesController {
   iniciarEntrega(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.iniciarEntrega(id, dto.idUsuarioAuditoria);
   }
 
@@ -220,7 +252,9 @@ export class ActividadesController {
   culminarEntrega(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.culminarEntrega(id, dto.idUsuarioAuditoria);
   }
 
@@ -233,7 +267,9 @@ export class ActividadesController {
   iniciarRecojo(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.iniciarRecojo(id, dto.idUsuarioAuditoria);
   }
 
@@ -246,7 +282,9 @@ export class ActividadesController {
   culminarRecojo(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CulminarRecojoDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.culminarRecojo(
       id,
       dto.idAlmacenDestino,
@@ -263,7 +301,9 @@ export class ActividadesController {
   asignarResponsable(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AsignarResponsableActividadDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.actividadesLogic.asignarResponsable(
       id,
       dto.idUsuarioAuditoria,

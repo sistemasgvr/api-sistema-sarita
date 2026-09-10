@@ -38,8 +38,15 @@ BEGIN
         RETURN json_build_object('registro', NULL);
     END IF;
 
-    IF v_nombre_estado_actual = 'CANCELADA' THEN
+    IF v_nombre_estado_actual IN ('CANCELADA', 'CANCELADO') THEN
         RETURN json_build_object('registro', NULL, 'error', 'La actividad ya se encuentra cancelada.');
+    END IF;
+
+    IF v_nombre_estado_actual = 'REALIZADA' THEN
+        RETURN json_build_object(
+            'registro', NULL,
+            'error', 'No se puede cancelar una actividad REALIZADA.'
+        );
     END IF;
 
     UPDATE age_actividad

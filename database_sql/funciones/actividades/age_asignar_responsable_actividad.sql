@@ -14,6 +14,8 @@ CREATE OR REPLACE FUNCTION age_asignar_responsable_actividad(
 RETURNS json
 LANGUAGE plpgsql
 AS $function$
+DECLARE
+    v_nombre_estado VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -22,6 +24,19 @@ BEGIN
     END IF;
 
     IF COALESCE(p_liberar, FALSE) THEN
+        SELECT UPPER(TRIM(lo.nombre)) INTO v_nombre_estado
+        FROM age_actividad a
+        LEFT JOIN gen_lista_opciones lo ON lo.id = a.id_estado_actividad
+        WHERE a.id = p_id AND a.estado = 1;
+
+        -- Liberar en ruta dejaria cilindros EN_TRANSITO sin responsable.
+        IF COALESCE(v_nombre_estado, '') = 'EN_RUTA' THEN
+            RETURN json_build_object(
+                'registro', NULL,
+                'error', 'Cancela la actividad o culmina antes de liberar'
+            );
+        END IF;
+
         UPDATE age_actividad
         SET id_trabajador_responsable = NULL,
             id_trabajador_apoyo = NULL,

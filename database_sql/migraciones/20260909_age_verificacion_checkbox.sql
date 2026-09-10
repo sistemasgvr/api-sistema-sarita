@@ -1,3 +1,7 @@
+-- ============================================================
+-- Migracion: verificacion checkbox + gates responsable/sesion/EN_RUTA
+-- Fecha: 2026-09-09
+-- ============================================================
 -- Function: age_registrar_verificacion
 -- Registra lecturas de verificación (escaneo o confirmación por id_item).
 -- pendiente=true revierte el ítem a PENDIENTE (desmarcar checkbox).

@@ -29,6 +29,7 @@ BEGIN
             b.codigo_balon,
             b.numero_serie AS numero_serie_balon,
             tb.nombre AS nombre_tipo_balon,
+            b.id_producto_gas,
             COALESCE(pgb.nombre, p.nombre) AS nombre_producto_gas,
             i.id_estado_verificacion_salida,
             evs.nombre AS estado_verificacion_salida,

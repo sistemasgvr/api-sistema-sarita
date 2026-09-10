@@ -61,6 +61,7 @@ export class ActividadesModel {
       id_item: lectura.idItem ?? null,
       cantidad: lectura.cantidad ?? null,
       conforme: lectura.conforme ?? true,
+      pendiente: lectura.pendiente ?? false,
       observacion: lectura.observacion ?? null,
     }));
 

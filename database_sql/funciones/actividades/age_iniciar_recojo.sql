@@ -18,11 +18,12 @@ DECLARE
     v_nombre_tipo    VARCHAR;
     v_id_en_ruta     INTEGER;
     v_items          INTEGER;
+    v_id_trabajador_sesion INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT a.id, a.id_trabajador_responsable, a.id_estado_actividad,
-           a.id_prestamo, a.id_alquiler
+    SELECT a.id, a.id_trabajador_responsable, a.id_usuario_responsable,
+           a.id_estado_actividad, a.id_prestamo, a.id_alquiler
     INTO v_act
     FROM age_actividad a
     WHERE a.id = p_id AND a.estado = 1;
@@ -56,6 +57,28 @@ BEGIN
 
     IF v_act.id_trabajador_responsable IS NULL THEN
         RETURN json_build_object('error', 'Asigna un responsable antes de iniciar el recojo', 'registro', NULL);
+    END IF;
+
+    IF p_id_usuario_auditoria IS NULL THEN
+        RETURN json_build_object(
+            'error', 'Se requiere el usuario de sesion para iniciar el recojo',
+            'registro', NULL
+        );
+    END IF;
+
+    SELECT u.id_trabajador INTO v_id_trabajador_sesion
+    FROM auth_usuarios u
+    WHERE u.id = p_id_usuario_auditoria AND u.estado = TRUE;
+
+    IF NOT (
+        (v_act.id_trabajador_responsable IS NOT NULL AND v_id_trabajador_sesion IS NOT NULL
+            AND v_id_trabajador_sesion = v_act.id_trabajador_responsable)
+        OR (v_act.id_usuario_responsable IS NOT NULL AND p_id_usuario_auditoria = v_act.id_usuario_responsable)
+    ) THEN
+        RETURN json_build_object(
+            'error', 'Solo el responsable asignado (usuario de sesion) puede iniciar este recojo',
+            'registro', NULL
+        );
     END IF;
 
     SELECT lo.id INTO v_id_en_ruta

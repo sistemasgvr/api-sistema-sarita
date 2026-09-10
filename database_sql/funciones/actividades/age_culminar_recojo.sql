@@ -23,10 +23,14 @@ DECLARE
     v_item           RECORD;
     v_dev            JSON;
     v_devueltos      INTEGER := 0;
+    v_esperados      INTEGER := 0;
+    v_id_almacen_alq INTEGER;
+    v_id_trabajador_sesion INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT a.id, a.id_estado_actividad, a.id_prestamo, a.id_alquiler, a.id_cliente
+    SELECT a.id, a.id_estado_actividad, a.id_prestamo, a.id_alquiler, a.id_cliente,
+           a.id_trabajador_responsable, a.id_usuario_responsable
     INTO v_act
     FROM age_actividad a
     WHERE a.id = p_id AND a.estado = 1;
@@ -49,6 +53,35 @@ BEGIN
     IF COALESCE(v_nombre_estado, '') <> 'EN_RUTA' THEN
         RETURN json_build_object(
             'error', 'Solo se puede culminar un recojo que este EN_RUTA',
+            'registro', NULL
+        );
+    END IF;
+
+    IF v_act.id_trabajador_responsable IS NULL AND v_act.id_usuario_responsable IS NULL THEN
+        RETURN json_build_object(
+            'error', 'Asigna un responsable antes de culminar el recojo',
+            'registro', NULL
+        );
+    END IF;
+
+    IF p_id_usuario_auditoria IS NULL THEN
+        RETURN json_build_object(
+            'error', 'Se requiere el usuario de sesion para culminar el recojo',
+            'registro', NULL
+        );
+    END IF;
+
+    SELECT u.id_trabajador INTO v_id_trabajador_sesion
+    FROM auth_usuarios u
+    WHERE u.id = p_id_usuario_auditoria AND u.estado = TRUE;
+
+    IF NOT (
+        (v_act.id_trabajador_responsable IS NOT NULL AND v_id_trabajador_sesion IS NOT NULL
+            AND v_id_trabajador_sesion = v_act.id_trabajador_responsable)
+        OR (v_act.id_usuario_responsable IS NOT NULL AND p_id_usuario_auditoria = v_act.id_usuario_responsable)
+    ) THEN
+        RETURN json_build_object(
+            'error', 'Solo el responsable asignado (usuario de sesion) puede culminar este recojo',
             'registro', NULL
         );
     END IF;
@@ -107,7 +140,18 @@ BEGIN
         );
     END IF;
 
+    SELECT COUNT(*) INTO v_esperados
+    FROM age_actividad_item ai
+    WHERE ai.id_actividad = p_id AND ai.estado = 1
+      AND (
+            ai.id_prestamo_detalle IS NOT NULL
+         OR ai.id_alquiler_detalle IS NOT NULL
+         OR (ai.id_balon IS NULL AND ai.id_producto IS NOT NULL AND v_act.id_alquiler IS NOT NULL)
+      );
+
     -- Devuelve cada cilindro al almacén elegido.
+    -- Cualquier error de bal_devolver_* aborta con RAISE para revertir
+    -- devoluciones parciales ya aplicadas en esta misma transacción.
     FOR v_item IN
         SELECT ai.id, ai.id_balon, ai.id_prestamo_detalle, ai.id_alquiler_detalle,
                ai.id_producto, ai.observacion_llegada
@@ -125,7 +169,7 @@ BEGIN
                 p_observacion              => COALESCE(v_item.observacion_llegada, 'Devolucion por actividad de recojo')
             );
             IF v_dev->>'error' IS NOT NULL THEN
-                RETURN json_build_object('error', v_dev->>'error', 'registro', NULL);
+                RAISE EXCEPTION '%', v_dev->>'error';
             END IF;
             v_devueltos := v_devueltos + 1;
 
@@ -137,7 +181,7 @@ BEGIN
                 p_id_usuario_auditoria => p_id_usuario_auditoria
             );
             IF v_dev->>'error' IS NOT NULL THEN
-                RETURN json_build_object('error', v_dev->>'error', 'registro', NULL);
+                RAISE EXCEPTION '%', v_dev->>'error';
             END IF;
             v_devueltos := v_devueltos + 1;
 
@@ -145,6 +189,18 @@ BEGIN
               AND v_item.id_producto IS NOT NULL
               AND v_act.id_alquiler IS NOT NULL THEN
             -- Accesorio/regulador materializado sin balón.
+            -- bal_devolver_regulador_alquiler NO acepta p_id_almacen_destino:
+            -- reingresa stock con bal_alquiler.id_almacen. Si es NULL, falla
+            -- en claro en lugar de marcar REALIZADA sin reingreso.
+            SELECT a.id_almacen INTO v_id_almacen_alq
+            FROM bal_alquiler a
+            WHERE a.id = v_act.id_alquiler AND a.estado = 1;
+
+            IF v_id_almacen_alq IS NULL THEN
+                RAISE EXCEPTION
+                    'El alquiler no tiene id_almacen para reingresar el regulador; bal_devolver_regulador_alquiler no acepta almacen destino (defina id_almacen en el alquiler)';
+            END IF;
+
             v_dev := bal_devolver_regulador_alquiler(
                 p_id_alquiler          => v_act.id_alquiler,
                 p_fecha                => CURRENT_DATE,
@@ -154,11 +210,17 @@ BEGIN
                 p_id_usuario_auditoria => p_id_usuario_auditoria
             );
             IF v_dev->>'error' IS NOT NULL THEN
-                RETURN json_build_object('error', v_dev->>'error', 'registro', NULL);
+                RAISE EXCEPTION '%', v_dev->>'error';
             END IF;
             v_devueltos := v_devueltos + 1;
         END IF;
     END LOOP;
+
+    IF v_esperados > 0 AND v_devueltos = 0 THEN
+        RAISE EXCEPTION
+            'No se devolvio ningun cilindro/accesorio pese a haber % item(s) por devolver; no se marca REALIZADA',
+            v_esperados;
+    END IF;
 
     UPDATE age_actividad
     SET id_estado_actividad = v_id_realizada,
@@ -169,5 +231,9 @@ BEGIN
     WHERE id = p_id AND estado = 1;
 
     RETURN age_obtener_actividad(p_id);
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Revierte devoluciones parciales del loop y expone el error al API.
+        RETURN json_build_object('error', SQLERRM, 'registro', NULL);
 END;
 $function$;

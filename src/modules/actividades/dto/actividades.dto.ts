@@ -403,6 +403,15 @@ export class LecturaVerificacionDto {
   @IsBoolean()
   conforme?: boolean;
 
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'true revierte el ítem a PENDIENTE (desmarcar checkbox para reverificar)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  pendiente?: boolean;
+
   @ApiPropertyOptional({ description: 'Observación de esta lectura concreta' })
   @IsOptional()
   @IsString()

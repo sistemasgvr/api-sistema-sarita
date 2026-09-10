@@ -18,7 +18,8 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT a.id, a.id_prestamo, a.id_alquiler, a.id_doc_salida, a.id_comprobante
+    SELECT a.id, a.id_prestamo, a.id_alquiler, a.id_doc_salida, a.id_comprobante,
+           a.id_trabajador_responsable
     INTO v_act
     FROM age_actividad a
     WHERE a.id = p_id_actividad AND a.estado = 1;
@@ -32,6 +33,31 @@ BEGIN
         WHERE i.id_actividad = p_id_actividad AND i.estado = 1
     ) THEN
         RETURN age_obtener_actividad(p_id_actividad);
+    END IF;
+
+    IF v_act.id_trabajador_responsable IS NULL THEN
+        RETURN json_build_object(
+            'error', 'Asigna un responsable antes de iniciar la verificacion',
+            'registro', NULL
+        );
+    END IF;
+
+    IF p_id_usuario_auditoria IS NOT NULL THEN
+        DECLARE
+            v_id_trabajador_sesion INTEGER;
+        BEGIN
+            SELECT u.id_trabajador INTO v_id_trabajador_sesion
+            FROM auth_usuarios u
+            WHERE u.id = p_id_usuario_auditoria AND u.estado = TRUE;
+
+            IF v_id_trabajador_sesion IS NULL
+               OR v_id_trabajador_sesion IS DISTINCT FROM v_act.id_trabajador_responsable THEN
+                RETURN json_build_object(
+                    'error', 'Solo el responsable asignado (usuario de sesion) puede iniciar la verificacion',
+                    'registro', NULL
+                );
+            END IF;
+        END;
     END IF;
 
     SELECT lo.id INTO v_id_pendiente

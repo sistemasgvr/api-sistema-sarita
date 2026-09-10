@@ -22,10 +22,14 @@ DECLARE
     v_items          INTEGER;
     v_pendientes     INTEGER;
     v_observados     INTEGER;
+    v_cilindros_tot  INTEGER := 0;
+    v_cilindros_esp  INTEGER := 0;
+    v_cilindros_upd  INTEGER := 0;
+    v_id_trabajador_sesion INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT a.id, a.id_trabajador_responsable, a.id_estado_actividad
+    SELECT a.id, a.id_trabajador_responsable, a.id_usuario_responsable, a.id_estado_actividad
     INTO v_act
     FROM age_actividad a
     WHERE a.id = p_id AND a.estado = 1;
@@ -56,6 +60,28 @@ BEGIN
     -- Sin responsable no hay quien responda por la carga que sale.
     IF v_act.id_trabajador_responsable IS NULL THEN
         RETURN json_build_object('error', 'Asigna un responsable antes de iniciar la entrega', 'registro', NULL);
+    END IF;
+
+    IF p_id_usuario_auditoria IS NULL THEN
+        RETURN json_build_object(
+            'error', 'Se requiere el usuario de sesion para iniciar la entrega',
+            'registro', NULL
+        );
+    END IF;
+
+    SELECT u.id_trabajador INTO v_id_trabajador_sesion
+    FROM auth_usuarios u
+    WHERE u.id = p_id_usuario_auditoria AND u.estado = TRUE;
+
+    IF NOT (
+        (v_act.id_trabajador_responsable IS NOT NULL AND v_id_trabajador_sesion IS NOT NULL
+            AND v_id_trabajador_sesion = v_act.id_trabajador_responsable)
+        OR (v_act.id_usuario_responsable IS NOT NULL AND p_id_usuario_auditoria = v_act.id_usuario_responsable)
+    ) THEN
+        RETURN json_build_object(
+            'error', 'Solo el responsable asignado (usuario de sesion) puede iniciar esta entrega',
+            'registro', NULL
+        );
     END IF;
 
     SELECT lo.id INTO v_id_en_ruta
@@ -99,12 +125,6 @@ BEGIN
     -- CON_OBSERVACION no bloquea: es un aviso leve que queda registrado.
     -- Solo los pendientes impiden salir del almacen.
 
-    UPDATE age_actividad
-    SET id_estado_actividad = v_id_en_ruta,
-        id_usuario_modificacion = p_id_usuario_auditoria,
-        fecha_modificacion = NOW()
-    WHERE id = p_id AND estado = 1;
-
     -- ------------------------------------------------------------
     -- Custodia: PENDIENTE_ENVIO -> EN_TRANSITO
     --
@@ -130,18 +150,58 @@ BEGIN
     WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'EN_TRANSITO' AND lo.estado = 1
     LIMIT 1;
 
-    IF v_id_pend_envio IS NOT NULL AND v_id_transito IS NOT NULL THEN
-        UPDATE bal_balon b
-        SET id_estado_balon = v_id_transito,
-            id_usuario_modificacion = p_id_usuario_auditoria,
-            fecha_modificacion = NOW()
-        FROM age_actividad_item ai
-        WHERE ai.id_actividad = p_id
-          AND ai.estado = 1
-          AND ai.id_balon = b.id
-          AND b.estado = 1
-          AND b.id_estado_balon = v_id_pend_envio;
+    IF v_id_pend_envio IS NULL OR v_id_transito IS NULL THEN
+        RETURN json_build_object(
+            'error', 'Faltan estados PENDIENTE_ENVIO o EN_TRANSITO en catalogo EstadoBalon',
+            'registro', NULL
+        );
     END IF;
+
+    SELECT
+        COUNT(*) FILTER (WHERE ai.id_balon IS NOT NULL),
+        COUNT(*) FILTER (WHERE ai.id_balon IS NOT NULL AND b.id_estado_balon = v_id_pend_envio)
+    INTO v_cilindros_tot, v_cilindros_esp
+    FROM age_actividad_item ai
+    LEFT JOIN bal_balon b ON b.id = ai.id_balon AND b.estado = 1
+    WHERE ai.id_actividad = p_id AND ai.estado = 1;
+
+    -- Accesorios-only: sin cilindros no se exige custodia.
+    IF v_cilindros_tot > 0 AND v_cilindros_esp = 0 THEN
+        RETURN json_build_object(
+            'error', 'Los cilindros de la actividad no estan en PENDIENTE_ENVIO; no se puede iniciar la entrega',
+            'registro', NULL
+        );
+    END IF;
+
+    -- Custodia primero: si falla, la actividad no queda EN_RUTA a medias.
+    UPDATE bal_balon b
+    SET id_estado_balon = v_id_transito,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    FROM age_actividad_item ai
+    WHERE ai.id_actividad = p_id
+      AND ai.estado = 1
+      AND ai.id_balon = b.id
+      AND b.estado = 1
+      AND b.id_estado_balon = v_id_pend_envio;
+
+    GET DIAGNOSTICS v_cilindros_upd = ROW_COUNT;
+
+    IF v_cilindros_esp > 0 AND v_cilindros_upd = 0 THEN
+        RETURN json_build_object(
+            'error', format(
+                'No se actualizo ningun cilindro a EN_TRANSITO (se esperaban %s en PENDIENTE_ENVIO)',
+                v_cilindros_esp
+            ),
+            'registro', NULL
+        );
+    END IF;
+
+    UPDATE age_actividad
+    SET id_estado_actividad = v_id_en_ruta,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id AND estado = 1;
 
     RETURN age_obtener_actividad(p_id);
 END;
