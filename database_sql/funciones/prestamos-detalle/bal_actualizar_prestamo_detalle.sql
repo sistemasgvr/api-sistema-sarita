@@ -79,8 +79,8 @@ BEGIN
     IF p_id_guia_entrega IS NOT NULL OR p_id_guia_devolucion IS NOT NULL THEN
         UPDATE bal_prestamo_detalle
         SET
-            id_doc_salida_entrega = COALESCE(p_id_guia_entrega, id_guia_entrega),
-            id_doc_salida_devolucion = COALESCE(p_id_guia_devolucion, id_guia_devolucion),
+            id_doc_salida_entrega = COALESCE(p_id_guia_entrega, id_doc_salida_entrega),
+            id_doc_salida_devolucion = COALESCE(p_id_guia_devolucion, id_doc_salida_devolucion),
             serie_guia_entrega = COALESCE(v_serie_entrega, serie_guia_entrega),
             numero_guia_entrega = COALESCE(v_numero_entrega, numero_guia_entrega),
             serie_guia_devolucion = COALESCE(v_serie_devolucion, serie_guia_devolucion),
@@ -149,6 +149,8 @@ BEGIN
             END IF;
         END IF;
 
+        -- Tras liberar el cilindro anterior, cualquier fallo debe abortar con
+        -- RAISE para revertir el retorno (nunca soft RETURN post-mutación).
         IF EXISTS (
             SELECT 1
             FROM bal_prestamo_detalle pd
@@ -158,10 +160,7 @@ BEGIN
               AND pd.fecha_devolucion IS NULL
               AND pd.id <> p_id
         ) THEN
-            RETURN json_build_object(
-                'error', 'El cilindro ya tiene un préstamo activo sin devolver',
-                'registro', NULL
-            );
+            RAISE EXCEPTION 'El cilindro ya tiene un préstamo activo sin devolver';
         END IF;
 
         IF EXISTS (
@@ -172,10 +171,7 @@ BEGIN
               AND ad.estado = 1
               AND ad.fecha_devolucion IS NULL
         ) THEN
-            RETURN json_build_object(
-                'error', 'El cilindro está alquilado actualmente; no se puede prestar',
-                'registro', NULL
-            );
+            RAISE EXCEPTION 'El cilindro está alquilado actualmente; no se puede prestar';
         END IF;
 
         v_salida := bal_prestamo_aplicar_salida_cilindro(
@@ -185,7 +181,7 @@ BEGIN
             p_id_usuario_auditoria
         );
         IF v_salida->>'error' IS NOT NULL THEN
-            RETURN json_build_object('error', v_salida->>'error', 'registro', NULL);
+            RAISE EXCEPTION '%', v_salida->>'error';
         END IF;
     END IF;
 
@@ -207,8 +203,8 @@ BEGIN
         fecha_prestamo = COALESCE(p_fecha_prestamo, fecha_prestamo),
         dias_prestamo = COALESCE(p_dias_prestamo, dias_prestamo),
         fecha_vencimiento = COALESCE(p_fecha_vencimiento, fecha_vencimiento),
-        id_doc_salida_entrega = COALESCE(p_id_guia_entrega, id_guia_entrega),
-        id_doc_salida_devolucion = COALESCE(p_id_guia_devolucion, id_guia_devolucion),
+        id_doc_salida_entrega = COALESCE(p_id_guia_entrega, id_doc_salida_entrega),
+        id_doc_salida_devolucion = COALESCE(p_id_guia_devolucion, id_doc_salida_devolucion),
         serie_guia_entrega = COALESCE(v_serie_entrega, serie_guia_entrega),
         numero_guia_entrega = COALESCE(v_numero_entrega, numero_guia_entrega),
         serie_guia_devolucion = COALESCE(v_serie_devolucion, serie_guia_devolucion),
@@ -224,5 +220,9 @@ BEGIN
     END IF;
 
     RETURN bal_obtener_prestamo_detalle(p_id);
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Revierte retorno/salida parcial de cambio de cilindro y expone al API.
+        RETURN json_build_object('error', SQLERRM, 'registro', NULL);
 END;
 $function$;

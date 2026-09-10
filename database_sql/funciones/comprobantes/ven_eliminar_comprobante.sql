@@ -10,7 +10,8 @@
 -- esta cascada, el documento quedaba "activo" pero sin ítems, indistinguible
 -- de un bug. doc_anular_salida ya es seguro de llamar aquí: para documentos
 -- con id_venta NO revierte inventario (lo movió la venta, no el documento),
--- solo cambia su estado de ciclo a ANULADA. Ver también doc_obtener_salida.sql
+-- pero SÍ libera custodia PENDIENTE_ENVIO/EN_TRANSITO → DISPONIBLE y bloquea
+-- si hay reparto vigente. Ver también doc_obtener_salida.sql
 -- (ahora sigue mostrando el detalle de una venta anulada, en vez de vaciarlo).
 --
 -- ⚠️ NO EJECUTAR sin revisión — dejar aplicado a mano con apply-migration.js
@@ -24,8 +25,10 @@ AS $function$
 DECLARE
     v_estado_sunat VARCHAR;
     v_rev JSON;
+    v_anul JSON;
     v_serie VARCHAR;
     v_numero VARCHAR;
+    v_os_id INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -59,6 +62,56 @@ BEGIN
             'error', 'No se puede eliminar el comprobante porque tiene documentos derivados (boleta/factura/nota)'
         );
     END IF;
+
+    -- Cascada OS ANTES del soft-delete: doc_anular_salida localiza balones
+    -- por ven_comprobante_detalle (aún estado=1), libera PENDIENTE_ENVIO /
+    -- EN_TRANSITO → DISPONIBLE, y falla con error si hay reparto vigente.
+    -- PERFORM descartaba ese error; aquí se propaga.
+    FOR v_os_id IN
+        SELECT d.id
+        FROM doc_salida d
+        JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
+        WHERE d.id_venta = p_id
+          AND d.estado = 1
+          AND ec.nombre <> 'ANULADA'
+    LOOP
+        v_anul := doc_anular_salida(
+            v_os_id,
+            format('Venta %s-%s anulada', COALESCE(v_serie, ''), COALESCE(v_numero, p_id::text)),
+            p_id_usuario_auditoria
+        );
+        IF v_anul->>'error' IS NOT NULL THEN
+            RETURN json_build_object(
+                'eliminado', FALSE,
+                'id', p_id,
+                'error', v_anul->>'error'
+            );
+        END IF;
+    END LOOP;
+
+    -- Reserva de venta sin OS: ven_crear_comprobante dejó PENDIENTE_ENVIO en
+    -- cilindros DISPONIBLE vendidos. Si no hubo OS (o quedó residual), liberar.
+    -- Con OS vigente doc_anular_salida ya lo hizo; este UPDATE es no-op.
+    UPDATE bal_balon b
+    SET id_estado_balon = lo_disp.id,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    FROM ven_comprobante_detalle d
+    CROSS JOIN LATERAL (
+        SELECT lo.id
+        FROM gen_lista_opciones lo
+        JOIN gen_lista l ON l.id = lo.id_lista
+        WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'DISPONIBLE' AND lo.estado = 1
+        LIMIT 1
+    ) lo_disp
+    JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+    WHERE d.id_comprobante = p_id
+      AND d.estado = 1
+      AND d.id_balon = b.id
+      AND b.estado = 1
+      AND COALESCE(d.descripcion, '') !~* 'garant[ií]a'
+      AND lo_disp.id IS NOT NULL
+      AND UPPER(TRIM(eb.nombre)) = 'PENDIENTE_ENVIO';
 
     -- Revertir stock, CxC impaga y custodia (préstamo/recarga/alquiler/GRE)
     v_rev := ven_revertir_efectos_comprobante(p_id, p_id_usuario_auditoria, TRUE);
@@ -101,19 +154,6 @@ BEGIN
     IF NOT FOUND THEN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id);
     END IF;
-
-    -- Cascada: cualquier documento de salida vigente originado en esta venta
-    -- queda anulado también (no mueve inventario propio: solo cambia estado).
-    PERFORM doc_anular_salida(
-        d.id,
-        format('Venta %s-%s anulada', COALESCE(v_serie, ''), COALESCE(v_numero, p_id::text)),
-        p_id_usuario_auditoria
-    )
-    FROM doc_salida d
-    JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
-    WHERE d.id_venta = p_id
-      AND d.estado = 1
-      AND ec.nombre <> 'ANULADA';
 
     RETURN json_build_object('eliminado', TRUE, 'id', p_id);
 END;

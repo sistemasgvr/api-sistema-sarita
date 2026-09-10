@@ -51,7 +51,8 @@ BEGIN
     END IF;
 
     IF COALESCE(v_nombre_estado, '') IN (
-        'ALQUILADO', 'EN_MANTENIMIENTO', 'EN_RECARGA_EXTERNA', 'POR_RECOGER', 'EN_PODER_CLIENTE'
+        'ALQUILADO', 'EN_MANTENIMIENTO', 'EN_RECARGA_EXTERNA', 'POR_RECOGER', 'EN_PODER_CLIENTE',
+        'EN_TRANSITO', 'PENDIENTE_ENVIO'
     ) THEN
         RETURN json_build_object(
             'error',

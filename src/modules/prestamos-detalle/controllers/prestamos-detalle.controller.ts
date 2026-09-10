@@ -8,12 +8,15 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   CreatePrestamosDetalleDto,
   DevolverPrestamosDetalleDto,
@@ -21,6 +24,8 @@ import {
   UpdatePrestamosDetalleDto,
 } from '../dto/prestamos-detalle.dto';
 import { PrestamosDetalleLogic } from '../logic/prestamos-detalle.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Balones - Préstamos Detalle')
 @Controller('balones/prestamos-detalle')
@@ -45,7 +50,8 @@ export class PrestamosDetalleController {
   @Post()
   @Permisos(PermisoBanderas.PRESTAMOS_DETALLE_CREAR)
   @ApiOperation({ summary: 'Crear' })
-  crear(@Body() dto: CreatePrestamosDetalleDto) {
+  crear(@Body() dto: CreatePrestamosDetalleDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crear(dto);
   }
 
@@ -56,7 +62,9 @@ export class PrestamosDetalleController {
   devolver(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: DevolverPrestamosDetalleDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.devolver(id, dto);
   }
 
@@ -67,7 +75,9 @@ export class PrestamosDetalleController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePrestamosDetalleDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.actualizar(id, dto);
   }
 
@@ -78,7 +88,9 @@ export class PrestamosDetalleController {
   eliminar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

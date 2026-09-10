@@ -166,16 +166,24 @@ BEGIN
     WHERE ai.id_actividad = p_id AND ai.estado = 1;
 
     -- Accesorios-only: sin cilindros no se exige custodia.
-    IF v_cilindros_tot > 0 AND v_cilindros_esp = 0 THEN
+    -- Con cilindros se exige que TODOS esten en PENDIENTE_ENVIO (no "al menos uno").
+    IF v_cilindros_tot > 0 AND v_cilindros_esp < v_cilindros_tot THEN
         RETURN json_build_object(
-            'error', 'Los cilindros de la actividad no estan en PENDIENTE_ENVIO; no se puede iniciar la entrega',
+            'error', format(
+                'Faltan %s cilindro(s) en PENDIENTE_ENVIO para iniciar la entrega (hay %s de %s)',
+                v_cilindros_tot - v_cilindros_esp,
+                v_cilindros_esp,
+                v_cilindros_tot
+            ),
             'registro', NULL
         );
     END IF;
 
     -- Custodia primero: si falla, la actividad no queda EN_RUTA a medias.
+    -- id_almacen = NULL: ya no esta en el almacen, va en el camion.
     UPDATE bal_balon b
     SET id_estado_balon = v_id_transito,
+        id_almacen = NULL,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     FROM age_actividad_item ai
@@ -187,11 +195,12 @@ BEGIN
 
     GET DIAGNOSTICS v_cilindros_upd = ROW_COUNT;
 
-    IF v_cilindros_esp > 0 AND v_cilindros_upd = 0 THEN
+    IF v_cilindros_esp > 0 AND v_cilindros_upd <> v_cilindros_esp THEN
         RETURN json_build_object(
             'error', format(
-                'No se actualizo ningun cilindro a EN_TRANSITO (se esperaban %s en PENDIENTE_ENVIO)',
-                v_cilindros_esp
+                'No se actualizaron todos los cilindros a EN_TRANSITO (se esperaban %s, se actualizaron %s)',
+                v_cilindros_esp,
+                v_cilindros_upd
             ),
             'registro', NULL
         );

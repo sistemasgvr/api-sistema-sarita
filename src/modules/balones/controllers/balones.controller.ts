@@ -8,13 +8,16 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   AprobarBajaBalonDto,
   CreateBalonesDto,
@@ -30,6 +33,8 @@ import {
   UpdateBalonesDto,
 } from '../dto/balones.dto';
 import { BalonesLogic } from '../logic/balones.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Balones')
 @Controller('balones')
@@ -79,7 +84,9 @@ export class BalonesController {
   aprobarBaja(
     @Param('idBaja', ParseIntPipe) idBaja: number,
     @Body() dto: AprobarBajaBalonDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.aprobarBaja(idBaja, dto);
   }
 
@@ -91,7 +98,9 @@ export class BalonesController {
   rechazarBaja(
     @Param('idBaja', ParseIntPipe) idBaja: number,
     @Body() dto: RechazarBajaBalonDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.rechazarBaja(idBaja, dto);
   }
 
@@ -111,7 +120,9 @@ export class BalonesController {
   registrarPhHistorial(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RegistrarPhHistorialDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.registrarPhHistorial(id, dto);
   }
 
@@ -135,14 +146,24 @@ export class BalonesController {
   @Post(':id/baja')
   @Permisos(PermisoBanderas.BAJAS_BALON_SOLICITAR)
   @ApiOperation({ summary: 'Solicitar baja de cilindro (requiere aprobación de administrador)' })
-  darBaja(@Param('id', ParseIntPipe) id: number, @Body() dto: DarBajaBalonDto) {
+  darBaja(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: DarBajaBalonDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.darBaja(id, dto);
   }
 
   @Post(':id/restaurar')
   @Permisos(PermisoBanderas.BALONES_EDITAR)
   @ApiOperation({ summary: 'Reactivar cilindro dado de baja o reportado como robo' })
-  restaurar(@Param('id', ParseIntPipe) id: number, @Body() dto: RestaurarBalonDto) {
+  restaurar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RestaurarBalonDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.restaurar(id, dto);
   }
 
@@ -157,7 +178,8 @@ export class BalonesController {
   @Post()
   @Permisos(PermisoBanderas.BALONES_CREAR)
   @ApiOperation({ summary: 'Crear' })
-  crear(@Body() dto: CreateBalonesDto) {
+  crear(@Body() dto: CreateBalonesDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crear(dto);
   }
 
@@ -168,7 +190,9 @@ export class BalonesController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateBalonesDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.actualizar(id, dto);
   }
 
@@ -179,7 +203,9 @@ export class BalonesController {
   eliminar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

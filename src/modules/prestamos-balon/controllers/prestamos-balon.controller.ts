@@ -8,12 +8,15 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   CreatePrestamosBalonDto,
   FiltroPrestamosAntiguedadDto,
@@ -22,6 +25,8 @@ import {
   UpdatePrestamosBalonDto,
 } from '../dto/prestamos-balon.dto';
 import { PrestamosBalonLogic } from '../logic/prestamos-balon.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Balones - Préstamos')
 @Controller('balones/prestamos')
@@ -56,7 +61,8 @@ export class PrestamosBalonController {
   @Post()
   @Permisos(PermisoBanderas.PRESTAMOS_BALON_CREAR)
   @ApiOperation({ summary: 'Crear' })
-  crear(@Body() dto: CreatePrestamosBalonDto) {
+  crear(@Body() dto: CreatePrestamosBalonDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crear(dto);
   }
 
@@ -67,7 +73,9 @@ export class PrestamosBalonController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePrestamosBalonDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.actualizar(id, dto);
   }
 
@@ -78,7 +86,9 @@ export class PrestamosBalonController {
   eliminar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.eliminar(id, dto.idUsuarioAuditoria);
   }
 
@@ -92,7 +102,9 @@ export class PrestamosBalonController {
   renovar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RenovarPrestamosBalonDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.renovar(id, dto);
   }
 }

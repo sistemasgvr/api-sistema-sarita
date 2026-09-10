@@ -40,7 +40,8 @@ BEGIN
     FROM bal_prestamo_detalle pd
     INNER JOIN bal_prestamo p ON p.id = pd.id_prestamo AND p.estado = 1
     WHERE pd.id = p_id
-      AND pd.estado = 1;
+      AND pd.estado = 1
+    FOR UPDATE OF pd;
 
     IF v_id_prestamo IS NULL THEN
         RETURN json_build_object(

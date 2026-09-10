@@ -1,7 +1,10 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: age_cancelar_actividad
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.941Z
+--
+-- Cancela la actividad. Para REPARTO, el camino de vuelta de custodia es
+-- EN_TRANSITO → PENDIENTE_ENVIO (NO DISPONIBLE): la OS sigue vigente y sigue
+-- dueña de la reserva; cancelar el viaje no libera el cilindro al stock
+-- vendible. La liberación a DISPONIBLE ocurre al anular la OS
+-- (doc_anular_salida).
 DROP FUNCTION IF EXISTS age_cancelar_actividad(p_id integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION age_cancelar_actividad(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -14,6 +17,7 @@ DECLARE
     v_nombre_estado_actual VARCHAR;
     v_id_pend_envio INTEGER;
     v_id_transito INTEGER;
+    v_id_almacen_os INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -65,6 +69,11 @@ BEGIN
     -- transito para siempre, que es justo el atasco que ya sufrio
     -- PENDIENTE_ENVIO por no tener salida.
     --
+    -- IMPORTANTE: cancelar REPARTO NO pone DISPONIBLE. Si la OS sigue activa,
+    -- los balones de sus items (via id_doc_salida / id_balon) permanecen en
+    -- PENDIENTE_ENVIO: la orden sigue dueña de la reserva. Solo
+    -- doc_anular_salida libera a DISPONIBLE.
+    --
     -- Se filtra por el estado actual del cilindro y no por el de la actividad:
     -- asi es idempotente y no toca cilindros que ya siguieron otro camino.
     -- ------------------------------------------------------------
@@ -78,9 +87,17 @@ BEGIN
     WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'PENDIENTE_ENVIO' AND lo.estado = 1
     LIMIT 1;
 
+    SELECT ds.id_almacen INTO v_id_almacen_os
+    FROM age_actividad a
+    JOIN doc_salida ds ON ds.id = a.id_doc_salida AND ds.estado = 1
+    WHERE a.id = p_id;
+
     IF v_id_transito IS NOT NULL AND v_id_pend_envio IS NOT NULL THEN
         UPDATE bal_balon b
         SET id_estado_balon = v_id_pend_envio,
+            -- age_iniciar_entrega deja id_almacen NULL al subir al camion;
+            -- al cancelar, el cilindro vuelve al almacen de la OS si se conoce.
+            id_almacen = COALESCE(v_id_almacen_os, b.id_almacen),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         FROM age_actividad_item ai

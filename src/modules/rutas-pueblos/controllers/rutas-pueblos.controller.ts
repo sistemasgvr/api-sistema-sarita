@@ -8,12 +8,15 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   CerrarRutaPuebloDto,
   CreateRutaPuebloDto,
@@ -22,6 +25,8 @@ import {
   UpdateRutaPuebloDto,
 } from '../dto/rutas-pueblos.dto';
 import { RutasPueblosLogic } from '../logic/rutas-pueblos.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Balones - Rutas pueblos')
 @Controller('balones/rutas-pueblos')
@@ -46,7 +51,8 @@ export class RutasPueblosController {
   @Post()
   @Permisos(PermisoBanderas.RUTAS_PUEBLOS_CREAR)
   @ApiOperation({ summary: 'Crear ruta ABIERTA con cilindros y lb de salida' })
-  crear(@Body() dto: CreateRutaPuebloDto) {
+  crear(@Body() dto: CreateRutaPuebloDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crear(dto);
   }
 
@@ -57,14 +63,21 @@ export class RutasPueblosController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateRutaPuebloDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.actualizar(id, dto);
   }
 
   @Post(':id/iniciar')
   @Permisos(PermisoBanderas.RUTAS_PUEBLOS_EDITAR)
   @ApiOperation({ summary: 'Pasar a EN_RUTA y mover cilindros (TRASLADO)' })
-  iniciar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  iniciar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.iniciar(id, dto.idUsuarioAuditoria);
   }
 
@@ -76,21 +89,33 @@ export class RutasPueblosController {
   registrarRetorno(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RegistrarRetornoRutaPuebloDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.registrarRetorno(id, dto);
   }
 
   @Post(':id/cerrar')
   @Permisos(PermisoBanderas.RUTAS_PUEBLOS_EDITAR)
   @ApiOperation({ summary: 'Cerrar ruta cruzando m³ calculados vs reportados' })
-  cerrar(@Param('id', ParseIntPipe) id: number, @Body() dto: CerrarRutaPuebloDto) {
+  cerrar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CerrarRutaPuebloDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.cerrar(id, dto);
   }
 
   @Delete(':id')
   @Permisos(PermisoBanderas.RUTAS_PUEBLOS_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar ruta (baja lógica)' })
-  eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  eliminar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

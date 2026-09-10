@@ -1,3 +1,25 @@
+-- ============================================================
+-- Migracion: reserva PENDIENTE_ENVIO venta → OS → REPARTO
+-- Fecha: 2026-09-09
+--
+-- Approach A: al crear el comprobante, los id_balon del detalle que siguen
+-- DISPONIBLE pasan a PENDIENTE_ENVIO (mismo catalogo que doc_crear_desde_venta).
+-- Asi no quedan libres para otra venta en el hueco hasta la OS.
+-- doc_crear_desde_venta queda idempotente y tambien marca prestamo ENTREGADO.
+--
+-- Ademas:
+-- 1) Si falta EstadoBalon.PENDIENTE_ENVIO → error JSON (no skip silencioso).
+-- 2) doc_crear_desde_venta / doc_anular_salida alineados con doc_obtener_salida
+--    (venta + prestamo rol ENTREGADO).
+-- 3) doc_generar_salida sin venta (tipos entrega/REPARTO): tras SALIDA_ENTREGA_CLIENTE
+--    corrige custodia a PENDIENTE_ENVIO (tradeoff documentado en la funcion).
+-- 4) ven_eliminar_comprobante libera reserva si no hubo OS.
+--
+-- Aplicar con:
+--   node database_sql/scripts/apply-migration.js database_sql/migraciones/20260909_venta_os_reserva_pendiente_envio.sql
+-- ============================================================
+
+-- ===== database_sql\funciones\comprobantes\ven_crear_comprobante.sql =====
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_crear_comprobante
 -- Overloads: 1
@@ -91,7 +113,7 @@ BEGIN
         RETURN json_build_object('error', 'La fecha del comprobante es obligatoria', 'registro', NULL);
     END IF;
 
-    -- Si no viene sucursal, se toma del almacén (caja es por fecha + sucursal).
+    -- Si no viene sucursal, se toma del almacÃ©n (caja es por fecha + sucursal).
     IF p_id_sucursal IS NULL AND p_id_almacen IS NOT NULL THEN
         SELECT a.id_sucursal INTO p_id_sucursal
         FROM gen_almacen a
@@ -100,7 +122,7 @@ BEGIN
         LIMIT 1;
     END IF;
 
-    -- Operación del día: requiere caja ABIERTA (arqueo / control operativo)
+    -- OperaciÃ³n del dÃ­a: requiere caja ABIERTA (arqueo / control operativo)
     v_err_caja := fin_caja_assert_abierta(p_fecha, p_id_sucursal);
     IF v_err_caja IS NOT NULL THEN
         RETURN json_build_object('error', v_err_caja, 'registro', NULL);
@@ -117,13 +139,13 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM gen_lista_opciones WHERE id = p_id_tipo_comprobante AND estado = 1
     ) THEN
-        RETURN json_build_object('error', 'El tipo de comprobante indicado no existe o está inactivo', 'registro', NULL);
+        RETURN json_build_object('error', 'El tipo de comprobante indicado no existe o estÃ¡ inactivo', 'registro', NULL);
     END IF;
 
     IF NOT EXISTS (
         SELECT 1 FROM cli_clientes WHERE id = p_id_cliente AND estado = 1
     ) THEN
-        RETURN json_build_object('error', 'El cliente indicado no existe o está inactivo', 'registro', NULL);
+        RETURN json_build_object('error', 'El cliente indicado no existe o estÃ¡ inactivo', 'registro', NULL);
     END IF;
 
     SELECT lo.descripcion INTO v_codigo_tipo
@@ -146,7 +168,7 @@ BEGIN
     ELSIF char_length(v_serie) <> 4 THEN
         RETURN json_build_object(
             'error',
-            'La serie electrónica debe tener 4 caracteres (ej. F001, B001, FC01)',
+            'La serie electrÃ³nica debe tener 4 caracteres (ej. F001, B001, FC01)',
             'registro',
             NULL
         );
@@ -163,25 +185,25 @@ BEGIN
     IF v_codigo_tipo IN ('07', '08') AND left(v_serie, 1) NOT IN ('F', 'B') THEN
         RETURN json_build_object(
             'error',
-            'La nota de crédito/débito debe usar serie que inicie con F o B según el comprobante origen (ej. FC01 / BC01)',
+            'La nota de crÃ©dito/dÃ©bito debe usar serie que inicie con F o B segÃºn el comprobante origen (ej. FC01 / BC01)',
             'registro',
             NULL
         );
     END IF;
 
     IF v_codigo_tipo IN ('07', '08') AND p_id_comprobante_origen IS NULL THEN
-        RETURN json_build_object('error', 'La nota de crédito/débito requiere el comprobante de origen', 'registro', NULL);
+        RETURN json_build_object('error', 'La nota de crÃ©dito/dÃ©bito requiere el comprobante de origen', 'registro', NULL);
     END IF;
 
     IF p_id_comprobante_origen IS NOT NULL AND NOT EXISTS (
         SELECT 1 FROM ven_comprobante WHERE id = p_id_comprobante_origen AND estado = 1
     ) THEN
-        RETURN json_build_object('error', 'El comprobante de origen no existe o está inactivo', 'registro', NULL);
+        RETURN json_build_object('error', 'El comprobante de origen no existe o estÃ¡ inactivo', 'registro', NULL);
     END IF;
 
     v_es_nota_credito := (v_codigo_tipo = '07');
 
-    -- Conversión VSD/NV → boleta/factura: el stock ya se descontó en el origen
+    -- ConversiÃ³n VSD/NV â†’ boleta/factura: el stock ya se descontÃ³ en el origen
     IF p_id_comprobante_origen IS NOT NULL AND v_codigo_tipo IN ('01', '03') THEN
         SELECT lo.descripcion, c.id_almacen
         INTO v_codigo_tipo_origen, v_id_almacen_origen
@@ -211,7 +233,7 @@ BEGIN
             ELSIF v_id_almacen_origen IS NOT NULL AND p_id_almacen <> v_id_almacen_origen THEN
                 RETURN json_build_object(
                     'error',
-                    'Al convertir, el almacén debe ser el mismo de la venta sin documento',
+                    'Al convertir, el almacÃ©n debe ser el mismo de la venta sin documento',
                     'registro',
                     NULL
                 );
@@ -251,7 +273,7 @@ BEGIN
         WHERE UPPER(TRIM(serie)) = v_serie AND numero = v_numero
     ) THEN
         RETURN json_build_object(
-            'error', 'Ya existe un comprobante con la serie ' || v_serie || ' y número ' || v_numero,
+            'error', 'Ya existe un comprobante con la serie ' || v_serie || ' y nÃºmero ' || v_numero,
             'registro', NULL
         );
     END IF;
@@ -305,7 +327,7 @@ BEGIN
             RETURN json_build_object(
                 'error',
                 'El producto ' || COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto)
-                    || ' no existe o está inactivo',
+                    || ' no existe o estÃ¡ inactivo',
                 'registro',
                 NULL
             );
@@ -324,7 +346,7 @@ BEGIN
             IF NOT FOUND THEN
                 RETURN json_build_object(
                     'error',
-                    format('El cilindro #%s no existe o está inactivo', v_id_balon),
+                    format('El cilindro #%s no existe o estÃ¡ inactivo', v_id_balon),
                     'registro', NULL
                 );
             END IF;
@@ -337,7 +359,7 @@ BEGIN
                 RETURN json_build_object(
                     'error',
                     format(
-                        'El cilindro no está disponible para venta (estado %s)',
+                        'El cilindro no estÃ¡ disponible para venta (estado %s)',
                         LOWER(REPLACE(v_nombre_estado_balon, '_', ' '))
                     ),
                     'registro', NULL
@@ -355,7 +377,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
         WHERE p.id = v_id_producto;
 
-        -- Gases (m³) pueden ser decimales aunque la U.M. esté mal catalogada como UNID.
+        -- Gases (mÂ³) pueden ser decimales aunque la U.M. estÃ© mal catalogada como UNID.
         IF NOT COALESCE(v_es_gas, FALSE)
            AND v_nombre_unidad IN ('UNID', 'NIU', 'UND', 'UNI', 'UNIDAD', 'UNIDADES', 'PZ', 'PZA', 'PIEZA', 'PIEZAS')
            AND v_cantidad <> TRUNC(v_cantidad)
@@ -369,17 +391,17 @@ BEGIN
             );
         END IF;
 
-        -- Servicios, alquiler (tarifa) y garantía no descuentan stock.
+        -- Servicios, alquiler (tarifa) y garantÃ­a no descuentan stock.
         IF NOT ven_producto_mueve_kardex_venta(v_id_producto, v_detalle->>'descripcion') THEN
             v_afecta_stock := FALSE;
         END IF;
 
-        -- ND (08) no mueve stock. Conversión VSD→CPE reutiliza el descuento previo.
+        -- ND (08) no mueve stock. ConversiÃ³n VSDâ†’CPE reutiliza el descuento previo.
         IF v_afecta_stock AND NOT v_es_conversion_vsd AND v_codigo_tipo <> '08' THEN
             v_requiere_stock := TRUE;
         END IF;
 
-        -- precio_unitario del catálogo ya incluye IGV
+        -- precio_unitario del catÃ¡logo ya incluye IGV
         v_importe_linea := ROUND((v_cantidad * v_precio_unitario) - v_descuento_linea, 4);
 
         SELECT lo.descripcion INTO v_codigo_afectacion
@@ -408,7 +430,7 @@ BEGIN
         IF p_id_almacen IS NULL THEN
             RETURN json_build_object(
                 'error',
-                'Debe indicar el almacén para descontar stock de los productos',
+                'Debe indicar el almacÃ©n para descontar stock de los productos',
                 'registro',
                 NULL
             );
@@ -417,7 +439,7 @@ BEGIN
         IF NOT EXISTS (
             SELECT 1 FROM gen_almacen WHERE id = p_id_almacen AND estado = 1
         ) THEN
-            RETURN json_build_object('error', 'El almacén indicado no existe o está inactivo', 'registro', NULL);
+            RETURN json_build_object('error', 'El almacÃ©n indicado no existe o estÃ¡ inactivo', 'registro', NULL);
         END IF;
 
         -- NC restaura stock (INGRESO); ventas descuentan (SALIDA)
@@ -431,7 +453,7 @@ BEGIN
             IF v_id_tipo_mov_inv IS NULL THEN
                 RETURN json_build_object(
                     'error',
-                    'No se encontró el tipo de movimiento de inventario INGRESO',
+                    'No se encontrÃ³ el tipo de movimiento de inventario INGRESO',
                     'registro',
                     NULL
                 );
@@ -446,7 +468,7 @@ BEGIN
             IF v_id_tipo_mov_inv IS NULL THEN
                 RETURN json_build_object(
                     'error',
-                    'No se encontró el tipo de movimiento de inventario SALIDA',
+                    'No se encontrÃ³ el tipo de movimiento de inventario SALIDA',
                     'registro',
                     NULL
                 );
@@ -457,7 +479,7 @@ BEGIN
         FROM gen_lista_opciones lo
         WHERE lo.id = p_id_tipo_venta;
 
-        -- Validar disponibilidad agrupando por producto (varias líneas del mismo gas).
+        -- Validar disponibilidad agrupando por producto (varias lÃ­neas del mismo gas).
         IF NOT v_es_nota_credito THEN
             FOR v_id_producto, v_cantidad IN
                 SELECT
@@ -481,7 +503,7 @@ BEGIN
                     RETURN json_build_object(
                         'error',
                         format(
-                            'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
+                            'Stock insuficiente del producto %s en el almacÃ©n (disponible: %s, solicitado: %s)',
                             COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
                             COALESCE(v_stock_disponible, 0),
                             v_cantidad
@@ -494,10 +516,10 @@ BEGIN
         END IF;
     END IF;
 
-    -- Gas también se valida contra pro_stock (bloque de capacidad de cilindros eliminado en F1).
+    -- Gas tambiÃ©n se valida contra pro_stock (bloque de capacidad de cilindros eliminado en F1).
 
-    -- Ventas a crédito sin medio de pago explícito (el POS no lo pide: "excluir-credito"
-    -- + "medio-requerido = !esVentaCredito", el cobro se registra después en CxC): sin
+    -- Ventas a crÃ©dito sin medio de pago explÃ­cito (el POS no lo pide: "excluir-credito"
+    -- + "medio-requerido = !esVentaCredito", el cobro se registra despuÃ©s en CxC): sin
     -- esto, id_medio_pago queda NULL y fin_caja_calcular_totales / ven_pagos_de_comprobante
     -- lo tratan como EFECTIVO (COALESCE(..., v_efectivo_id)), contando la venta entera como
     -- "ventasContado" en vez de "ventasCredito" en la card de caja.
@@ -545,9 +567,9 @@ BEGIN
     LOOP
         v_item := v_item + 1;
 
-        -- Líneas cuyo inventario ya mueve otro proceso (recarga de mostrador: el gas
-        -- lo descuenta el movimiento del balón, con la capacidad real). El bucle de
-        -- stock lee las filas ya insertadas, así que la marca se propaga por N° de ítem.
+        -- LÃ­neas cuyo inventario ya mueve otro proceso (recarga de mostrador: el gas
+        -- lo descuenta el movimiento del balÃ³n, con la capacidad real). El bucle de
+        -- stock lee las filas ya insertadas, asÃ­ que la marca se propaga por NÂ° de Ã­tem.
         IF COALESCE((v_detalle->>'no_mueve_kardex')::BOOLEAN, FALSE) THEN
             v_items_sin_kardex := v_items_sin_kardex
                 || COALESCE(NULLIF((v_detalle->>'item')::INTEGER, 0), v_item);
@@ -558,7 +580,7 @@ BEGIN
         v_precio_unitario := COALESCE((v_detalle->>'precio_unitario')::NUMERIC, 0);
         v_descuento_linea := COALESCE((v_detalle->>'descuento')::NUMERIC, 0);
         v_porcentaje_igv := COALESCE((v_detalle->>'porcentaje_igv')::NUMERIC, 18);
-        -- precio_unitario del catálogo ya incluye IGV
+        -- precio_unitario del catÃ¡logo ya incluye IGV
         v_importe_linea := ROUND((v_cantidad * v_precio_unitario) - v_descuento_linea, 4);
 
         SELECT lo.descripcion INTO v_codigo_afectacion
@@ -663,7 +685,7 @@ BEGIN
 
                 IF COALESCE(v_stock_disponible, 0) < v_delta_stock THEN
                     RAISE EXCEPTION
-                        'Stock insuficiente del producto % en el almacén (disponible: %, solicitado: %)',
+                        'Stock insuficiente del producto % en el almacÃ©n (disponible: %, solicitado: %)',
                         COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
                         COALESCE(v_stock_disponible, 0),
                         v_delta_stock;
@@ -678,7 +700,7 @@ BEGIN
                     p_id_almacen_origen => p_id_almacen,
                     p_codigo_tipo_documento_origen => ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                     p_id_documento_origen => v_id,
-                    p_glosa => format('Ajuste conversión %s-%s (+)', v_serie, v_numero),
+                    p_glosa => format('Ajuste conversiÃ³n %s-%s (+)', v_serie, v_numero),
                     p_id_usuario_auditoria => p_id_usuario_auditoria,
                     p_forzar => TRUE
                 );
@@ -692,7 +714,7 @@ BEGIN
                     p_id_almacen_origen => p_id_almacen,
                     p_codigo_tipo_documento_origen => ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
                     p_id_documento_origen => v_id,
-                    p_glosa => format('Ajuste conversión %s-%s (-)', v_serie, v_numero),
+                    p_glosa => format('Ajuste conversiÃ³n %s-%s (-)', v_serie, v_numero),
                     p_id_usuario_auditoria => p_id_usuario_auditoria,
                     p_forzar => TRUE
                 );
@@ -707,7 +729,7 @@ BEGIN
             NULLIF(TRIM(p_glosa), ''),
             CASE
                 WHEN v_es_nota_credito THEN
-                    format('Ingreso por nota de crédito %s-%s', v_serie, v_numero)
+                    format('Ingreso por nota de crÃ©dito %s-%s', v_serie, v_numero)
                 ELSE
                     format('Salida por comprobante %s-%s', v_serie, v_numero)
             END
@@ -722,10 +744,10 @@ BEGIN
             SELECT ven_producto_mueve_kardex_venta(v_id_producto, v_detalle->>'descripcion')
             INTO v_afecta_stock;
 
-            -- Líneas marcadas como "no_mueve_kardex" en p_detalles: otro proceso ya
-            -- descuenta ese inventario (recarga de mostrador: el movimiento del balón
-            -- lleva la capacidad real). Sin esto la venta descontaba además su propia
-            -- cantidad y el gas salía del stock dos veces (apunte 1.c.iv.6).
+            -- LÃ­neas marcadas como "no_mueve_kardex" en p_detalles: otro proceso ya
+            -- descuenta ese inventario (recarga de mostrador: el movimiento del balÃ³n
+            -- lleva la capacidad real). Sin esto la venta descontaba ademÃ¡s su propia
+            -- cantidad y el gas salÃ­a del stock dos veces (apunte 1.c.iv.6).
             IF (v_detalle->>'item')::INTEGER = ANY(v_items_sin_kardex) THEN
                 CONTINUE;
             END IF;
@@ -752,7 +774,7 @@ BEGIN
                 RAISE EXCEPTION '%', v_mov_result->>'error';
             END IF;
             IF COALESCE((v_mov_result->>'creado')::boolean, TRUE) IS NOT TRUE THEN
-                RAISE EXCEPTION 'No se registró el movimiento de stock (duplicado) para el producto %', v_id_producto;
+                RAISE EXCEPTION 'No se registrÃ³ el movimiento de stock (duplicado) para el producto %', v_id_producto;
             END IF;
         END LOOP;
     END IF;
@@ -783,7 +805,7 @@ BEGIN
         END LOOP;
     END IF;
 
-    -- Crédito / cuotas: genera CxC vinculada al comprobante según condición de pago.
+    -- CrÃ©dito / cuotas: genera CxC vinculada al comprobante segÃºn condiciÃ³n de pago.
     IF NOT v_es_nota_credito
        AND p_id_condicion_pago IS NOT NULL
        AND COALESCE(v_total_importe, 0) > 0
@@ -805,7 +827,7 @@ BEGIN
                   AND UPPER(COALESCE(c.codigo_interno, '')) = 'CVARIOS'
             ) THEN
                 RAISE EXCEPTION
-                    'No se puede vender a crédito a Clientes Varios. Selecciona un cliente identificado.';
+                    'No se puede vender a crÃ©dito a Clientes Varios. Selecciona un cliente identificado.';
             END IF;
 
             IF NOT EXISTS (
@@ -817,10 +839,10 @@ BEGIN
                 IF v_numero_cuotas > 1 THEN
                     IF v_dia_mes_pago IS NULL OR v_dia_mes_pago < 1 OR v_dia_mes_pago > 31 THEN
                         RAISE EXCEPTION
-                            'La condición de pago en cuotas requiere día del mes a cobrar (1 a 31).';
+                            'La condiciÃ³n de pago en cuotas requiere dÃ­a del mes a cobrar (1 a 31).';
                     END IF;
 
-                    -- Primera cuota: fecha vencimiento explícita, o emisión + días, o próximo día_mes_pago
+                    -- Primera cuota: fecha vencimiento explÃ­cita, o emisiÃ³n + dÃ­as, o prÃ³ximo dÃ­a_mes_pago
                     IF p_fecha_vencimiento IS NOT NULL THEN
                         v_fecha_primera_cuota := p_fecha_vencimiento;
                     ELSIF v_dias_credito > 0 THEN
@@ -857,7 +879,7 @@ BEGIN
                         v_fecha_primera_cuota,
                         v_dia_mes_pago,
                         format(
-                            'CxC en %s cuotas (día %s) %s-%s',
+                            'CxC en %s cuotas (dÃ­a %s) %s-%s',
                             v_numero_cuotas,
                             v_dia_mes_pago,
                             v_serie,
@@ -875,7 +897,7 @@ BEGIN
                         RAISE EXCEPTION '%', v_cxc_result->>'error';
                     END IF;
                 ELSE
-                    -- Crédito simple (un solo vencimiento)
+                    -- CrÃ©dito simple (un solo vencimiento)
                     v_fecha_venc_cxc := COALESCE(
                         p_fecha_vencimiento,
                         (COALESCE(p_fecha, CURRENT_DATE) + v_dias_credito)
@@ -898,7 +920,7 @@ BEGIN
 
                     IF v_id_tipo_cobrar IS NULL THEN
                         RAISE EXCEPTION
-                            'No está configurado el tipo de cuenta COBRAR (TipoCuentaFinanciera).';
+                            'No estÃ¡ configurado el tipo de cuenta COBRAR (TipoCuentaFinanciera).';
                     END IF;
 
                     INSERT INTO fin_cuenta (
@@ -925,7 +947,7 @@ BEGIN
                         0,
                         v_total_importe,
                         format(
-                            'CxC por venta a crédito (%s días) %s-%s',
+                            'CxC por venta a crÃ©dito (%s dÃ­as) %s-%s',
                             v_dias_credito,
                             v_serie,
                             v_numero
@@ -974,13 +996,13 @@ BEGIN
     END IF;
 
     -- ------------------------------------------------------------
-    -- Reserva logística al vender (Approach A)
+    -- Reserva logÃ­stica al vender (Approach A)
     --
     -- Entre la venta y la OS el cilindro no debe seguir DISPONIBLE (doble venta).
-    -- Solo se marcan los que siguen DISPONIBLE tras efectos_pos: los de préstamo
-    -- ya pasaron a PRESTADO_CLIENTE y no se tocan aquí.
+    -- Solo se marcan los que siguen DISPONIBLE tras efectos_pos: los de prÃ©stamo
+    -- ya pasaron a PRESTADO_CLIENTE y no se tocan aquÃ­.
     -- doc_crear_desde_venta usa el mismo EstadoBalon.PENDIENTE_ENVIO y es
-    -- idempotente si la reserva ya existía.
+    -- idempotente si la reserva ya existÃ­a.
     -- ------------------------------------------------------------
     IF NOT v_es_nota_credito
        AND EXISTS (
@@ -989,7 +1011,7 @@ BEGIN
            WHERE d.id_comprobante = v_id
              AND d.estado = 1
              AND d.id_balon IS NOT NULL
-             AND COALESCE(d.descripcion, '') !~* 'garant[ií]a'
+             AND COALESCE(d.descripcion, '') !~* 'garant[iÃ­]a'
        )
     THEN
         SELECT lo.id INTO v_id_estado_pendiente_envio
@@ -999,7 +1021,7 @@ BEGIN
         LIMIT 1;
 
         IF v_id_estado_pendiente_envio IS NULL THEN
-            RAISE EXCEPTION 'Falta el estado PENDIENTE_ENVIO en el catálogo EstadoBalon';
+            RAISE EXCEPTION 'Falta el estado PENDIENTE_ENVIO en el catÃ¡logo EstadoBalon';
         END IF;
 
         SELECT lo.id INTO v_id_estado_disponible
@@ -1018,13 +1040,13 @@ BEGIN
               AND d.estado = 1
               AND d.id_balon = b.id
               AND b.estado = 1
-              AND COALESCE(d.descripcion, '') !~* 'garant[ií]a'
+              AND COALESCE(d.descripcion, '') !~* 'garant[iÃ­]a'
               AND b.id_estado_balon = v_id_estado_disponible;
         END IF;
     END IF;
 
-    -- Fase 3: cobro multi-medio. Va al final, cuando total_importe ya está
-    -- calculado, porque la suma de los pagos se valida contra él.
+    -- Fase 3: cobro multi-medio. Va al final, cuando total_importe ya estÃ¡
+    -- calculado, porque la suma de los pagos se valida contra Ã©l.
     v_err_pagos := ven_sincronizar_pagos_comprobante(v_id, p_pagos, p_id_usuario_auditoria);
     IF v_err_pagos IS NOT NULL THEN
         RAISE EXCEPTION '%', v_err_pagos USING ERRCODE = '22023';
@@ -1033,3 +1055,684 @@ BEGIN
     RETURN ven_obtener_comprobante(v_id);
 END;
 $function$;
+
+
+-- ===== database_sql\funciones\documentos-salida\doc_crear_desde_venta.sql =====
+-- Function: doc_crear_desde_venta
+--
+-- Al confirmar que la venta es para envÃ­o, los cilindros que salen quedan en
+-- estado PENDIENTE_ENVIO: siguen siendo nuestros y siguen en el almacÃ©n, pero
+-- ya estÃ¡n comprometidos y no deben ofrecerse para otra entrega.
+--
+-- ven_crear_comprobante ya reserva en PENDIENTE_ENVIO los id_balon del detalle
+-- que seguÃ­an DISPONIBLE; este UPDATE es idempotente para esos y ademÃ¡s cubre
+-- cilindros de prÃ©stamo (rol ENTREGADO) que aparecen en doc_obtener_salida.
+DROP FUNCTION IF EXISTS doc_crear_desde_venta(p_id_venta integer, p_id_destinatario integer, p_fecha_traslado date, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION doc_crear_desde_venta(p_id_venta integer, p_id_destinatario integer DEFAULT NULL::integer, p_fecha_traslado date DEFAULT NULL::date, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_venta RECORD;
+    v_id_sucursal INTEGER;
+    v_resultado JSON;
+    v_id INTEGER;
+    v_id_estado_pendiente_envio INTEGER;
+    v_hay_balones_os BOOLEAN;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT vc.* INTO v_venta FROM ven_comprobante vc WHERE vc.id = p_id_venta AND vc.estado = 1;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('error', 'La venta indicada no existe o estÃ¡ anulada', 'registro', NULL);
+    END IF;
+
+    IF v_venta.id_almacen IS NULL THEN
+        RETURN json_build_object(
+            'error', 'La venta no tiene almacÃ©n; no se puede emitir una orden de salida',
+            'registro', NULL
+        );
+    END IF;
+
+    v_id_sucursal := COALESCE(
+        v_venta.id_sucursal,
+        (SELECT a.id_sucursal FROM gen_almacen a WHERE a.id = v_venta.id_almacen)
+    );
+
+    -- CatÃ¡logo ANTES de crear la OS: si falta PENDIENTE_ENVIO no dejamos
+    -- documento huÃ©rfano ni generamos a medias.
+    SELECT EXISTS (
+        SELECT 1
+        FROM ven_comprobante_detalle d
+        WHERE d.id_comprobante = p_id_venta
+          AND d.estado = 1
+          AND d.id_balon IS NOT NULL
+          AND COALESCE(d.descripcion, '') !~* 'garant[iÃ­]a'
+        UNION ALL
+        SELECT 1
+        FROM bal_prestamo pr
+        INNER JOIN bal_prestamo_detalle pd
+            ON pd.id_prestamo = pr.id AND pd.estado = 1
+        WHERE pr.id_comprobante_venta = p_id_venta
+          AND pr.estado = 1
+          AND pd.rol = 'ENTREGADO'
+          AND pd.id_balon IS NOT NULL
+    ) INTO v_hay_balones_os;
+
+    SELECT lo.id INTO v_id_estado_pendiente_envio
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(lo.nombre) = 'PENDIENTE_ENVIO' AND lo.estado = 1
+    LIMIT 1;
+
+    IF v_hay_balones_os AND v_id_estado_pendiente_envio IS NULL THEN
+        RETURN json_build_object(
+            'error', 'Falta el estado PENDIENTE_ENVIO en el catÃ¡logo EstadoBalon',
+            'registro', NULL
+        );
+    END IF;
+
+    v_resultado := doc_crear_salida(
+        p_codigo_tipo_orden    => 'ORDEN_SALIDA_VENTA',
+        p_id_sucursal          => v_id_sucursal,
+        p_id_almacen           => v_venta.id_almacen,
+        p_id_venta             => p_id_venta,
+        p_id_cliente           => v_venta.id_cliente,
+        p_id_destinatario      => COALESCE(p_id_destinatario, v_venta.id_cliente),
+        p_fecha                => v_venta.fecha,
+        p_fecha_traslado       => COALESCE(p_fecha_traslado, v_venta.fecha),
+        p_observaciones        => format('Orden de salida de la venta %s-%s', v_venta.serie, v_venta.numero),
+        p_id_usuario_auditoria => p_id_usuario_auditoria
+    );
+
+    IF v_resultado->>'error' IS NOT NULL THEN
+        RETURN v_resultado;
+    END IF;
+
+    v_id := (v_resultado->'registro'->>'id')::INTEGER;
+
+    -- Los cilindros de la OS (venta + prÃ©stamo ENTREGADO) pasan a PENDIENTE_ENVIO.
+    --
+    -- OrÃ­genes alineados con doc_obtener_salida:
+    --   VENTA    â€” ven_comprobante_detalle con id_balon (excluye lÃ­neas de garantÃ­a).
+    --   PRESTAMO â€” bal_prestamo_detalle.rol = ENTREGADO de esa venta; el de
+    --              rol GARANTIA entra al almacÃ©n y no se marca como pendiente.
+    --
+    -- No pasa por inv_registrar_movimiento a propÃ³sito: esto no mueve inventario
+    -- â€”el movimiento lo hizo la venta / el prÃ©stamoâ€” sino que marca una situaciÃ³n
+    -- logÃ­stica sobre el mismo cilindro. Idempotente si ya estÃ¡ PENDIENTE_ENVIO
+    -- (p. ej. reserva hecha en ven_crear_comprobante).
+    IF v_id_estado_pendiente_envio IS NOT NULL THEN
+        UPDATE bal_balon b
+        SET id_estado_balon = v_id_estado_pendiente_envio,
+            -- Si el prÃ©stamo ya limpiÃ³ el almacÃ©n (PRESTADO_CLIENTE), la OS lo
+            -- vuelve a anclar al almacÃ©n de despacho: sigue en local hasta REPARTO.
+            id_almacen = COALESCE(b.id_almacen, v_venta.id_almacen),
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE b.estado = 1
+          AND b.id_estado_balon IS DISTINCT FROM v_id_estado_pendiente_envio
+          AND UPPER(COALESCE(
+                (SELECT lo2.nombre FROM gen_lista_opciones lo2 WHERE lo2.id = b.id_estado_balon),
+                ''
+              )) NOT IN ('DADO_DE_BAJA', 'ROBO')
+          AND b.id IN (
+              SELECT d.id_balon
+              FROM ven_comprobante_detalle d
+              WHERE d.id_comprobante = p_id_venta
+                AND d.estado = 1
+                AND d.id_balon IS NOT NULL
+                AND COALESCE(d.descripcion, '') !~* 'garant[iÃ­]a'
+              UNION
+              SELECT pd.id_balon
+              FROM bal_prestamo pr
+              INNER JOIN bal_prestamo_detalle pd
+                  ON pd.id_prestamo = pr.id AND pd.estado = 1
+              WHERE pr.id_comprobante_venta = p_id_venta
+                AND pr.estado = 1
+                AND pd.rol = 'ENTREGADO'
+                AND pd.id_balon IS NOT NULL
+          );
+    END IF;
+
+    -- Se genera de inmediato: no mueve inventario (lo hizo la venta), asÃ­ que no hay
+    -- nada que el usuario deba revisar antes de cerrarla.
+    RETURN doc_generar_salida(v_id, p_id_usuario_auditoria);
+END;
+$function$;
+
+
+-- ===== database_sql\funciones\documentos-salida\doc_generar_salida.sql =====
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: doc_generar_salida
+-- Overloads: 1
+-- Generated: 2026-09-03T16:50:38.958Z
+--
+-- Para OS sin venta (id_venta IS NULL) de tipos compatibles con REPARTO, tras el
+-- kardex se corrige custodia a PENDIENTE_ENVIO (ver bloque al final del loop).
+DROP FUNCTION IF EXISTS doc_generar_salida(p_id integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION doc_generar_salida(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_doc RECORD;
+    v_estado VARCHAR;
+    v_tipo VARCHAR;
+    v_id_generada INTEGER;
+    v_det RECORD;
+    v_mov JSON;
+    v_id_mov INTEGER;
+    v_codigo_mov VARCHAR;
+    v_n INTEGER := 0;
+    v_id_pend_envio INTEGER;
+    v_hay_balones BOOLEAN;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT d.*, ec.nombre AS estado_ciclo, tor.nombre AS tipo_orden
+    INTO v_doc
+    FROM doc_salida d
+    JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
+    JOIN gen_lista_opciones tor ON tor.id = d.id_tipo_orden
+    WHERE d.id = p_id AND d.estado = 1;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('error', 'El documento de salida no existe o estÃ¡ anulado', 'registro', NULL);
+    END IF;
+
+    v_estado := v_doc.estado_ciclo;
+    v_tipo := v_doc.tipo_orden;
+
+    IF v_estado = 'ANULADA' THEN
+        RETURN json_build_object('error', 'El documento estÃ¡ anulado', 'registro', NULL);
+    END IF;
+
+    IF v_estado IN ('GENERADA', 'EMITIDA_SUNAT') THEN
+        -- Ya produjo efectos; no se repiten.
+        RETURN doc_obtener_salida(p_id);
+    END IF;
+
+    -- El tipo de movimiento depende del propÃ³sito del documento.
+    v_codigo_mov := CASE v_tipo
+        WHEN 'RECARGA_PLANTA_EXTERNA' THEN 'SALIDA_PLANTA_EXTERNA'
+        WHEN 'TRASLADO'               THEN 'TRASLADO'
+        ELSE 'SALIDA_ENTREGA_CLIENTE'
+    END;
+
+    -- Se comprueba acÃ¡ y no solo al crear: hay Ã³rdenes anteriores a que el
+    -- destino existiera, y sin Ã©l inv_registrar_movimiento aborta con una
+    -- excepciÃ³n que tumba toda la peticiÃ³n en vez de devolver el error.
+    IF v_tipo = 'TRASLADO' AND v_doc.id_almacen_destino IS NULL THEN
+        RETURN json_build_object(
+            'error', 'El traslado requiere almacÃ©n de destino: regÃ­stralo antes de generar',
+            'registro', NULL
+        );
+    END IF;
+
+    IF v_doc.id_venta IS NULL THEN
+        IF NOT EXISTS (SELECT 1 FROM doc_salida_detalle WHERE id_doc_salida = p_id AND estado = 1) THEN
+            RETURN json_build_object('error', 'El documento no tiene lÃ­neas que trasladar', 'registro', NULL);
+        END IF;
+
+        -- Custodia REPARTO (OS sin venta): validar catÃ¡logo ANTES del kardex.
+        IF v_tipo NOT IN ('RECARGA_PLANTA_EXTERNA', 'TRASLADO') THEN
+            SELECT EXISTS (
+                SELECT 1
+                FROM doc_salida_detalle dd
+                WHERE dd.id_doc_salida = p_id
+                  AND dd.estado = 1
+                  AND dd.id_balon IS NOT NULL
+            ) INTO v_hay_balones;
+
+            IF v_hay_balones THEN
+                SELECT lo.id INTO v_id_pend_envio
+                FROM gen_lista_opciones lo
+                JOIN gen_lista l ON l.id = lo.id_lista
+                WHERE l.nombre = 'EstadoBalon'
+                  AND UPPER(TRIM(lo.nombre)) = 'PENDIENTE_ENVIO'
+                  AND lo.estado = 1
+                LIMIT 1;
+
+                IF v_id_pend_envio IS NULL THEN
+                    RETURN json_build_object(
+                        'error', 'Falta el estado PENDIENTE_ENVIO en el catÃ¡logo EstadoBalon',
+                        'registro', NULL
+                    );
+                END IF;
+            END IF;
+        END IF;
+
+        FOR v_det IN
+            SELECT dd.*
+            FROM doc_salida_detalle dd
+            WHERE dd.id_doc_salida = p_id AND dd.estado = 1
+            ORDER BY dd.item
+        LOOP
+            -- El gas viaja SIEMPRE en sus propias lÃ­neas de producto, nunca en
+            -- la del cilindro. El detalle se arma en dos planos: una lÃ­nea por
+            -- balÃ³n, que mueve el envase (estado y almacÃ©n), y una lÃ­nea por
+            -- producto con la cantidad total de gas que sale. Tomar ademÃ¡s el
+            -- gas del balÃ³n descontarÃ­a el mismo gas dos veces.
+            v_mov := inv_registrar_movimiento(
+                p_naturaleza                   => CASE WHEN v_det.id_balon IS NOT NULL THEN 'BALON' ELSE 'PRODUCTO' END,
+                p_codigo_tipo_movimiento       => v_codigo_mov,
+                p_fecha                        => LOCALTIMESTAMP,
+                p_id_producto                  => v_det.id_producto,
+                p_id_balon                     => v_det.id_balon,
+                p_cantidad                     => v_det.cantidad,
+                p_id_almacen_origen            => v_doc.id_almacen,
+                p_id_almacen_destino           => v_doc.id_almacen_destino,
+                p_id_cliente                   => COALESCE(v_doc.id_destinatario, v_doc.id_cliente, v_doc.id_proveedor),
+                p_codigo_tipo_documento_origen => 'ORDEN_SALIDA',
+                p_id_documento_origen          => p_id,
+                p_glosa                        => format('Salida por orden %s', v_doc.numero),
+                p_id_usuario_auditoria         => p_id_usuario_auditoria,
+                p_id_documento_detalle         => v_det.id
+            );
+
+            IF v_mov->>'error' IS NOT NULL THEN
+                RAISE EXCEPTION '%', v_mov->>'error';
+            END IF;
+
+            IF COALESCE((v_mov->>'creado')::BOOLEAN, TRUE) IS NOT TRUE THEN
+                RAISE EXCEPTION 'No se registrÃ³ el movimiento de la lÃ­nea % (duplicado)', v_det.item;
+            END IF;
+
+            v_id_mov := (v_mov->'registro'->>'id')::INTEGER;
+
+            UPDATE doc_salida_detalle
+            SET id_movimiento = v_id_mov,
+                id_usuario_modificacion = p_id_usuario_auditoria,
+                fecha_modificacion = NOW()
+            WHERE id = v_det.id;
+
+            v_n := v_n + 1;
+        END LOOP;
+
+        -- ------------------------------------------------------------
+        -- Custodia REPARTO (OS sin venta, tipos de entrega a cliente)
+        --
+        -- TRADEOFF: se mantiene SALIDA_ENTREGA_CLIENTE en inv_registrar_movimiento
+        -- (kardex + auditorÃ­a del movimiento). Ese tipo pone EN_PODER_CLIENTE y
+        -- limpia id_almacen â€”demasiado temprano para el flujo age_* (iniciar â†’
+        -- EN_TRANSITO, culminar â†’ EN_PODER_CLIENTE), que exige PENDIENTE_ENVIO.
+        -- Cambiar el TipoMovInvUnificado / el CASE de estados en
+        -- inv_registrar_movimiento es mÃ¡s riesgoso (afecta otros callers).
+        -- CorrecciÃ³n local: tras generar, los cilindros de la OS vuelven a
+        -- PENDIENTE_ENVIO y al almacÃ©n de la orden. TRASLADO y
+        -- RECARGA_PLANTA_EXTERNA no pasan por REPARTO y no se tocan.
+        -- ------------------------------------------------------------
+        IF v_id_pend_envio IS NOT NULL THEN
+            UPDATE bal_balon b
+            SET id_estado_balon = v_id_pend_envio,
+                id_almacen = COALESCE(v_doc.id_almacen, b.id_almacen),
+                id_cliente_ubicacion = NULL,
+                id_usuario_modificacion = p_id_usuario_auditoria,
+                fecha_modificacion = NOW()
+            FROM doc_salida_detalle dd
+            WHERE dd.id_doc_salida = p_id
+              AND dd.estado = 1
+              AND dd.id_balon = b.id
+              AND b.estado = 1
+              AND UPPER(COALESCE(
+                    (SELECT lo2.nombre FROM gen_lista_opciones lo2 WHERE lo2.id = b.id_estado_balon),
+                    ''
+                  )) NOT IN ('DADO_DE_BAJA', 'ROBO');
+        END IF;
+    END IF;
+    -- Con id_venta no se toca inventario: el movimiento lo creÃ³ la venta y este
+    -- documento solo lo respalda documentalmente (apunte 1.c.iv.6).
+
+    SELECT lo.id INTO v_id_generada
+    FROM gen_lista_opciones lo
+    JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoCicloSalida' AND lo.nombre = 'GENERADA' AND lo.estado = 1;
+
+    UPDATE doc_salida
+    SET id_estado_ciclo = v_id_generada,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id;
+
+    RETURN doc_obtener_salida(p_id);
+END;
+$function$;
+
+
+-- ===== database_sql\funciones\documentos-salida\doc_anular_salida.sql =====
+-- Function: doc_anular_salida
+--
+-- Anula el ciclo de la OS y libera custodia logÃ­stica (PENDIENTE_ENVIO /
+-- EN_TRANSITO â†’ DISPONIBLE). Si hay reparto vigente, hay que cancelarlo antes.
+-- TambiÃ©n se invoca en cascada desde ven_eliminar_comprobante (path con
+-- id_venta): ese camino no pasa por inv_revertir_por_documento, asÃ­ que la
+-- liberaciÃ³n de balones vive aquÃ­.
+DROP FUNCTION IF EXISTS doc_anular_salida(p_id integer, p_motivo character varying, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION doc_anular_salida(p_id integer, p_motivo character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_doc RECORD;
+    v_id_anulada INTEGER;
+    v_rev JSON;
+    v_id_disponible INTEGER;
+    v_id_pend_envio INTEGER;
+    v_id_transito INTEGER;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT d.*, ec.nombre AS estado_ciclo
+    INTO v_doc
+    FROM doc_salida d
+    JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
+    WHERE d.id = p_id AND d.estado = 1;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('error', 'El documento de salida no existe o ya fue eliminado', 'registro', NULL);
+    END IF;
+
+    IF v_doc.estado_ciclo = 'ANULADA' THEN
+        RETURN doc_obtener_salida(p_id);
+    END IF;
+
+    IF COALESCE(v_doc.emitido_sunat, FALSE) THEN
+        RETURN json_build_object(
+            'error',
+            'El documento fue aceptado por SUNAT; requiere comunicaciÃ³n de baja, no anulaciÃ³n directa',
+            'registro', NULL
+        );
+    END IF;
+
+    -- No anular si hay reparto / actividad operativa todavÃ­a vigente.
+    IF EXISTS (
+        SELECT 1
+        FROM age_actividad a
+        LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
+        WHERE a.id_doc_salida = p_id
+          AND a.estado = 1
+          AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN (
+              'CANCELADA', 'CANCELADO', 'REALIZADA'
+          )
+    ) THEN
+        RETURN json_build_object(
+            'error', 'Hay actividad de reparto vigente; cancÃ©lala antes de anular la OS',
+            'registro', NULL
+        );
+    END IF;
+
+    SELECT lo.id INTO v_id_disponible
+    FROM gen_lista_opciones lo
+    JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'DISPONIBLE' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_pend_envio
+    FROM gen_lista_opciones lo
+    JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'PENDIENTE_ENVIO' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_transito
+    FROM gen_lista_opciones lo
+    JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'EN_TRANSITO' AND lo.estado = 1
+    LIMIT 1;
+
+    IF v_id_disponible IS NULL OR v_id_pend_envio IS NULL OR v_id_transito IS NULL THEN
+        RETURN json_build_object(
+            'error', 'Faltan estados DISPONIBLE, PENDIENTE_ENVIO o EN_TRANSITO en catalogo EstadoBalon',
+            'registro', NULL
+        );
+    END IF;
+
+    -- Solo se revierte lo que este documento moviÃ³ por su cuenta.
+    IF v_doc.id_venta IS NULL THEN
+        v_rev := inv_revertir_por_documento('ORDEN_SALIDA', p_id, p_id_usuario_auditoria);
+
+        IF v_rev->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_rev->>'error';
+        END IF;
+
+        UPDATE doc_salida_detalle
+        SET id_movimiento = NULL,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id_doc_salida = p_id;
+    END IF;
+
+    -- ------------------------------------------------------------
+    -- Custodia logÃ­stica: PENDIENTE_ENVIO / EN_TRANSITO â†’ DISPONIBLE
+    --
+    -- Con id_venta el inventario lo moviÃ³ la venta (no hay movimiento OS),
+    -- pero los cilindros sÃ­ quedaron comprometidos al crear la OS
+    -- (doc_crear_desde_venta). Sin esto quedan atrapados al anular.
+    -- Sin id_venta, cubre residuales que no hayan pasado por kardex BALON.
+    -- ------------------------------------------------------------
+    UPDATE bal_balon b
+    SET id_estado_balon = v_id_disponible,
+        id_almacen = COALESCE(v_doc.id_almacen, b.id_almacen),
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE b.estado = 1
+      AND b.id_estado_balon IN (v_id_pend_envio, v_id_transito)
+      AND b.id IN (
+          SELECT dd.id_balon
+          FROM doc_salida_detalle dd
+          WHERE dd.id_doc_salida = p_id
+            AND dd.id_balon IS NOT NULL
+            AND dd.estado = 1
+          UNION
+          SELECT vd.id_balon
+          FROM ven_comprobante_detalle vd
+          WHERE v_doc.id_venta IS NOT NULL
+            AND vd.id_comprobante = v_doc.id_venta
+            AND vd.id_balon IS NOT NULL
+            AND COALESCE(vd.descripcion, '') !~* 'garant[iÃ­]a'
+          UNION
+          -- Misma cobertura que doc_crear_desde_venta / doc_obtener_salida
+          SELECT pd.id_balon
+          FROM bal_prestamo pr
+          INNER JOIN bal_prestamo_detalle pd
+              ON pd.id_prestamo = pr.id AND pd.estado = 1
+          WHERE v_doc.id_venta IS NOT NULL
+            AND pr.id_comprobante_venta = v_doc.id_venta
+            AND pr.estado = 1
+            AND pd.rol = 'ENTREGADO'
+            AND pd.id_balon IS NOT NULL
+      );
+
+    SELECT lo.id INTO v_id_anulada
+    FROM gen_lista_opciones lo
+    JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoCicloSalida' AND lo.nombre = 'ANULADA' AND lo.estado = 1;
+
+    IF v_id_anulada IS NULL THEN
+        RETURN json_build_object(
+            'error', 'No se encontro el estado ANULADA en catalogo EstadoCicloSalida',
+            'registro', NULL
+        );
+    END IF;
+
+    UPDATE doc_salida
+    SET id_estado_ciclo = v_id_anulada,
+        observaciones = TRIM(BOTH ' ' FROM CONCAT_WS(' | ',
+            NULLIF(observaciones, ''),
+            'Anulada: ' || COALESCE(NULLIF(TRIM(p_motivo), ''), 'sin motivo indicado'))),
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id;
+
+    RETURN doc_obtener_salida(p_id);
+END;
+$function$;
+
+
+-- ===== database_sql\funciones\comprobantes\ven_eliminar_comprobante.sql =====
+-- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Function: ven_eliminar_comprobante
+-- Overloads: 1
+-- Generated: 2026-09-03T16:50:38.966Z
+--
+-- Fase 2 â€” al anular la venta, cascada a su orden de salida vigente
+-- (doc_salida.id_venta): el detalle de un doc_salida ORDEN_SALIDA_VENTA se
+-- toma por JOIN de ven_comprobante_detalle (principio "detalle no
+-- duplicado"), que este mismo procedimiento deja en estado=0 mÃ¡s abajo â€” sin
+-- esta cascada, el documento quedaba "activo" pero sin Ã­tems, indistinguible
+-- de un bug. doc_anular_salida ya es seguro de llamar aquÃ­: para documentos
+-- con id_venta NO revierte inventario (lo moviÃ³ la venta, no el documento),
+-- pero SÃ libera custodia PENDIENTE_ENVIO/EN_TRANSITO â†’ DISPONIBLE y bloquea
+-- si hay reparto vigente. Ver tambiÃ©n doc_obtener_salida.sql
+-- (ahora sigue mostrando el detalle de una venta anulada, en vez de vaciarlo).
+--
+-- âš ï¸ NO EJECUTAR sin revisiÃ³n â€” dejar aplicado a mano con apply-migration.js
+-- cuando el usuario lo confirme.
+DROP FUNCTION IF EXISTS ven_eliminar_comprobante(p_id integer, p_id_usuario_auditoria integer);
+
+CREATE OR REPLACE FUNCTION public.ven_eliminar_comprobante(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_estado_sunat VARCHAR;
+    v_rev JSON;
+    v_anul JSON;
+    v_serie VARCHAR;
+    v_numero VARCHAR;
+    v_os_id INTEGER;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT es.nombre, c.serie, c.numero
+    INTO v_estado_sunat, v_serie, v_numero
+    FROM ven_comprobante c
+    LEFT JOIN gen_lista_opciones es ON c.id_estado_sunat = es.id
+    WHERE c.id = p_id AND c.estado = 1;
+
+    IF v_estado_sunat IS NULL THEN
+        RETURN json_build_object('eliminado', FALSE, 'id', p_id);
+    END IF;
+
+    IF v_estado_sunat = 'ACEPTADO' THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede eliminar un comprobante ya aceptado por SUNAT. Use nota de crÃ©dito o comunicaciÃ³n de baja.'
+        );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM ven_comprobante
+        WHERE id_comprobante_origen = p_id
+          AND estado = 1
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede eliminar el comprobante porque tiene documentos derivados (boleta/factura/nota)'
+        );
+    END IF;
+
+    -- Cascada OS ANTES del soft-delete: doc_anular_salida localiza balones
+    -- por ven_comprobante_detalle (aÃºn estado=1), libera PENDIENTE_ENVIO /
+    -- EN_TRANSITO â†’ DISPONIBLE, y falla con error si hay reparto vigente.
+    -- PERFORM descartaba ese error; aquÃ­ se propaga.
+    FOR v_os_id IN
+        SELECT d.id
+        FROM doc_salida d
+        JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
+        WHERE d.id_venta = p_id
+          AND d.estado = 1
+          AND ec.nombre <> 'ANULADA'
+    LOOP
+        v_anul := doc_anular_salida(
+            v_os_id,
+            format('Venta %s-%s anulada', COALESCE(v_serie, ''), COALESCE(v_numero, p_id::text)),
+            p_id_usuario_auditoria
+        );
+        IF v_anul->>'error' IS NOT NULL THEN
+            RETURN json_build_object(
+                'eliminado', FALSE,
+                'id', p_id,
+                'error', v_anul->>'error'
+            );
+        END IF;
+    END LOOP;
+
+    -- Reserva de venta sin OS: ven_crear_comprobante dejÃ³ PENDIENTE_ENVIO en
+    -- cilindros DISPONIBLE vendidos. Si no hubo OS (o quedÃ³ residual), liberar.
+    -- Con OS vigente doc_anular_salida ya lo hizo; este UPDATE es no-op.
+    UPDATE bal_balon b
+    SET id_estado_balon = lo_disp.id,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    FROM ven_comprobante_detalle d
+    CROSS JOIN LATERAL (
+        SELECT lo.id
+        FROM gen_lista_opciones lo
+        JOIN gen_lista l ON l.id = lo.id_lista
+        WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'DISPONIBLE' AND lo.estado = 1
+        LIMIT 1
+    ) lo_disp
+    JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+    WHERE d.id_comprobante = p_id
+      AND d.estado = 1
+      AND d.id_balon = b.id
+      AND b.estado = 1
+      AND COALESCE(d.descripcion, '') !~* 'garant[iÃ­]a'
+      AND lo_disp.id IS NOT NULL
+      AND UPPER(TRIM(eb.nombre)) = 'PENDIENTE_ENVIO';
+
+    -- Revertir stock, CxC impaga y custodia (prÃ©stamo/recarga/alquiler/GRE)
+    v_rev := ven_revertir_efectos_comprobante(p_id, p_id_usuario_auditoria, TRUE);
+    IF COALESCE(v_rev->>'ok', 'false') <> 'true' THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', COALESCE(v_rev->>'error', 'No se pudieron revertir los efectos del comprobante')
+        );
+    END IF;
+
+    UPDATE ven_comprobante_detalle
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_comprobante = p_id AND estado = 1;
+
+    UPDATE ven_cuotas
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_comprobante = p_id AND estado = 1;
+
+    -- Fase 3: las lÃ­neas de cobro siguen la suerte del comprobante. Los totales
+    -- de caja ya excluyen las ventas anuladas por su cabecera, pero dejarlas
+    -- activas harÃ­a que un listado de cobros por cuenta bancaria contara dinero
+    -- de una venta que ya no existe.
+    UPDATE ven_comprobante_pago
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_comprobante = p_id AND estado = 1;
+
+    UPDATE ven_comprobante
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id AND estado = 1;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('eliminado', FALSE, 'id', p_id);
+    END IF;
+
+    RETURN json_build_object('eliminado', TRUE, 'id', p_id);
+END;
+$function$
+;
+

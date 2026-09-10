@@ -8,12 +8,15 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   CreateRecojosBalonDto,
   FiltroPendientesRecojoDto,
@@ -23,6 +26,8 @@ import {
   ValidarCodigosRecojoDto,
 } from '../dto/recojos-balon.dto';
 import { RecojosBalonLogic } from '../logic/recojos-balon.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Balones - Recojos')
 @Controller('balones/recojos')
@@ -54,7 +59,8 @@ export class RecojosBalonController {
   @Post()
   @Permisos(PermisoBanderas.RECOJOS_BALON_CREAR)
   @ApiOperation({ summary: 'Programar visita de recojo (PROGRAMADO)' })
-  crear(@Body() dto: CreateRecojosBalonDto) {
+  crear(@Body() dto: CreateRecojosBalonDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crear(dto);
   }
 
@@ -65,7 +71,9 @@ export class RecojosBalonController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateRecojosBalonDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.actualizar(id, dto);
   }
 
@@ -79,7 +87,9 @@ export class RecojosBalonController {
   registrarResultado(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RegistrarResultadoRecojoDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.registrarResultado(id, dto);
   }
 
@@ -90,7 +100,9 @@ export class RecojosBalonController {
   eliminar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.eliminar(id, dto.idUsuarioAuditoria);
   }
 
@@ -104,7 +116,9 @@ export class RecojosBalonController {
   validarCodigos(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ValidarCodigosRecojoDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.validarCodigos(id, dto);
   }
 }

@@ -8,12 +8,15 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   CreateAlquileresBalonDto,
   FiltroAlquileresAntiguedadDto,
@@ -23,6 +26,8 @@ import {
   UpdateAlquileresBalonDto,
 } from '../dto/alquileres-balon.dto';
 import { AlquileresBalonLogic } from '../logic/alquileres-balon.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Balones - Alquileres')
 @Controller('balones/alquileres')
@@ -74,7 +79,9 @@ export class AlquileresBalonController {
   registrarPeriodo(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RegistrarAlquilerPeriodoDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.registrarPeriodo(id, dto);
   }
 
@@ -84,7 +91,9 @@ export class AlquileresBalonController {
   renovar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RenovarAlquilerDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.renovar(id, dto);
   }
 
@@ -99,7 +108,8 @@ export class AlquileresBalonController {
   @Post()
   @Permisos(PermisoBanderas.ALQUILERES_BALON_CREAR)
   @ApiOperation({ summary: 'Crear' })
-  crear(@Body() dto: CreateAlquileresBalonDto) {
+  crear(@Body() dto: CreateAlquileresBalonDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crear(dto);
   }
 
@@ -110,7 +120,9 @@ export class AlquileresBalonController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateAlquileresBalonDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.actualizar(id, dto);
   }
 
@@ -121,7 +133,9 @@ export class AlquileresBalonController {
   eliminar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

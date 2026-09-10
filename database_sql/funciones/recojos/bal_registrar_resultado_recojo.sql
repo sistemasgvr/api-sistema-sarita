@@ -12,7 +12,7 @@ DECLARE
     v_id_cliente INTEGER;
     v_id_prestamo INTEGER;
     v_id_alquiler INTEGER;
-    v_id_recarga_planta INTEGER;
+    v_id_doc_salida INTEGER;
     v_estado_actual VARCHAR;
     v_fecha_visita DATE;
     v_item JSON;
@@ -69,8 +69,8 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT r.id_cliente, r.id_prestamo, r.id_alquiler, r.id_recarga_planta, er.nombre
-    INTO v_id_cliente, v_id_prestamo, v_id_alquiler, v_id_recarga_planta, v_estado_actual
+    SELECT r.id_cliente, r.id_prestamo, r.id_alquiler, r.id_doc_salida, er.nombre
+    INTO v_id_cliente, v_id_prestamo, v_id_alquiler, v_id_doc_salida, v_estado_actual
     FROM bal_recojo r
     LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
     WHERE r.id = p_id AND r.estado = 1;
@@ -175,6 +175,7 @@ BEGIN
     FOR v_pass IN 1..2 LOOP
         v_seen_pd := '{}';
         v_seen_ad := '{}';
+        v_seen_b := '{}';
         IF v_pass = 1 THEN
             v_cnt_recogido := 0;
             v_cnt_no_recogido := 0;
@@ -353,7 +354,7 @@ BEGIN
                     );
                 END IF;
 
-                IF v_id_recarga_planta IS NULL
+                IF v_id_doc_salida IS NULL
                    AND COALESCE(jsonb_array_length(v_repro_detalles), 0) = 0
                    AND v_id_alquiler IS NULL THEN
                     RETURN json_build_object(
@@ -611,6 +612,7 @@ BEGIN
                   AND (
                       (v_id_pd IS NOT NULL AND id_prestamo_detalle = v_id_pd)
                       OR (v_id_ad IS NOT NULL AND id_alquiler_detalle = v_id_ad)
+                      OR (v_id_b IS NOT NULL AND id_balon = v_id_b)
                   );
 
                 IF v_resultado = 'RECOGIDO' THEN
@@ -653,7 +655,7 @@ BEGIN
                                 p_id_usuario_auditoria => p_id_usuario_auditoria
                             );
 
-                            IF v_id_recarga_planta IS NOT NULL THEN
+                            IF v_id_doc_salida IS NOT NULL THEN
                                 SELECT id_producto_gas INTO v_id_producto_gas_recojo
                                 FROM bal_balon WHERE id = v_id_balon;
 
@@ -667,9 +669,9 @@ BEGIN
                                     p_id_almacen_destino        => v_id_almacen,
                                     p_id_cliente                => v_id_cliente,
                                     p_codigo_tipo_documento_origen => 'RECARGA',
-                                    p_id_documento_origen       => v_id_recarga_planta,
+                                    p_id_documento_origen       => v_id_doc_salida,
                                     p_glosa                     => 'Entrada por recojo de recarga en planta (orden #'
-                                        || v_id_recarga_planta || ')',
+                                        || v_id_doc_salida || ')',
                                     p_id_usuario_auditoria      => p_id_usuario_auditoria
                                 );
                                 IF v_dev->>'error' IS NOT NULL THEN
@@ -710,7 +712,7 @@ BEGIN
                             id_usuario_modificacion = p_id_usuario_auditoria,
                             fecha_modificacion = NOW()
                         WHERE id = v_id_prestamo_det AND estado = 1;
-                    ELSE
+                    ELSIF v_id_ad IS NOT NULL THEN
                         SELECT ad.id_alquiler, ad.id_balon
                         INTO v_id_alquiler_det, v_id_balon
                         FROM bal_alquiler_detalle ad
@@ -722,27 +724,33 @@ BEGIN
                             id_usuario_modificacion = p_id_usuario_auditoria,
                             fecha_modificacion = NOW()
                         WHERE id = v_id_alquiler_det AND estado = 1;
+                    ELSE
+                        -- Recarga planta: detalle solo por id_balon (sin préstamo/alquiler)
+                        v_id_balon := v_id_b;
                     END IF;
 
-                    SELECT lo.id INTO v_id_estado_prestado
-                    FROM gen_lista_opciones lo
-                    INNER JOIN gen_lista l ON l.id = lo.id_lista
-                    WHERE l.nombre = 'EstadoBalon'
-                      AND lo.nombre = CASE WHEN v_id_ad IS NOT NULL THEN 'ALQUILADO' ELSE 'PRESTADO_CLIENTE' END
-                      AND lo.estado = 1
-                    LIMIT 1;
+                    -- Solo préstamo/alquiler revierten POR_RECOGER → estado de custodia.
+                    IF v_id_pd IS NOT NULL OR v_id_ad IS NOT NULL THEN
+                        SELECT lo.id INTO v_id_estado_prestado
+                        FROM gen_lista_opciones lo
+                        INNER JOIN gen_lista l ON l.id = lo.id_lista
+                        WHERE l.nombre = 'EstadoBalon'
+                          AND lo.nombre = CASE WHEN v_id_ad IS NOT NULL THEN 'ALQUILADO' ELSE 'PRESTADO_CLIENTE' END
+                          AND lo.estado = 1
+                        LIMIT 1;
 
-                    IF v_id_balon IS NOT NULL AND v_id_estado_prestado IS NOT NULL THEN
-                        UPDATE bal_balon b
-                        SET
-                            id_estado_balon = v_id_estado_prestado,
-                            id_usuario_modificacion = p_id_usuario_auditoria,
-                            fecha_modificacion = NOW()
-                        FROM gen_lista_opciones eb
-                        WHERE b.id = v_id_balon
-                          AND b.estado = 1
-                          AND eb.id = b.id_estado_balon
-                          AND eb.nombre = 'POR_RECOGER';
+                        IF v_id_balon IS NOT NULL AND v_id_estado_prestado IS NOT NULL THEN
+                            UPDATE bal_balon b
+                            SET
+                                id_estado_balon = v_id_estado_prestado,
+                                id_usuario_modificacion = p_id_usuario_auditoria,
+                                fecha_modificacion = NOW()
+                            FROM gen_lista_opciones eb
+                            WHERE b.id = v_id_balon
+                              AND b.estado = 1
+                              AND eb.id = b.id_estado_balon
+                              AND eb.nombre = 'POR_RECOGER';
+                        END IF;
                     END IF;
                 END IF;
             END IF;
@@ -866,7 +874,7 @@ BEGIN
                 ELSE v_id_prestamo
             END,
             v_id_alquiler,
-            v_id_recarga_planta,
+            v_id_doc_salida,
             v_fecha_repro,
             NULL::TIME,
             NULL::INTEGER,
@@ -881,5 +889,10 @@ BEGIN
     END IF;
 
     RETURN bal_obtener_recojo(p_id);
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Revierte mutaciones parciales (detalle, stock, regulador, reprogramación)
+        -- y expone el error al API en el mismo formato que el resto de bal_*.
+        RETURN json_build_object('error', SQLERRM, 'registro', NULL);
 END;
 $function$;

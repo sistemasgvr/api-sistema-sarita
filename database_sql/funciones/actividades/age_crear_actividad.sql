@@ -33,6 +33,7 @@ DECLARE
     v_titulo VARCHAR;
     v_serie VARCHAR;
     v_numero VARCHAR;
+    v_ciclo_os VARCHAR;
     v_item JSON;
     v_n INTEGER := 0;
 BEGIN
@@ -81,13 +82,23 @@ BEGIN
     END IF;
 
     IF p_id_doc_salida IS NOT NULL THEN
-        SELECT ds.id_cliente, ds.id_destinatario, ds.serie, ds.numero
-        INTO v_cliente, v_destinatario, v_serie, v_numero
+        SELECT ds.id_cliente, ds.id_destinatario, ds.serie, ds.numero,
+               UPPER(TRIM(ec.nombre))
+        INTO v_cliente, v_destinatario, v_serie, v_numero, v_ciclo_os
         FROM doc_salida ds
+        LEFT JOIN gen_lista_opciones ec ON ec.id = ds.id_estado_ciclo
         WHERE ds.id = p_id_doc_salida AND ds.estado = 1;
 
         IF NOT FOUND THEN
             RETURN json_build_object('registro', NULL, 'error', 'La orden de salida indicada no existe.');
+        END IF;
+
+        -- REPARTO no se puede crear sobre una OS ya anulada.
+        IF v_ciclo_os = 'ANULADA' THEN
+            RETURN json_build_object(
+                'registro', NULL,
+                'error', 'No se puede crear un reparto sobre una orden de salida ANULADA.'
+            );
         END IF;
 
         v_cliente := COALESCE(p_id_cliente, v_cliente, v_destinatario);

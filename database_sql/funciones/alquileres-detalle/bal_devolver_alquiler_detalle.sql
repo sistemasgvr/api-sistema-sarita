@@ -19,6 +19,7 @@ DECLARE
     v_id_estado_finalizado INTEGER;
     v_mov_result JSON;
     v_pendientes INTEGER;
+    v_nombre_estado_balon VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -37,7 +38,8 @@ BEGIN
     FROM bal_alquiler_detalle ad
     INNER JOIN bal_alquiler al ON al.id = ad.id_alquiler AND al.estado = 1
     WHERE ad.id = p_id
-      AND ad.estado = 1;
+      AND ad.estado = 1
+    FOR UPDATE OF ad;
 
     IF v_id_alquiler IS NULL THEN
         RETURN json_build_object(
@@ -67,6 +69,31 @@ BEGIN
     ) THEN
         RETURN json_build_object(
             'error', 'El almacén de destino no existe o está inactivo',
+            'registro', NULL
+        );
+    END IF;
+
+    SELECT UPPER(TRIM(eb.nombre))
+    INTO v_nombre_estado_balon
+    FROM bal_balon b
+    LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+    WHERE b.id = v_id_balon AND b.estado = 1;
+
+    IF v_nombre_estado_balon IS NULL THEN
+        RETURN json_build_object(
+            'error', 'El cilindro del detalle no existe o está inactivo',
+            'registro', NULL
+        );
+    END IF;
+
+    -- Solo forzar DISPONIBLE si el balón está en un estado esperado de alquiler.
+    IF v_nombre_estado_balon NOT IN ('ALQUILADO', 'POR_RECOGER') THEN
+        RETURN json_build_object(
+            'error',
+            format(
+                'No se puede devolver: el cilindro está %s (se esperaba ALQUILADO o POR_RECOGER)',
+                LOWER(REPLACE(v_nombre_estado_balon, '_', ' '))
+            ),
             'registro', NULL
         );
     END IF;
@@ -155,5 +182,9 @@ BEGIN
     END IF;
 
     RETURN bal_obtener_alquiler_detalle(p_id);
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Revierte fecha_devolucion / movimiento parcial y expone al API.
+        RETURN json_build_object('error', SQLERRM, 'registro', NULL);
 END;
 $function$;

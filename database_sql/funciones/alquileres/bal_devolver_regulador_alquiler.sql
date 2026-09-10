@@ -109,8 +109,10 @@ BEGIN
                 p_id_usuario_auditoria      => p_id_usuario_auditoria
             );
 
+            -- Ya se marcó fecha_devolucion_regulador: fallar con RAISE para
+            -- no dejar "devuelto" sin reingreso de stock.
             IF v_mov->>'error' IS NOT NULL THEN
-                RETURN json_build_object('error', v_mov->>'error', 'registro', NULL);
+                RAISE EXCEPTION '%', v_mov->>'error';
             END IF;
 
             UPDATE bal_alquiler
@@ -135,10 +137,7 @@ BEGIN
         LIMIT 1;
 
         IF v_id_estado_pend IS NULL THEN
-            RETURN json_build_object(
-                'error', 'No se encontró el estado PENDIENTE de mantenimiento',
-                'registro', NULL
-            );
+            RAISE EXCEPTION 'No se encontró el estado PENDIENTE de mantenimiento';
         END IF;
 
         INSERT INTO bal_mantenimiento (
@@ -193,5 +192,9 @@ BEGIN
             'stock_reingresado', v_condicion = 'BUENO'
         )
     );
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Revierte fecha_devolucion_regulador / stock parcial y expone al API.
+        RETURN json_build_object('error', SQLERRM, 'registro', NULL);
 END;
 $function$;

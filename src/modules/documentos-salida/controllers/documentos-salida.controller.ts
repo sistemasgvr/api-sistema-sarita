@@ -9,13 +9,16 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   StreamableFile,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   ActualizarDocSalidaDetalleDto,
   ActualizarDocSalidaDto,
@@ -32,6 +35,8 @@ import {
   ActualizarTrasladoDto,
 } from '../dto/documentos-salida.dto';
 import { DocumentosSalidaLogic } from '../logic/documentos-salida.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Documentos de salida')
 @Controller('documentos-salida')
@@ -81,7 +86,8 @@ export class DocumentosSalidaController {
   @Post()
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_CREAR)
   @ApiOperation({ summary: 'Crear documento de salida (orden interna, recarga planta, retorno, traslado)' })
-  crear(@Body() dto: CreateDocSalidaDto) {
+  crear(@Body() dto: CreateDocSalidaDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crear(dto);
   }
 
@@ -90,7 +96,8 @@ export class DocumentosSalidaController {
   @ApiOperation({
     summary: 'Crear (y generar) una orden de salida ligada a una venta — no duplica el movimiento de inventario',
   })
-  crearDesdeVenta(@Body() dto: CrearDesdeVentaDto) {
+  crearDesdeVenta(@Body() dto: CrearDesdeVentaDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crearDesdeVenta(dto);
   }
 
@@ -98,7 +105,12 @@ export class DocumentosSalidaController {
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EDITAR)
   @ApiOperation({ summary: 'Agregar una línea (producto o balón) — solo mientras está en BORRADOR' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  agregarDetalle(@Param('id', ParseIntPipe) id: number, @Body() dto: CreateDocSalidaDetalleDto) {
+  agregarDetalle(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateDocSalidaDetalleDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.agregarDetalle(id, dto);
   }
 
@@ -111,7 +123,9 @@ export class DocumentosSalidaController {
   actualizarDetalle(
     @Param('detalleId', ParseIntPipe) detalleId: number,
     @Body() dto: ActualizarDocSalidaDetalleDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.actualizarDetalle(detalleId, dto);
   }
 
@@ -119,7 +133,12 @@ export class DocumentosSalidaController {
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EDITAR)
   @ApiOperation({ summary: 'Quitar una línea — solo mientras el documento está en BORRADOR' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  eliminarDetalle(@Param('detalleId', ParseIntPipe) detalleId: number, @Body() dto: AuditoriaDto) {
+  eliminarDetalle(
+    @Param('detalleId', ParseIntPipe) detalleId: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.eliminarDetalle(detalleId, dto);
   }
 
@@ -133,7 +152,9 @@ export class DocumentosSalidaController {
   actualizarTraslado(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ActualizarTrasladoDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.actualizarTraslado(id, dto);
   }
 
@@ -144,7 +165,12 @@ export class DocumentosSalidaController {
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EDITAR)
   @ApiOperation({ summary: 'Corregir las observaciones de la orden' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  actualizar(@Param('id', ParseIntPipe) id: number, @Body() dto: ActualizarDocSalidaDto) {
+  actualizar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarDocSalidaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.actualizar(id, dto);
   }
 
@@ -152,7 +178,12 @@ export class DocumentosSalidaController {
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EDITAR)
   @ApiOperation({ summary: 'Generar (BORRADOR → GENERADA): mueve inventario si no viene de una venta' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  generar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  generar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.generar(id, dto);
   }
 
@@ -160,7 +191,12 @@ export class DocumentosSalidaController {
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EMITIR)
   @ApiOperation({ summary: 'Completar datos SUNAT y reservar correlativo de guía de remisión' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  convertirAGre(@Param('id', ParseIntPipe) id: number, @Body() dto: ConvertirGreDto) {
+  convertirAGre(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ConvertirGreDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.convertirAGre(id, dto);
   }
 
@@ -168,7 +204,12 @@ export class DocumentosSalidaController {
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EMITIR)
   @ApiOperation({ summary: 'Emitir a SUNAT (despatch/send)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  emitirSunat(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  emitirSunat(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.emitirSunat(id, dto);
   }
 
@@ -176,7 +217,12 @@ export class DocumentosSalidaController {
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EMITIR)
   @ApiOperation({ summary: 'Consultar estado SUNAT (despatch/status)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  consultarEstado(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  consultarEstado(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.consultarEstado(id, dto);
   }
 
@@ -184,7 +230,12 @@ export class DocumentosSalidaController {
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EDITAR)
   @ApiOperation({ summary: 'Registrar dirección de entrega + coordenadas GPS (manual o desde dirección guardada del cliente)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  registrarDireccionEntrega(@Param('id', ParseIntPipe) id: number, @Body() dto: RegistrarDireccionEntregaDto) {
+  registrarDireccionEntrega(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RegistrarDireccionEntregaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.registrarDireccionEntrega(id, dto);
   }
 
@@ -192,7 +243,12 @@ export class DocumentosSalidaController {
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EDITAR)
   @ApiOperation({ summary: 'Registrar el retorno de una recarga en planta (compra, lote, P.H., balones)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  finalizarRecarga(@Param('id', ParseIntPipe) id: number, @Body() dto: FinalizarRecargaDto) {
+  finalizarRecarga(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: FinalizarRecargaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.finalizarRecarga(id, dto);
   }
 
@@ -200,7 +256,12 @@ export class DocumentosSalidaController {
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EDITAR)
   @ApiOperation({ summary: 'Generar recojo PROGRAMADO de los balones en planta externa' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  generarRecojo(@Param('id', ParseIntPipe) id: number, @Body() dto: GenerarRecojoDocSalidaDto) {
+  generarRecojo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: GenerarRecojoDocSalidaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.generarRecojo(id, dto);
   }
 
@@ -208,7 +269,12 @@ export class DocumentosSalidaController {
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_ELIMINAR)
   @ApiOperation({ summary: 'Anular (revierte inventario si el documento lo movió por su cuenta)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  anular(@Param('id', ParseIntPipe) id: number, @Body() dto: AnularDocSalidaDto) {
+  anular(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AnularDocSalidaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.anular(id, dto);
   }
 }
