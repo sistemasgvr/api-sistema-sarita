@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
+import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 import {
   mapDeleteResult,
@@ -31,7 +32,12 @@ export class RolesLogic {
     return mapSingleResult(result, 'No se pudo crear el rol');
   }
 
-  async actualizar(id: number, dto: UpdateRolDto) {
+  async actualizar(
+    id: number,
+    dto: UpdateRolDto,
+    permisosCaller: string[] = [],
+  ) {
+    await this.assertPuedeMutarPrivilegiado(id, permisosCaller, 'actualizar');
     const result = await this.rolesModel.actualizar(
       id,
       dto.nombre ?? null,
@@ -41,8 +47,27 @@ export class RolesLogic {
     return mapSingleResult(result, `Rol ${id} no encontrado`);
   }
 
-  async eliminar(id: number, idUsuarioAuditoria?: number) {
+  async eliminar(
+    id: number,
+    idUsuarioAuditoria?: number,
+    permisosCaller: string[] = [],
+  ) {
+    await this.assertPuedeMutarPrivilegiado(id, permisosCaller, 'eliminar');
     const result = await this.rolesModel.eliminar(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Rol ${id} no encontrado`);
+  }
+
+  private async assertPuedeMutarPrivilegiado(
+    id: number,
+    permisosCaller: string[],
+    accion: 'actualizar' | 'eliminar',
+  ) {
+    if (permisosCaller.includes(PermisoBanderas.AUTH_TODO)) return;
+    const privilegiado = await this.rolesModel.esRolPrivilegiado(id);
+    if (privilegiado) {
+      throw new ForbiddenException(
+        `Solo un usuario con auth.todo puede ${accion} el rol Administrador o roles con auth.todo`,
+      );
+    }
   }
 }

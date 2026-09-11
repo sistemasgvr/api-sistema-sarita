@@ -17,6 +17,15 @@ interface ErrorCause {
   constraint?: string;
 }
 
+/**
+ * SQLSTATE de `RAISE EXCEPTION` sin ERRCODE explícito. Las funciones de
+ * negocio lo usan para abortar una operación a mitad de una mutación (p. ej.
+ * "No se puede anular: el stock ya fue consumido"): la transacción se
+ * deshace y el mensaje está pensado para el usuario, así que se responde 400
+ * con ese texto en vez de un 500 genérico que lo esconde.
+ */
+const PG_RAISE_EXCEPTION = 'P0001';
+
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
@@ -31,7 +40,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let errors: string[] | null = null;
     let detalle: Record<string, unknown> | undefined;
 
-    if (exception instanceof HttpException) {
+    if (this.isPgRaiseException(exception)) {
+      status = HttpStatus.BAD_REQUEST;
+      message = exception.message;
+    } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
 
@@ -73,6 +85,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
     };
 
     response.status(status).json(body);
+  }
+
+  private isPgRaiseException(
+    exception: unknown,
+  ): exception is Error & { code: string } {
+    return (
+      exception instanceof Error &&
+      (exception as Error & { code?: string }).code === PG_RAISE_EXCEPTION &&
+      typeof exception.message === 'string' &&
+      exception.message.trim() !== ''
+    );
   }
 
   private getErrorCause(exception: unknown): ErrorCause {

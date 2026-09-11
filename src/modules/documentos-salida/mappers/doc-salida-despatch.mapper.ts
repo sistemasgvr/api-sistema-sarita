@@ -3,6 +3,7 @@ import type { FacturacionApisperuPayload } from '../../../integrations/facturaci
 import type {
   DocumentoSalidaCompletoResult,
   DocumentoSalidaDetalleRegistro,
+  DocumentoSalidaRegistro,
 } from '../interfaces/documento-salida.interface';
 
 interface EmpresaEmisora {
@@ -143,14 +144,6 @@ export class DocSalidaDespatchMapper {
       };
     }
 
-    const destinatarioDoc = (cabecera.documento_destinatario ?? '').trim();
-
-    if (!destinatarioDoc) {
-      throw new BadRequestException(
-        'El destinatario no tiene número de documento',
-      );
-    }
-
     const payload: FacturacionApisperuPayload = {
       version: '2022',
       tipoDoc,
@@ -158,14 +151,7 @@ export class DocSalidaDespatchMapper {
       correlativo: this.parseCorrelativo(cabecera.numero_sunat),
       fechaEmision: this.formatFecha(cabecera.fecha),
       company: this.mapEmpresa(empresa),
-      destinatario: {
-        tipoDoc: this.mapTipoDocCliente(
-          cabecera.nombre_tipo_doc_destinatario,
-          destinatarioDoc,
-        ),
-        numDoc: destinatarioDoc,
-        rznSocial: (cabecera.nombre_destinatario ?? 'DESTINATARIO').trim(),
-      },
+      destinatario: this.resolverDestinatario(cabecera),
       envio,
       details: detalles.map((detalle) => this.mapDetalle(detalle)),
     };
@@ -209,6 +195,65 @@ export class DocSalidaDespatchMapper {
     }
 
     return payload;
+  }
+
+  /**
+   * `destinatario` del payload SUNAT (catálogo: tipoDoc / numDoc / rznSocial).
+   *
+   * En recarga y retorno de planta externa la carga va (o vuelve) del
+   * proveedor: él ES el destinatario del documento y no hay tercero registrado
+   * en `documento_destinatario`. Es el mismo criterio que imprime el PDF, y
+   * mientras el mapper solo miraba el destinatario, esas guías se caían con
+   * «el destinatario no tiene número de documento» sin que faltara ningún dato.
+   *
+   * En una GRE transportista (31) el cliente es el remitente, así que no puede
+   * entrar además como destinatario.
+   */
+  private resolverDestinatario(cabecera: DocumentoSalidaRegistro) {
+    // doc_obtener_salida no trae el tipo de documento del proveedor; sin él
+    // mapTipoDocCliente lo deduce del largo (11 = RUC, 8 = DNI), que es lo que
+    // ya hace de fallback para cliente y destinatario.
+    const proveedor = {
+      doc: (cabecera.documento_proveedor ?? '').trim(),
+      nombre: (cabecera.nombre_proveedor ?? '').trim(),
+      tipoDocumento: null as string | null,
+    };
+    const destinatario = {
+      doc: (cabecera.documento_destinatario ?? '').trim(),
+      nombre: (cabecera.nombre_destinatario ?? '').trim(),
+      tipoDocumento: cabecera.nombre_tipo_doc_destinatario,
+    };
+    const cliente = {
+      doc: (cabecera.documento_cliente ?? '').trim(),
+      nombre: (cabecera.nombre_cliente ?? '').trim(),
+      tipoDocumento: cabecera.nombre_tipo_doc_cliente,
+    };
+
+    const esPlantaExterna =
+      cabecera.nombre_tipo_orden === 'RECARGA_PLANTA_EXTERNA';
+    const orden = esPlantaExterna
+      ? [proveedor, destinatario, cliente]
+      : [destinatario, cliente, proveedor];
+    const candidatos =
+      cabecera.codigo_tipo_guia === '31'
+        ? orden.filter((candidato) => candidato !== cliente)
+        : orden;
+
+    const elegido = candidatos.find((candidato) => candidato.doc);
+
+    if (!elegido) {
+      throw new BadRequestException(
+        esPlantaExterna
+          ? 'La planta externa no tiene número de documento. Registra el RUC del proveedor antes de emitir.'
+          : 'El destinatario no tiene número de documento',
+      );
+    }
+
+    return {
+      tipoDoc: this.mapTipoDocCliente(elegido.tipoDocumento, elegido.doc),
+      numDoc: elegido.doc,
+      rznSocial: elegido.nombre || 'DESTINATARIO',
+    };
   }
 
   private mapDetalle(detalle: DocumentoSalidaDetalleRegistro) {

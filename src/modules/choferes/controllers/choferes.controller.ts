@@ -8,12 +8,14 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthRequest } from '../../../common/interfaces/auth-request.interface';
 import {
   CreateChoferDto,
   FiltroChoferDto,
@@ -44,7 +46,8 @@ export class ChoferesController {
   @Post()
   @Permisos(PermisoBanderas.CHOFERES_CREAR)
   @ApiOperation({ summary: 'Crear chofer' })
-  crear(@Body() dto: CreateChoferDto) {
+  crear(@Body() dto: CreateChoferDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.choferesLogic.crear(dto);
   }
 
@@ -55,7 +58,9 @@ export class ChoferesController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateChoferDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.choferesLogic.actualizar(id, dto);
   }
 
@@ -63,7 +68,12 @@ export class ChoferesController {
   @Permisos(PermisoBanderas.CHOFERES_ELIMINAR)
   @ApiOperation({ summary: 'Eliminar chofer (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  eliminar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.choferesLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

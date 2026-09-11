@@ -13,6 +13,9 @@
 --
 -- Claves nuevas del JSON (las anteriores se conservan):
 --   ventasEfectivo, ventasOtrosMedios, cobranzasEfectivo, gastosCajaMediosCaja.
+--
+-- P0 (20260910): los pagos de cuentas por pagar (CxP de compras) entran al JSON
+-- como pagosProveedor / pagosProveedorMediosCaja. Ver el bloque correspondiente.
 
 DROP FUNCTION IF EXISTS fin_caja_calcular_totales(p_fecha date, p_id_sucursal integer);
 
@@ -30,6 +33,8 @@ DECLARE
     v_cobranzas NUMERIC(14,4) := 0;
     v_cobranzas_caja NUMERIC(14,4) := 0;
     v_cobranzas_efectivo NUMERIC(14,4) := 0;
+    v_pagos_proveedor NUMERIC(14,4) := 0;
+    v_pagos_proveedor_caja NUMERIC(14,4) := 0;
     v_gastos_caja NUMERIC(14,4) := 0;
     v_gastos_caja_medios NUMERIC(14,4) := 0;
     v_gastos_compra NUMERIC(14,4) := 0;
@@ -82,7 +87,7 @@ BEGIN
         CROSS JOIN LATERAL ven_pagos_de_comprobante(c.id) pg
         WHERE c.estado = 1
           AND c.fecha = p_fecha
-          AND (p_id_sucursal IS NULL OR c.id_sucursal = p_id_sucursal OR c.id_sucursal IS NULL)
+          AND (p_id_sucursal IS NULL OR c.id_sucursal = p_id_sucursal)
           AND COALESCE(UPPER(est.nombre), '') <> 'ANULADO'
           AND COALESCE(UPPER(es.nombre), '') <> 'BAJA'
           -- VSD/NV convertida a boleta/factura: el cobro ya cuenta en el CPE destino.
@@ -122,6 +127,43 @@ BEGIN
           OR COALESCE(p.id_sucursal, fin_sucursal_de_cuenta(cu.id)) = p_id_sucursal
       );
 
+    -- Pagos de cuentas por pagar (la CxP que genera una compra a crédito).
+    -- fin_registrar_pago exige caja abierta para registrarlos, pero este bloque
+    -- no existía: la función solo sumaba los pagos con tc.nombre = 'COBRAR', así
+    -- que el dinero entregado al proveedor salía del cajón sin restarse del
+    -- arqueo y el efectivo esperado al cierre quedaba inflado por ese importe.
+    --
+    -- `pagosProveedorMediosCaja` es el subconjunto que realmente vacía el cajón,
+    -- mismo criterio que gastosCajaMediosCaja: un pago por transferencia no lo toca.
+    --
+    -- Deliberadamente NO se suma a `gastos` ni a `gastosCompra`: gastosCompra mide
+    -- el devengo de las compras tipo GASTO por su fecha de emisión, esté pagada o
+    -- no, así que sumar aquí el pago de una de esas compras a crédito contaría el
+    -- mismo importe dos veces. gastosCompra tampoco entra en el arqueo (ver
+    -- fin_obtener_caja_sesion / fin_cerrar_caja_sesion), de modo que restar
+    -- pagosProveedorMediosCaja del efectivo esperado no duplica ninguna salida.
+    --
+    -- AJUSTE_NC se excluye igual que en cobranzas: una nota de crédito del
+    -- proveedor abona la CxP contablemente, no saca dinero de la caja.
+    SELECT
+        COALESCE(SUM(p.monto), 0),
+        COALESCE(SUM(CASE
+            WHEN fin_medio_pago_flag(COALESCE(p.id_medio_pago, v_efectivo_id), 'AFECTA_CAJA')
+            THEN p.monto ELSE 0 END), 0)
+    INTO v_pagos_proveedor, v_pagos_proveedor_caja
+    FROM fin_pago p
+    INNER JOIN fin_cuenta cu ON cu.id = p.id_cuenta AND cu.estado = 1
+    INNER JOIN gen_lista_opciones tc ON tc.id = cu.id_tipo_cuenta
+    LEFT JOIN gen_lista_opciones mp ON mp.id = p.id_medio_pago
+    WHERE p.estado = 1
+      AND p.fecha_pago = p_fecha
+      AND UPPER(tc.nombre) = 'PAGAR'
+      AND COALESCE(UPPER(mp.nombre), '') <> 'AJUSTE_NC'
+      AND (
+          p_id_sucursal IS NULL
+          OR COALESCE(p.id_sucursal, fin_sucursal_de_cuenta(cu.id)) = p_id_sucursal
+      );
+
     -- Gastos de caja. `gastosCajaMediosCaja` es el subconjunto que realmente
     -- sale del arqueo: un gasto pagado por transferencia no vacía el cajón.
     SELECT
@@ -142,7 +184,7 @@ BEGIN
     WHERE cc.estado = 1
       AND cc.fecha = p_fecha
       AND UPPER(COALESCE(tr.nombre, '')) = 'GASTO'
-      AND (p_id_sucursal IS NULL OR cc.id_sucursal = p_id_sucursal OR cc.id_sucursal IS NULL);
+      AND (p_id_sucursal IS NULL OR cc.id_sucursal = p_id_sucursal);
 
     SELECT COALESCE(SUM(d.monto), 0)
     INTO v_depositos
@@ -175,7 +217,6 @@ BEGIN
       AND (
           p_id_sucursal IS NULL
           OR COALESCE(gm.id_sucursal, c.id_sucursal) = p_id_sucursal
-          OR COALESCE(gm.id_sucursal, c.id_sucursal) IS NULL
       );
 
     SELECT
@@ -195,7 +236,6 @@ BEGIN
       AND (
           p_id_sucursal IS NULL
           OR gm.id_sucursal = p_id_sucursal
-          OR gm.id_sucursal IS NULL
       );
 
     RETURN json_build_object(
@@ -207,6 +247,8 @@ BEGIN
         'cobranzas', v_cobranzas,
         'cobranzasMediosCaja', v_cobranzas_caja,
         'cobranzasEfectivo', v_cobranzas_efectivo,
+        'pagosProveedor', v_pagos_proveedor,
+        'pagosProveedorMediosCaja', v_pagos_proveedor_caja,
         'gastosCaja', v_gastos_caja,
         'gastosCajaMediosCaja', v_gastos_caja_medios,
         'gastosCompra', v_gastos_compra,

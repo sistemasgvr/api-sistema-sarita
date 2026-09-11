@@ -1,5 +1,9 @@
 -- Function: age_iniciar_entrega
 -- Source: migraciones/20260909_age_reparto_flujo_entrega.sql
+--
+-- Actualizada por database_sql/migraciones/20260910_age_custodia_recojo_candado.sql:
+-- el descuadre de cilindros actualizados se detecta con bal_balon ya mutado, así
+-- que es RAISE (rollback) y no un error soft que dejaría la custodia a medias.
 
 DROP FUNCTION IF EXISTS age_iniciar_entrega(integer, integer);
 
@@ -195,15 +199,12 @@ BEGIN
 
     GET DIAGNOSTICS v_cilindros_upd = ROW_COUNT;
 
+    -- El UPDATE ya corrió: un error soft aquí confirmaría los cilindros que sí
+    -- cambiaron y dejaría la custodia partida entre almacén y camión.
     IF v_cilindros_esp > 0 AND v_cilindros_upd <> v_cilindros_esp THEN
-        RETURN json_build_object(
-            'error', format(
-                'No se actualizaron todos los cilindros a EN_TRANSITO (se esperaban %s, se actualizaron %s)',
-                v_cilindros_esp,
-                v_cilindros_upd
-            ),
-            'registro', NULL
-        );
+        RAISE EXCEPTION
+            'No se actualizaron todos los cilindros a EN_TRANSITO (se esperaban %, se actualizaron %)',
+            v_cilindros_esp, v_cilindros_upd;
     END IF;
 
     UPDATE age_actividad

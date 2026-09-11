@@ -54,6 +54,8 @@ export class DocumentosSalidaModel {
       filtros.fechaHasta ?? null,
       filtros.codigoTipoOrden ?? null,
       filtros.sinActividadVigente ?? null,
+      filtros.idProveedor ?? null,
+      filtros.codigoEstadoCiclo ?? null,
     ]);
   }
 
@@ -197,7 +199,10 @@ export class DocumentosSalidaModel {
   }
 
   finalizarRecarga(id: number, dto: FinalizarRecargaDto) {
-    return this.db.callFunctionJson<{ error: string | null; registro: { id_recarga_planta: number } | null }>(
+    return this.db.callFunctionJson<{
+      error: string | null;
+      registro: { id_recarga_planta: number; retorno_fisico: boolean } | null;
+    }>(
       'bal_finalizar_recarga_planta',
       [
         id,

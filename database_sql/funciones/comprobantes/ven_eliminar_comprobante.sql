@@ -14,6 +14,14 @@
 -- si hay reparto vigente. Ver también doc_obtener_salida.sql
 -- (ahora sigue mostrando el detalle de una venta anulada, en vez de vaciarlo).
 --
+-- Actualizada por database_sql/migraciones/20260910_venta_custodia_mostrador_anular.sql:
+--   · Bloqueo duro si el reparto de la venta ya está REALIZADA — la mercadería
+--     está en poder del cliente y reponer stock sería inventar envases.
+--   · La liberación residual de cilindros cubre también EN_PODER_CLIENTE, que
+--     es donde los deja una venta de mostrador sin orden de salida
+--     (ven_confirmar_entrega_mostrador). Sin reparto realizado —lo único que
+--     puede dejarlos así— el cilindro vuelve al almacén de la venta.
+--
 -- ⚠️ NO EJECUTAR sin revisión — dejar aplicado a mano con apply-migration.js
 -- cuando el usuario lo confirme.
 DROP FUNCTION IF EXISTS ven_eliminar_comprobante(p_id integer, p_id_usuario_auditoria integer);
@@ -29,11 +37,12 @@ DECLARE
     v_serie VARCHAR;
     v_numero VARCHAR;
     v_os_id INTEGER;
+    v_id_almacen_venta INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT es.nombre, c.serie, c.numero
-    INTO v_estado_sunat, v_serie, v_numero
+    SELECT es.nombre, c.serie, c.numero, c.id_almacen
+    INTO v_estado_sunat, v_serie, v_numero, v_id_almacen_venta
     FROM ven_comprobante c
     LEFT JOIN gen_lista_opciones es ON c.id_estado_sunat = es.id
     WHERE c.id = p_id AND c.estado = 1;
@@ -60,6 +69,28 @@ BEGIN
             'eliminado', FALSE,
             'id', p_id,
             'error', 'No se puede eliminar el comprobante porque tiene documentos derivados (boleta/factura/nota)'
+        );
+    END IF;
+
+    -- Reparto entregado: doc_anular_salida también lo bloquea, pero el mensaje
+    -- se resuelve aquí para que la venta explique el motivo en sus términos.
+    IF EXISTS (
+        SELECT 1
+        FROM doc_salida d
+        JOIN age_actividad a ON a.id_doc_salida = d.id AND a.estado = 1
+        JOIN gen_lista_opciones ta ON ta.id = a.id_tipo_actividad
+        LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
+        WHERE d.id_venta = p_id
+          AND d.estado = 1
+          AND UPPER(TRIM(ta.nombre)) = 'REPARTO'
+          AND UPPER(TRIM(COALESCE(ea.nombre, ''))) = 'REALIZADA'
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error',
+            'La entrega de esta venta ya fue realizada y los cilindros están en poder del cliente; '
+            || 'no se puede anular. Emite una nota de crédito y registra la devolución.'
         );
     END IF;
 
@@ -92,8 +123,14 @@ BEGIN
     -- Reserva de venta sin OS: ven_crear_comprobante dejó PENDIENTE_ENVIO en
     -- cilindros DISPONIBLE vendidos. Si no hubo OS (o quedó residual), liberar.
     -- Con OS vigente doc_anular_salida ya lo hizo; este UPDATE es no-op.
+    --
+    -- EN_PODER_CLIENTE también entra: es donde deja los cilindros la venta de
+    -- mostrador sin orden de salida. El único otro camino a ese estado es el
+    -- reparto culminado, y ese ya abortó la anulación más arriba.
     UPDATE bal_balon b
     SET id_estado_balon = lo_disp.id,
+        id_almacen = COALESCE(b.id_almacen, v_id_almacen_venta),
+        id_cliente_ubicacion = NULL,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     FROM ven_comprobante_detalle d
@@ -111,7 +148,7 @@ BEGIN
       AND b.estado = 1
       AND COALESCE(d.descripcion, '') !~* 'garant[ií]a'
       AND lo_disp.id IS NOT NULL
-      AND UPPER(TRIM(eb.nombre)) = 'PENDIENTE_ENVIO';
+      AND UPPER(TRIM(eb.nombre)) IN ('PENDIENTE_ENVIO', 'EN_PODER_CLIENTE');
 
     -- Revertir stock, CxC impaga y custodia (préstamo/recarga/alquiler/GRE)
     v_rev := ven_revertir_efectos_comprobante(p_id, p_id_usuario_auditoria, TRUE);

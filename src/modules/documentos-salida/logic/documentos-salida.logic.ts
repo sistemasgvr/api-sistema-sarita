@@ -171,6 +171,15 @@ export class DocumentosSalidaLogic {
       throw new NotFoundException(`Documento de salida ${id} no encontrado`);
     }
 
+    // Una orden anulada conserva serie y correlativo de cuando estaba vigente:
+    // sin este corte se le mandaba a SUNAT una guía de un traslado que ya no
+    // existe, y revertirla después exige comunicación de baja.
+    if (doc.registro.nombre_estado_ciclo === 'ANULADA') {
+      throw new BadRequestException(
+        'El documento está anulado: no puede emitirse a SUNAT',
+      );
+    }
+
     if (doc.registro.nombre_estado_sunat === 'ACEPTADO') {
       throw new BadRequestException('El documento ya fue aceptado por SUNAT');
     }
@@ -257,6 +266,12 @@ export class DocumentosSalidaLogic {
 
     if (!doc.registro) {
       throw new NotFoundException(`Documento de salida ${id} no encontrado`);
+    }
+
+    if (doc.registro.nombre_estado_ciclo === 'ANULADA') {
+      throw new BadRequestException(
+        'El documento está anulado; no se consulta estado SUNAT.',
+      );
     }
 
     const ticket = (doc.registro.ticket_sunat ?? '').trim();

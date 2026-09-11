@@ -8,12 +8,14 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthRequest } from '../../../common/interfaces/auth-request.interface';
 import {
   CreateConfiguracionSunatDto,
   FiltroConfiguracionSunatDto,
@@ -46,7 +48,8 @@ export class ConfiguracionSunatController {
   @Post()
   @Permisos(PermisoBanderas.CONFIGURACION_SUNAT_CREAR)
   @ApiOperation({ summary: 'Crear configuración SUNAT' })
-  crear(@Body() dto: CreateConfiguracionSunatDto) {
+  crear(@Body() dto: CreateConfiguracionSunatDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.configuracionSunatLogic.crear(dto);
   }
 
@@ -57,7 +60,9 @@ export class ConfiguracionSunatController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateConfiguracionSunatDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.configuracionSunatLogic.actualizar(id, dto);
   }
 
@@ -68,7 +73,9 @@ export class ConfiguracionSunatController {
   eliminar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.configuracionSunatLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

@@ -5,9 +5,12 @@
 --
 -- p_id_balones NULL = aplicar a todos los cilindros que la propia relación de
 -- envases aprobados ya emparejó por número de serie.
+-- p_id_doc_salida (Wave 3): opcional; si viene, escribe doc_salida.id_lote_protocolo
+-- para enganchar la ficha a la orden de salida que la originó.
 DROP FUNCTION IF EXISTS bal_aplicar_lote_protocolo_balones(p_id_lote_protocolo integer, p_id_balones json, p_id_usuario_auditoria integer);
+DROP FUNCTION IF EXISTS bal_aplicar_lote_protocolo_balones(p_id_lote_protocolo integer, p_id_balones json, p_id_usuario_auditoria integer, p_id_doc_salida integer);
 
-CREATE OR REPLACE FUNCTION bal_aplicar_lote_protocolo_balones(p_id_lote_protocolo integer, p_id_balones json DEFAULT NULL::json, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION bal_aplicar_lote_protocolo_balones(p_id_lote_protocolo integer, p_id_balones json DEFAULT NULL::json, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_doc_salida integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -39,12 +42,22 @@ BEGIN
     v_ids := COALESCE(v_ids, ARRAY[]::INTEGER[]);
 
     IF array_length(v_ids, 1) IS NULL THEN
+        -- Sin cilindros aún: igual se puede enganchar la ficha a la orden.
+        IF p_id_doc_salida IS NOT NULL THEN
+            UPDATE doc_salida
+            SET id_lote_protocolo = p_id_lote_protocolo,
+                id_usuario_modificacion = p_id_usuario_auditoria,
+                fecha_modificacion = NOW()
+            WHERE id = p_id_doc_salida AND estado = 1;
+        END IF;
+
         RETURN json_build_object(
             'error', NULL,
             'registro', json_build_object(
                 'id_lote_protocolo', p_id_lote_protocolo,
                 'balones_aplicados', 0,
-                'envases_vinculados', 0
+                'envases_vinculados', 0,
+                'id_doc_salida', p_id_doc_salida
             )
         );
     END IF;
@@ -79,12 +92,21 @@ BEGIN
 
     GET DIAGNOSTICS v_aplicados = ROW_COUNT;
 
+    IF p_id_doc_salida IS NOT NULL THEN
+        UPDATE doc_salida
+        SET id_lote_protocolo = p_id_lote_protocolo,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id = p_id_doc_salida AND estado = 1;
+    END IF;
+
     RETURN json_build_object(
         'error', NULL,
         'registro', json_build_object(
             'id_lote_protocolo', p_id_lote_protocolo,
             'balones_aplicados', v_aplicados,
-            'envases_vinculados', v_vinculados
+            'envases_vinculados', v_vinculados,
+            'id_doc_salida', p_id_doc_salida
         )
     );
 END;

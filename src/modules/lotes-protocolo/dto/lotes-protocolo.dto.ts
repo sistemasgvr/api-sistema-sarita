@@ -303,6 +303,15 @@ export class AplicarLoteProtocoloDto extends AuditoriaDto {
   @Type(() => Number)
   @IsNumber({}, { each: true })
   idBalones?: number[];
+
+  @ApiPropertyOptional({
+    description:
+      'Orden de salida (doc_salida) a la que se engancha la ficha: escribe doc_salida.id_lote_protocolo',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idDocSalida?: number;
 }
 
 export class FiltroHistorialLoteProtocoloDto {

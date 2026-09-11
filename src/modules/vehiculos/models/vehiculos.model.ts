@@ -54,6 +54,9 @@ export class VehiculosModel {
   }
 
   actualizar(id: number, dto: UpdateVehiculoDto) {
+    // Solo null explícito (flota propia). Omitir el campo no debe limpiar el dueño.
+    const clearIdCliente = dto.idCliente === null;
+
     return this.db.callFunctionJson<AuthSingleResult<any>>(
       'gen_actualizar_vehiculo',
       [
@@ -69,6 +72,7 @@ export class VehiculosModel {
         dto.color ?? null,
         dto.certificadoInscripcion ?? null,
         dto.certificado2 ?? null,
+        clearIdCliente,
         dto.idUsuarioAuditoria ?? null,
       ],
     );

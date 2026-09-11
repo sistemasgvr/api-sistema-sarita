@@ -656,6 +656,26 @@ BEGIN
                             );
 
                             IF v_id_doc_salida IS NOT NULL THEN
+                                -- Mismo candado que bal_finalizar_recarga_planta: si el
+                                -- retorno físico (ENTRADA_PLANTA_EXTERNA BALON) ya
+                                -- ingresó los cilindros, ENTRADA_LLENADO los duplicaría.
+                                IF EXISTS (
+                                    SELECT 1
+                                    FROM inv_movimiento m
+                                    JOIN gen_lista_opciones tm ON tm.id = m.id_tipo_movimiento
+                                    JOIN gen_lista_opciones td ON td.id = m.id_tipo_documento_origen
+                                    WHERE m.estado = 1
+                                      AND m.naturaleza = 'BALON'
+                                      AND m.id_balon = v_id_balon
+                                      AND m.id_documento_origen = v_id_doc_salida
+                                      AND UPPER(TRIM(tm.nombre)) = 'ENTRADA_PLANTA_EXTERNA'
+                                      AND UPPER(TRIM(td.nombre)) = 'ORDEN_SALIDA'
+                                ) THEN
+                                    RAISE EXCEPTION
+                                        'El cilindro #%s ya retornó por ENTRADA_PLANTA_EXTERNA de la orden #%s; no se registra ENTRADA_LLENADO',
+                                        v_id_balon, v_id_doc_salida;
+                                END IF;
+
                                 SELECT id_producto_gas INTO v_id_producto_gas_recojo
                                 FROM bal_balon WHERE id = v_id_balon;
 

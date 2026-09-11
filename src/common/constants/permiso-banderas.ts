@@ -171,6 +171,9 @@ export const PermisoBanderas = {
   CATALOGO_PRECIOS_EDITAR: 'catalogo_precios.editar',
   CATALOGO_PRECIOS_ELIMINAR: 'catalogo_precios.eliminar',
 
+  /** Crear/editar opciones de listas maestras (U.M., marcas, estados, etc.). */
+  CATALOGOS_EDITAR: 'catalogos.editar',
+
   STOCK_LISTAR: 'stock.listar',
   STOCK_VER: 'stock.ver',
   STOCK_CREAR: 'stock.crear',

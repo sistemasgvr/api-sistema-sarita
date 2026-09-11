@@ -2,9 +2,14 @@
 -- Function: bal_registrar_ph_historial
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.949Z
+--
+-- Actualizada por database_sql/migraciones/20260910_retorno_fisico_fecha_ph.sql:
+--   p_id_doc_salida es el tercer origen de una P.H. (el retorno de una recarga
+--   en planta externa), junto a mantenimiento y recarga propia. Va al final de
+--   la firma para no romper las llamadas posicionales existentes.
 DROP FUNCTION IF EXISTS bal_registrar_ph_historial(p_id_balon integer, p_fecha_prueba date, p_vigencia_anios integer, p_id_organo_inspector integer, p_organo_inspector_no_aplica boolean, p_numero_certificado character varying, p_id_mantenimiento integer, p_id_movimiento_recarga integer, p_observacion character varying, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION bal_registrar_ph_historial(p_id_balon integer, p_fecha_prueba date, p_vigencia_anios integer DEFAULT NULL::integer, p_id_organo_inspector integer DEFAULT NULL::integer, p_organo_inspector_no_aplica boolean DEFAULT false, p_numero_certificado character varying DEFAULT NULL::character varying, p_id_mantenimiento integer DEFAULT NULL::integer, p_id_movimiento_recarga integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION bal_registrar_ph_historial(p_id_balon integer, p_fecha_prueba date, p_vigencia_anios integer DEFAULT NULL::integer, p_id_organo_inspector integer DEFAULT NULL::integer, p_organo_inspector_no_aplica boolean DEFAULT false, p_numero_certificado character varying DEFAULT NULL::character varying, p_id_mantenimiento integer DEFAULT NULL::integer, p_id_movimiento_recarga integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_doc_salida integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -53,13 +58,13 @@ BEGIN
     INSERT INTO bal_balon_ph_historial (
         id_balon, fecha_prueba, vigencia_anios, fecha_proxima,
         id_organo_inspector, organo_inspector_no_aplica, numero_certificado,
-        id_mantenimiento, id_movimiento_recarga, es_vigente, observacion,
+        id_mantenimiento, id_movimiento_recarga, id_doc_salida, es_vigente, observacion,
         id_usuario_creacion, id_usuario_modificacion
     )
     VALUES (
         p_id_balon, v_fecha_prueba, v_vigencia, v_fecha_proxima,
         p_id_organo_inspector, COALESCE(p_organo_inspector_no_aplica, FALSE), p_numero_certificado,
-        p_id_mantenimiento, p_id_movimiento_recarga, TRUE, p_observacion,
+        p_id_mantenimiento, p_id_movimiento_recarga, p_id_doc_salida, TRUE, p_observacion,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id;

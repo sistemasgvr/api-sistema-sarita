@@ -2,6 +2,7 @@
 -- Function: cli_aprobar_baja_cliente
 -- Overloads: 1
 -- Updated: 2026-09-09 — bloquea deudas en BAJA; cascada soft-delete/restaurar relacionados
+-- Updated: 2026-09-11 — bloquea si ven_garantia.monto_saldo > 0 activa
 DROP FUNCTION IF EXISTS cli_aprobar_baja_cliente(p_id_baja integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION cli_aprobar_baja_cliente(p_id_baja integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -107,6 +108,19 @@ BEGIN
             RETURN json_build_object(
                 'registro', NULL,
                 'error', 'No se puede aprobar la baja: el cliente tiene alquileres activos'
+            );
+        END IF;
+
+        IF EXISTS (
+            SELECT 1
+            FROM ven_garantia g
+            WHERE g.id_cliente = v_id_cliente
+              AND g.estado = 1
+              AND COALESCE(g.monto_saldo, 0) > 0
+        ) THEN
+            RETURN json_build_object(
+                'registro', NULL,
+                'error', 'No se puede aprobar la baja: el cliente tiene garantías con saldo pendiente'
             );
         END IF;
     END IF;

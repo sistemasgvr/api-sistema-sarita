@@ -22,6 +22,9 @@ BEGIN
     v_anio := EXTRACT(YEAR FROM COALESCE(p_fecha, CURRENT_DATE))::INTEGER;
     v_prefijo := 'OS-' || LPAD(p_id_sucursal::TEXT, 2, '0') || '-' || v_anio::TEXT || '-';
 
+    -- Candado por prefijo dentro de la TX: evita dos creates concurrentes con el mismo correlativo.
+    PERFORM pg_advisory_xact_lock(872016, hashtext(v_prefijo));
+
     -- Se toma el mayor correlativo ya usado con ese prefijo (incluye anulados, para no
     -- reutilizar números) y se avanza uno.
     SELECT COALESCE(MAX(NULLIF(REGEXP_REPLACE(RIGHT(d.numero, 6), '\D', '', 'g'), '')::INTEGER), 0) + 1

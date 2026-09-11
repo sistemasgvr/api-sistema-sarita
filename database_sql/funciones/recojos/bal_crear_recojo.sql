@@ -2,6 +2,16 @@
 -- Function: bal_crear_recojo
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.945Z
+-- Actualizada por database_sql/migraciones/20260910_inv_soft_raise_y_recojo.sql:
+-- el recojo de recarga en planta exige la orden GENERADA / EMITIDA_SUNAT; antes
+-- pedía 'ENVIADO' / 'CERRADO', que no existen en EstadoCicloSalida.
+--
+-- Actualizada por database_sql/migraciones/20260910_age_custodia_recojo_candado.sql:
+-- candado de consistencia con age_actividad. Esta vía sigue abierta para
+-- programar el recojo de un préstamo o alquiler; lo que se rechaza es hacerlo
+-- cuando el origen ya tiene una actividad RECOJO vigente, porque serían dos
+-- rutas y dos cierres sobre los mismos cilindros. El camino de recarga en
+-- planta (p_id_recarga_planta) no se toca: ese recojo solo existe aquí.
 DROP FUNCTION IF EXISTS bal_crear_recojo(p_id_cliente integer, p_id_prestamo integer, p_id_alquiler integer, p_id_recarga_planta integer, p_fecha_programada date, p_hora_estimada time without time zone, p_id_usuario_responsable integer, p_observacion character varying, p_detalles json, p_id_usuario_auditoria integer, p_marcar_balon_por_recoger boolean);
 
 CREATE OR REPLACE FUNCTION bal_crear_recojo(p_id_cliente integer, p_id_prestamo integer DEFAULT NULL::integer, p_id_alquiler integer DEFAULT NULL::integer, p_id_recarga_planta integer DEFAULT NULL::integer, p_fecha_programada date DEFAULT NULL::date, p_hora_estimada time without time zone DEFAULT NULL::time without time zone, p_id_usuario_responsable integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_detalles json DEFAULT '[]'::json, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_marcar_balon_por_recoger boolean DEFAULT true)
@@ -25,6 +35,7 @@ DECLARE
     v_proveedor INTEGER;
     v_rp_estado VARCHAR;
     v_id_estado_balon_local INTEGER;
+    v_id_actividad_recojo INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -69,6 +80,35 @@ BEGIN
         );
     END IF;
 
+    -- Candado de consistencia: con una actividad RECOJO vigente sobre el mismo
+    -- origen, crear aquí otra visita duplicaría la ruta y el cierre de custodia.
+    IF p_id_recarga_planta IS NULL AND (p_id_prestamo IS NOT NULL OR p_id_alquiler IS NOT NULL) THEN
+        SELECT a.id INTO v_id_actividad_recojo
+        FROM age_actividad a
+        JOIN gen_lista_opciones ta ON ta.id = a.id_tipo_actividad
+        JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
+        WHERE a.estado = 1
+          AND UPPER(TRIM(ta.nombre)) = 'RECOJO'
+          AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO', 'REALIZADA')
+          AND (
+              (p_id_prestamo IS NOT NULL AND a.id_prestamo = p_id_prestamo)
+              OR (p_id_alquiler IS NOT NULL AND a.id_alquiler = p_id_alquiler)
+          )
+        ORDER BY a.id DESC
+        LIMIT 1;
+
+        IF v_id_actividad_recojo IS NOT NULL THEN
+            RETURN json_build_object(
+                'error', format(
+                    'Este %s ya tiene la actividad de recojo #%s vigente en Operativa > Actividades. Ciérrala o cancélala allí antes de programar la visita.',
+                    CASE WHEN p_id_prestamo IS NOT NULL THEN 'préstamo' ELSE 'alquiler' END,
+                    v_id_actividad_recojo
+                ),
+                'registro', NULL
+            );
+        END IF;
+    END IF;
+
     -- Validación de origen recarga en planta: el "cliente" del recojo es el proveedor
     IF p_id_recarga_planta IS NOT NULL THEN
         SELECT rp.id_proveedor, est.nombre
@@ -84,9 +124,14 @@ BEGIN
             );
         END IF;
 
-        IF v_rp_estado NOT IN ('ENVIADO', 'CERRADO') THEN
+        -- Sin salida generada los cilindros nunca llegaron a la planta: no hay
+        -- nada que recoger.
+        IF COALESCE(v_rp_estado, '') NOT IN ('GENERADA', 'EMITIDA_SUNAT') THEN
             RETURN json_build_object(
-                'error', 'La orden de recarga en planta aún no ha sido enviada',
+                'error', CASE
+                    WHEN v_rp_estado = 'ANULADA' THEN 'La orden de recarga en planta está anulada'
+                    ELSE 'La orden aún está en borrador: genérala antes de programar el recojo'
+                END,
                 'registro', NULL
             );
         END IF;

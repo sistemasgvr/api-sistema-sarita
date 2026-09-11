@@ -217,7 +217,7 @@ export class CreateCompraDto extends AuditoriaDto {
   @ApiPropertyOptional({
     example: false,
     description:
-      'Si true y hay idRecargaPlanta: registra retorno de balones al almacén (genera ENTRADA_PLANTA_EXTERNA)',
+      'Si true y hay idRecargaPlanta: registra el retorno de los cilindros al almacén (ENTRADA_PLANTA_EXTERNA). Si la orden ya tiene el retorno registrado se ignora: la compra solo se vincula y el gas se ajusta a lo facturado.',
   })
   @IsOptional()
   @IsBoolean()
@@ -226,7 +226,7 @@ export class CreateCompraDto extends AuditoriaDto {
   @ApiPropertyOptional({
     example: '2026-08-12',
     description:
-      'Fecha de llegada al almacén (retorno físico). Si viene informada, registra el ingreso.',
+      'Fecha de llegada al almacén (retorno físico). Solo aplica junto con guardarBalonesAlmacen.',
   })
   @IsOptional()
   @IsDateString()
@@ -251,13 +251,11 @@ export class CreateCompraDto extends AuditoriaDto {
   @IsDateString()
   fechaPruebaHidrostatica?: string;
 
-  @ApiPropertyOptional({ example: 1, description: 'GRE de retorno / ingreso' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  idGuiaRetorno?: number;
-
-  @ApiPropertyOptional({ example: 'T001' })
+  @ApiPropertyOptional({
+    example: 'T001',
+    description:
+      'Serie de la GRE con la que el proveedor devuelve los cilindros (referencial; se guarda en la orden)',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(10)
@@ -331,15 +329,19 @@ export class CreateCompraDto extends AuditoriaDto {
   @Type(() => CompraCuotaDto)
   cuotas?: CompraCuotaDto[];
 
-  @ApiProperty({
+  // Opcional a propósito: la compra puede registrarse solo con cabecera (p. ej.
+  // ligada a una orden de planta) y recibir sus líneas después por
+  // POST /compras/:id/detalle. La UI ya permitía 0 líneas.
+  @ApiPropertyOptional({
     type: [CreateCompraDetalleDto],
-    description: 'Líneas del detalle de compra',
+    description:
+      'Líneas del detalle de compra (opcional: se pueden agregar después)',
   })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateCompraDetalleDto)
-  @IsNotEmpty()
-  detalles!: CreateCompraDetalleDto[];
+  detalles?: CreateCompraDetalleDto[];
 }
 
 export class ActualizarCompraCabeceraDto extends AuditoriaDto {

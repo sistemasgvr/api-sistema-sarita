@@ -135,6 +135,7 @@ export class LotesProtocoloModel {
         id,
         dto.idBalones ? JSON.stringify(dto.idBalones) : null,
         dto.idUsuarioAuditoria ?? null,
+        dto.idDocSalida ?? null,
       ],
     );
   }

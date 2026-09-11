@@ -39,12 +39,18 @@ BEGIN
         'estadoCaja', NULL,
         'montoInicial', 0,
         'totales', v_totales,
+        -- Rama sin sesión: previsualización del arqueo con la misma fórmula que
+        -- fin_obtener_caja_sesion / fin_cerrar_caja_sesion, para que abrir la caja
+        -- no cambie de golpe el esperado que se venía mostrando.
         'cajaEsperada',
             COALESCE((v_totales->>'ventasMediosCaja')::NUMERIC, 0)
             + COALESCE((v_totales->>'cobranzasMediosCaja')::NUMERIC, 0)
             + COALESCE((v_totales->>'garantiasCobroMediosCaja')::NUMERIC, 0)
             - COALESCE((v_totales->>'depositos')::NUMERIC, 0)
-            - COALESCE((v_totales->>'gastosCaja')::NUMERIC, 0)
+            - COALESCE((v_totales->>'gastosCajaMediosCaja')::NUMERIC,
+                       (v_totales->>'gastosCaja')::NUMERIC, 0)
+            -- P0 (20260910): pagos de CxP de compra, que salen del cajón.
+            - COALESCE((v_totales->>'pagosProveedorMediosCaja')::NUMERIC, 0)
             - COALESCE((v_totales->>'garantiasDevolucionMediosCaja')::NUMERIC, 0)
     ) INTO v_registro;
 

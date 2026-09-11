@@ -387,10 +387,32 @@ export class ComprobantesModel {
     );
   }
 
+  /**
+   * Venta de mostrador sin orden de salida: los cilindros que la venta dejó
+   * reservados en PENDIENTE_ENVIO pasan a EN_PODER_CLIENTE (nadie más va a
+   * cerrar esa custodia, porque no hay reparto).
+   */
+  confirmarEntregaMostrador(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<
+      AuthSingleResult<{ id: number; balones_actualizados: number }>
+    >('ven_confirmar_entrega_mostrador', [id, idUsuarioAuditoria ?? null]);
+  }
+
   revertirEfectos(id: number, idUsuarioAuditoria?: number) {
     return this.db.callFunctionJson<{ ok?: boolean; error?: string }>(
       'ven_revertir_efectos_comprobante',
       [id, idUsuarioAuditoria ?? null, false],
+    );
+  }
+
+  /**
+   * NC rechazada por SUNAT: revierte kardex/efectos y soft-borra la NC
+   * para liberar el tope de cantidades.
+   */
+  revertirNcSunatRechazada(id: number, idUsuarioAuditoria?: number) {
+    return this.db.callFunctionJson<{ ok?: boolean; error?: string; id?: number }>(
+      'ven_revertir_nc_sunat_rechazada',
+      [id, idUsuarioAuditoria ?? null],
     );
   }
 
@@ -526,6 +548,63 @@ export class ComprobantesModel {
       'ven_obtener_siguiente_correlativo_resumen',
       [fecha],
     );
+  }
+
+  /**
+   * Candado de sesión por fecha (yyyymmdd): cubre correlativo + INSERT local
+   * antes de llamar a SUNAT. Mismo namespace 872018 que las funciones SQL.
+   */
+  async reclamarResumenLock(fecha: string): Promise<{
+    ok: boolean;
+    error?: string;
+    lockKey: number;
+    client: Awaited<ReturnType<DatabaseService['getClient']>> | null;
+  }> {
+    const dia = String(fecha).slice(0, 10).replace(/-/g, '');
+    const lockKey = Number(dia);
+    if (!Number.isFinite(lockKey) || lockKey < 1) {
+      return {
+        ok: false,
+        error: 'Fecha de resumen inválida para el candado de correlativo',
+        lockKey: 0,
+        client: null,
+      };
+    }
+
+    const client = await this.db.getClient();
+    try {
+      const lock = await client.query<{ ok: boolean }>(
+        'SELECT pg_try_advisory_lock(872018, $1) AS ok',
+        [lockKey],
+      );
+      if (!lock.rows[0]?.ok) {
+        client.release();
+        return {
+          ok: false,
+          error: 'Otro resumen diario está en curso para esa fecha',
+          lockKey,
+          client: null,
+        };
+      }
+      return { ok: true, lockKey, client };
+    } catch (error) {
+      client.release();
+      throw error;
+    }
+  }
+
+  async liberarResumenLock(claim: {
+    lockKey: number;
+    client: Awaited<ReturnType<DatabaseService['getClient']>> | null;
+  }) {
+    if (!claim.client) return;
+    try {
+      await claim.client.query('SELECT pg_advisory_unlock(872018, $1)', [
+        claim.lockKey,
+      ]);
+    } finally {
+      claim.client.release();
+    }
   }
 
   crearResumenDiario(params: {

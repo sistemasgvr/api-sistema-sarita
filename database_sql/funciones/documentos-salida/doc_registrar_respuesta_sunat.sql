@@ -2,6 +2,11 @@
 -- Function: doc_registrar_respuesta_sunat
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.958Z
+--
+-- Actualizada por database_sql/migraciones/20260910_gre_planta_destinatario_emit.sql:
+-- una orden anulada ya no puede registrar respuesta de SUNAT. Conservaba serie
+-- y correlativo de cuando estaba vigente, así que la emisión seguía adelante y
+-- dejaba una guía viva de un traslado inexistente.
 DROP FUNCTION IF EXISTS doc_registrar_respuesta_sunat(p_id integer, p_codigo_estado_sunat character varying, p_ticket_sunat character varying, p_hash_documento character varying, p_xml_firmado text, p_cdr_respuesta text, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION doc_registrar_respuesta_sunat(p_id integer, p_codigo_estado_sunat character varying, p_ticket_sunat character varying DEFAULT NULL::character varying, p_hash_documento character varying DEFAULT NULL::character varying, p_xml_firmado text DEFAULT NULL::text, p_cdr_respuesta text DEFAULT NULL::text, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -24,6 +29,13 @@ BEGIN
 
     IF NOT FOUND THEN
         RETURN json_build_object('error', 'El documento de salida no existe o está anulado', 'registro', NULL);
+    END IF;
+
+    IF v_doc.estado_ciclo = 'ANULADA' THEN
+        RETURN json_build_object(
+            'error', 'El documento está anulado: no puede emitirse a SUNAT',
+            'registro', NULL
+        );
     END IF;
 
     IF v_doc.serie IS NULL OR v_doc.numero_sunat IS NULL THEN

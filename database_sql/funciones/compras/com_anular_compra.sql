@@ -2,6 +2,17 @@
 -- Function: com_anular_compra
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.953Z
+-- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
+--   Anular la compra deshace SOLO lo que la compra movió (etiquetado COMPRA):
+--   INGRESOs de líneas, cilindros comprados (ENTRADA_COMPRA + su gas) y el gas
+--   del retorno de planta facturado (ENTRADA_PLANTA_EXTERNA PRODUCTO).
+--   La orden de recarga vinculada se desvincula y conserva su retorno físico
+--   (los envases están etiquetados ORDEN_SALIDA): el gas vuelve a lo declarado
+--   en las líneas de la orden vía bal_sincronizar_gas_retorno_planta.
+--   Antes revertía toda la orden por ('ORDEN_SALIDA', id) —incluida la
+--   SALIDA_PLANTA_EXTERNA de ida— y escribía doc_salida.id_estado, columna
+--   que no existe (el ciclo real es id_estado_ciclo y no cambia al anular la
+--   factura). com_revertir_cilindros_recarga_compra queda eliminada.
 DROP FUNCTION IF EXISTS com_anular_compra(p_id_comprobante integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION com_anular_compra(p_id_comprobante integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -18,15 +29,13 @@ DECLARE
     v_faltantes           TEXT := '';
     v_nombre_producto     VARCHAR;
     v_nombre_almacen      VARCHAR;
-    v_id_estado_retornado INTEGER;
-    v_id_estado_enviado   INTEGER;
     v_orden               RECORD;
     v_hay_pagos_cxp       BOOLEAN;
     v_id_cuenta_padre     INTEGER;
     v_id_tipo_doc_compra  INTEGER;
-    v_id_tipo_doc_os      INTEGER;
     v_id_tipo_entrada_compra INTEGER;
     v_ids_balones_compra  INTEGER[];
+    v_balon_ocupado       RECORD;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -73,12 +82,6 @@ BEGIN
     WHERE gl.nombre = 'TipoDocumentoRef' AND lo.nombre = 'COMPRA' AND lo.estado = 1
     LIMIT 1;
 
-    SELECT lo.id INTO v_id_tipo_doc_os
-    FROM gen_lista_opciones lo
-    JOIN gen_lista gl ON gl.id = lo.id_lista
-    WHERE gl.nombre = 'TipoDocumentoRef' AND lo.nombre = 'ORDEN_SALIDA' AND lo.estado = 1
-    LIMIT 1;
-
     SELECT lo.id INTO v_id_tipo_entrada_compra
     FROM gen_lista_opciones lo
     JOIN gen_lista gl ON gl.id = lo.id_lista
@@ -96,8 +99,34 @@ BEGIN
       AND (v_id_tipo_entrada_compra IS NULL OR m.id_tipo_movimiento = v_id_tipo_entrada_compra);
 
     -- ---------- PASO 1: VALIDACIÓN COMPLETA (sin modificar nada aún) ----------
-    -- Agrega por (producto, almacén) todos los ingresos a revertir: líneas
-    -- afecta_stock, gas de cilindros comprados y ENTRADA_PLANTA (COMPRA u OS).
+
+    -- 1.a Un cilindro comprado que ya salió del almacén (prestado, vendido, en
+    --     planta...) no se puede dar de baja como si nunca hubiera entrado.
+    IF cardinality(v_ids_balones_compra) > 0 THEN
+        SELECT b.codigo_balon, COALESCE(eb.nombre, 'sin estado') AS estado_balon
+        INTO v_balon_ocupado
+        FROM bal_balon b
+        LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+        WHERE b.id = ANY (v_ids_balones_compra)
+          AND b.estado = 1
+          AND COALESCE(eb.nombre, '') <> 'DISPONIBLE'
+        LIMIT 1;
+
+        IF FOUND THEN
+            RETURN json_build_object(
+                'eliminado', FALSE, 'id', p_id_comprobante,
+                'error', format(
+                    'No se puede anular: el cilindro %s comprado con esta factura ya no está disponible en almacén (estado %s).',
+                    v_balon_ocupado.codigo_balon, v_balon_ocupado.estado_balon
+                )
+            );
+        END IF;
+    END IF;
+
+    -- 1.b Stock suficiente para revertir todos los ingresos de producto que
+    --     hizo esta compra, agregados por (producto, almacén): líneas
+    --     afecta_stock, gas de cilindros comprados y gas del retorno de planta
+    --     facturado. Todos están etiquetados COMPRA + esta compra.
     FOR v_detalle IN
         WITH ingresos AS (
             SELECT
@@ -124,6 +153,9 @@ BEGIN
               AND m.stock_anterior IS NOT NULL
               AND m.stock_nuevo IS NOT NULL
               AND m.stock_nuevo >= m.stock_anterior
+              AND v_id_tipo_doc_compra IS NOT NULL
+              AND m.id_tipo_documento_origen = v_id_tipo_doc_compra
+              AND m.id_documento_origen = p_id_comprobante
               AND NOT (
                   m.naturaleza = 'PRODUCTO'
                   AND EXISTS (
@@ -132,24 +164,9 @@ BEGIN
                         AND UPPER(lo.nombre) = 'TRASLADO'
                   )
               )
-              AND (
-                  (v_id_tipo_doc_compra IS NOT NULL
-                   AND m.id_tipo_documento_origen = v_id_tipo_doc_compra
-                   AND m.id_documento_origen = p_id_comprobante)
-                  OR
-                  (v_id_tipo_doc_os IS NOT NULL
-                   AND m.id_tipo_documento_origen = v_id_tipo_doc_os
-                   AND m.id_documento_origen IN (
-                       SELECT ds.id FROM doc_salida ds
-                       WHERE ds.id_comprobante_compra = p_id_comprobante AND ds.estado = 1
-                   ))
-              )
               -- Evitar doble conteo: líneas de detalle ya cubiertas arriba
               AND NOT (
                   m.naturaleza = 'PRODUCTO'
-                  AND v_id_tipo_doc_compra IS NOT NULL
-                  AND m.id_tipo_documento_origen = v_id_tipo_doc_compra
-                  AND m.id_documento_origen = p_id_comprobante
                   AND m.id_documento_detalle IN (
                       SELECT d2.id FROM com_comprobante_compra_detalle d2
                       WHERE d2.id_comprobante = p_id_comprobante
@@ -192,6 +209,9 @@ BEGIN
     END IF;
 
     -- ---------- PASO 2: REVERSA REAL (ya validado que hay stock suficiente) ----------
+    -- Todo lo etiquetado COMPRA + esta compra: INGRESOs de líneas, cilindros
+    -- comprados con su gas y el gas del retorno de planta facturado. Los
+    -- envases del retorno están etiquetados ORDEN_SALIDA y no se tocan.
     v_result_movimiento := inv_revertir_por_documento(
         'COMPRA',
         p_id_comprobante,
@@ -223,44 +243,27 @@ BEGIN
           AND estado = 1;
     END IF;
 
-    -- Desvincular órdenes de recarga planta que apuntaban a esta compra.
-    SELECT lo.id INTO v_id_estado_retornado
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON l.id = lo.id_lista
-    WHERE l.nombre = 'EstadoRecargaPlanta' AND lo.nombre = 'RETORNADO' AND lo.estado = 1
-    LIMIT 1;
-
-    SELECT lo.id INTO v_id_estado_enviado
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON l.id = lo.id_lista
-    WHERE l.nombre = 'EstadoRecargaPlanta' AND lo.nombre = 'ENVIADO' AND lo.estado = 1
-    LIMIT 1;
-
+    -- Órdenes de recarga planta que apuntaban a esta compra: se desvinculan y
+    -- conservan su ciclo (id_estado_ciclo) y su retorno físico. El gas del
+    -- retorno, que era el facturado, vuelve a lo declarado en la orden; si la
+    -- orden no tenía retorno registrado no hay nada que ajustar.
     FOR v_orden IN
-        SELECT id, fecha_llegada_almacen, id_almacen
+        SELECT id
         FROM doc_salida
         WHERE id_comprobante_compra = p_id_comprobante
           AND estado = 1
+        FOR UPDATE
     LOOP
-        -- Revierte ORDEN_SALIDA (+ legado RECARGA) y deja cilindros en planta.
-        PERFORM com_revertir_cilindros_recarga_compra(
-            v_orden.id,
-            p_id_comprobante,
-            p_id_usuario_auditoria
-        );
-
         UPDATE doc_salida
         SET
             id_comprobante_compra = NULL,
             serie_factura = NULL,
             numero_factura = NULL,
-            id_estado = CASE
-                WHEN v_orden.fecha_llegada_almacen IS NOT NULL THEN COALESCE(v_id_estado_retornado, id_estado)
-                ELSE COALESCE(v_id_estado_enviado, id_estado)
-            END,
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id = v_orden.id;
+
+        PERFORM bal_sincronizar_gas_retorno_planta(v_orden.id, p_id_usuario_auditoria);
     END LOOP;
 
     UPDATE bal_movimiento_recarga

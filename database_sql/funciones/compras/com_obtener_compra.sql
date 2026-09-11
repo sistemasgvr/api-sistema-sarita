@@ -2,6 +2,9 @@
 -- Function: com_obtener_compra
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.954Z
+-- Actualizada por database_sql/migraciones/20260910_compras_detalle_es_gas.sql:
+--   el detalle expone es_gas del producto (el editor de la compra lo necesita
+--   para validar la cantidad: un gas admite decimales aunque su U.M. sea UNID).
 DROP FUNCTION IF EXISTS com_obtener_compra(p_id integer);
 
 CREATE OR REPLACE FUNCTION com_obtener_compra(p_id integer)
@@ -93,6 +96,9 @@ BEGIN
             'precio_unitario',        cd.precio_unitario,
             'importe',                cd.importe,
             'afecta_stock',           cd.afecta_stock,
+            -- El editor valida la cantidad según la U.M.: los gases admiten
+            -- decimales aunque su unidad sea de las que exigen enteros.
+            'es_gas',                 COALESCE(p.es_gas, FALSE),
             'id_clasificacion_gasto', cd.id_clasificacion_gasto,
             'clasificacion_gasto',    CASE WHEN cg.id IS NOT NULL
                                           THEN cg.grupo || ' > ' || cg.subgrupo || ' > ' || cg.sub_subgrupo

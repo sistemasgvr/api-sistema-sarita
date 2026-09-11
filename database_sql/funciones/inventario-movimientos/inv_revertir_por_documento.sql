@@ -2,14 +2,23 @@
 -- Function: inv_revertir_por_documento
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.964Z
+-- p_codigo_tipo_movimiento / p_naturaleza (2026-09-10): filtros opcionales
+-- para revertir solo una parte de lo que movió un documento. Los necesita la
+-- anulación de compras: la orden de planta tiene SALIDA_PLANTA_EXTERNA (ida) y
+-- ENTRADA_PLANTA_EXTERNA (retorno) bajo el mismo origen ORDEN_SALIDA, y
+-- revertir "todo el documento" deshacía también la ida. Van al final de la
+-- firma para no romper las llamadas posicionales existentes.
 DROP FUNCTION IF EXISTS inv_revertir_por_documento(p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_id_usuario_auditoria integer, p_id_documento_detalle integer);
+DROP FUNCTION IF EXISTS inv_revertir_por_documento(p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_id_usuario_auditoria integer, p_id_documento_detalle integer, p_codigo_tipo_movimiento character varying, p_naturaleza character varying);
 
-CREATE OR REPLACE FUNCTION inv_revertir_por_documento(p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_documento_detalle integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION inv_revertir_por_documento(p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_documento_detalle integer DEFAULT NULL::integer, p_codigo_tipo_movimiento character varying DEFAULT NULL::character varying, p_naturaleza character varying DEFAULT NULL::character varying)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_id_tipo_doc INTEGER;
+    v_id_tipo_mov INTEGER;
+    v_naturaleza VARCHAR;
     v_id_estado_en_almacen INTEGER;
     v_mov RECORD;
     v_nombre_tipo_mov VARCHAR;
@@ -42,12 +51,34 @@ BEGIN
         );
     END IF;
 
+    -- Filtro opcional por tipo de movimiento (TipoMovInvUnificado).
+    IF NULLIF(TRIM(COALESCE(p_codigo_tipo_movimiento, '')), '') IS NOT NULL THEN
+        SELECT lo.id INTO v_id_tipo_mov
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON l.id = lo.id_lista
+        WHERE l.nombre = 'TipoMovInvUnificado'
+          AND lo.nombre = UPPER(TRIM(p_codigo_tipo_movimiento))
+          AND lo.estado = 1
+        LIMIT 1;
+
+        IF v_id_tipo_mov IS NULL THEN
+            RETURN json_build_object(
+                'revertidos', 0,
+                'error', format('Tipo de movimiento %s no configurado', UPPER(TRIM(p_codigo_tipo_movimiento)))
+            );
+        END IF;
+    END IF;
+
+    v_naturaleza := NULLIF(UPPER(TRIM(COALESCE(p_naturaleza, ''))), '');
+
     FOR v_mov IN
         SELECT * FROM inv_movimiento
         WHERE estado = 1
           AND id_tipo_documento_origen = v_id_tipo_doc
           AND id_documento_origen = p_id_documento_origen
           AND (p_id_documento_detalle IS NULL OR id_documento_detalle = p_id_documento_detalle)
+          AND (v_id_tipo_mov IS NULL OR id_tipo_movimiento = v_id_tipo_mov)
+          AND (v_naturaleza IS NULL OR naturaleza = v_naturaleza)
         ORDER BY id DESC
         FOR UPDATE
     LOOP

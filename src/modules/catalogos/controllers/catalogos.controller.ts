@@ -8,6 +8,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
+import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { CreateListaOpcionDto } from '../dto/catalogos.dto';
 import { CatalogosLogic } from '../logic/catalogos.logic';
 
@@ -23,6 +25,7 @@ export class CatalogosController {
   }
 
   @Post('listas/:idLista/opciones')
+  @Permisos(PermisoBanderas.CATALOGOS_EDITAR)
   @ApiOperation({ summary: 'Crear opción en una lista maestra (ej. unidad de medida)' })
   crearListaOpcion(
     @Param('idLista', ParseIntPipe) idLista: number,

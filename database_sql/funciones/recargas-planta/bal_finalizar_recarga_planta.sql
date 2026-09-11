@@ -9,6 +9,38 @@
 --   cantidad de la factura de compra vinculada (o, sin factura, con las líneas
 --   de gas del propio documento). Además, un guard impide registrar dos veces
 --   el retorno de la misma orden.
+-- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
+--   · el retorno exige la orden GENERADA / EMITIDA_SUNAT (en borrador no hay
+--     salida que retornar);
+--   · los envases se etiquetan SIEMPRE ORDEN_SALIDA + id orden: el retorno
+--     físico es un hecho de la orden, no de la factura. Así anular la compra ya
+--     no deshace la custodia de los cilindros;
+--   · el gas lo registra bal_sincronizar_gas_retorno_planta (factura vinculada
+--     o, sin factura, líneas de gas de la orden), la misma función que
+--     re-sincroniza cuando la factura llega o cambia después.
+-- Actualizada por database_sql/migraciones/20260910_retorno_fisico_fecha_ph.sql:
+--   · fecha_llegada_almacen / fecha_retorno solo se escriben cuando los
+--     cilindros de verdad volvieron. Con p_guardar_balones_almacen = false y
+--     sin ENTRADA_PLANTA_EXTERNA previa la llamada es metadata (factura, guía,
+--     lote, ficha ICP) y NO declara el retorno. Antes bastaba con mandar la
+--     fecha para que todo aguas abajo (listados, CompraForm, com_crear_compra)
+--     diera el retorno por hecho: los cilindros quedaban EN_RECARGA_EXTERNA,
+--     sin gas ingresado, y la compra ya no volvía a finalizarlo;
+--   · el retorno ya no pisa doc_salida.id_almacen (el almacén de origen de la
+--     salida se perdía): el almacén de llegada va a id_almacen_retorno;
+--   · la fecha de P.H. del retorno baja al libro de P.H. de cada cilindro
+--     (bal_sync_ph_desde_orden_salida);
+--   · la ficha ICP (p_id_lote_protocolo) se aplica a los cilindros de la orden
+--     aunque esta llamada no sea la que registra el retorno físico — antes solo
+--     se aplicaba si el mismo llamado recorría el bucle de envases, así que por
+--     el camino de Compras nunca llegaba a los balones.
+-- Actualizada por database_sql/migraciones/20260911_w1_planta_retorno_traslado_gas.sql:
+--   los cilindros de una orden de planta pueden volver por dos caminos — este
+--   retorno y el recojo (bal_registrar_resultado_recojo) — y cada uno usa su
+--   propio tipo de movimiento, así que el guard de doble retorno existente
+--   (ENTRADA_PLANTA_EXTERNA) no veía al otro. Ahora el retorno se rechaza si hay
+--   un recojo vivo (PROGRAMADO / EN_RUTA) sobre la orden o si el recojo ya
+--   ingresó los cilindros (ENTRADA_LLENADO vigente).
 DROP FUNCTION IF EXISTS bal_finalizar_recarga_planta(p_id_recarga_planta integer, p_id_comprobante_compra integer, p_fecha_llegada_almacen date, p_id_almacen integer, p_id_proveedor integer, p_guardar_balones_almacen boolean, p_id_usuario_auditoria integer);
 DROP FUNCTION IF EXISTS bal_finalizar_recarga_planta(p_id_recarga_planta integer, p_id_comprobante_compra integer, p_fecha_llegada_almacen date, p_id_almacen integer, p_id_proveedor integer, p_guardar_balones_almacen boolean, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_id_usuario_auditoria integer);
 
@@ -23,68 +55,180 @@ CREATE OR REPLACE FUNCTION bal_finalizar_recarga_planta(p_id_recarga_planta inte
  LANGUAGE plpgsql
 AS $function$
 DECLARE
+    v_orden RECORD;
     v_id_estado_en_almacen INTEGER;
     v_id_tipo_entrada_planta INTEGER;
-    v_id_documento_ref INTEGER;
-    v_codigo_doc VARCHAR;
-    v_id_compra INTEGER;
-    v_hay_gas_compra BOOLEAN := FALSE;
+    v_retorno_fisico BOOLEAN;
+    v_id_recojo_vivo INTEGER;
+    v_retorno_por_recojo BOOLEAN;
     v_det RECORD;
-    v_gas RECORD;
     v_mov JSON;
-    v_id_balones INTEGER[] := ARRAY[]::INTEGER[];
+    v_gas JSON;
+    v_id_balones INTEGER[];
+    v_id_lote_aplicar INTEGER;
+    v_aplic JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    IF NOT EXISTS (
-        SELECT 1 FROM doc_salida WHERE id = p_id_recarga_planta AND estado = 1
-    ) THEN
+    SELECT d.id, d.id_comprobante_compra, ec.nombre AS estado_ciclo, tor.nombre AS tipo_orden
+    INTO v_orden
+    FROM doc_salida d
+    JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
+    JOIN gen_lista_opciones tor ON tor.id = d.id_tipo_orden
+    WHERE d.id = p_id_recarga_planta AND d.estado = 1
+    FOR UPDATE OF d;
+
+    IF NOT FOUND THEN
         RETURN json_build_object(
             'error', 'La orden de recarga en planta externa no existe o está anulada',
             'registro', NULL
         );
     END IF;
 
-    -- Guard de doble retorno: si algún cilindro de esta orden ya tiene una
-    -- ENTRADA_PLANTA_EXTERNA activa, el retorno ya se registró (desde el
-    -- documento de salida o desde la compra) y no se vuelve a mover inventario.
-    -- Va antes del UPDATE de cabecera para que un reenvío no deje la orden con
-    -- fecha/almacén distintos a los de los movimientos ya hechos. Al anular
-    -- (inv_revertir_por_documento) los movimientos quedan con estado = 0, así
-    -- que después de una anulación el retorno sí se puede volver a registrar.
-    IF p_guardar_balones_almacen THEN
-        SELECT lo.id INTO v_id_tipo_entrada_planta
-        FROM gen_lista_opciones lo
-        JOIN gen_lista l ON l.id = lo.id_lista
-        WHERE l.nombre = 'TipoMovInvUnificado'
-          AND lo.nombre = 'ENTRADA_PLANTA_EXTERNA'
-          AND lo.estado = 1
-        LIMIT 1;
+    IF v_orden.tipo_orden <> 'RECARGA_PLANTA_EXTERNA' THEN
+        RETURN json_build_object(
+            'error', 'El documento no es una orden de recarga en planta externa',
+            'registro', NULL
+        );
+    END IF;
 
-        IF EXISTS (
-            SELECT 1
-            FROM inv_movimiento m
-            JOIN doc_salida_detalle d ON d.id = m.id_documento_detalle
-            WHERE m.estado = 1
-              AND m.id_tipo_movimiento = v_id_tipo_entrada_planta
-              AND m.naturaleza = 'BALON'
-              AND d.id_doc_salida = p_id_recarga_planta
-              AND d.id_balon IS NOT NULL
-              AND m.id_balon = d.id_balon
-        ) THEN
+    -- Sin salida generada no hay cilindros en planta que puedan volver: en
+    -- borrador el inventario nunca se movió y el retorno dejaría envases
+    -- "de vuelta" de un viaje que no existió.
+    IF v_orden.estado_ciclo NOT IN ('GENERADA', 'EMITIDA_SUNAT') THEN
+        RETURN json_build_object(
+            'error', CASE
+                WHEN v_orden.estado_ciclo = 'ANULADA' THEN 'La orden está anulada'
+                ELSE 'La orden aún está en borrador: genérala antes de registrar el retorno'
+            END,
+            'registro', NULL
+        );
+    END IF;
+
+    SELECT lo.id INTO v_id_tipo_entrada_planta
+    FROM gen_lista_opciones lo
+    JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'TipoMovInvUnificado'
+      AND lo.nombre = 'ENTRADA_PLANTA_EXTERNA'
+      AND lo.estado = 1
+    LIMIT 1;
+
+    IF v_id_tipo_entrada_planta IS NULL THEN
+        RETURN json_build_object(
+            'error', 'Falta configurar ENTRADA_PLANTA_EXTERNA en TipoMovInvUnificado',
+            'registro', NULL
+        );
+    END IF;
+
+    -- Único criterio de "los cilindros volvieron": la entrada vigente de algún
+    -- envase de la orden. Mismo criterio que bal_sincronizar_gas_retorno_planta
+    -- y com_crear_compra, para que los tres coincidan siempre. Al anular la
+    -- orden (inv_revertir_por_documento) los movimientos quedan con estado = 0
+    -- y el retorno vuelve a estar pendiente.
+    SELECT EXISTS (
+        SELECT 1
+        FROM inv_movimiento m
+        JOIN doc_salida_detalle d ON d.id = m.id_documento_detalle
+        WHERE m.estado = 1
+          AND m.id_tipo_movimiento = v_id_tipo_entrada_planta
+          AND m.naturaleza = 'BALON'
+          AND d.id_doc_salida = p_id_recarga_planta
+          AND d.id_balon IS NOT NULL
+          AND m.id_balon = d.id_balon
+    ) INTO v_retorno_fisico;
+
+    IF p_guardar_balones_almacen THEN
+        -- Guard de doble retorno: va antes del UPDATE de cabecera para que un
+        -- reenvío no deje la orden con fecha/almacén distintos a los de los
+        -- movimientos ya hechos.
+        IF v_retorno_fisico THEN
             RETURN json_build_object(
                 'error', 'El retorno de esta orden ya fue registrado; no se vuelve a mover inventario',
                 'registro', NULL
             );
         END IF;
+
+        -- El recojo es el otro camino por el que vuelven estos mismos
+        -- cilindros. Con uno vivo, registrar el retorno acá los ingresaría al
+        -- almacén y el cierre del recojo volvería a ingresarlos (con su gas)
+        -- unos días después: el mismo viaje contado dos veces.
+        SELECT r.id INTO v_id_recojo_vivo
+        FROM bal_recojo r
+        JOIN gen_lista_opciones er ON er.id = r.id_estado
+        WHERE r.id_doc_salida = p_id_recarga_planta
+          AND r.estado = 1
+          AND UPPER(TRIM(er.nombre)) IN ('PROGRAMADO', 'EN_RUTA')
+        ORDER BY r.id
+        LIMIT 1;
+
+        IF v_id_recojo_vivo IS NOT NULL THEN
+            RETURN json_build_object(
+                'error', format(
+                    'La orden tiene el recojo #%s programado o en ruta; ciérralo o cancélalo antes de registrar el retorno',
+                    v_id_recojo_vivo
+                ),
+                'registro', NULL
+            );
+        END IF;
+
+        -- Recojo ya cerrado: los cilindros entraron con ENTRADA_LLENADO, que el
+        -- guard de arriba (ENTRADA_PLANTA_EXTERNA) no ve. Sin esto, el retorno
+        -- los ingresaba de nuevo con una segunda entrada de gas.
+        SELECT EXISTS (
+            SELECT 1
+            FROM inv_movimiento m
+            JOIN gen_lista_opciones tm ON tm.id = m.id_tipo_movimiento
+            JOIN gen_lista_opciones td ON td.id = m.id_tipo_documento_origen
+            JOIN doc_salida_detalle d
+                ON d.id_doc_salida = p_id_recarga_planta
+               AND d.estado = 1
+               AND d.id_balon = m.id_balon
+            WHERE m.estado = 1
+              AND m.naturaleza = 'BALON'
+              AND UPPER(TRIM(tm.nombre)) = 'ENTRADA_LLENADO'
+              AND UPPER(TRIM(td.nombre)) = 'RECARGA'
+              AND m.id_documento_origen = p_id_recarga_planta
+        ) INTO v_retorno_por_recojo;
+
+        IF v_retorno_por_recojo THEN
+            RETURN json_build_object(
+                'error', 'Los cilindros de esta orden ya volvieron por el recojo; no se vuelve a mover inventario',
+                'registro', NULL
+            );
+        END IF;
+
+        IF p_id_almacen IS NULL OR NOT EXISTS (
+            SELECT 1 FROM gen_almacen WHERE id = p_id_almacen AND estado = 1
+        ) THEN
+            RETURN json_build_object(
+                'error', 'Indica el almacén al que llegan los cilindros',
+                'registro', NULL
+            );
+        END IF;
     END IF;
 
-    -- Datos del retorno sobre el propio documento.
+    -- Datos del retorno sobre el propio documento. Las fechas de llegada solo se
+    -- escriben si los cilindros vuelven en esta llamada (p_guardar_balones_almacen)
+    -- o si ya habían vuelto antes: sin entrada física, declarar la fecha dejaba
+    -- la orden como retornada y bloqueaba el retorno de verdad.
+    -- id_almacen queda como el origen de la salida; el almacén de llegada va a
+    -- id_almacen_retorno.
     UPDATE doc_salida
     SET id_comprobante_compra = COALESCE(p_id_comprobante_compra, id_comprobante_compra),
-        fecha_llegada_almacen = COALESCE(p_fecha_llegada_almacen, fecha_llegada_almacen),
-        fecha_retorno = COALESCE(p_fecha_llegada_almacen, fecha_retorno),
-        id_almacen = COALESCE(p_id_almacen, id_almacen),
+        fecha_llegada_almacen = CASE
+            WHEN p_guardar_balones_almacen OR v_retorno_fisico
+                THEN COALESCE(p_fecha_llegada_almacen, fecha_llegada_almacen)
+            ELSE fecha_llegada_almacen
+        END,
+        fecha_retorno = CASE
+            WHEN p_guardar_balones_almacen OR v_retorno_fisico
+                THEN COALESCE(p_fecha_llegada_almacen, fecha_retorno)
+            ELSE fecha_retorno
+        END,
+        id_almacen_retorno = CASE
+            WHEN p_guardar_balones_almacen THEN COALESCE(p_id_almacen, id_almacen_retorno)
+            ELSE id_almacen_retorno
+        END,
         id_proveedor = COALESCE(p_id_proveedor, id_proveedor),
         lote = COALESCE(p_lote, lote),
         fecha_vencimiento_lote = COALESCE(p_fecha_vencimiento_lote, fecha_vencimiento_lote),
@@ -101,30 +245,13 @@ BEGIN
         WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
         LIMIT 1;
 
-        -- Compra vinculada: la que llega por parámetro o la que la orden ya
-        -- tenía (factura registrada antes que el retorno).
-        v_id_compra := COALESCE(
-            p_id_comprobante_compra,
-            (SELECT id_comprobante_compra FROM doc_salida WHERE id = p_id_recarga_planta)
-        );
-
-        -- Con factura vinculada el documento de referencia es la compra; si no,
-        -- la orden. Envases y gas se etiquetan igual, así com_anular_compra
-        -- (COMPRA) y com_revertir_cilindros_recarga_compra / doc_anular_salida
-        -- (ORDEN_SALIDA) revierten el retorno completo.
-        IF v_id_compra IS NOT NULL THEN
-            v_id_documento_ref := v_id_compra;
-            v_codigo_doc := 'COMPRA';
-        ELSE
-            v_id_documento_ref := p_id_recarga_planta;
-            v_codigo_doc := 'ORDEN_SALIDA';
-        END IF;
-
         -- ------------------------------------------------------------
         -- 1) Envases: una línea por cilindro. Mueve SOLO el envase (custodia
         --    DISPONIBLE + LLENO en el almacén de llegada), igual que la línea
-        --    del balón en la salida. El gas NO va aquí: la línea del balón tiene
-        --    cantidad 1 y tomar su gas ingresaba 1 unidad por cilindro.
+        --    del balón en la salida. Se etiqueta ORDEN_SALIDA + id orden
+        --    (como la ida): el retorno físico no depende de la factura, así
+        --    que anular la compra no lo deshace; anular la orden
+        --    (doc_anular_salida) revierte ida y vuelta juntas.
         -- ------------------------------------------------------------
         FOR v_det IN
             SELECT
@@ -136,8 +263,6 @@ BEGIN
               AND d.id_balon IS NOT NULL
             ORDER BY d.item
         LOOP
-            v_id_balones := v_id_balones || v_det.id_balon;
-
             PERFORM bal_actualizar_balon(
                 p_id                   => v_det.id_balon,
                 p_id_almacen           => p_id_almacen,
@@ -154,8 +279,8 @@ BEGIN
                 p_cantidad                     => 1,
                 p_id_almacen_destino           => p_id_almacen,
                 p_id_cliente                   => p_id_proveedor,
-                p_codigo_tipo_documento_origen => v_codigo_doc,
-                p_id_documento_origen          => v_id_documento_ref,
+                p_codigo_tipo_documento_origen => 'ORDEN_SALIDA',
+                p_id_documento_origen          => p_id_recarga_planta,
                 p_glosa                        => format(
                     'Entrada por recarga en planta externa (orden #%s)', p_id_recarga_planta
                 ),
@@ -169,131 +294,63 @@ BEGIN
             END IF;
         END LOOP;
 
-        -- ------------------------------------------------------------
-        -- 2) Gas: consolidado por producto, con la cantidad que realmente
-        --    ingresa. Naturaleza PRODUCTO: el almacén que recibe el stock es
-        --    p_id_almacen_origen (mismo criterio que el INGRESO de compra y que
-        --    inv_revertir_por_documento). Si el movimiento ya existía
-        --    ('creado' = false) se sigue sin error: es idempotente.
-        --
-        --    2a) Con compra vinculada: la cantidad facturada por cada línea de
-        --        gas de la compra. Se etiqueta COMPRA + id de la compra con
-        --        id_documento_detalle = línea de compra, así com_anular_compra
-        --        la revierte con inv_revertir_por_documento('COMPRA', ...).
-        -- ------------------------------------------------------------
-        v_hay_gas_compra := FALSE;
-
-        IF v_id_compra IS NOT NULL THEN
-            FOR v_gas IN
-                SELECT
-                    cd.id AS id_detalle,
-                    cd.id_producto,
-                    inv_convertir_a_unidad_producto(
-                        cd.id_producto,
-                        cd.cantidad,
-                        cd.id_unidad_medida
-                    ) AS cantidad
-                FROM com_comprobante_compra_detalle cd
-                JOIN com_comprobante_compra c ON c.id = cd.id_comprobante
-                JOIN pro_producto p ON p.id = cd.id_producto
-                WHERE cd.id_comprobante = v_id_compra
-                  AND c.estado = 1
-                  AND cd.estado = 1
-                  AND COALESCE(p.es_gas, FALSE) = TRUE
-                ORDER BY cd.item
-            LOOP
-                v_hay_gas_compra := TRUE;
-
-                v_mov := inv_registrar_movimiento(
-                    p_naturaleza                   => 'PRODUCTO',
-                    p_codigo_tipo_movimiento       => 'ENTRADA_PLANTA_EXTERNA',
-                    p_fecha                        => LOCALTIMESTAMP,
-                    p_id_producto                  => v_gas.id_producto,
-                    p_id_balon                     => NULL,
-                    p_cantidad                     => v_gas.cantidad,
-                    p_id_almacen_origen            => p_id_almacen,
-                    p_id_almacen_destino           => NULL,
-                    p_id_cliente                   => p_id_proveedor,
-                    p_codigo_tipo_documento_origen => 'COMPRA',
-                    p_id_documento_origen          => v_id_compra,
-                    p_glosa                        => format(
-                        'Entrada de gas por recarga en planta externa (compra #%s, orden #%s)',
-                        v_id_compra, p_id_recarga_planta
-                    ),
-                    p_id_usuario_auditoria         => p_id_usuario_auditoria,
-                    p_id_documento_detalle         => v_gas.id_detalle
-                );
-
-                IF v_mov->>'error' IS NOT NULL THEN
-                    RAISE EXCEPTION 'No se pudo registrar la entrada de gas del producto % (compra #%): %',
-                        v_gas.id_producto, v_id_compra, v_mov->>'error';
-                END IF;
-            END LOOP;
-        END IF;
+        v_retorno_fisico := TRUE;
 
         -- ------------------------------------------------------------
-        --    2b) Fallback, cuando el retorno se registra antes que la factura
-        --        (o la compra vinculada no tiene líneas de gas): se ingresa lo
-        --        que declaró el propio documento en sus líneas de gas (línea por
-        --        producto, id_balon NULL), etiquetado ORDEN_SALIDA + id de la
-        --        orden. Distinto id_tipo_movimiento que la SALIDA de la misma
-        --        línea, así que no choca con la idempotencia de la salida.
+        -- 2) Gas: consolidado por producto con la cantidad que realmente
+        --    ingresa (factura vinculada o, si no hay, líneas de gas de la
+        --    orden). Es la misma función que vuelve a correr cuando la
+        --    factura llega o cambia después del retorno.
         -- ------------------------------------------------------------
-        IF NOT v_hay_gas_compra THEN
-            FOR v_gas IN
-                SELECT
-                    d.id AS id_detalle,
-                    d.id_producto,
-                    inv_convertir_a_unidad_producto(
-                        d.id_producto,
-                        d.cantidad,
-                        d.id_unidad_medida
-                    ) AS cantidad
-                FROM doc_salida_detalle d
-                WHERE d.id_doc_salida = p_id_recarga_planta
-                  AND d.estado = 1
-                  AND d.id_producto IS NOT NULL
-                  AND d.id_balon IS NULL
-                ORDER BY d.item
-            LOOP
-                v_mov := inv_registrar_movimiento(
-                    p_naturaleza                   => 'PRODUCTO',
-                    p_codigo_tipo_movimiento       => 'ENTRADA_PLANTA_EXTERNA',
-                    p_fecha                        => LOCALTIMESTAMP,
-                    p_id_producto                  => v_gas.id_producto,
-                    p_id_balon                     => NULL,
-                    p_cantidad                     => v_gas.cantidad,
-                    p_id_almacen_origen            => p_id_almacen,
-                    p_id_almacen_destino           => NULL,
-                    p_id_cliente                   => p_id_proveedor,
-                    p_codigo_tipo_documento_origen => 'ORDEN_SALIDA',
-                    p_id_documento_origen          => p_id_recarga_planta,
-                    p_glosa                        => format(
-                        'Entrada de gas por recarga en planta externa (orden #%s)', p_id_recarga_planta
-                    ),
-                    p_id_usuario_auditoria         => p_id_usuario_auditoria,
-                    p_id_documento_detalle         => v_gas.id_detalle
-                );
+        v_gas := bal_sincronizar_gas_retorno_planta(p_id_recarga_planta, p_id_usuario_auditoria);
+    END IF;
 
-                IF v_mov->>'error' IS NOT NULL THEN
-                    RAISE EXCEPTION 'No se pudo registrar la entrada de gas del producto % (orden #%): %',
-                        v_gas.id_producto, p_id_recarga_planta, v_mov->>'error';
-                END IF;
-            END LOOP;
+    -- Fase 5: ficha ICP vigente en los cilindros. Usa el parámetro o la ficha
+    -- ya enganchada en la orden (Registrar lote desde la OS).
+    v_id_lote_aplicar := COALESCE(
+        p_id_lote_protocolo,
+        (SELECT d.id_lote_protocolo FROM doc_salida d WHERE d.id = p_id_recarga_planta)
+    );
+
+    IF v_id_lote_aplicar IS NOT NULL THEN
+        SELECT array_agg(d.id_balon ORDER BY d.item)
+        INTO v_id_balones
+        FROM doc_salida_detalle d
+        WHERE d.id_doc_salida = p_id_recarga_planta
+          AND d.estado = 1
+          AND d.id_balon IS NOT NULL;
+
+        IF array_length(v_id_balones, 1) IS NOT NULL THEN
+            v_aplic := bal_aplicar_lote_protocolo_balones(
+                v_id_lote_aplicar,
+                array_to_json(v_id_balones),
+                p_id_usuario_auditoria,
+                p_id_recarga_planta
+            );
+            IF v_aplic->>'error' IS NOT NULL THEN
+                RAISE EXCEPTION '%', v_aplic->>'error';
+            END IF;
+        ELSIF p_id_lote_protocolo IS NOT NULL THEN
+            -- Solo metadata: engancha la ficha a la orden aunque aún no haya
+            -- cilindros en el detalle (caso raro; el UPDATE de cabecera ya
+            -- escribió id_lote_protocolo vía COALESCE).
+            UPDATE doc_salida
+            SET id_lote_protocolo = p_id_lote_protocolo
+            WHERE id = p_id_recarga_planta AND estado = 1
+              AND id_lote_protocolo IS DISTINCT FROM p_id_lote_protocolo;
         END IF;
     END IF;
 
-    -- Fase 5: los cilindros que volvieron quedan con esta ficha como vigente.
-    IF p_id_lote_protocolo IS NOT NULL AND array_length(v_id_balones, 1) IS NOT NULL THEN
-        PERFORM bal_aplicar_lote_protocolo_balones(
-            p_id_lote_protocolo,
-            array_to_json(v_id_balones),
-            p_id_usuario_auditoria
-        );
+    -- La P.H. del retorno es una prueba real hecha en planta: baja al libro de
+    -- P.H. de cada cilindro que volvió. Sin retorno físico no hay qué anotar.
+    IF v_retorno_fisico THEN
+        PERFORM bal_sync_ph_desde_orden_salida(p_id_recarga_planta, p_id_usuario_auditoria);
     END IF;
 
     RETURN json_build_object('error', NULL, 'registro', json_build_object(
-        'id_recarga_planta', p_id_recarga_planta
+        'id_recarga_planta', p_id_recarga_planta,
+        'retorno_fisico', v_retorno_fisico,
+        'gas', v_gas->'registro'
     ));
 END;
 $function$;

@@ -8,12 +8,14 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthRequest } from '../../../common/interfaces/auth-request.interface';
 import {
   CreateStockDto,
   FiltroStockDto,
@@ -44,7 +46,8 @@ export class StockProductoController {
   @Post()
   @Permisos(PermisoBanderas.STOCK_CREAR)
   @ApiOperation({ summary: 'Registrar stock inicial' })
-  crear(@Body() dto: CreateStockDto) {
+  crear(@Body() dto: CreateStockDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.stockProductoLogic.crear(dto);
   }
 
@@ -55,7 +58,9 @@ export class StockProductoController {
   restaurar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.stockProductoLogic.restaurar(id, dto.idUsuarioAuditoria);
   }
 
@@ -66,7 +71,9 @@ export class StockProductoController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateStockDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.stockProductoLogic.actualizar(id, dto);
   }
 
@@ -77,7 +84,9 @@ export class StockProductoController {
   eliminar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.stockProductoLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

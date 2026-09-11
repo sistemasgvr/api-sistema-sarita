@@ -2,6 +2,9 @@
 -- Function: inv_eliminar_movimiento
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.963Z
+-- Actualizada por database_sql/migraciones/20260910_inv_soft_raise_y_recojo.sql:
+-- el stock de destino del traslado se valida antes de reintegrar el origen, así
+-- ningún error soft deja la reversa a medias.
 DROP FUNCTION IF EXISTS inv_eliminar_movimiento(p_id integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION inv_eliminar_movimiento(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -16,6 +19,9 @@ DECLARE
     v_id_stock INTEGER;
     v_stock_actual NUMERIC(12,4);
     v_stock_revertido NUMERIC(12,4);
+    v_id_stock_dest INTEGER;
+    v_stock_dest_actual NUMERIC(12,4);
+    v_stock_dest_revertido NUMERIC(12,4);
     v_id_estado_en_almacen INTEGER;
     v_id_almacen_stock INTEGER;
 BEGIN
@@ -71,28 +77,33 @@ BEGIN
             RETURN json_build_object('eliminado', FALSE, 'id', p_id, 'error', 'No se puede anular el movimiento porque revertiría un stock negativo');
         END IF;
 
-        UPDATE pro_stock
-        SET stock = v_stock_revertido, id_usuario_modificacion = p_id_usuario_auditoria, fecha_modificacion = NOW()
-        WHERE id = v_id_stock;
-
+        -- El destino del traslado se valida ANTES de tocar el origen: si se
+        -- revisara después, un destino sin saldo devolvía un error soft con el
+        -- origen ya reintegrado (traslado revertido a medias).
         IF v_es_traslado AND v_mov.id_almacen_destino IS NOT NULL THEN
-            SELECT id, stock INTO v_id_stock, v_stock_actual
+            SELECT id, stock INTO v_id_stock_dest, v_stock_dest_actual
             FROM pro_stock
             WHERE id_almacen = v_mov.id_almacen_destino AND id_producto = v_mov.id_producto AND estado = 1
             FOR UPDATE;
 
-            IF v_id_stock IS NULL THEN
+            IF v_id_stock_dest IS NULL THEN
                 RETURN json_build_object('eliminado', FALSE, 'id', p_id, 'error', 'No se encontró el stock de destino para revertir el traslado');
             END IF;
 
-            v_stock_revertido := v_stock_actual - v_mov.cantidad;
-            IF v_stock_revertido < 0 THEN
+            v_stock_dest_revertido := v_stock_dest_actual - v_mov.cantidad;
+            IF v_stock_dest_revertido < 0 THEN
                 RETURN json_build_object('eliminado', FALSE, 'id', p_id, 'error', 'No se puede anular el traslado porque el destino ya no tiene esa cantidad');
             END IF;
+        END IF;
 
+        UPDATE pro_stock
+        SET stock = v_stock_revertido, id_usuario_modificacion = p_id_usuario_auditoria, fecha_modificacion = NOW()
+        WHERE id = v_id_stock;
+
+        IF v_id_stock_dest IS NOT NULL THEN
             UPDATE pro_stock
-            SET stock = v_stock_revertido, id_usuario_modificacion = p_id_usuario_auditoria, fecha_modificacion = NOW()
-            WHERE id = v_id_stock;
+            SET stock = v_stock_dest_revertido, id_usuario_modificacion = p_id_usuario_auditoria, fecha_modificacion = NOW()
+            WHERE id = v_id_stock_dest;
         END IF;
     END IF;
 

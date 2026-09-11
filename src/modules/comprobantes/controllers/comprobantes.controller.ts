@@ -9,13 +9,16 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   StreamableFile,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   AnularComprobanteDto,
   CreateComprobantesDto,
@@ -31,6 +34,8 @@ import {
   UpdateComprobantesDto,
 } from '../dto/comprobantes.dto';
 import { ComprobantesLogic } from '../logic/comprobantes.logic';
+
+type AuthRequest = Request & { user: AuthenticatedUser };
 
 @ApiTags('Comprobantes')
 @Controller('comprobantes')
@@ -99,7 +104,8 @@ export class ComprobantesController {
   @Post('resumenes/enviar')
   @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
   @ApiOperation({ summary: 'Enviar resumen diario de boletas a SUNAT (summary/send)' })
-  enviarResumenDiario(@Body() dto: EnviarResumenDiarioDto) {
+  enviarResumenDiario(@Body() dto: EnviarResumenDiarioDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.enviarResumenDiario(dto);
   }
 
@@ -110,7 +116,9 @@ export class ComprobantesController {
   consultarEstadoResumenPorId(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.consultarEstadoResumenPorId(id, dto);
   }
 
@@ -147,7 +155,8 @@ export class ComprobantesController {
   @Post()
   @Permisos(PermisoBanderas.COMPROBANTES_CREAR)
   @ApiOperation({ summary: 'Crear comprobante de venta' })
-  crear(@Body() dto: CreateComprobantesDto) {
+  crear(@Body() dto: CreateComprobantesDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crear(dto);
   }
 
@@ -158,7 +167,9 @@ export class ComprobantesController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateComprobantesDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.actualizar(id, dto);
   }
 
@@ -176,7 +187,9 @@ export class ComprobantesController {
   registrarCobro(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RegistrarCobroComprobanteDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.registrarCobro(id, dto);
   }
 
@@ -187,7 +200,9 @@ export class ComprobantesController {
   emitir(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.emitir(id, dto);
   }
 
@@ -200,7 +215,9 @@ export class ComprobantesController {
   consultarCdr(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.consultarCdr(id, dto);
   }
 
@@ -214,7 +231,9 @@ export class ComprobantesController {
   anular(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AnularComprobanteDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.anular(id, dto);
   }
 
@@ -225,8 +244,30 @@ export class ComprobantesController {
   registrarRespuestaSunat(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RegistrarRespuestaSunatDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.registrarRespuestaSunat(id, dto);
+  }
+
+  @Post(':id/entrega-mostrador')
+  @Permisos(PermisoBanderas.COMPROBANTES_CREAR)
+  @ApiOperation({
+    summary: 'Cerrar la custodia de los cilindros de una venta de mostrador',
+    description:
+      'Al guardar, la venta reserva en PENDIENTE_ENVIO los cilindros que seguían disponibles, ' +
+      'porque aún no se sabe si se despachan. Cuando el usuario confirma que no es para envío no ' +
+      'hay orden de salida ni reparto que cierre esa reserva, así que los cilindros pasan aquí a ' +
+      'EN_PODER_CLIENTE. No mueve inventario: el kardex ya lo movió la venta.',
+  })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  confirmarEntregaMostrador(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
+    return this.logic.confirmarEntregaMostrador(id, dto);
   }
 
   @Delete(':id')
@@ -236,7 +277,9 @@ export class ComprobantesController {
   eliminar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.eliminar(id, dto);
   }
 }

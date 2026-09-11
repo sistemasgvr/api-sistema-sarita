@@ -50,6 +50,10 @@ export class RolesPermisosController {
     @Req() req: AuthRequest,
   ) {
     dto.idUsuarioAuditoria = req.user.id;
-    return this.rolesPermisosLogic.quitar(id, dto.idUsuarioAuditoria);
+    return this.rolesPermisosLogic.quitar(
+      id,
+      dto.idUsuarioAuditoria,
+      req.user.permisos,
+    );
   }
 }

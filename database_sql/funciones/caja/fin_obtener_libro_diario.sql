@@ -16,6 +16,10 @@
 --
 -- No se creó una tabla `fin_caja_resumen`: los resúmenes son datos derivados y
 -- una tabla exigiría mantenerla sincronizada con cada venta, gasto y depósito.
+--
+-- P0 (20260910): `pagosProveedor` — pagos de cuentas por pagar (CxP de compras),
+-- con su propio resumen de signo -1. Antes el libro heredaba el sesgo de
+-- fin_caja_calcular_totales y solo listaba los pagos de cuentas COBRAR.
 
 DROP FUNCTION IF EXISTS fin_obtener_libro_diario(p_fecha_desde date, p_fecha_hasta date, p_id_cliente integer, p_id_sucursal integer);
 
@@ -29,6 +33,7 @@ DECLARE
     v_ventas JSON;
     v_ventas_pagos JSON;
     v_cobranzas JSON;
+    v_pagos_proveedor JSON;
     v_gastos JSON;
     v_depositos JSON;
     v_garantias JSON;
@@ -90,13 +95,24 @@ BEGIN
         LEFT JOIN gen_lista_opciones tip ON tip.id = c.id_tipo_comprobante
         LEFT JOIN gen_lista_opciones mp ON mp.id = c.id_medio_pago
         LEFT JOIN gen_lista_opciones est ON est.id = c.id_estado
+        LEFT JOIN gen_lista_opciones es ON es.id = c.id_estado_sunat
         LEFT JOIN cli_clientes cli ON cli.id = c.id_cliente
         WHERE c.estado = 1
           AND c.fecha BETWEEN p_fecha_desde AND v_hasta
           AND (p_id_cliente IS NULL OR c.id_cliente = p_id_cliente)
-          AND (p_id_sucursal IS NULL OR c.id_sucursal = p_id_sucursal OR c.id_sucursal IS NULL)
+          AND (p_id_sucursal IS NULL OR c.id_sucursal = p_id_sucursal)
           AND COALESCE(UPPER(est.nombre), '') <> 'ANULADO'
+          AND COALESCE(UPPER(es.nombre), '') <> 'BAJA'
           AND COALESCE(UPPER(tip.nombre), '') NOT IN ('NOTA_CREDITO', 'NOTA_DEBITO')
+          AND NOT (
+              UPPER(COALESCE(tip.descripcion, '')) IN ('NV', 'VSD')
+              AND EXISTS (
+                  SELECT 1
+                  FROM ven_comprobante conv
+                  WHERE conv.id_comprobante_origen = c.id
+                    AND conv.estado = 1
+              )
+          )
     ) t;
 
     -- Ventas por línea de cobro. `grupo` es la pestaña a la que pertenece.
@@ -132,6 +148,7 @@ BEGIN
         FROM ven_comprobante c
         LEFT JOIN gen_lista_opciones tip ON tip.id = c.id_tipo_comprobante
         LEFT JOIN gen_lista_opciones est ON est.id = c.id_estado
+        LEFT JOIN gen_lista_opciones es ON es.id = c.id_estado_sunat
         LEFT JOIN cli_clientes cli ON cli.id = c.id_cliente
         CROSS JOIN LATERAL ven_pagos_de_comprobante(c.id) pg
         LEFT JOIN gen_lista_opciones mp ON mp.id = pg.id_medio_pago
@@ -140,9 +157,19 @@ BEGIN
         WHERE c.estado = 1
           AND c.fecha BETWEEN p_fecha_desde AND v_hasta
           AND (p_id_cliente IS NULL OR c.id_cliente = p_id_cliente)
-          AND (p_id_sucursal IS NULL OR c.id_sucursal = p_id_sucursal OR c.id_sucursal IS NULL)
+          AND (p_id_sucursal IS NULL OR c.id_sucursal = p_id_sucursal)
           AND COALESCE(UPPER(est.nombre), '') <> 'ANULADO'
+          AND COALESCE(UPPER(es.nombre), '') <> 'BAJA'
           AND COALESCE(UPPER(tip.nombre), '') NOT IN ('NOTA_CREDITO', 'NOTA_DEBITO')
+          AND NOT (
+              UPPER(COALESCE(tip.descripcion, '')) IN ('NV', 'VSD')
+              AND EXISTS (
+                  SELECT 1
+                  FROM ven_comprobante conv
+                  WHERE conv.id_comprobante_origen = c.id
+                    AND conv.estado = 1
+              )
+          )
     ) t;
 
     -- Cobranzas
@@ -175,9 +202,61 @@ BEGIN
         WHERE p.estado = 1
           AND p.fecha_pago BETWEEN p_fecha_desde AND v_hasta
           AND UPPER(tc.nombre) = 'COBRAR'
+          AND COALESCE(UPPER(mp.nombre), '') <> 'AJUSTE_NC'
           AND (p_id_cliente IS NULL OR cu.id_tercero = p_id_cliente)
           -- Mismo filtro de sucursal que fin_caja_calcular_totales. Sin él, la
           -- pestaña mostraba filas de otra sucursal bajo un total que las excluía.
+          AND (
+              p_id_sucursal IS NULL
+              OR COALESCE(p.id_sucursal, fin_sucursal_de_cuenta(cu.id)) = p_id_sucursal
+          )
+    ) t;
+
+    -- Pagos de cuentas por pagar (CxP de compras). P0 (20260910): el libro solo
+    -- listaba los pagos de cuentas COBRAR, así que el dinero entregado a un
+    -- proveedor no aparecía en ninguna pestaña aunque hubiera salido del cajón.
+    -- Va aparte de `gastos` a propósito: ahí conviven los gastos de caja con el
+    -- devengo de las compras tipo GASTO, y el pago de una de esas compras a
+    -- crédito aparecería dos veces si se mezclaran.
+    SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t."fechaPago", t.id), '[]'::json)
+    INTO v_pagos_proveedor
+    FROM (
+        SELECT
+            p.id,
+            p.fecha_pago AS "fechaPago",
+            p.monto,
+            p.id_medio_pago AS "idMedioPago",
+            mp.nombre AS "medioPago",
+            p.id_cuenta_bancaria AS "idCuentaBancaria",
+            COALESCE(cb.alias, cb.titular, cb.numero_cuenta) AS "cuentaBancaria",
+            p.numero_operacion AS "numeroOperacion",
+            p.observacion,
+            cu.id AS "idCuenta",
+            cu.id_tercero AS "idProveedor",
+            COALESCE(
+                NULLIF(TRIM(cu.tercero_nombre), ''),
+                NULLIF(TRIM(ter.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', ter.nombres, ter.apellido_paterno, ter.apellido_materno)), '')
+            ) AS proveedor,
+            -- En un plan de cuotas la compra la referencia la cabecera, no la cuota.
+            COALESCE(cu.id_comprobante_compra, pad.id_comprobante_compra) AS "idCompra",
+            NULLIF(TRIM(CONCAT_WS('-', cc.serie, cc.numero)), '') AS "compraSerieNumero"
+        FROM fin_pago p
+        INNER JOIN fin_cuenta cu ON cu.id = p.id_cuenta AND cu.estado = 1
+        INNER JOIN gen_lista_opciones tc ON tc.id = cu.id_tipo_cuenta
+        LEFT JOIN fin_cuenta pad ON pad.id = cu.id_cuenta_padre
+        LEFT JOIN com_comprobante_compra cc
+               ON cc.id = COALESCE(cu.id_comprobante_compra, pad.id_comprobante_compra)
+        LEFT JOIN gen_lista_opciones mp ON mp.id = p.id_medio_pago
+        LEFT JOIN gen_cuenta_bancaria cb ON cb.id = p.id_cuenta_bancaria
+        LEFT JOIN cli_clientes ter ON ter.id = cu.id_tercero
+        WHERE p.estado = 1
+          AND p.fecha_pago BETWEEN p_fecha_desde AND v_hasta
+          AND UPPER(tc.nombre) = 'PAGAR'
+          AND COALESCE(UPPER(mp.nombre), '') <> 'AJUSTE_NC'
+          -- Clientes y proveedores viven en cli_clientes, así que el filtro de
+          -- tercero se aplica igual que en cobranzas.
+          AND (p_id_cliente IS NULL OR cu.id_tercero = p_id_cliente)
           AND (
               p_id_sucursal IS NULL
               OR COALESCE(p.id_sucursal, fin_sucursal_de_cuenta(cu.id)) = p_id_sucursal
@@ -227,7 +306,7 @@ BEGIN
         WHERE cc.estado = 1
           AND cc.fecha BETWEEN p_fecha_desde AND v_hasta
           AND UPPER(COALESCE(tr.nombre, '')) = 'GASTO'
-          AND (p_id_sucursal IS NULL OR cc.id_sucursal = p_id_sucursal OR cc.id_sucursal IS NULL)
+          AND (p_id_sucursal IS NULL OR cc.id_sucursal = p_id_sucursal)
     ) t;
 
     -- Depósitos
@@ -280,7 +359,6 @@ BEGIN
         LEFT JOIN ven_garantia g ON g.id = gm.id_garantia
         LEFT JOIN cli_clientes cli ON cli.id = g.id_cliente
         LEFT JOIN ven_comprobante c ON c.id = gm.id_comprobante
-        LEFT JOIN gen_lista_opciones tip ON tip.id = c.id_tipo_comprobante
         LEFT JOIN gen_lista_opciones mp
                ON mp.id = COALESCE(gm.id_medio_pago, g.id_medio_reembolso, g.id_medio_pago)
         LEFT JOIN gen_cuenta_bancaria cb ON cb.id = gm.id_cuenta_bancaria
@@ -291,14 +369,9 @@ BEGIN
           AND (
               p_id_sucursal IS NULL
               OR COALESCE(gm.id_sucursal, c.id_sucursal) = p_id_sucursal
-              OR COALESCE(gm.id_sucursal, c.id_sucursal) IS NULL
           )
-          AND (
-              UPPER(tm.nombre) = 'DEVOLUCION'
-              OR gm.id_comprobante IS NULL
-              OR c.id IS NULL
-              OR COALESCE(UPPER(tip.nombre), '') IN ('NOTA_CREDITO', 'NOTA_DEBITO')
-          )
+          -- Mismo criterio que fin_caja_calcular_totales: el cobro junto a un CPE
+          -- también entra (no viaja en total_importe de la venta).
     ) t;
 
     -- Observaciones
@@ -327,6 +400,8 @@ BEGIN
         'cobranzas', COALESCE(SUM((t.tot->>'cobranzas')::NUMERIC), 0),
         'cobranzasMediosCaja', COALESCE(SUM((t.tot->>'cobranzasMediosCaja')::NUMERIC), 0),
         'cobranzasEfectivo', COALESCE(SUM((t.tot->>'cobranzasEfectivo')::NUMERIC), 0),
+        'pagosProveedor', COALESCE(SUM((t.tot->>'pagosProveedor')::NUMERIC), 0),
+        'pagosProveedorMediosCaja', COALESCE(SUM((t.tot->>'pagosProveedorMediosCaja')::NUMERIC), 0),
         'gastosCaja', COALESCE(SUM((t.tot->>'gastosCaja')::NUMERIC), 0),
         'gastosCajaMediosCaja', COALESCE(SUM((t.tot->>'gastosCajaMediosCaja')::NUMERIC), 0),
         'gastosCompra', COALESCE(SUM((t.tot->>'gastosCompra')::NUMERIC), 0),
@@ -379,6 +454,9 @@ BEGIN
             ('garantias_devueltas','Garantías devueltas',  'garantias',   'tipo',   'DEVOLUCION',
              -1, (v_totales->>'garantiasDevolucion')::NUMERIC,
              (SELECT COUNT(*) FROM json_array_elements(v_garantias) e WHERE e->>'tipo' = 'DEVOLUCION'), 60),
+            ('pagos_proveedor',    'Pagos a proveedores',  'pagosProveedor', NULL,  NULL,
+             -1, (v_totales->>'pagosProveedor')::NUMERIC,
+             json_array_length(v_pagos_proveedor), 65),
             ('gastos',             'Gastos',               'gastos',      NULL,     NULL,
              -1, (v_totales->>'gastos')::NUMERIC,
              json_array_length(v_gastos), 70),
@@ -399,6 +477,7 @@ BEGIN
             'ventas', v_ventas,
             'ventasPagos', v_ventas_pagos,
             'cobranzas', v_cobranzas,
+            'pagosProveedor', v_pagos_proveedor,
             'gastos', v_gastos,
             'depositos', v_depositos,
             'garantias', v_garantias,

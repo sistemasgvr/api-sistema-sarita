@@ -2,6 +2,14 @@
 -- Function: inv_registrar_movimiento
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.963Z
+-- Actualizada por database_sql/migraciones/20260910_inv_soft_raise_y_recojo.sql:
+-- todo fallo posterior a una mutación de inventario es RAISE (rollback). El
+-- stock insuficiente de gas se detectaba con bal_balon ya actualizado y se
+-- devolvía soft, dejando el cilindro movido sin su gas.
+-- Actualizada por database_sql/migraciones/20260911_w1_planta_retorno_traslado_gas.sql:
+-- naturaleza BALON + TRASLADO / TRASLADO_LIMA con id_producto y cantidad > 0 se
+-- rechaza: el gas de un traslado se descontaba del origen y no entraba en el
+-- destino. El rechazo es previo a cualquier mutación, así que es error soft.
 DROP FUNCTION IF EXISTS inv_registrar_movimiento(p_naturaleza character varying, p_codigo_tipo_movimiento character varying, p_fecha timestamp without time zone, p_id_producto integer, p_id_balon integer, p_cantidad numeric, p_id_almacen_origen integer, p_id_almacen_destino integer, p_id_cliente integer, p_codigo_tipo_documento_origen character varying, p_id_documento_origen integer, p_glosa character varying, p_id_usuario_auditoria integer, p_id_movimiento_padre integer, p_sentido_ajuste character varying, p_forzar boolean, p_id_documento_detalle integer);
 
 CREATE OR REPLACE FUNCTION inv_registrar_movimiento(p_naturaleza character varying, p_codigo_tipo_movimiento character varying, p_fecha timestamp without time zone DEFAULT now(), p_id_producto integer DEFAULT NULL::integer, p_id_balon integer DEFAULT NULL::integer, p_cantidad numeric DEFAULT 0, p_id_almacen_origen integer DEFAULT NULL::integer, p_id_almacen_destino integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_codigo_tipo_documento_origen character varying DEFAULT NULL::character varying, p_id_documento_origen integer DEFAULT NULL::integer, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_movimiento_padre integer DEFAULT NULL::integer, p_sentido_ajuste character varying DEFAULT NULL::character varying, p_forzar boolean DEFAULT false, p_id_documento_detalle integer DEFAULT NULL::integer)
@@ -126,6 +134,25 @@ BEGIN
         v_es_salida := v_signo < 0 OR v_es_traslado;
     END IF;
 
+    -- Un traslado de cilindros mueve envases entre almacenes; el gas que llevan
+    -- dentro no cambia de saldo. Con id_producto en la línea del balón, el
+    -- bloque de gas de más abajo lo descontaba del origen sin reponerlo en el
+    -- destino (naturaleza BALON no tiene rama de traslado de stock), así que
+    -- cada traslado evaporaba el contenido de los cilindros. El gas va en sus
+    -- propias líneas de producto, como ya documenta doc_generar_salida.
+    IF v_naturaleza = 'BALON'
+       AND UPPER(v_nombre_tipo_mov) IN ('TRASLADO', 'TRASLADO_LIMA')
+       AND p_id_producto IS NOT NULL
+       AND v_cantidad > 0 THEN
+        RETURN json_build_object(
+            'error', format(
+                'El gas no puede moverse en la línea del cilindro de un %s: regístralo en una línea de producto',
+                UPPER(v_nombre_tipo_mov)
+            ),
+            'registro', NULL
+        );
+    END IF;
+
     IF v_naturaleza = 'PRODUCTO' THEN
         IF v_cantidad <= 0 THEN
             RETURN json_build_object('error', 'La cantidad debe ser mayor a cero', 'registro', NULL);
@@ -167,6 +194,13 @@ BEGIN
             FOR UPDATE;
 
             IF v_id_stock IS NULL THEN
+                -- Sin fila de stock el saldo es cero: la salida se rechaza aquí,
+                -- antes de crear o reactivar la fila, para poder devolver el
+                -- error soft sin dejar rastro.
+                IF v_es_salida THEN
+                    RETURN json_build_object('error', 'Stock insuficiente para registrar la salida', 'registro', NULL);
+                END IF;
+
                 -- Soft-delete previo: UNIQUE(id_almacen, id_producto) bloquea INSERT.
                 -- Reactivar como pro_crear_stock en vez de fallar.
                 SELECT id INTO v_id_stock
@@ -196,7 +230,9 @@ BEGIN
             END IF;
 
             IF v_stock_nuevo < 0 THEN
-                RETURN json_build_object('error', 'Stock insuficiente para registrar la salida', 'registro', NULL);
+                -- La fila de stock pudo crearse/reactivarse arriba: devolver un
+                -- error soft dejaría ese cambio confirmado.
+                RAISE EXCEPTION 'Stock insuficiente para registrar la salida';
             END IF;
 
             UPDATE pro_stock
@@ -384,7 +420,9 @@ BEGIN
                 END IF;
 
                 IF v_stock_nuevo < 0 THEN
-                    RETURN json_build_object('error', 'Stock de gas insuficiente para registrar la salida', 'registro', NULL);
+                    -- bal_balon ya se actualizó (estado / almacén / cliente): un
+                    -- error soft aquí confirmaría el cilindro movido sin su gas.
+                    RAISE EXCEPTION 'Stock de gas insuficiente para registrar la salida';
                 END IF;
 
                 UPDATE pro_stock

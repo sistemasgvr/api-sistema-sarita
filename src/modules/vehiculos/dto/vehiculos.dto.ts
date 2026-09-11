@@ -1,11 +1,12 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
@@ -19,13 +20,19 @@ export class CreateVehiculoDto extends AuditoriaDto {
 
   @ApiPropertyOptional({
     example: 1,
+    nullable: true,
     description:
-      'Cliente/proveedor dueño del vehículo (nulo si es de la empresa)',
+      'Cliente/proveedor dueño del vehículo (null si es flota propia de la empresa)',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => {
+    if (value === null || value === '') return null;
+    if (value === undefined) return undefined;
+    return Number(value);
+  })
+  @ValidateIf((_, v) => v != null)
   @IsInt()
-  idCliente?: number;
+  idCliente?: number | null;
 
   @ApiPropertyOptional({
     example: 1,

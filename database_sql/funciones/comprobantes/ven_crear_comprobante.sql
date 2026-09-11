@@ -228,6 +228,17 @@ BEGIN
                 );
             END IF;
 
+            -- Heredar crédito/vencimiento del VSD si el CPE no los trae (FE o legacy).
+            IF p_id_condicion_pago IS NULL OR p_fecha_vencimiento IS NULL THEN
+                SELECT
+                    COALESCE(p_id_condicion_pago, c.id_condicion_pago),
+                    COALESCE(p_fecha_vencimiento, c.fecha_vencimiento)
+                INTO p_id_condicion_pago, p_fecha_vencimiento
+                FROM ven_comprobante c
+                WHERE c.id = p_id_comprobante_origen
+                  AND c.estado = 1;
+            END IF;
+
             IF p_id_almacen IS NULL THEN
                 p_id_almacen := v_id_almacen_origen;
             ELSIF v_id_almacen_origen IS NOT NULL AND p_id_almacen <> v_id_almacen_origen THEN
@@ -483,7 +494,8 @@ BEGIN
             LEFT JOIN gen_lista_opciones es ON es.id = nc.id_estado_sunat
             WHERE nc.id_comprobante_origen = p_id_comprobante_origen
               AND nc.estado = 1
-              AND COALESCE(es.nombre, '') NOT IN ('BAJA', 'RECHAZADO');
+              -- RECHAZADO cuenta hasta soft-delete (ven_revertir_nc_sunat_rechazada).
+              AND COALESCE(es.nombre, '') NOT IN ('BAJA');
 
             IF v_cantidad > (v_qty_origen - v_qty_nc_previas) THEN
                 RETURN json_build_object(
@@ -846,7 +858,39 @@ BEGIN
                 CONTINUE;
             END IF;
 
+            -- NC de recarga: el origen no movió kardex de producto (solo RECARGA
+            -- vía balón). ven_cerrar_custodia revierte esa RECARGA; un INGRESO
+            -- aquí duplicaría el gas.
+            IF v_es_nota_credito
+               AND p_id_comprobante_origen IS NOT NULL
+               AND EXISTS (
+                    SELECT 1
+                    FROM ven_comprobante_detalle od
+                    WHERE od.id_comprobante = p_id_comprobante_origen
+                      AND od.estado = 1
+                      AND od.id_producto = v_id_producto
+                      AND od.id_balon IS NOT NULL
+               ) THEN
+                CONTINUE;
+            END IF;
+
             IF NOT v_afecta_stock THEN
+                CONTINUE;
+            END IF;
+
+            -- NC de recarga (gas+cilindro): el gas se restaura al cerrar custodia
+            -- (RECARGA revert). Un INGRESO PRODUCTO aquí duplicaría stock.
+            IF v_es_nota_credito
+               AND p_id_comprobante_origen IS NOT NULL
+               AND EXISTS (
+                   SELECT 1
+                   FROM ven_comprobante_detalle od
+                   WHERE od.id_comprobante = p_id_comprobante_origen
+                     AND od.id_producto = v_id_producto
+                     AND od.id_balon IS NOT NULL
+                     AND od.estado = 1
+               )
+            THEN
                 CONTINUE;
             END IF;
 
@@ -900,6 +944,19 @@ BEGIN
     END IF;
 
     -- Crédito / cuotas: genera CxC vinculada al comprobante según condición de pago.
+    -- En conversión VSD→CPE, re-apunta la CxC (y pagos) del origen al nuevo CPE
+    -- para no perder crédito ya abierto ni duplicarlo.
+    IF v_es_conversion_vsd AND p_id_comprobante_origen IS NOT NULL THEN
+        UPDATE fin_cuenta
+        SET
+            id_comprobante_venta = v_id,
+            numero_comprobante = v_serie || '-' || v_numero,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id_comprobante_venta = p_id_comprobante_origen
+          AND estado = 1;
+    END IF;
+
     IF NOT v_es_nota_credito
        AND p_id_condicion_pago IS NOT NULL
        AND COALESCE(v_total_importe, 0) > 0

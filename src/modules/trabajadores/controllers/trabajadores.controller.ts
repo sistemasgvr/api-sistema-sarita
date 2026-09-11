@@ -8,12 +8,14 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthRequest } from '../../../common/interfaces/auth-request.interface';
 import {
   CreateTrabajadorDto,
   FiltroTrabajadorDto,
@@ -44,7 +46,8 @@ export class TrabajadoresController {
   @Post()
   @Permisos(PermisoBanderas.TRABAJADOR_CREAR)
   @ApiOperation({ summary: 'Crear trabajador' })
-  crear(@Body() dto: CreateTrabajadorDto) {
+  crear(@Body() dto: CreateTrabajadorDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.trabajadoresLogic.crear(dto);
   }
 
@@ -55,7 +58,9 @@ export class TrabajadoresController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateTrabajadorDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.trabajadoresLogic.actualizar(id, dto);
   }
 
@@ -63,7 +68,12 @@ export class TrabajadoresController {
   @Permisos(PermisoBanderas.TRABAJADOR_ELIMINAR)
   @ApiOperation({ summary: 'Dar de baja a trabajador (baja lógica)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  eliminar(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  eliminar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.trabajadoresLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

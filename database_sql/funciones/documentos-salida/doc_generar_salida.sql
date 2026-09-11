@@ -5,6 +5,21 @@
 --
 -- Para OS sin venta (id_venta IS NULL) de tipos compatibles con REPARTO, tras el
 -- kardex se corrige custodia a PENDIENTE_ENVIO (ver bloque al final del loop).
+--
+-- Actualizada por database_sql/migraciones/20260910_doc_generar_um_conversion.sql:
+--   · la cantidad que va al kardex se expresa en la U.M. del producto
+--     (doc_cantidad_linea_en_unidad_producto), la misma regla que usa
+--     bal_sincronizar_gas_retorno_planta para la entrada. Antes la salida
+--     registraba la cantidad cruda y el retorno la convertía, así que el neto
+--     de stock se sesgaba cuando las unidades no coincidían;
+--   · pre-vuelo antes de tocar inventario: se resuelven todas las conversiones
+--     en seco (un factor faltante devuelve error de negocio en vez de reventar
+--     la petición a medio kardex) y, en RECARGA_PLANTA_EXTERNA, se rechaza el
+--     gas declarado por encima de la capacidad de los cilindros de la orden.
+--
+-- Actualizada por database_sql/migraciones/20260911_w4_hardening.sql:
+--   · EstadoCicloSalida GENERADA se resuelve ANTES del loop de kardex; si falta
+--     el catálogo se devuelve soft-error sin mover stock.
 DROP FUNCTION IF EXISTS doc_generar_salida(p_id integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION doc_generar_salida(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -23,6 +38,9 @@ DECLARE
     v_n INTEGER := 0;
     v_id_pend_envio INTEGER;
     v_hay_balones BOOLEAN;
+    -- Solo fuerza la evaluación del pre-vuelo de unidades; su valor no se usa.
+    v_prevuelo NUMERIC;
+    v_exceso_gas TEXT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -66,10 +84,112 @@ BEGIN
         );
     END IF;
 
+    -- EstadoCicloSalida GENERADA: resolver ANTES de cualquier movimiento de stock.
+    -- Si falta el catálogo y se moviera el kardex primero, la orden quedaría con
+    -- inventario tocado y el ciclo aún en BORRADOR (mismo patrón que doc_anular_salida).
+    SELECT lo.id INTO v_id_generada
+    FROM gen_lista_opciones lo
+    JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoCicloSalida' AND lo.nombre = 'GENERADA' AND lo.estado = 1;
+
+    IF v_id_generada IS NULL THEN
+        RETURN json_build_object(
+            'error', 'Falta el estado GENERADA en el catálogo EstadoCicloSalida',
+            'registro', NULL
+        );
+    END IF;
+
     IF v_doc.id_venta IS NULL THEN
         IF NOT EXISTS (SELECT 1 FROM doc_salida_detalle WHERE id_doc_salida = p_id AND estado = 1) THEN
             RETURN json_build_object('error', 'El documento no tiene líneas que trasladar', 'registro', NULL);
         END IF;
+
+        -- ------------------------------------------------------------
+        -- Pre-vuelo de unidades (antes de cualquier movimiento)
+        --
+        -- Las conversiones se resuelven en seco: si a un gas le falta el
+        -- factor o la U.M. de la línea no es convertible,
+        -- inv_convertir_a_unidad_producto lanza excepción, y dentro del bucle
+        -- eso tumbaría la petición con el kardex a medias. Acá se traduce a un
+        -- error de negocio, que es lo que la orden puede corregir.
+        --
+        -- En RECARGA_PLANTA_EXTERNA se compara además el gas declarado contra
+        -- la capacidad de los cilindros de la orden, ambos ya en la U.M. del
+        -- gas: la planta no puede haber cargado más de lo que cabe. Si los
+        -- cilindros no tienen gas o capacidad configurados no hay tope contra
+        -- el cual comparar y la línea pasa.
+        -- ------------------------------------------------------------
+        BEGIN
+            SELECT COALESCE(SUM(doc_cantidad_linea_en_unidad_producto(dd.id)), 0)
+            INTO v_prevuelo
+            FROM doc_salida_detalle dd
+            WHERE dd.id_doc_salida = p_id AND dd.estado = 1;
+
+            IF v_tipo = 'RECARGA_PLANTA_EXTERNA' THEN
+                SELECT string_agg(
+                           format(
+                               '%s (declarado %s %s, capacidad %s %s)',
+                               t.nombre_producto,
+                               TRIM(TO_CHAR(t.declarado, 'FM999999990.0999')),
+                               COALESCE(t.unidad, ''),
+                               TRIM(TO_CHAR(t.capacidad, 'FM999999990.0999')),
+                               COALESCE(t.unidad, '')
+                           ),
+                           '; ' ORDER BY t.nombre_producto
+                       )
+                INTO v_exceso_gas
+                FROM (
+                    SELECT
+                        dd.id_producto,
+                        p.nombre AS nombre_producto,
+                        um.nombre AS unidad,
+                        SUM(doc_cantidad_linea_en_unidad_producto(dd.id)) AS declarado,
+                        (
+                            SELECT COALESCE(SUM(
+                                inv_convertir_a_unidad_producto(
+                                    dd.id_producto, tb.capacidad, tb.id_unidad_medida
+                                )
+                            ), 0)
+                            FROM doc_salida_detalle db
+                            JOIN bal_balon b ON b.id = db.id_balon
+                            JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+                            WHERE db.id_doc_salida = p_id
+                              AND db.estado = 1
+                              AND db.id_balon IS NOT NULL
+                              AND COALESCE(b.id_producto_gas, tb.id_gas) = dd.id_producto
+                              AND COALESCE(tb.capacidad, 0) > 0
+                        ) AS capacidad
+                    FROM doc_salida_detalle dd
+                    JOIN pro_producto p ON p.id = dd.id_producto
+                    LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
+                    WHERE dd.id_doc_salida = p_id
+                      AND dd.estado = 1
+                      AND dd.id_balon IS NULL
+                      AND dd.cantidad > 0
+                    GROUP BY dd.id_producto, p.nombre, um.nombre
+                ) t
+                -- Redondeo a 2 decimales: las conversiones redondean a 4 y se
+                -- suman por cilindro, así que un tope exacto rechazaría por
+                -- milésimas lo que en la práctica sí cabe.
+                WHERE t.capacidad > 0
+                  AND ROUND(t.declarado, 2) > ROUND(t.capacidad, 2);
+
+                IF v_exceso_gas IS NOT NULL THEN
+                    RETURN json_build_object(
+                        'error', format(
+                            'El gas declarado supera la capacidad de los cilindros de la orden: %s. Corrige el detalle antes de generar.',
+                            v_exceso_gas
+                        ),
+                        'registro', NULL
+                    );
+                END IF;
+            END IF;
+        EXCEPTION WHEN OTHERS THEN
+            RETURN json_build_object(
+                'error', format('No se puede generar la salida: %s', SQLERRM),
+                'registro', NULL
+            );
+        END;
 
         -- Custodia REPARTO (OS sin venta): validar catálogo ANTES del kardex.
         IF v_tipo NOT IN ('RECARGA_PLANTA_EXTERNA', 'TRASLADO') THEN
@@ -100,7 +220,12 @@ BEGIN
         END IF;
 
         FOR v_det IN
-            SELECT dd.*
+            SELECT
+                dd.*,
+                -- La cantidad del kardex va en la U.M. del producto (la de
+                -- pro_stock), no en la de la línea: es la misma regla con la
+                -- que entra el gas del retorno.
+                doc_cantidad_linea_en_unidad_producto(dd.id) AS cantidad_movimiento
             FROM doc_salida_detalle dd
             WHERE dd.id_doc_salida = p_id AND dd.estado = 1
             ORDER BY dd.item
@@ -116,7 +241,7 @@ BEGIN
                 p_fecha                        => LOCALTIMESTAMP,
                 p_id_producto                  => v_det.id_producto,
                 p_id_balon                     => v_det.id_balon,
-                p_cantidad                     => v_det.cantidad,
+                p_cantidad                     => COALESCE(v_det.cantidad_movimiento, v_det.cantidad),
                 p_id_almacen_origen            => v_doc.id_almacen,
                 p_id_almacen_destino           => v_doc.id_almacen_destino,
                 p_id_cliente                   => COALESCE(v_doc.id_destinatario, v_doc.id_cliente, v_doc.id_proveedor),
@@ -179,11 +304,6 @@ BEGIN
     END IF;
     -- Con id_venta no se toca inventario: el movimiento lo creó la venta y este
     -- documento solo lo respalda documentalmente (apunte 1.c.iv.6).
-
-    SELECT lo.id INTO v_id_generada
-    FROM gen_lista_opciones lo
-    JOIN gen_lista l ON l.id = lo.id_lista
-    WHERE l.nombre = 'EstadoCicloSalida' AND lo.nombre = 'GENERADA' AND lo.estado = 1;
 
     UPDATE doc_salida
     SET id_estado_ciclo = v_id_generada,

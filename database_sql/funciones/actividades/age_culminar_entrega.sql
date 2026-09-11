@@ -1,5 +1,11 @@
 -- Function: age_culminar_entrega
 -- Source: migraciones/20260909_age_culminar_entrega_custodia.sql
+--
+-- Actualizada por database_sql/migraciones/20260910_age_custodia_recojo_candado.sql:
+--   · se exige el juego COMPLETO de cilindros en custodia, igual que
+--     age_iniciar_entrega. Con "al menos uno" bastaba un cilindro en tránsito
+--     para cerrar la entrega y los demás quedaban colgados en su estado previo;
+--   · el descuadre posterior al UPDATE es RAISE (rollback), no error soft.
 
 DROP FUNCTION IF EXISTS age_culminar_entrega(integer, integer);
 
@@ -166,9 +172,16 @@ BEGIN
     WHERE ai.id_actividad = p_id AND ai.estado = 1;
 
     -- Accesorios-only: sin cilindros no se exige custodia.
-    IF v_cilindros_tot > 0 AND v_cilindros_esp = 0 THEN
+    -- Con cilindros se exige que TODOS esten en custodia (no "al menos uno"):
+    -- cerrar con un subconjunto dejaba al resto fuera de EN_PODER_CLIENTE.
+    IF v_cilindros_tot > 0 AND v_cilindros_esp < v_cilindros_tot THEN
         RETURN json_build_object(
-            'error', 'Los cilindros no estan en EN_TRANSITO ni PENDIENTE_ENVIO; no se puede culminar la entrega',
+            'error', format(
+                'Faltan %s cilindro(s) en EN_TRANSITO o PENDIENTE_ENVIO para culminar la entrega (hay %s de %s)',
+                v_cilindros_tot - v_cilindros_esp,
+                v_cilindros_esp,
+                v_cilindros_tot
+            ),
             'registro', NULL
         );
     END IF;
@@ -191,14 +204,12 @@ BEGIN
 
     GET DIAGNOSTICS v_cilindros_upd = ROW_COUNT;
 
-    IF v_cilindros_esp > 0 AND v_cilindros_upd = 0 THEN
-        RETURN json_build_object(
-            'error', format(
-                'No se actualizo ningun cilindro a EN_PODER_CLIENTE (se esperaban %s)',
-                v_cilindros_esp
-            ),
-            'registro', NULL
-        );
+    -- El UPDATE ya corrió: un error soft aquí confirmaría los cilindros que sí
+    -- cambiaron y dejaría la entrega cerrada a medias.
+    IF v_cilindros_esp > 0 AND v_cilindros_upd <> v_cilindros_esp THEN
+        RAISE EXCEPTION
+            'No se actualizaron todos los cilindros a EN_PODER_CLIENTE (se esperaban %, se actualizaron %)',
+            v_cilindros_esp, v_cilindros_upd;
     END IF;
 
     UPDATE age_actividad

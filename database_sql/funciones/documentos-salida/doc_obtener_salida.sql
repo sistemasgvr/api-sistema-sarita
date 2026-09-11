@@ -3,9 +3,19 @@
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.958Z
 --
+-- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
+-- el detalle expone id_unidad_capacidad_balon (U.M. de la capacidad del tipo
+-- de balón). Compras arma sus líneas de gas sumando capacidades, y sin el id
+-- de esa unidad la línea quedaba con U.M. nula y el gas entraba sin convertir.
+--
 -- Actualizada por database_sql/migraciones/20260905_venta_gas_prestamo_garantia_join.sql:
 -- con id_venta el detalle une los items de la venta con los cilindros
 -- entregados en prestamo (rol ENTREGADO) y descarta las lineas de garantia.
+--
+-- Actualizada por database_sql/migraciones/20260910_retorno_fisico_fecha_ph.sql:
+-- retorno_fisico (¿los cilindros ya entraron al almacén?) y el almacén de
+-- llegada. La UI daba el retorno por hecho con solo fecha_llegada_almacen, que
+-- no implica movimiento de inventario.
 DROP FUNCTION IF EXISTS doc_obtener_salida(p_id integer);
 
 CREATE OR REPLACE FUNCTION doc_obtener_salida(p_id integer)
@@ -69,6 +79,7 @@ BEGIN
                 alm.nombre AS nombre_almacen_balon,
                 tb.capacidad AS capacidad_balon,
                 umtb.nombre AS unidad_capacidad_balon,
+                tb.id_unidad_medida AS id_unidad_capacidad_balon,
                 b.id_producto_gas AS id_producto_gas_balon,
                 pgb.nombre AS nombre_producto_gas_balon,
                 b.numero_serie AS numero_serie_balon,
@@ -110,6 +121,7 @@ BEGIN
                 alm.nombre AS nombre_almacen_balon,
                 tb.capacidad AS capacidad_balon,
                 umtb.nombre AS unidad_capacidad_balon,
+                tb.id_unidad_medida AS id_unidad_capacidad_balon,
                 b.id_producto_gas AS id_producto_gas_balon,
                 pgb.nombre AS nombre_producto_gas_balon,
                 b.numero_serie AS numero_serie_balon,
@@ -165,6 +177,7 @@ BEGIN
                 -- calcular ese tope.
                 tb.capacidad AS capacidad_balon,
                 umtb.nombre AS unidad_capacidad_balon,
+                tb.id_unidad_medida AS id_unidad_capacidad_balon,
                 -- Gas del cilindro: decide si la orden puede asociarse a una
                 -- ficha de lote y protocolo (una ficha cubre un solo gas).
                 b.id_producto_gas AS id_producto_gas_balon,
@@ -270,9 +283,15 @@ BEGIN
                      NULLIF(TRIM(CONCAT_WS(' ', trans.nombres, trans.apellido_paterno, trans.apellido_materno)), '')) AS nombre_transportista,
             trans.numero_documento AS documento_transportista,
             d.id_chofer,
-            TRIM(CONCAT_WS(' ', cho.nombres, cho.apellido_paterno, cho.apellido_materno)) AS nombre_chofer,
-            cho.numero_documento AS documento_chofer,
-            tdch.descripcion AS codigo_tipo_doc_chofer,
+            -- Preferir identidad del trabajador vinculado (más actual) para GRE.
+            TRIM(CONCAT_WS(
+                ' ',
+                COALESCE(NULLIF(TRIM(tra.nombres), ''), cho.nombres),
+                COALESCE(NULLIF(TRIM(tra.apellido_paterno), ''), cho.apellido_paterno),
+                COALESCE(NULLIF(TRIM(tra.apellido_materno), ''), cho.apellido_materno)
+            )) AS nombre_chofer,
+            COALESCE(NULLIF(TRIM(tra.numero_documento), ''), cho.numero_documento) AS documento_chofer,
+            COALESCE(tdtra.descripcion, tdch.descripcion) AS codigo_tipo_doc_chofer,
             (SELECT lic.codigo FROM gen_licencia lic
               WHERE lic.id_chofer = cho.id AND lic.estado = 1
               ORDER BY lic.fecha_vencimiento DESC LIMIT 1) AS licencia_chofer,
@@ -283,6 +302,27 @@ BEGIN
             d.serie_guia_ingreso, d.numero_guia_ingreso,
             d.serie_factura, d.numero_factura,
             d.fecha_llegada_almacen, d.lote, d.fecha_vencimiento_lote, d.fecha_prueba_hidrostatica,
+            d.id_lote_protocolo,
+            -- Almacén al que llegaron los cilindros de planta externa. Es otra
+            -- cosa que id_almacen (de dónde salieron), que el retorno pisaba.
+            d.id_almacen_retorno, almret.nombre AS nombre_almacen_retorno,
+            -- Retorno físico: los envases tienen su entrada vigente. Solo con
+            -- esto los cilindros están de vuelta y el gas ingresó; la fecha de
+            -- llegada por sí sola no mueve inventario.
+            EXISTS (
+                SELECT 1
+                FROM inv_movimiento m
+                JOIN doc_salida_detalle ddr ON ddr.id = m.id_documento_detalle
+                JOIN gen_lista_opciones tmv ON tmv.id = m.id_tipo_movimiento
+                JOIN gen_lista ltmv ON ltmv.id = tmv.id_lista
+                WHERE m.estado = 1
+                  AND m.naturaleza = 'BALON'
+                  AND ltmv.nombre = 'TipoMovInvUnificado'
+                  AND tmv.nombre = 'ENTRADA_PLANTA_EXTERNA'
+                  AND ddr.id_doc_salida = d.id
+                  AND ddr.id_balon IS NOT NULL
+                  AND m.id_balon = ddr.id_balon
+            ) AS retorno_fisico,
             d.periodo_contable, d.operacion, d.observaciones, d.id_archivo_pdf,
             d.estado, d.fecha_creacion, d.fecha_modificacion,
             d.id_usuario_creacion, uc.nombre AS nombre_usuario_creacion,
@@ -311,6 +351,7 @@ BEGIN
         LEFT JOIN gen_sucursal suc ON suc.id = d.id_sucursal
         LEFT JOIN gen_almacen alm ON alm.id = d.id_almacen
         LEFT JOIN gen_almacen almdest ON almdest.id = d.id_almacen_destino
+        LEFT JOIN gen_almacen almret ON almret.id = d.id_almacen_retorno
         LEFT JOIN cli_clientes cli ON cli.id = d.id_cliente
         LEFT JOIN cli_clientes prov ON prov.id = d.id_proveedor
         LEFT JOIN gen_vehiculo veh ON veh.id = d.id_vehiculo
@@ -330,7 +371,9 @@ BEGIN
         LEFT JOIN cli_clientes trans ON trans.id = d.id_transportista
         LEFT JOIN cli_clientes dest ON dest.id = d.id_destinatario
         LEFT JOIN gen_chofer cho ON cho.id = d.id_chofer
+        LEFT JOIN tra_trabajadores tra ON tra.id = cho.id_trabajador AND tra.estado = 1
         LEFT JOIN gen_lista_opciones tdch ON tdch.id = cho.id_tipo_documento
+        LEFT JOIN gen_lista_opciones tdtra ON tdtra.id = tra.id_tipo_documento
         LEFT JOIN gen_lista_opciones tddest ON tddest.id = dest.id_tipo_documento
         LEFT JOIN gen_lista_opciones tdcli ON tdcli.id = cli.id_tipo_documento
         LEFT JOIN auth_usuarios uc ON uc.id = d.id_usuario_creacion

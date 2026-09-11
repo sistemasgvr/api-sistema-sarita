@@ -5,6 +5,22 @@
 -- También se invoca en cascada desde ven_eliminar_comprobante (path con
 -- id_venta): ese camino no pasa por inv_revertir_por_documento, así que la
 -- liberación de balones vive aquí.
+--
+-- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
+-- una orden de planta con compra activa vinculada no se anula (anular la
+-- compra primero). Con ello la reversa por ORDEN_SALIDA cubre ida + retorno
+-- completos (envases y gas declarado en la orden).
+--
+-- Actualizada por database_sql/migraciones/20260910_inv_soft_raise_y_recojo.sql:
+-- el id del estado ANULADA se resuelve antes de revertir inventario.
+--
+-- Actualizada por database_sql/migraciones/20260910_venta_custodia_mostrador_anular.sql:
+-- un REPARTO ya REALIZADA bloquea la anulación. La entrega ocurrió: los
+-- cilindros están EN_PODER_CLIENTE y liberarlos a DISPONIBLE inventaría
+-- envases que no tenemos. La corrección documental es una nota de crédito.
+--
+-- Actualizada por database_sql/migraciones/20260911_w1_nc_planta_devolver.sql:
+-- bloquea si hay bal_recojo PROGRAMADO/EN_RUTA con id_doc_salida = p_id.
 DROP FUNCTION IF EXISTS doc_anular_salida(p_id integer, p_motivo character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION doc_anular_salida(p_id integer, p_motivo character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -13,6 +29,7 @@ CREATE OR REPLACE FUNCTION doc_anular_salida(p_id integer, p_motivo character va
 AS $function$
 DECLARE
     v_doc RECORD;
+    v_compra RECORD;
     v_id_anulada INTEGER;
     v_rev JSON;
     v_id_disponible INTEGER;
@@ -43,6 +60,57 @@ BEGIN
         );
     END IF;
 
+    -- Ticket PSE pendiente: anular rompería el correlativo/ticket en SUNAT
+    -- sin poder reconciliar (consultarEstado rechaza ANULADA).
+    IF NULLIF(TRIM(COALESCE(v_doc.ticket_sunat, '')), '') IS NOT NULL THEN
+        RETURN json_build_object(
+            'error',
+            'La guía tiene un ticket SUNAT pendiente; consulta el CDR o espera la aceptación antes de anular',
+            'registro', NULL
+        );
+    END IF;
+
+    -- Orden de planta con factura vinculada: la compra tiene su gas del retorno
+    -- etiquetado COMPRA, que la reversa por ORDEN_SALIDA no alcanza. Anular la
+    -- compra primero (que desvincula y ajusta el gas) deja todo consistente.
+    IF v_doc.id_comprobante_compra IS NOT NULL AND EXISTS (
+        SELECT 1 FROM com_comprobante_compra c
+        WHERE c.id = v_doc.id_comprobante_compra AND c.estado = 1
+    ) THEN
+        SELECT c.serie, c.numero INTO v_compra
+        FROM com_comprobante_compra c
+        WHERE c.id = v_doc.id_comprobante_compra;
+
+        RETURN json_build_object(
+            'error', format(
+                'La orden tiene la compra %s vinculada; anúlala primero en Compras',
+                COALESCE(NULLIF(TRIM(CONCAT_WS('-', v_compra.serie, v_compra.numero)), ''), '#' || v_doc.id_comprobante_compra)
+            ),
+            'registro', NULL
+        );
+    END IF;
+
+    -- Entrega ya realizada: los cilindros pasaron a EN_PODER_CLIENTE y el
+    -- cliente se quedó con ellos. Anular repondría stock inexistente, así que
+    -- se bloquea aquí y también en la cascada desde ven_eliminar_comprobante.
+    IF EXISTS (
+        SELECT 1
+        FROM age_actividad a
+        JOIN gen_lista_opciones ta ON ta.id = a.id_tipo_actividad
+        LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
+        WHERE a.id_doc_salida = p_id
+          AND a.estado = 1
+          AND UPPER(TRIM(ta.nombre)) = 'REPARTO'
+          AND UPPER(TRIM(COALESCE(ea.nombre, ''))) = 'REALIZADA'
+    ) THEN
+        RETURN json_build_object(
+            'error',
+            'El reparto de esta orden ya fue entregado al cliente; no se puede anular. '
+            || 'Registra la devolución de los cilindros o emite una nota de crédito.',
+            'registro', NULL
+        );
+    END IF;
+
     -- No anular si hay reparto / actividad operativa todavía vigente.
     IF EXISTS (
         SELECT 1
@@ -56,6 +124,23 @@ BEGIN
     ) THEN
         RETURN json_build_object(
             'error', 'Hay actividad de reparto vigente; cancélala antes de anular la OS',
+            'registro', NULL
+        );
+    END IF;
+
+    -- Recojo vivo de planta: anular la OS dejaría el recojo apuntando a un
+    -- documento muerto y, al cerrarlo, ENTRADA_LLENADO sin ida que revertir.
+    IF EXISTS (
+        SELECT 1
+        FROM bal_recojo r
+        JOIN gen_lista_opciones er ON er.id = r.id_estado
+        WHERE r.id_doc_salida = p_id
+          AND r.estado = 1
+          AND UPPER(TRIM(er.nombre)) IN ('PROGRAMADO', 'EN_RUTA')
+    ) THEN
+        RETURN json_build_object(
+            'error',
+            'La orden tiene un recojo programado o en ruta; ciérralo o cancélalo antes de anularla',
             'registro', NULL
         );
     END IF;
@@ -81,6 +166,21 @@ BEGIN
     IF v_id_disponible IS NULL OR v_id_pend_envio IS NULL OR v_id_transito IS NULL THEN
         RETURN json_build_object(
             'error', 'Faltan estados DISPONIBLE, PENDIENTE_ENVIO o EN_TRANSITO en catalogo EstadoBalon',
+            'registro', NULL
+        );
+    END IF;
+
+    -- El estado ANULADA se resuelve antes de revertir inventario: si faltara en
+    -- el catálogo, el error soft se devolvía con los movimientos ya revertidos y
+    -- la orden seguía activa.
+    SELECT lo.id INTO v_id_anulada
+    FROM gen_lista_opciones lo
+    JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoCicloSalida' AND lo.nombre = 'ANULADA' AND lo.estado = 1;
+
+    IF v_id_anulada IS NULL THEN
+        RETURN json_build_object(
+            'error', 'No se encontro el estado ANULADA en catalogo EstadoCicloSalida',
             'registro', NULL
         );
     END IF;
@@ -140,18 +240,6 @@ BEGIN
             AND pd.rol = 'ENTREGADO'
             AND pd.id_balon IS NOT NULL
       );
-
-    SELECT lo.id INTO v_id_anulada
-    FROM gen_lista_opciones lo
-    JOIN gen_lista l ON l.id = lo.id_lista
-    WHERE l.nombre = 'EstadoCicloSalida' AND lo.nombre = 'ANULADA' AND lo.estado = 1;
-
-    IF v_id_anulada IS NULL THEN
-        RETURN json_build_object(
-            'error', 'No se encontro el estado ANULADA en catalogo EstadoCicloSalida',
-            'registro', NULL
-        );
-    END IF;
 
     UPDATE doc_salida
     SET id_estado_ciclo = v_id_anulada,

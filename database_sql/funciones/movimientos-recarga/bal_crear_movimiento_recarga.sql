@@ -22,6 +22,7 @@ DECLARE
     v_mov JSON;
     v_obs VARCHAR;
     v_id_producto_gas_balon INTEGER;
+    v_aplic JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -147,11 +148,14 @@ BEGIN
 
     -- Fase 5: si la recarga trae ficha ICP, el cilindro queda con ella vigente.
     IF p_id_lote_protocolo IS NOT NULL AND p_id_balon IS NOT NULL THEN
-        PERFORM bal_aplicar_lote_protocolo_balones(
+        v_aplic := bal_aplicar_lote_protocolo_balones(
             p_id_lote_protocolo,
             json_build_array(p_id_balon),
             p_id_usuario_auditoria
         );
+        IF v_aplic->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_aplic->>'error';
+        END IF;
     END IF;
 
     v_obs := COALESCE(NULLIF(TRIM(p_observacion), ''), 'Recarga planta externa');

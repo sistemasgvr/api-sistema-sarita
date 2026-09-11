@@ -2,6 +2,9 @@
 -- Function: bal_devolver_alquiler_detalle
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.945Z
+--
+-- Actualizada por database_sql/migraciones/20260911_w1_nc_planta_devolver.sql:
+-- al devolver, cancela recojos vivos (PROGRAMADO/EN_RUTA) del alquiler.
 DROP FUNCTION IF EXISTS bal_devolver_alquiler_detalle(p_id integer, p_fecha_devolucion date, p_id_almacen_destino integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_devolver_alquiler_detalle(p_id integer, p_fecha_devolucion date DEFAULT CURRENT_DATE, p_id_almacen_destino integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -20,6 +23,8 @@ DECLARE
     v_mov_result JSON;
     v_pendientes INTEGER;
     v_nombre_estado_balon VARCHAR;
+    v_id_recojo INTEGER;
+    v_cancel JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -180,6 +185,26 @@ BEGIN
         WHERE id = v_id_alquiler
           AND estado = 1;
     END IF;
+
+    -- Devolución manual (o vía resultado): el recojo programado ya no aplica.
+    FOR v_id_recojo IN
+        SELECT r.id
+        FROM bal_recojo r
+        JOIN gen_lista_opciones er ON er.id = r.id_estado
+        WHERE r.id_alquiler = v_id_alquiler
+          AND r.estado = 1
+          AND UPPER(TRIM(er.nombre)) IN ('PROGRAMADO', 'EN_RUTA')
+        ORDER BY r.id
+    LOOP
+        v_cancel := bal_actualizar_recojo(
+            p_id => v_id_recojo,
+            p_estado_nombre => 'CANCELADO',
+            p_id_usuario_auditoria => p_id_usuario_auditoria
+        );
+        IF v_cancel->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_cancel->>'error';
+        END IF;
+    END LOOP;
 
     RETURN bal_obtener_alquiler_detalle(p_id);
 EXCEPTION

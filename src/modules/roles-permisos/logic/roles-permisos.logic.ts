@@ -39,7 +39,26 @@ export class RolesPermisosLogic {
     return mapSingleResult(result, 'No se pudo asignar el permiso al rol');
   }
 
-  async quitar(id: number, idUsuarioAuditoria?: number) {
+  async quitar(
+    id: number,
+    idUsuarioAuditoria?: number,
+    permisosCaller: string[] = [],
+  ) {
+    const callerTieneTodo = permisosCaller.includes(PermisoBanderas.AUTH_TODO);
+    if (!callerTieneTodo) {
+      const idPermiso =
+        await this.rolesPermisosModel.obtenerIdPermisoDeAsignacion(id);
+      if (idPermiso != null) {
+        const esAuthTodo =
+          await this.rolesPermisosModel.esPermisoAuthTodo(idPermiso);
+        if (esAuthTodo) {
+          throw new ForbiddenException(
+            'Solo un usuario con auth.todo puede quitar el permiso auth.todo',
+          );
+        }
+      }
+    }
+
     const result = await this.rolesPermisosModel.quitar(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Asignación ${id} no encontrada`);
   }

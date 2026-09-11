@@ -1,7 +1,5 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_obtener_siguiente_correlativo_resumen
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.966Z
+-- Wave2: advisory lock por fecha para evitar correlativos duplicados en carrera.
 DROP FUNCTION IF EXISTS ven_obtener_siguiente_correlativo_resumen(p_fecha date);
 
 CREATE OR REPLACE FUNCTION ven_obtener_siguiente_correlativo_resumen(p_fecha date)
@@ -11,8 +9,17 @@ AS $function$
 DECLARE
     v_ultimo INTEGER;
     v_siguiente VARCHAR(10);
+    v_lock_key BIGINT;
 BEGIN
     SET TIME ZONE 'America/Lima';
+
+    IF p_fecha IS NULL THEN
+        RETURN json_build_object('error', 'La fecha del resumen es obligatoria');
+    END IF;
+
+    -- Namespace 872018 + yyyymmdd como segundo entero del advisory lock.
+    v_lock_key := to_char(p_fecha, 'YYYYMMDD')::BIGINT;
+    PERFORM pg_advisory_xact_lock(872018, v_lock_key::INTEGER);
 
     SELECT COALESCE(MAX(NULLIF(regexp_replace(correlativo, '\D', '', 'g'), '')::INTEGER), 0)
     INTO v_ultimo

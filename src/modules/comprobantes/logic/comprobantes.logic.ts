@@ -74,7 +74,7 @@ function diasDesdeFechaComprobante(fecha: string | Date): number {
   return Math.floor((hoy - inicio) / 86_400_000);
 }
 
-interface SunatResponsePayload {
+export interface SunatResponsePayload {
   success?: boolean;
   error?: { code?: string; message?: string };
   ticket?: string;
@@ -195,29 +195,6 @@ export class ComprobantesLogic {
       );
     }
 
-    let correlativo = dto.correlativo?.trim();
-    if (!correlativo) {
-      const siguiente = await this.model.obtenerSiguienteCorrelativoResumen(
-        dto.fecha,
-      );
-      correlativo = siguiente.correlativo || '001';
-    }
-
-    const payload = this.invoiceMapper.mapComprobantesToSummaryPayload(
-      items,
-      empresa,
-      dto.fecha,
-      correlativo,
-    );
-
-    const respuesta = await this.facturacionClient.enviarResumenDiario(payload);
-    const sunatResponse = (respuesta.sunatResponse ??
-      {}) as SunatResponsePayload;
-    const estadoSunatNombre = this.resolverEstadoSunatNombre(sunatResponse);
-    const idEstadoSunat =
-      await this.model.resolverIdEstadoSunat(estadoSunatNombre);
-    const ticket = sunatResponse.ticket ?? null;
-
     const totalImporte = items.reduce(
       (acc, item) => acc + Number(item.total_importe ?? 0),
       0,
@@ -231,25 +208,96 @@ export class ComprobantesLogic {
       0,
     );
 
-    const resumenCreado = await this.model.crearResumenDiario({
-      fecha: dto.fecha,
-      correlativo,
-      ticketSunat: ticket,
-      idEstadoSunat,
-      cdrRespuesta: JSON.stringify(respuesta.sunatResponse ?? respuesta),
-      moneda: items[0]?.codigo_moneda ?? 'PEN',
-      cantidadDocs: items.length,
-      totalImporte,
-      totalIgv,
-      totalValorVenta,
-      idsComprobante: items.map((item) => item.id),
-      idUsuarioAuditoria: dto.idUsuarioAuditoria,
-    });
-
-    if (resumenCreado.error || !resumenCreado.registro) {
+    const claim = await this.model.reclamarResumenLock(dto.fecha);
+    if (!claim.ok) {
       throw new BadRequestException(
-        resumenCreado.error ??
+        claim.error ?? 'No se pudo reservar el correlativo del resumen diario',
+      );
+    }
+
+    let correlativo = dto.correlativo?.trim();
+    let resumenCreado: Awaited<
+      ReturnType<ComprobantesModel['crearResumenDiario']>
+    > | null = null;
+
+    try {
+      if (!correlativo) {
+        const siguiente = await this.model.obtenerSiguienteCorrelativoResumen(
+          dto.fecha,
+        );
+        correlativo = siguiente.correlativo || '001';
+      }
+
+      // Persistir primero: si SUNAT responde OK pero falla el INSERT local,
+      // el correlativo/ticket se perdían y se podía reenviar el mismo lote.
+      resumenCreado = await this.model.crearResumenDiario({
+        fecha: dto.fecha,
+        correlativo,
+        ticketSunat: null,
+        idEstadoSunat: null,
+        cdrRespuesta: null,
+        moneda: items[0]?.codigo_moneda ?? 'PEN',
+        cantidadDocs: items.length,
+        totalImporte,
+        totalIgv,
+        totalValorVenta,
+        idsComprobante: items.map((item) => item.id),
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      });
+    } finally {
+      await this.model.liberarResumenLock(claim);
+    }
+
+    if (!resumenCreado || resumenCreado.error || !resumenCreado.registro) {
+      throw new BadRequestException(
+        resumenCreado?.error ??
           'No se pudo registrar el historial del resumen diario',
+      );
+    }
+
+    const payload = this.invoiceMapper.mapComprobantesToSummaryPayload(
+      items,
+      empresa,
+      dto.fecha,
+      correlativo,
+    );
+
+    let respuesta: {
+      sunatResponse?: SunatResponsePayload;
+      hash?: string;
+    };
+    try {
+      respuesta = await this.facturacionClient.enviarResumenDiario(payload);
+    } catch (error) {
+      this.logger.warn(
+        `Resumen diario #${resumenCreado.registro.id} quedó local sin ticket SUNAT: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      throw error;
+    }
+
+    const sunatResponse = (respuesta.sunatResponse ??
+      {}) as SunatResponsePayload;
+    const estadoSunatNombre = this.resolverEstadoSunatNombre(sunatResponse);
+    const idEstadoSunat =
+      await this.model.resolverIdEstadoSunat(estadoSunatNombre);
+    const ticket = sunatResponse.ticket ?? null;
+
+    const resumenActualizado = await this.model.registrarRespuestaResumenDiario(
+      resumenCreado.registro.id,
+      {
+        idEstadoSunat,
+        ticketSunat: ticket,
+        cdrRespuesta: JSON.stringify(respuesta.sunatResponse ?? respuesta),
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      },
+    );
+
+    if (resumenActualizado.error || !resumenActualizado.registro) {
+      throw new BadRequestException(
+        resumenActualizado.error ??
+          'El resumen se envió a SUNAT pero no se pudo guardar la respuesta',
       );
     }
 
@@ -259,7 +307,7 @@ export class ComprobantesLogic {
         ticketSunat: ticket ?? undefined,
         cdrRespuesta: JSON.stringify({
           tipo: 'resumen_diario',
-          id_resumen: resumenCreado.registro.id,
+          id_resumen: resumenActualizado.registro.id,
           fecha: dto.fecha,
           correlativo,
           resumen: respuesta.sunatResponse ?? respuesta,
@@ -270,8 +318,8 @@ export class ComprobantesLogic {
 
     return {
       resumen: {
-        ...resumenCreado.registro,
-        detalles: resumenCreado.detalles ?? [],
+        ...resumenActualizado.registro,
+        detalles: resumenActualizado.detalles ?? resumenCreado.detalles ?? [],
       },
       fecha: dto.fecha,
       correlativo,
@@ -402,6 +450,19 @@ export class ComprobantesLogic {
     return mapSingleResult(result, `Comprobante ${id} no encontrado`);
   }
 
+  /**
+   * El usuario respondió que la venta no es para envío: cierra la custodia de
+   * los cilindros en el acto, porque sin orden de salida no habrá reparto que
+   * los saque de la reserva PENDIENTE_ENVIO.
+   */
+  async confirmarEntregaMostrador(id: number, dto: AuditoriaDto) {
+    const result = await this.model.confirmarEntregaMostrador(
+      id,
+      dto.idUsuarioAuditoria,
+    );
+    return mapSingleResult(result, `Comprobante ${id} no encontrado`);
+  }
+
   async eliminar(id: number, dto: AuditoriaDto) {
     const result = await this.model.eliminar(id, dto.idUsuarioAuditoria);
     return mapDeleteResult(result, `Comprobante ${id} no encontrado`);
@@ -477,6 +538,16 @@ export class ComprobantesLogic {
     }
 
     if (estadoSunatNombre === 'RECHAZADO') {
+      if (tipo === '07') {
+        const revertido = await this.model.revertirNcSunatRechazada(
+          id,
+          dto.idUsuarioAuditoria,
+        );
+        if (revertido?.error) {
+          throw new BadRequestException(revertido.error);
+        }
+      }
+
       void this.notificarEmisionComprobante({
         idComprobante: id,
         serie: comprobante.registro.serie,
@@ -824,6 +895,20 @@ export class ComprobantesLogic {
       }
 
       if (estadoSunatNombre === 'RECHAZADO') {
+        // NC aplica stock/CxC al crear. Si SUNAT rechaza, revertir + soft-delete
+        // para no inflar inventario y liberar el tope de cantidades.
+        if (tipoDoc === '07') {
+          const revertido = await this.model.revertirNcSunatRechazada(
+            id,
+            dto.idUsuarioAuditoria,
+          );
+          if (revertido?.error) {
+            this.logger.warn(
+              `NC #${id} rechazada por SUNAT pero no se pudo revertir/eliminar: ${revertido.error}`,
+            );
+          }
+        }
+
         void this.notificarEmisionComprobante({
           idComprobante: id,
           serie: comprobante.registro.serie,

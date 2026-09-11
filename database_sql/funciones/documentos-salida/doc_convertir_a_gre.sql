@@ -58,6 +58,9 @@ BEGIN
     IF v_doc.numero_sunat IS NOT NULL AND v_doc.serie = v_serie THEN
         v_numero := v_doc.numero_sunat;
     ELSE
+        -- Candado por serie dentro de la TX: evita dos GRE concurrentes con el mismo correlativo.
+        PERFORM pg_advisory_xact_lock(872017, hashtext(v_serie));
+
         SELECT COALESCE(MAX(NULLIF(REGEXP_REPLACE(numero_sunat, '\D', '', 'g'), '')::INTEGER), 0) + 1
         INTO v_siguiente
         FROM doc_salida

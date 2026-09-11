@@ -20,6 +20,20 @@ export class RolesPermisosModel {
     ]);
   }
 
+  async obtenerIdPermisoDeAsignacion(
+    idAsignacion: number,
+  ): Promise<number | null> {
+    const result = await this.db.query<{ id_permiso: number }>(
+      `
+      SELECT id_permiso
+      FROM auth_roles_permisos
+      WHERE id = $1 AND estado = TRUE
+      `,
+      [idAsignacion],
+    );
+    return result.rows[0]?.id_permiso ?? null;
+  }
+
   async esPermisoAuthTodo(idPermiso: number): Promise<boolean> {
     const result = await this.db.query<{ es_auth_todo: boolean }>(
       `

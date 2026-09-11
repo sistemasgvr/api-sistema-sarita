@@ -22,6 +22,9 @@ BEGIN
         RETURN json_build_object('error', 'La fecha del resumen es obligatoria', 'registro', NULL);
     END IF;
 
+    -- Misma llave que ven_obtener_siguiente_correlativo_resumen (872018 + yyyymmdd).
+    PERFORM pg_advisory_xact_lock(872018, to_char(p_fecha, 'YYYYMMDD')::INTEGER);
+
     v_correlativo := LPAD(regexp_replace(COALESCE(NULLIF(TRIM(p_correlativo), ''), '001'), '\D', '', 'g'), 3, '0');
     v_identificador := 'RC-' || to_char(p_fecha, 'YYYYMMDD') || '-' || v_correlativo;
 

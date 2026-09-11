@@ -25,6 +25,7 @@ DECLARE
     v_obs VARCHAR;
     v_ya_tiene_entrada BOOLEAN;
     v_capacidad NUMERIC;
+    v_aplic JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -85,11 +86,14 @@ BEGIN
 
     -- Fase 5: si se corrige la ficha ICP, el cilindro pasa a tenerla vigente.
     IF p_id_lote_protocolo IS NOT NULL AND v_id_balon IS NOT NULL THEN
-        PERFORM bal_aplicar_lote_protocolo_balones(
+        v_aplic := bal_aplicar_lote_protocolo_balones(
             p_id_lote_protocolo,
             json_build_array(v_id_balon),
             p_id_usuario_auditoria
         );
+        IF v_aplic->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_aplic->>'error';
+        END IF;
     END IF;
 
     -- Solo forzar DISPONIBLE al registrar llegada por primera vez, y solo si el

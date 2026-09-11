@@ -2,6 +2,12 @@
 -- Function: com_actualizar_compra_detalle
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.953Z
+-- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
+--   · los errores de inventario que ocurren después de revertir el INGRESO se
+--     levantan con RAISE: antes se devolvían como {error} y la reversa quedaba
+--     confirmada sin el nuevo movimiento (stock perdido);
+--   · si la línea es de gas de una compra vinculada a una orden de planta con
+--     retorno registrado, el gas ingresado se re-sincroniza a lo facturado.
 DROP FUNCTION IF EXISTS com_actualizar_compra_detalle(p_id_detalle integer, p_cantidad numeric, p_precio_unitario numeric, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION com_actualizar_compra_detalle(p_id_detalle integer, p_cantidad numeric DEFAULT NULL::numeric, p_precio_unitario numeric DEFAULT NULL::numeric, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -28,10 +34,13 @@ BEGIN
         COALESCE(d.id_almacen, c.id_almacen) AS id_almacen,
         c.fecha,
         c.serie,
-        c.numero
+        c.numero,
+        c.id_doc_salida,
+        COALESCE(p.es_gas, FALSE) AS es_gas
     INTO v_detalle
     FROM com_comprobante_compra_detalle d
     JOIN com_comprobante_compra c ON c.id = d.id_comprobante
+    LEFT JOIN pro_producto p ON p.id = d.id_producto
     WHERE d.id = p_id_detalle
       AND d.estado = 1
       AND c.estado = 1
@@ -61,6 +70,8 @@ BEGIN
 
     v_delta := v_nueva_cantidad - v_detalle.cantidad;
 
+    -- A partir de acá cualquier fallo se levanta con RAISE: la reversa del
+    -- INGRESO y el nuevo movimiento tienen que confirmarse juntos o ninguno.
     IF v_detalle.afecta_stock AND v_delta <> 0 THEN
         v_result_movimiento := inv_revertir_por_documento(
             'COMPRA',
@@ -69,7 +80,7 @@ BEGIN
             v_detalle.id
         );
         IF (v_result_movimiento->>'error') IS NOT NULL THEN
-            RETURN json_build_object('error', v_result_movimiento->>'error', 'registro', NULL);
+            RAISE EXCEPTION '%', v_result_movimiento->>'error';
         END IF;
 
         v_result_movimiento := inv_registrar_movimiento(
@@ -86,7 +97,7 @@ BEGIN
             p_id_usuario_auditoria      => p_id_usuario_auditoria
         );
         IF (v_result_movimiento->>'error') IS NOT NULL THEN
-            RETURN json_build_object('error', v_result_movimiento->>'error', 'registro', NULL);
+            RAISE EXCEPTION '%', v_result_movimiento->>'error';
         END IF;
     END IF;
 
@@ -99,6 +110,13 @@ BEGIN
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id_detalle;
+
+    -- Gas de una compra de planta: la cantidad facturada es la que ingresó con
+    -- el retorno; si cambió, el stock se ajusta. Va después del UPDATE porque
+    -- la sincronización lee las líneas vigentes de la compra.
+    IF v_detalle.id_doc_salida IS NOT NULL AND v_detalle.es_gas AND v_delta <> 0 THEN
+        PERFORM bal_sincronizar_gas_retorno_planta(v_detalle.id_doc_salida, p_id_usuario_auditoria);
+    END IF;
 
     PERFORM com_recalcular_totales_compra(v_detalle.id_comprobante, p_id_usuario_auditoria);
 

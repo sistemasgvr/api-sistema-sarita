@@ -2,6 +2,14 @@
 -- Function: bal_generar_recojo_recarga_planta
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.946Z
+-- Actualizada por database_sql/migraciones/20260910_inv_soft_raise_y_recojo.sql:
+--   · el recojo exige la orden GENERADA / EMITIDA_SUNAT (EstadoCicloSalida);
+--     antes pedía 'ENVIADO' / 'CERRADO', que no existen en ese catálogo, así
+--     que ninguna orden pasaba el filtro;
+--   · la llamada a bal_crear_recojo usaba p_id_doc_salida, que no es parámetro
+--     de esta función (error de compilación en tiempo de ejecución);
+--   · el bucle ignora las líneas de producto (id_balon NULL), que reventaban la
+--     validación de estado con un balón inexistente.
 DROP FUNCTION IF EXISTS bal_generar_recojo_recarga_planta(p_id_recarga_planta integer, p_fecha_programada date, p_id_usuario_responsable integer, p_observacion character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_generar_recojo_recarga_planta(p_id_recarga_planta integer, p_fecha_programada date DEFAULT NULL::date, p_id_usuario_responsable integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -31,9 +39,14 @@ BEGIN
         RETURN json_build_object('error', 'Orden de recarga en planta no encontrada', 'registro', NULL);
     END IF;
 
-    IF v_rp_estado NOT IN ('ENVIADO', 'CERRADO') THEN
+    -- Sin salida generada los cilindros nunca llegaron a la planta: no hay nada
+    -- que recoger.
+    IF COALESCE(v_rp_estado, '') NOT IN ('GENERADA', 'EMITIDA_SUNAT') THEN
         RETURN json_build_object(
-            'error', 'La orden de recarga en planta aún no ha sido enviada',
+            'error', CASE
+                WHEN v_rp_estado = 'ANULADA' THEN 'La orden de recarga en planta está anulada'
+                ELSE 'La orden aún está en borrador: genérala antes de programar el recojo'
+            END,
             'registro', NULL
         );
     END IF;
@@ -53,11 +66,14 @@ BEGIN
 
     v_fecha := COALESCE(p_fecha_programada, CURRENT_DATE + 5);
 
+    -- Solo las líneas de cilindro: la orden también lleva líneas de gas y
+    -- accesorios, que no se recogen.
     FOR v_rec IN
         SELECT d.id_balon
         FROM doc_salida_detalle d
         WHERE d.id_doc_salida = p_id_recarga_planta
           AND d.estado = 1
+          AND d.id_balon IS NOT NULL
     LOOP
         v_id_balon := v_rec.id_balon;
         IF NOT EXISTS (
@@ -87,7 +103,7 @@ BEGIN
         v_proveedor,
         NULL,
         NULL,
-        p_id_doc_salida,
+        p_id_recarga_planta,
         v_fecha,
         NULL::TIME,
         p_id_usuario_responsable,

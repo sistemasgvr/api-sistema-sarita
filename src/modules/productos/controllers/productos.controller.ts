@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   StreamableFile,
 } from '@nestjs/common';
 import {
@@ -21,6 +22,7 @@ import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthRequest } from '../../../common/interfaces/auth-request.interface';
 import {
   CreateProductoDto,
   FiltroProductosDto,
@@ -91,7 +93,8 @@ export class ProductosController {
   @Post()
   @Permisos(PermisoBanderas.PRODUCTOS_CREAR)
   @ApiOperation({ summary: 'Crear producto' })
-  crear(@Body() dto: CreateProductoDto) {
+  crear(@Body() dto: CreateProductoDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.productosLogic.crear(dto);
   }
 
@@ -102,7 +105,9 @@ export class ProductosController {
   restaurar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.productosLogic.restaurar(id, dto.idUsuarioAuditoria);
   }
 
@@ -113,7 +118,9 @@ export class ProductosController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateProductoDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.productosLogic.actualizar(id, dto);
   }
 
@@ -124,7 +131,9 @@ export class ProductosController {
   eliminar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.productosLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

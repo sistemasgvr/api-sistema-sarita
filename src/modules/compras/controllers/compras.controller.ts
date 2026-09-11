@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import {
   ApiNotFoundResponse,
@@ -15,9 +16,11 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   ActualizarCompraCabeceraDto,
   ActualizarCompraDetalleDto,
@@ -28,6 +31,10 @@ import {
 } from '../dto/compras.dto';
 import { ComprasLogic } from '../logic/compras.logic';
 
+type AuthRequest = Request & { user: AuthenticatedUser };
+
+// El usuario de auditoría sale SIEMPRE del JWT: el body puede traerlo por
+// compatibilidad, pero nunca decide quién firma la operación.
 @ApiTags('Compras')
 @Controller('/compras')
 export class ComprasController {
@@ -49,7 +56,9 @@ export class ComprasController {
   registrarBalones(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RegistrarBalonesCompraDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.comprasLogic.registrarBalones(id, dto);
   }
 
@@ -67,7 +76,8 @@ export class ComprasController {
   @Post()
   @Permisos(PermisoBanderas.COMPRAS_CREAR)
   @ApiOperation({ summary: 'Registrar nuevo comprobante de compra' })
-  crear(@Body() dto: CreateCompraDto) {
+  crear(@Body() dto: CreateCompraDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.comprasLogic.crear(dto);
   }
 
@@ -84,7 +94,9 @@ export class ComprasController {
   actualizarCabecera(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ActualizarCompraCabeceraDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.comprasLogic.actualizarCabecera(id, dto);
   }
 
@@ -96,7 +108,9 @@ export class ComprasController {
   crearDetalle(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateCompraDetalleLineaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.comprasLogic.crearDetalle(id, dto);
   }
 
@@ -111,7 +125,9 @@ export class ComprasController {
   actualizarDetalle(
     @Param('idDetalle', ParseIntPipe) idDetalle: number,
     @Body() dto: ActualizarCompraDetalleDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.comprasLogic.actualizarDetalle(idDetalle, dto);
   }
 
@@ -123,7 +139,9 @@ export class ComprasController {
   eliminarDetalle(
     @Param('idDetalle', ParseIntPipe) idDetalle: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.comprasLogic.eliminarDetalle(idDetalle, dto.idUsuarioAuditoria);
   }
 
@@ -136,7 +154,12 @@ export class ComprasController {
   @ApiNotFoundResponse({
     description: 'El comprobante que intenta anular no existe o ya fue anulado',
   })
-  anular(@Param('id', ParseIntPipe) id: number, @Body() dto: AuditoriaDto) {
+  anular(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.comprasLogic.anular(id, dto.idUsuarioAuditoria);
   }
 }

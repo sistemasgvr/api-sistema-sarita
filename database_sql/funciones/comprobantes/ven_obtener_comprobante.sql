@@ -203,7 +203,8 @@ BEGIN
                 LEFT JOIN gen_lista_opciones es ON es.id = nc.id_estado_sunat
                 WHERE nc.id_comprobante_origen = p_id
                   AND nc.estado = 1
-                  AND COALESCE(es.nombre, '') NOT IN ('BAJA', 'RECHAZADO')
+                  -- RECHAZADO cuenta hasta soft-delete (ven_revertir_nc_sunat_rechazada).
+                  AND COALESCE(es.nombre, '') NOT IN ('BAJA')
             ), 0) AS cantidad_nc_previa,
             GREATEST(
                 d.cantidad - COALESCE((
@@ -219,7 +220,7 @@ BEGIN
                     LEFT JOIN gen_lista_opciones es ON es.id = nc.id_estado_sunat
                     WHERE nc.id_comprobante_origen = p_id
                       AND nc.estado = 1
-                      AND COALESCE(es.nombre, '') NOT IN ('BAJA', 'RECHAZADO')
+                      AND COALESCE(es.nombre, '') NOT IN ('BAJA')
                 ), 0),
                 0
             ) AS cantidad_disponible_nc,

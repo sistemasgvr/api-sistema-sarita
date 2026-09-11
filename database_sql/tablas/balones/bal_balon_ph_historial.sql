@@ -1,6 +1,9 @@
 -- Synced from DEV via database_sql/scripts/sync-tables-from-dev.js
 -- Table: bal_balon_ph_historial
 -- Generated: 2026-09-02T21:42:35.580Z
+--
+-- ⚠️ id_doc_salida está pendiente de aplicar — ver
+-- database_sql/migraciones/20260910_retorno_fisico_fecha_ph.sql.
 
 CREATE TABLE bal_balon_ph_historial (
     id integer NOT NULL,
@@ -13,6 +16,9 @@ CREATE TABLE bal_balon_ph_historial (
     numero_certificado character varying(50),
     id_mantenimiento integer,
     id_movimiento_recarga integer,
+    -- Orden de salida (recarga en planta externa) que trajo la prueba: es el
+    -- tercer origen posible de una P.H., junto a mantenimiento y recarga propia.
+    id_doc_salida integer,
     es_vigente boolean DEFAULT true NOT NULL,
     observacion character varying(500),
     estado integer DEFAULT 1 NOT NULL,
@@ -49,6 +55,15 @@ ALTER TABLE bal_balon_ph_historial
 
 ALTER TABLE bal_balon_ph_historial
     ADD CONSTRAINT bal_balon_ph_historial_id_movimiento_recarga_fkey FOREIGN KEY (id_movimiento_recarga) REFERENCES public.bal_movimiento_recarga(id);
+
+ALTER TABLE bal_balon_ph_historial
+    ADD CONSTRAINT bal_balon_ph_historial_id_doc_salida_fkey FOREIGN KEY (id_doc_salida) REFERENCES public.doc_salida(id);
+
+-- Una sola fila de historial por (orden de salida, cilindro): hace idempotente
+-- a bal_sync_ph_desde_orden_salida si el retorno se reenvía o se corrige.
+CREATE UNIQUE INDEX uq_bal_ph_historial_doc_salida_balon
+    ON bal_balon_ph_historial USING btree (id_doc_salida, id_balon)
+    WHERE ((id_doc_salida IS NOT NULL) AND (estado = 1));
 
 ALTER TABLE bal_balon_ph_historial
     ADD CONSTRAINT bal_balon_ph_historial_id_organo_inspector_fkey FOREIGN KEY (id_organo_inspector) REFERENCES public.gen_lista_opciones(id);

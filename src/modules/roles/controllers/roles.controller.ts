@@ -61,7 +61,7 @@ export class RolesController {
     @Req() req: AuthRequest,
   ) {
     dto.idUsuarioAuditoria = req.user.id;
-    return this.rolesLogic.actualizar(id, dto);
+    return this.rolesLogic.actualizar(id, dto, req.user.permisos);
   }
 
   @Delete(':id')
@@ -74,6 +74,10 @@ export class RolesController {
     @Req() req: AuthRequest,
   ) {
     dto.idUsuarioAuditoria = req.user.id;
-    return this.rolesLogic.eliminar(id, dto.idUsuarioAuditoria);
+    return this.rolesLogic.eliminar(
+      id,
+      dto.idUsuarioAuditoria,
+      req.user.permisos,
+    );
   }
 }

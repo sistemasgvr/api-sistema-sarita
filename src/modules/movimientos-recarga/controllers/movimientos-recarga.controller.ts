@@ -8,12 +8,14 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
+import type { AuthRequest } from '../../../common/interfaces/auth-request.interface';
 import {
   CreateMovimientosRecargaDto,
   CreateRecargaClienteDto,
@@ -67,7 +69,11 @@ export class MovimientosRecargaController {
   @Post('recarga-cliente')
   @Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_CREAR)
   @ApiOperation({ summary: 'Recarga en mostrador (cliente trae balón + comprobante)' })
-  crearRecargaCliente(@Body() dto: CreateRecargaClienteDto) {
+  crearRecargaCliente(
+    @Body() dto: CreateRecargaClienteDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crearRecargaCliente(dto);
   }
 
@@ -76,7 +82,11 @@ export class MovimientosRecargaController {
   @ApiOperation({
     summary: 'Vincula recarga CLIENTE a un comprobante ya creado (POS unificado)',
   })
-  vincularRecargaClienteComprobante(@Body() dto: VincularRecargaClienteComprobanteDto) {
+  vincularRecargaClienteComprobante(
+    @Body() dto: VincularRecargaClienteComprobanteDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.vincularRecargaClienteComprobante(dto);
   }
 
@@ -91,7 +101,8 @@ export class MovimientosRecargaController {
   @Post()
   @Permisos(PermisoBanderas.MOVIMIENTOS_RECARGA_CREAR)
   @ApiOperation({ summary: 'Crear' })
-  crear(@Body() dto: CreateMovimientosRecargaDto) {
+  crear(@Body() dto: CreateMovimientosRecargaDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crear(dto);
   }
 
@@ -102,7 +113,9 @@ export class MovimientosRecargaController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateMovimientosRecargaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.actualizar(id, dto);
   }
 
@@ -113,7 +126,9 @@ export class MovimientosRecargaController {
   eliminar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.logic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

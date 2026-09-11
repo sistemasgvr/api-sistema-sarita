@@ -72,6 +72,9 @@ export interface DocumentoSalidaRegistro {
   id_provincia_almacen_destino?: number | null;
   id_departamento_almacen_destino?: number | null;
   id_pais_almacen_destino?: number | null;
+  /** Almacén al que llegaron los cilindros de planta externa (no pisa el origen). */
+  id_almacen_retorno?: number | null;
+  nombre_almacen_retorno?: string | null;
   id_cliente: number | null;
   nombre_cliente: string | null;
   id_destinatario: number | null;
@@ -158,6 +161,13 @@ export interface DocumentoSalidaRegistro {
   lote: string | null;
   fecha_vencimiento_lote: string | null;
   fecha_prueba_hidrostatica: string | null;
+  id_lote_protocolo?: number | null;
+  /**
+   * Los envases ya entraron al almacén (ENTRADA_PLANTA_EXTERNA vigente). Es el
+   * único signo de que la recarga volvió: `fecha_llegada_almacen` es un dato
+   * del retorno, no su prueba.
+   */
+  retorno_fisico?: boolean;
   periodo_contable: string | null;
   operacion: string | null;
   observaciones: string | null;
@@ -204,6 +214,11 @@ export interface DocumentoSalidaListItem {
   /** Destino del traslado: mueve el stock y da el punto de llegada de la GRE. */
   id_almacen_destino?: number | null;
   nombre_almacen_destino?: string | null;
+  /** Almacén al que llegaron los cilindros de planta externa (no pisa el origen). */
+  id_almacen_retorno?: number | null;
+  nombre_almacen_retorno?: string | null;
+  /** Los envases ya entraron al almacén: la recarga volvió de verdad. */
+  retorno_fisico?: boolean;
   id_cliente: number | null;
   nombre_cliente: string | null;
   id_proveedor: number | null;

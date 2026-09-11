@@ -111,6 +111,11 @@ BEGIN
                 -- del cajón y el arqueo salía con diferencia.
                 - COALESCE((v_totales->>'gastosCajaMediosCaja')::NUMERIC,
                            (v_totales->>'gastosCaja')::NUMERIC, 0)
+                -- P0 (20260910): el pago de una CxP de compra sale del cajón y no
+                -- se restaba, así que el efectivo esperado salía inflado. Las
+                -- sesiones cerradas antes de esta migración tienen totales_cierre
+                -- congelado sin la clave: el COALESCE las deja como estaban.
+                - COALESCE((v_totales->>'pagosProveedorMediosCaja')::NUMERIC, 0)
                 - COALESCE((v_totales->>'garantiasDevolucionMediosCaja')::NUMERIC, 0)
             ) AS "cajaEsperada"
         FROM fin_caja_sesion s

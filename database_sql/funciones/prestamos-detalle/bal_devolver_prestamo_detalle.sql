@@ -2,6 +2,9 @@
 -- Function: bal_devolver_prestamo_detalle
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.945Z
+--
+-- Actualizada por database_sql/migraciones/20260911_w1_nc_planta_devolver.sql:
+-- al devolver, cancela recojos vivos (PROGRAMADO/EN_RUTA) del préstamo.
 DROP FUNCTION IF EXISTS bal_devolver_prestamo_detalle(p_id integer, p_fecha_devolucion date, p_id_almacen_destino integer, p_id_usuario_auditoria integer, p_nombre_estado_contenido character varying, p_observacion character varying);
 
 CREATE OR REPLACE FUNCTION bal_devolver_prestamo_detalle(p_id integer, p_fecha_devolucion date DEFAULT CURRENT_DATE, p_id_almacen_destino integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_nombre_estado_contenido character varying DEFAULT 'VACIO'::character varying, p_observacion character varying DEFAULT NULL::character varying)
@@ -20,6 +23,8 @@ DECLARE
     v_obs_nueva VARCHAR(500);
     v_retorno JSON;
     v_id_producto_gas INTEGER;
+    v_id_recojo INTEGER;
+    v_cancel JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -111,6 +116,28 @@ BEGIN
         COALESCE(p_fecha_devolucion, CURRENT_DATE),
         p_id_usuario_auditoria
     );
+
+    -- Devolución manual (o vía resultado): el recojo programado ya no aplica.
+    -- Se cancela después de marcar fecha_devolucion para que POR_RECOGER de
+    -- este detalle no se revierta a PRESTADO_CLIENTE.
+    FOR v_id_recojo IN
+        SELECT r.id
+        FROM bal_recojo r
+        JOIN gen_lista_opciones er ON er.id = r.id_estado
+        WHERE r.id_prestamo = v_id_prestamo
+          AND r.estado = 1
+          AND UPPER(TRIM(er.nombre)) IN ('PROGRAMADO', 'EN_RUTA')
+        ORDER BY r.id
+    LOOP
+        v_cancel := bal_actualizar_recojo(
+            p_id => v_id_recojo,
+            p_estado_nombre => 'CANCELADO',
+            p_id_usuario_auditoria => p_id_usuario_auditoria
+        );
+        IF v_cancel->>'error' IS NOT NULL THEN
+            RETURN json_build_object('error', v_cancel->>'error', 'registro', NULL);
+        END IF;
+    END LOOP;
 
     RETURN bal_obtener_prestamo_detalle(p_id);
 END;

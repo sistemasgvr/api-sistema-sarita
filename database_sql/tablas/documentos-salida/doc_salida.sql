@@ -6,6 +6,9 @@
 -- id_direccion_cliente están pendientes de aplicar — ver
 -- database_sql/migraciones/20260904_doc_salida_direccion_entrega.sql.
 -- Volver a sincronizar este archivo con sync-tables-from-dev.js una vez aplicada.
+--
+-- ⚠️ id_almacen_retorno está pendiente de aplicar — ver
+-- database_sql/migraciones/20260910_retorno_fisico_fecha_ph.sql.
 
 CREATE TABLE doc_salida (
     id integer NOT NULL,
@@ -16,8 +19,12 @@ CREATE TABLE doc_salida (
     id_venta integer,
     id_doc_salida_origen integer,
     id_sucursal integer NOT NULL,
+    -- Almacén de origen: de dónde salieron los cilindros/productos. No lo pisa
+    -- el retorno de planta externa (ver id_almacen_retorno).
     id_almacen integer NOT NULL,
     id_almacen_destino integer,
+    -- Almacén al que llegaron los cilindros al volver de planta externa.
+    id_almacen_retorno integer,
     id_cliente integer,
     id_destinatario integer,
     id_proveedor integer,
@@ -107,6 +114,9 @@ ALTER TABLE doc_salida
 
 ALTER TABLE doc_salida
     ADD CONSTRAINT doc_salida_id_almacen_destino_fkey FOREIGN KEY (id_almacen_destino) REFERENCES public.gen_almacen(id);
+
+ALTER TABLE doc_salida
+    ADD CONSTRAINT doc_salida_id_almacen_retorno_fkey FOREIGN KEY (id_almacen_retorno) REFERENCES public.gen_almacen(id);
 
 ALTER TABLE doc_salida
     ADD CONSTRAINT doc_salida_id_archivo_pdf_fkey FOREIGN KEY (id_archivo_pdf) REFERENCES public.gen_archivo(id);

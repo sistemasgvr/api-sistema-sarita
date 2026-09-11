@@ -50,6 +50,10 @@ CREATE INDEX idx_com_compra_declarar_sunat ON public.com_comprobante_compra USIN
 
 CREATE INDEX idx_com_compra_doc ON public.com_comprobante_compra USING btree (id_doc_salida);
 
+-- Una orden de planta solo puede tener una compra activa (las anuladas no
+-- cuentan): garantía dura contra dos compras simultáneas sobre la misma orden.
+CREATE UNIQUE INDEX uq_com_compra_doc_salida_activa ON public.com_comprobante_compra USING btree (id_doc_salida) WHERE ((id_doc_salida IS NOT NULL) AND (estado = 1));
+
 CREATE INDEX idx_com_compra_fecha ON public.com_comprobante_compra USING btree (fecha);
 
 CREATE INDEX idx_com_compra_proveedor ON public.com_comprobante_compra USING btree (id_proveedor);

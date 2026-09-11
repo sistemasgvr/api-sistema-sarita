@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Min,
   MaxLength,
   ValidateIf,
@@ -288,11 +289,15 @@ export class FinalizarRecargaDto extends AuditoriaDto {
   @IsInt()
   idComprobanteCompra?: number;
 
-  @ApiProperty({ example: '2026-09-03' })
+  @ApiProperty({
+    example: '2026-09-03',
+    description:
+      'Solo se guarda si el retorno es físico (guardarBalonesAlmacen) o si los cilindros ya habían entrado: una fecha sin entrada de inventario daba la recarga por retornada',
+  })
   @IsDateString()
   fechaLlegadaAlmacen!: string;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Almacén al que llegan los cilindros; no reemplaza el almacén de origen de la orden' })
   @Type(() => Number)
   @IsInt()
   idAlmacen!: number;
@@ -314,7 +319,11 @@ export class FinalizarRecargaDto extends AuditoriaDto {
   @IsDateString()
   fechaVencimientoLote?: string;
 
-  @ApiPropertyOptional({ example: '2026-06-01' })
+  @ApiPropertyOptional({
+    example: '2026-06-01',
+    description:
+      'Con retorno físico se registra además en el libro de P.H. de cada cilindro (bal_balon_ph_historial)',
+  })
   @IsOptional()
   @IsDateString()
   fechaPruebaHidrostatica?: string;
@@ -330,7 +339,8 @@ export class FinalizarRecargaDto extends AuditoriaDto {
 
   @ApiPropertyOptional({
     default: false,
-    description: 'Si true, además actualiza la custodia de cada balón (DISPONIBLE) y registra su entrada de gas',
+    description:
+      'Retorno físico: ingresa los envases al almacén (custodia DISPONIBLE) y registra la entrada de gas. En false la llamada solo actualiza metadata (factura, guía, lote, ficha ICP) y NO marca la orden como retornada',
   })
   @IsOptional()
   @IsBoolean()
@@ -440,6 +450,27 @@ export class FiltroDocSalidaDto extends FiltroPaginacionDto {
   @Type(() => Number)
   @IsInt()
   idCliente?: number;
+
+  @ApiPropertyOptional({
+    description: 'Proveedor de la orden (órdenes de recarga en planta externa)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idProveedor?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Uno o varios códigos de EstadoCicloSalida separados por coma (p. ej. GENERADA,EMITIDA_SUNAT)',
+    example: 'GENERADA,EMITIDA_SUNAT',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z_]+(,[A-Za-z_]+)*$/, {
+    message:
+      'codigoEstadoCiclo debe ser una lista de códigos separados por coma',
+  })
+  codigoEstadoCiclo?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -2,6 +2,7 @@
 -- Function: cli_solicitar_baja_cliente
 -- Overloads: 1
 -- Updated: 2026-09-09 — bloquea si CxC con saldo > 0 o préstamos/alquileres ACTIVO
+-- Updated: 2026-09-11 — bloquea si ven_garantia.monto_saldo > 0 activa
 DROP FUNCTION IF EXISTS cli_solicitar_baja_cliente(p_id_cliente integer, p_id_motivo_baja integer, p_motivo_detalle character varying, p_id_usuario_auditoria integer, p_id_tipo_solicitud integer);
 
 CREATE OR REPLACE FUNCTION cli_solicitar_baja_cliente(p_id_cliente integer, p_id_motivo_baja integer DEFAULT NULL::integer, p_motivo_detalle character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_tipo_solicitud integer DEFAULT NULL::integer)
@@ -73,6 +74,20 @@ BEGIN
         RETURN json_build_object(
             'registro', NULL,
             'error', 'No se puede solicitar la baja: el cliente tiene alquileres activos'
+        );
+    END IF;
+
+    -- Bloqueo: garantías con saldo pendiente
+    IF EXISTS (
+        SELECT 1
+        FROM ven_garantia g
+        WHERE g.id_cliente = p_id_cliente
+          AND g.estado = 1
+          AND COALESCE(g.monto_saldo, 0) > 0
+    ) THEN
+        RETURN json_build_object(
+            'registro', NULL,
+            'error', 'No se puede solicitar la baja: el cliente tiene garantías con saldo pendiente'
         );
     END IF;
 

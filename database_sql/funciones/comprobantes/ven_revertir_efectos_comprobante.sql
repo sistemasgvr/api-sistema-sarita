@@ -2,6 +2,11 @@
 -- Function: ven_revertir_efectos_comprobante
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.966Z
+--
+-- Actualizada por database_sql/migraciones/20260910_venta_custodia_mostrador_anular.sql:
+-- inv_revertir_por_documento devuelve el fallo como JSON (error soft) y el
+-- PERFORM lo descartaba: la anulación seguía adelante con el kardex a medio
+-- revertir. Ahora se inspecciona y se RAISE para que la transacción vuelva atrás.
 DROP FUNCTION IF EXISTS ven_revertir_efectos_comprobante(p_id integer, p_id_usuario_auditoria integer, p_exigir_sin_pagos boolean);
 
 CREATE OR REPLACE FUNCTION ven_revertir_efectos_comprobante(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_exigir_sin_pagos boolean DEFAULT false)
@@ -13,6 +18,7 @@ DECLARE
     v_codigo_tipo VARCHAR;
     v_nombre_tipo_venta VARCHAR;
     v_codigo_tipo_documento VARCHAR;
+    v_rev_inv JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -38,11 +44,15 @@ BEGIN
     v_codigo_tipo_documento := ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta);
 
     -- Revertir kardex unificado (producto + balón) vía inv_movimiento
-    PERFORM inv_revertir_por_documento(
+    v_rev_inv := inv_revertir_por_documento(
         v_codigo_tipo_documento,
         p_id,
         p_id_usuario_auditoria
     );
+
+    IF v_rev_inv->>'error' IS NOT NULL THEN
+        RAISE EXCEPTION '%', v_rev_inv->>'error';
+    END IF;
 
     IF NOT v_hay_pagos THEN
         PERFORM fin_bajar_cuentas_documento(p_id_usuario_auditoria, p_id, NULL);

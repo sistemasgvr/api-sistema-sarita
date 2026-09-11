@@ -13,6 +13,18 @@
 -- p_balones: [{ codigo_balon, numero_serie, id_tipo_balon, id_producto_gas,
 --               id_marca_cilindro, fecha_fabricacion,
 --               fecha_ultima_prueba_hidrostatica, cantidad_gas }]
+--
+-- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
+--   las validaciones de códigos (vacío, repetido en el lote, ya en el libro)
+--   corren sobre todo el lote antes del bucle, y dentro del bucle todo fallo
+--   es RAISE. Antes un {error} blando en el 3.er cilindro dejaba los dos
+--   primeros dados de alta con su movimiento (sin rollback).
+--
+-- Actualizada por database_sql/migraciones/20260910_retorno_fisico_fecha_ph.sql:
+--   "los cilindros ya llegaron" se mide por la ENTRADA_PLANTA_EXTERNA vigente
+--   de los envases, no por doc_salida.fecha_llegada_almacen: una orden con solo
+--   la fecha tiene los cilindros todavía en planta, y el gas de esta compra
+--   entraba igual (inflando el stock).
 DROP FUNCTION IF EXISTS com_registrar_balones_compra(p_id_comprobante integer, p_balones jsonb, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION com_registrar_balones_compra(p_id_comprobante integer, p_balones jsonb DEFAULT NULL::jsonb, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -45,8 +57,18 @@ BEGIN
            (
                c.id_doc_salida IS NULL
                OR EXISTS (
-                   SELECT 1 FROM doc_salida d
-                   WHERE d.id = c.id_doc_salida AND d.fecha_llegada_almacen IS NOT NULL
+                   SELECT 1
+                   FROM inv_movimiento m
+                   JOIN doc_salida_detalle dd ON dd.id = m.id_documento_detalle
+                   JOIN gen_lista_opciones tmv ON tmv.id = m.id_tipo_movimiento
+                   JOIN gen_lista ltmv ON ltmv.id = tmv.id_lista
+                   WHERE m.estado = 1
+                     AND m.naturaleza = 'BALON'
+                     AND ltmv.nombre = 'TipoMovInvUnificado'
+                     AND tmv.nombre = 'ENTRADA_PLANTA_EXTERNA'
+                     AND dd.id_doc_salida = c.id_doc_salida
+                     AND dd.id_balon IS NOT NULL
+                     AND m.id_balon = dd.id_balon
                )
            ) AS retorno_marcado
     INTO v_compra
@@ -90,20 +112,47 @@ BEGIN
         );
     END IF;
 
+    -- Validaciones de todo el lote ANTES de dar de alta el primero: dentro del
+    -- bucle un {error} blando dejaría confirmados los cilindros anteriores
+    -- (la función no falla, así que no hay rollback).
+    IF EXISTS (
+        SELECT 1 FROM jsonb_array_elements(p_balones) AS a(x)
+        WHERE NULLIF(TRIM(x->>'codigo_balon'), '') IS NULL
+    ) THEN
+        RETURN json_build_object('error', 'Cada cilindro comprado necesita su código', 'registro', NULL);
+    END IF;
+
+    SELECT UPPER(TRIM(x->>'codigo_balon')) INTO v_codigo
+    FROM jsonb_array_elements(p_balones) AS a(x)
+    GROUP BY UPPER(TRIM(x->>'codigo_balon'))
+    HAVING COUNT(*) > 1
+    LIMIT 1;
+
+    IF v_codigo IS NOT NULL THEN
+        RETURN json_build_object(
+            'error', format('El código %s está repetido en el lote de cilindros', v_codigo),
+            'registro', NULL
+        );
+    END IF;
+
+    SELECT b.codigo_balon INTO v_codigo
+    FROM bal_balon b
+    WHERE b.estado = 1
+      AND UPPER(TRIM(b.codigo_balon)) IN (
+          SELECT UPPER(TRIM(x->>'codigo_balon')) FROM jsonb_array_elements(p_balones) AS a(x)
+      )
+    LIMIT 1;
+
+    IF v_codigo IS NOT NULL THEN
+        RETURN json_build_object(
+            'error', format('El cilindro %s ya existe en el libro', v_codigo),
+            'registro', NULL
+        );
+    END IF;
+
     FOR v_linea IN SELECT * FROM jsonb_array_elements(p_balones)
     LOOP
         v_codigo := NULLIF(TRIM(v_linea->>'codigo_balon'), '');
-
-        IF v_codigo IS NULL THEN
-            RETURN json_build_object('error', 'Cada cilindro comprado necesita su código', 'registro', NULL);
-        END IF;
-
-        IF EXISTS (SELECT 1 FROM bal_balon WHERE UPPER(TRIM(codigo_balon)) = UPPER(v_codigo) AND estado = 1) THEN
-            RETURN json_build_object(
-                'error', format('El cilindro %s ya existe en el libro', v_codigo),
-                'registro', NULL
-            );
-        END IF;
 
         -- El gas no se elige a mano: lo define el tipo de balón. Un cilindro de
         -- oxígeno medicinal no puede entrar con otro gas por un descuido al tipear.
@@ -133,22 +182,22 @@ BEGIN
             p_id_usuario_auditoria             => p_id_usuario_auditoria
         );
 
+        -- Desde el segundo cilindro ya hay altas confirmadas: cualquier fallo se
+        -- levanta con RAISE para que la transacción entera se deshaga y no
+        -- queden cilindros dados de alta a medias.
         IF (v_res->>'error') IS NOT NULL THEN
-            RETURN json_build_object('error', v_res->>'error', 'registro', NULL);
+            RAISE EXCEPTION 'No se pudo dar de alta el cilindro %: %', v_codigo, v_res->>'error';
         END IF;
 
         v_id_balon := (v_res->'registro'->>'id')::INTEGER;
 
         IF v_id_balon IS NULL THEN
-            RETURN json_build_object(
-                'error', format('No se pudo crear el cilindro %s', v_codigo),
-                'registro', NULL
-            );
+            RAISE EXCEPTION 'No se pudo crear el cilindro %', v_codigo;
         END IF;
 
-        -- A partir de acá el cilindro ya existe en el libro: si el movimiento
-        -- falla se levanta excepción para que la transacción entera se deshaga
-        -- y no quede un balón dado de alta sin su entrada de inventario.
+        -- El cilindro ya existe en el libro: si el movimiento falla se levanta
+        -- excepción para que no quede un balón dado de alta sin su entrada de
+        -- inventario.
         -- id_documento_detalle = id_balon: cada cilindro es un hecho distinto para
         -- la idempotencia de inv_registrar_movimiento (sin esto, el 2.º gas del
         -- mismo producto reusa el 1.er movimiento y se pierde stock).

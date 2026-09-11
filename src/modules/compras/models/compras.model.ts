@@ -107,7 +107,6 @@ export class ComprasModel {
       dto.lote ?? null,
       dto.fechaVencimientoLote ?? null,
       dto.fechaPruebaHidrostatica ?? null,
-      dto.idGuiaRetorno ?? null,
       dto.serieGuiaIngreso ?? null,
       dto.numeroGuiaIngreso ?? null,
       dto.fechaVencimiento ?? null,

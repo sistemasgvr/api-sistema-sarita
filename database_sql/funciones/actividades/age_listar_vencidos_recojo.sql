@@ -1,5 +1,11 @@
 -- Function: age_listar_vencidos_recojo
 -- Synced from migracion 20260908_age_recojo_vencidos_fk.sql
+--
+-- Actualizada por database_sql/migraciones/20260910_age_custodia_recojo_candado.sql:
+-- además de la actividad RECOJO vigente, se excluyen los orígenes con una
+-- visita viva en bal_recojo. La lista alimenta el botón de crear actividad de
+-- recojo, que ahora rechaza esos orígenes (candado de consistencia):
+-- ofrecerlos era ofrecer un error.
 
 DROP FUNCTION IF EXISTS age_listar_vencidos_recojo(character varying, integer, integer);
 
@@ -27,6 +33,13 @@ BEGIN
         WHERE a.estado = 1
           AND ta.nombre = 'RECOJO'
           AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO', 'REALIZADA')
+    ),
+    visitas AS (
+        SELECT r.id_prestamo, r.id_alquiler
+        FROM bal_recojo r
+        JOIN gen_lista_opciones er ON er.id = r.id_estado
+        WHERE r.estado = 1
+          AND UPPER(TRIM(er.nombre)) IN ('PROGRAMADO', 'EN_RUTA')
     ),
     base AS (
         SELECT
@@ -75,6 +88,7 @@ BEGIN
                 AND pd.id_balon IS NOT NULL
           )
           AND NOT EXISTS (SELECT 1 FROM vigentes v WHERE v.id_prestamo = p.id)
+          AND NOT EXISTS (SELECT 1 FROM visitas vi WHERE vi.id_prestamo = p.id)
 
         UNION ALL
 
@@ -133,6 +147,7 @@ BEGIN
               )
           )
           AND NOT EXISTS (SELECT 1 FROM vigentes v WHERE v.id_alquiler = a.id)
+          AND NOT EXISTS (SELECT 1 FROM visitas vi WHERE vi.id_alquiler = a.id)
     ),
     filtrado AS (
         SELECT *

@@ -20,6 +20,18 @@ export class UsuariosRolesModel {
     ]);
   }
 
+  async obtenerIdRolDeAsignacion(idAsignacion: number): Promise<number | null> {
+    const result = await this.db.query<{ id_rol: number }>(
+      `
+      SELECT id_rol
+      FROM auth_usuarios_roles
+      WHERE id = $1 AND estado = TRUE
+      `,
+      [idAsignacion],
+    );
+    return result.rows[0]?.id_rol ?? null;
+  }
+
   async esRolPrivilegiado(idRol: number): Promise<boolean> {
     const result = await this.db.query<{ privilegiado: boolean }>(
       `

@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
@@ -15,6 +16,7 @@ import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
+import type { AuthRequest } from '../../../common/interfaces/auth-request.interface';
 import { CreateEmpresaDto, UpdateEmpresaDto } from '../dto/empresas.dto';
 import { EmpresasLogic } from '../logic/empresas.logic';
 
@@ -41,7 +43,8 @@ export class EmpresasController {
   @Post()
   @Permisos(PermisoBanderas.EMPRESAS_CREAR)
   @ApiOperation({ summary: 'Crear empresa' })
-  crear(@Body() dto: CreateEmpresaDto) {
+  crear(@Body() dto: CreateEmpresaDto, @Req() req: AuthRequest) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.empresasLogic.crear(dto);
   }
 
@@ -52,7 +55,9 @@ export class EmpresasController {
   actualizar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateEmpresaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.empresasLogic.actualizar(id, dto);
   }
 
@@ -63,7 +68,9 @@ export class EmpresasController {
   eliminar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
   ) {
+    dto.idUsuarioAuditoria = req.user.id;
     return this.empresasLogic.eliminar(id, dto.idUsuarioAuditoria);
   }
 }

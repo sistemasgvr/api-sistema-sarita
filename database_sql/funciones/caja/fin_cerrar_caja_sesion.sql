@@ -53,6 +53,10 @@ BEGIN
         -- generaba una diferencia de arqueo inexistente.
         - COALESCE((v_totales->>'gastosCajaMediosCaja')::NUMERIC,
                    (v_totales->>'gastosCaja')::NUMERIC, 0)
+        -- P0 (20260910): pagos de CxP de compra. fin_registrar_pago exige caja
+        -- abierta para registrarlos, así que ese efectivo ya salió del cajón;
+        -- sin restarlo aquí el arqueo cerraba con un faltante inexistente.
+        - COALESCE((v_totales->>'pagosProveedorMediosCaja')::NUMERIC, 0)
         - COALESCE((v_totales->>'garantiasDevolucionMediosCaja')::NUMERIC, 0);
     v_diferencia := COALESCE(p_monto_efectivo_contado, 0) - v_esperado;
 

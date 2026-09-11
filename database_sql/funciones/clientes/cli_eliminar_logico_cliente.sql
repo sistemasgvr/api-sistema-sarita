@@ -2,6 +2,7 @@
 -- Function: cli_eliminar_logico_cliente
 -- Overloads: 1
 -- Updated: 2026-09-09 — bloquea si CxC con saldo > 0 o préstamos/alquileres ACTIVO
+-- Updated: 2026-09-11 — bloquea si ven_garantia.monto_saldo > 0 activa
 DROP FUNCTION IF EXISTS cli_eliminar_logico_cliente(p_id integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION cli_eliminar_logico_cliente(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -76,6 +77,20 @@ BEGIN
             'eliminado', false,
             'id', p_id,
             'error', 'No se puede desactivar el cliente: tiene alquileres activos'
+        );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM ven_garantia g
+        WHERE g.id_cliente = p_id
+          AND g.estado = 1
+          AND COALESCE(g.monto_saldo, 0) > 0
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', false,
+            'id', p_id,
+            'error', 'No se puede desactivar el cliente: tiene garantías con saldo pendiente'
         );
     END IF;
 

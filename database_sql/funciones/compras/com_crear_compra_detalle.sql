@@ -2,6 +2,10 @@
 -- Function: com_crear_compra_detalle
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.954Z
+-- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
+--   si la compra está vinculada a una orden de planta con retorno registrado y
+--   la línea es de gas, el gas ingresado se re-sincroniza a lo facturado
+--   (bal_sincronizar_gas_retorno_planta).
 DROP FUNCTION IF EXISTS com_crear_compra_detalle(p_id_comprobante integer, p_id_producto integer, p_cantidad numeric, p_precio_unitario numeric, p_id_clasificacion_gasto integer, p_descripcion character varying, p_id_unidad_medida integer, p_id_almacen integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION com_crear_compra_detalle(p_id_comprobante integer, p_id_producto integer, p_cantidad numeric, p_precio_unitario numeric DEFAULT 0, p_id_clasificacion_gasto integer DEFAULT NULL::integer, p_descripcion character varying DEFAULT NULL::character varying, p_id_unidad_medida integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -48,7 +52,7 @@ BEGIN
         RETURN json_build_object('error', 'El producto indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
-    -- Compra de costo de planta: el gas lo ingresa bal_finalizar_recarga_planta.
+    -- Compra de costo de planta: el gas lo ingresa el retorno de la orden.
     IF v_id_doc_salida IS NOT NULL AND v_es_gas THEN
         v_afecta_stock := FALSE;
     END IF;
@@ -99,6 +103,12 @@ BEGIN
         IF (v_result_movimiento->>'error') IS NOT NULL THEN
             RAISE EXCEPTION '%', v_result_movimiento->>'error';
         END IF;
+    END IF;
+
+    -- Línea de gas de una compra de planta: si el retorno ya ingresó gas, lo
+    -- facturado cambió y el stock debe reflejarlo. Sin retorno no hace nada.
+    IF v_id_doc_salida IS NOT NULL AND v_es_gas THEN
+        PERFORM bal_sincronizar_gas_retorno_planta(v_id_doc_salida, p_id_usuario_auditoria);
     END IF;
 
     UPDATE com_comprobante_compra
