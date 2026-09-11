@@ -386,6 +386,15 @@ export class RegistrarDireccionEntregaDto extends AuditoriaDto {
   @Type(() => Number)
   @IsInt()
   idDistritoEntrega?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Solo dirección manual: guardarla también en cli_direcciones del cliente/proveedor destinatario (aparece en su ficha y en el mapa). Default true',
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  guardarEnCliente?: boolean;
 }
 
 export class GenerarRecojoDocSalidaDto extends AuditoriaDto {
@@ -508,6 +517,16 @@ export class SiguienteNumeroDocSalidaQueryDto {
   @IsOptional()
   @IsDateString()
   fecha?: string;
+}
+
+export class SeriesGreQueryDto {
+  @ApiPropertyOptional({
+    description: 'Tipo de guía (gen_lista_opciones TipoGuiaRemision): 09 remitente → series T###, 31 transportista → V###',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idTipoGuiaRemision?: number;
 }
 
 export class ActualizarTrasladoDto extends AuditoriaDto {

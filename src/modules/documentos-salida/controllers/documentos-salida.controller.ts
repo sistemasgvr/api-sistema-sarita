@@ -31,6 +31,7 @@ import {
   FinalizarRecargaDto,
   GenerarRecojoDocSalidaDto,
   RegistrarDireccionEntregaDto,
+  SeriesGreQueryDto,
   SiguienteNumeroDocSalidaQueryDto,
   ActualizarTrasladoDto,
 } from '../dto/documentos-salida.dto';
@@ -62,6 +63,15 @@ export class DocumentosSalidaController {
   @ApiOperation({ summary: 'Siguiente correlativo interno por sucursal (OS-xx-aaaa-nnnnnn)' })
   obtenerSiguienteNumero(@Query() query: SiguienteNumeroDocSalidaQueryDto) {
     return this.logic.obtenerSiguienteNumero(query);
+  }
+
+  @Get('series-gre')
+  @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_LISTAR)
+  @ApiOperation({
+    summary: 'Series de guía de remisión por tipo (T### remitente / V### transportista) con su siguiente correlativo',
+  })
+  listarSeriesGre(@Query() query: SeriesGreQueryDto) {
+    return this.logic.listarSeriesGre(query);
   }
 
   @Get(':id/pdf')

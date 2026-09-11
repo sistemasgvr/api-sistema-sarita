@@ -26,6 +26,7 @@ import {
   GenerarRecojoDocSalidaDto,
   RegistrarDireccionEntregaDto,
   SiguienteNumeroDocSalidaQueryDto,
+  SeriesGreQueryDto,
   ActualizarTrasladoDto,
 } from '../dto/documentos-salida.dto';
 import { DocSalidaDespatchMapper } from '../mappers/doc-salida-despatch.mapper';
@@ -69,6 +70,11 @@ export class DocumentosSalidaLogic {
   async obtenerSiguienteNumero(query: SiguienteNumeroDocSalidaQueryDto) {
     const numero = await this.model.obtenerSiguienteNumero(query);
     return { numero };
+  }
+
+  async listarSeriesGre(query: SeriesGreQueryDto) {
+    const series = await this.model.listarSeriesGre(query);
+    return { series: series ?? [] };
   }
 
   async crear(dto: CreateDocSalidaDto) {

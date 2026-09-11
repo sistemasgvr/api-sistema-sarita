@@ -253,6 +253,14 @@ export interface ListaOpcionBasica {
   descripcion: string | null;
 }
 
+/** Serie de guía de remisión con su correlativo (doc_listar_series_gre). */
+export interface SerieGre {
+  serie: string;
+  ultimo_numero: string | null;
+  siguiente_numero: string;
+  total: number;
+}
+
 export interface DocumentoSalidaCatalogos {
   tiposOrden: ListaOpcionBasica[];
   estadosCiclo: ListaOpcionBasica[];

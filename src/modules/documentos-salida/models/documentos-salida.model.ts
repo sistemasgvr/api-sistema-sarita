@@ -14,6 +14,7 @@ import {
   GenerarRecojoDocSalidaDto,
   RegistrarDireccionEntregaDto,
   SiguienteNumeroDocSalidaQueryDto,
+  SeriesGreQueryDto,
   ActualizarTrasladoDto,
 } from '../dto/documentos-salida.dto';
 import type {
@@ -22,6 +23,7 @@ import type {
   DocumentoSalidaCompletoResult,
   DocumentoSalidaListResult,
   ListaOpcionBasica,
+  SerieGre,
 } from '../interfaces/documento-salida.interface';
 
 interface EmpresaEmisoraRow {
@@ -67,6 +69,12 @@ export class DocumentosSalidaModel {
     return this.db.callFunctionJson<string>('doc_obtener_siguiente_numero', [
       query.idSucursal,
       query.fecha ?? null,
+    ]);
+  }
+
+  listarSeriesGre(query: SeriesGreQueryDto) {
+    return this.db.callFunctionJson<SerieGre[]>('doc_listar_series_gre', [
+      query.idTipoGuiaRemision ?? null,
     ]);
   }
 
@@ -187,6 +195,7 @@ export class DocumentosSalidaModel {
       dto.idDistritoEntrega ?? null,
       dto.idDireccionCliente ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.guardarEnCliente ?? true,
     ]);
   }
 
