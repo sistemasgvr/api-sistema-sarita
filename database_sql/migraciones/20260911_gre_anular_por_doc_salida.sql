@@ -1,3 +1,31 @@
+-- ============================================================
+-- Migración: GRE pendiente al anular / NC de un comprobante → doc_anular_salida
+-- Fecha: 2026-09-11
+--
+-- Bug latente: ven_cerrar_custodia_comprobante (anulación del CPE y NC total)
+-- llamaba a gre_eliminar_guia_remision para dar de baja la guía pendiente que
+-- referencia el comprobante. Esa función pertenece al modelo gre_guia_remision,
+-- anterior a doc_salida (F2), y ya no existe en la BD: cualquier anulación o
+-- NC total con una GRE pendiente fallaba con "function does not exist".
+--
+-- Qué cambia
+--  1) ven_cerrar_custodia_comprobante: la GRE (doc_salida no ANULADA, no
+--     aceptada ni emitida a SUNAT) que referencia el CPE por
+--     doc_salida_referencia se anula con doc_anular_salida, que revierte la
+--     salida de inventario y libera la custodia de los cilindros. Un error de
+--     doc_anular_salida (ticket SUNAT pendiente, reparto vigente) se propaga y
+--     frena la anulación, igual que antes.
+--  2) DROP de bal_aplicar_salidas_guia_remision y
+--     bal_revertir_salidas_guia_remision: eran el movimiento de balones de la
+--     GRE del modelo viejo; hoy lo hace doc_generar_salida / doc_anular_salida
+--     y nadie las llama (ni API, ni otra función, ni trigger).
+--
+-- Aplicar con:
+--   node database_sql/scripts/apply-migration.js database_sql/migraciones/20260911_gre_anular_por_doc_salida.sql
+-- ============================================================
+
+
+-- ===== funciones\comprobantes\ven_cerrar_custodia_comprobante.sql =====
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_cerrar_custodia_comprobante
 -- Overloads: 1
@@ -215,3 +243,24 @@ BEGIN
       );
 END;
 $function$;
+
+
+-- ============================================================
+-- DROP funciones huérfanas del modelo GRE anterior a doc_salida
+-- ============================================================
+DROP FUNCTION IF EXISTS bal_aplicar_salidas_guia_remision(integer, integer);
+DROP FUNCTION IF EXISTS bal_revertir_salidas_guia_remision(integer, integer, integer);
+DO $mig$
+DECLARE v_f RECORD;
+BEGIN
+    -- Por si quedara alguna sobrecarga con otra firma.
+    FOR v_f IN
+        SELECT p.oid::regprocedure AS firma
+        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public'
+          AND p.proname IN ('bal_aplicar_salidas_guia_remision', 'bal_revertir_salidas_guia_remision', 'gre_eliminar_guia_remision')
+    LOOP
+        EXECUTE format('DROP FUNCTION %s', v_f.firma);
+    END LOOP;
+END
+$mig$;

@@ -906,6 +906,12 @@ $function$;
 -- Generated: 2026-09-03T16:50:38.965Z
 -- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
 -- bal_devolver_regulador_alquiler ya no recibe p_id_recojo.
+--
+-- Actualizada por database_sql/migraciones/20260911_gre_anular_por_doc_salida.sql:
+-- la GRE pendiente que referencia el CPE se anula con doc_anular_salida.
+-- Antes llamaba a gre_eliminar_guia_remision (modelo gre_guia_remision,
+-- anterior a doc_salida) que ya no existe en la BD: anular o emitir NC total
+-- de un comprobante con guía pendiente fallaba con "function does not exist".
 DROP FUNCTION IF EXISTS ven_cerrar_custodia_comprobante(p_id_comprobante integer, p_id_usuario integer);
 
 CREATE OR REPLACE FUNCTION ven_cerrar_custodia_comprobante(p_id_comprobante integer, p_id_usuario integer DEFAULT NULL::integer)
@@ -1006,14 +1012,22 @@ BEGIN
         WHERE id = v_alquiler.id AND estado = 1;
     END LOOP;
 
-    -- GRE PENDIENTE que referencia este CPE
+    -- GRE (doc_salida) no aceptada por SUNAT que referencia este CPE.
+    -- Las guías viven en doc_salida desde F2; se anulan con doc_anular_salida,
+    -- que revierte la salida de inventario y libera la custodia de los
+    -- cilindros (PENDIENTE_ENVIO / EN_TRANSITO → DISPONIBLE). Es idempotente
+    -- sobre una ya ANULADA (p. ej. la OS de la venta que ven_eliminar_comprobante
+    -- anuló antes por id_venta) y falla en claro si la guía tiene ticket SUNAT
+    -- pendiente o un reparto vigente: ese error sí debe frenar la anulación.
     FOR v_guia IN
-        SELECT DISTINCT g.id
+        SELECT DISTINCT g.id, c.serie, c.numero
         FROM doc_salida g
         INNER JOIN doc_salida_referencia r ON r.id_doc_salida = g.id AND r.estado = 1
         INNER JOIN ven_comprobante c ON c.id = p_id_comprobante
+        INNER JOIN gen_lista_opciones ec ON ec.id = g.id_estado_ciclo
         LEFT JOIN gen_lista_opciones es ON es.id = g.id_estado_sunat
         WHERE g.estado = 1
+          AND ec.nombre <> 'ANULADA'
           AND (
               r.id_comprobante = c.id
               OR (
@@ -1022,8 +1036,17 @@ BEGIN
               )
           )
           AND COALESCE(UPPER(es.nombre), 'PENDIENTE') <> 'ACEPTADO'
+          AND NOT COALESCE(g.emitido_sunat, FALSE)
     LOOP
-        v_result := gre_eliminar_guia_remision(v_guia.id, p_id_usuario);
+        v_result := doc_anular_salida(
+            v_guia.id,
+            format(
+                'Comprobante %s-%s anulado / con nota de crédito',
+                COALESCE(v_guia.serie, ''),
+                COALESCE(v_guia.numero, p_id_comprobante::TEXT)
+            ),
+            p_id_usuario
+        );
         PERFORM ven_raise_si_error(v_result);
     END LOOP;
 
