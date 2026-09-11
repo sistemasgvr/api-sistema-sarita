@@ -1,12 +1,10 @@
 -- Function: age_crear_recojo_origen
 -- Synced from migracion 20260909_age_crear_recojo_hora_inicio.sql
 --
--- Actualizada por database_sql/migraciones/20260910_age_custodia_recojo_candado.sql:
--- candado de consistencia con bal_recojo. Ambos módulos siguen pudiendo
--- programar el recojo de un préstamo o alquiler; lo que no se admite es tener
--- los dos vivos sobre el mismo origen, porque serían dos rutas y dos cierres
--- moviendo el estado del mismo cilindro. El candado recíproco está en
--- bal_crear_recojo.
+-- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
+-- un recojo ES una actividad. El módulo Balones > Recojos (bal_recojo) se
+-- retiró y con él el candado recíproco: la única forma de programar el recojo
+-- de un préstamo o alquiler es esta función (idempotente por origen vigente).
 
 DROP FUNCTION IF EXISTS age_crear_recojo_origen(character varying, integer, date, integer, character varying, integer);
 DROP FUNCTION IF EXISTS age_crear_recojo_origen(character varying, integer, date, time without time zone, integer, character varying, integer);
@@ -37,7 +35,6 @@ DECLARE
     v_fecha_pactada DATE;
     v_titulo        VARCHAR;
     v_descripcion   VARCHAR;
-    v_id_visita     INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -135,31 +132,6 @@ BEGIN
         RETURN json_build_object(
             'error', NULL,
             'registro', json_build_object('id', v_id_existente, 'creada', FALSE, 'items', 0)
-        );
-    END IF;
-
-    -- Candado de consistencia: una visita viva en bal_recojo ya se está
-    -- ocupando de este origen. Programar además la actividad lo duplicaría.
-    SELECT r.id INTO v_id_visita
-    FROM bal_recojo r
-    JOIN gen_lista_opciones er ON er.id = r.id_estado
-    WHERE r.estado = 1
-      AND UPPER(TRIM(er.nombre)) IN ('PROGRAMADO', 'EN_RUTA')
-      AND (
-          (v_tipo_origen = 'PRESTAMO' AND r.id_prestamo = p_id_origen)
-          OR (v_tipo_origen = 'ALQUILER' AND r.id_alquiler = p_id_origen)
-      )
-    ORDER BY r.id DESC
-    LIMIT 1;
-
-    IF v_id_visita IS NOT NULL THEN
-        RETURN json_build_object(
-            'error', format(
-                'Este %s ya tiene la visita de recojo #%s programada o en ruta en Balones > Recojos. Ciérrala o cancélala allí antes de programar la actividad.',
-                LOWER(v_tipo_origen),
-                v_id_visita
-            ),
-            'registro', NULL
         );
     END IF;
 

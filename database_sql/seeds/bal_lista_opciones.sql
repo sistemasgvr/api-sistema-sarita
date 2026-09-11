@@ -25,9 +25,6 @@ FROM (
         ('TipoRecarga', 'CLIENTE = mostrador; PLANTA_EXTERNA = envío a tercero'),
         ('EstadoContenidoBalon', 'Contenido físico del cilindro: lleno, vacío o desconocido'),
         ('EstadoRecargaPlanta', 'Estados de la orden de recarga en planta externa'),
-        ('EstadoRecojo', 'Estados de visita de recojo de cilindros en préstamo'),
-        ('ResultadoRecojoDetalle', 'Resultado por cilindro en una visita de recojo'),
-        ('MotivoFalloRecojo', 'Motivo de fallo / no recogido en visita de recojo'),
         ('EstadoRutaPueblo', 'Estados de control de ruta a pueblos')
 ) AS v(nombre, descripcion)
 WHERE NOT EXISTS (
@@ -342,59 +339,6 @@ FROM (
 ) AS v(nombre, descripcion)
 CROSS JOIN gen_lista l
 WHERE l.nombre = 'EstadoRecargaPlanta'
-  AND NOT EXISTS (
-      SELECT 1 FROM gen_lista_opciones lo
-      WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
-  );
-
--- EstadoRecojo
-INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
-SELECT l.id, v.nombre, v.descripcion
-FROM (
-    VALUES
-        ('PROGRAMADO', 'Programado'),
-        ('EN_RUTA', 'En ruta'),
-        ('EXITOSO', 'Exitoso'),
-        ('FALLIDO', 'Fallido'),
-        ('REPROGRAMADO', 'Reprogramado'),
-        ('CANCELADO', 'Cancelado')
-) AS v(nombre, descripcion)
-CROSS JOIN gen_lista l
-WHERE l.nombre = 'EstadoRecojo'
-  AND NOT EXISTS (
-      SELECT 1 FROM gen_lista_opciones lo
-      WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
-  );
-
--- ResultadoRecojoDetalle
-INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
-SELECT l.id, v.nombre, v.descripcion
-FROM (
-    VALUES
-        ('RECOGIDO', 'Recogido'),
-        ('NO_RECOGIDO', 'No recogido'),
-        ('EXTENDIDO', 'Fecha extendida')
-) AS v(nombre, descripcion)
-CROSS JOIN gen_lista l
-WHERE l.nombre = 'ResultadoRecojoDetalle'
-  AND NOT EXISTS (
-      SELECT 1 FROM gen_lista_opciones lo
-      WHERE lo.id_lista = l.id AND lo.nombre = v.nombre
-  );
-
--- MotivoFalloRecojo
-INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion)
-SELECT l.id, v.nombre, v.descripcion
-FROM (
-    VALUES
-        ('CLIENTE_AUSENTE', 'Cliente ausente'),
-        ('SIN_ACCESO', 'Sin acceso'),
-        ('CILINDRO_NO_DISPONIBLE', 'No disponible'),
-        ('GAS_NO_USADO', 'Gas no usado'),
-        ('OTRO', 'Otro')
-) AS v(nombre, descripcion)
-CROSS JOIN gen_lista l
-WHERE l.nombre = 'MotivoFalloRecojo'
   AND NOT EXISTS (
       SELECT 1 FROM gen_lista_opciones lo
       WHERE lo.id_lista = l.id AND lo.nombre = v.nombre

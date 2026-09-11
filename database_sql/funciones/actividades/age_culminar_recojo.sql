@@ -206,7 +206,6 @@ BEGIN
                 p_fecha                => CURRENT_DATE,
                 p_condicion            => 'BUENO',
                 p_observacion          => COALESCE(v_item.observacion_llegada, 'Devolucion por actividad de recojo'),
-                p_id_recojo            => NULL,
                 p_id_usuario_auditoria => p_id_usuario_auditoria
             );
             IF v_dev->>'error' IS NOT NULL THEN

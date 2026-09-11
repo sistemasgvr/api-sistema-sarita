@@ -60,11 +60,6 @@ FROM (
         ('bajas_balon.solicitar', 'Solicitar baja de cilindro'),
         ('bajas_balon.aprobar', 'Aprobar solicitudes de baja de cilindro'),
         ('bajas_balon.rechazar', 'Rechazar solicitudes de baja de cilindro'),
-        ('recojos_balon.listar', 'Listar visitas de recojo de cilindros'),
-        ('recojos_balon.ver', 'Ver detalle de visita de recojo'),
-        ('recojos_balon.crear', 'Programar visitas de recojo'),
-        ('recojos_balon.editar', 'Editar / registrar resultado de recojo'),
-        ('recojos_balon.eliminar', 'Eliminar visitas de recojo'),
         ('rutas_pueblos.listar', 'Listar controles de ruta a pueblos'),
         ('rutas_pueblos.ver', 'Ver detalle de ruta a pueblos'),
         ('rutas_pueblos.crear', 'Crear rutas a pueblos'),
@@ -93,7 +88,6 @@ WHERE r.nombre = 'Administrador'
       OR p.nombre LIKE 'alquileres_detalle.%'
       OR p.nombre LIKE 'mantenimientos_balon.%'
       OR p.nombre LIKE 'bajas_balon.%'
-      OR p.nombre LIKE 'recojos_balon.%'
       OR p.nombre LIKE 'rutas_pueblos.%'
   )
   AND NOT EXISTS (

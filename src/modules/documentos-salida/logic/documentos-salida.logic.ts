@@ -23,7 +23,6 @@ import {
   CrearDesdeVentaDto,
   FiltroDocSalidaDto,
   FinalizarRecargaDto,
-  GenerarRecojoDocSalidaDto,
   RegistrarDireccionEntregaDto,
   SiguienteNumeroDocSalidaQueryDto,
   SeriesGreQueryDto,
@@ -138,11 +137,6 @@ export class DocumentosSalidaLogic {
       throw new BadRequestException(result.error);
     }
     return this.obtener(id);
-  }
-
-  async generarRecojo(id: number, dto: GenerarRecojoDocSalidaDto) {
-    const result = await this.model.generarRecojo(id, dto);
-    return mapSingleResult(result, `No se pudo generar el recojo del documento ${id}`);
   }
 
   async generarPdf(id: number) {

@@ -24,7 +24,6 @@ CREATE TABLE bal_mantenimiento (
     id_producto integer,
     id_almacen integer,
     id_alquiler integer,
-    id_recojo integer,
     CONSTRAINT chk_bal_mantenimiento_origen CHECK (((((id_balon IS NOT NULL))::integer + ((id_producto IS NOT NULL))::integer) = 1))
 );
 
@@ -66,9 +65,6 @@ ALTER TABLE bal_mantenimiento
 
 ALTER TABLE bal_mantenimiento
     ADD CONSTRAINT bal_mantenimiento_id_proveedor_fkey FOREIGN KEY (id_proveedor) REFERENCES public.cli_clientes(id);
-
-ALTER TABLE bal_mantenimiento
-    ADD CONSTRAINT bal_mantenimiento_id_recojo_fkey FOREIGN KEY (id_recojo) REFERENCES public.bal_recojo(id);
 
 ALTER TABLE bal_mantenimiento
     ADD CONSTRAINT bal_mantenimiento_id_tipo_mantenimiento_fkey FOREIGN KEY (id_tipo_mantenimiento) REFERENCES public.gen_lista_opciones(id);

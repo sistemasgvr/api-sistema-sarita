@@ -51,7 +51,6 @@ import { LotesProtocoloModule } from './modules/lotes-protocolo/lotes-protocolo.
 import { MovimientosRecargaModule } from './modules/movimientos-recarga/movimientos-recarga.module';
 import { PrestamosBalonModule } from './modules/prestamos-balon/prestamos-balon.module';
 import { PrestamosDetalleModule } from './modules/prestamos-detalle/prestamos-detalle.module';
-import { RecojosBalonModule } from './modules/recojos-balon/recojos-balon.module';
 import { RutasPueblosModule } from './modules/rutas-pueblos/rutas-pueblos.module';
 import { AlquileresBalonModule } from './modules/alquileres-balon/alquileres-balon.module';
 import { AlquileresDetalleModule } from './modules/alquileres-detalle/alquileres-detalle.module';
@@ -126,7 +125,6 @@ import { CajaModule } from './modules/caja/caja.module';
     MovimientosRecargaModule,
     PrestamosBalonModule,
     PrestamosDetalleModule,
-    RecojosBalonModule,
     RutasPueblosModule,
     AlquileresBalonModule,
     AlquileresDetalleModule,

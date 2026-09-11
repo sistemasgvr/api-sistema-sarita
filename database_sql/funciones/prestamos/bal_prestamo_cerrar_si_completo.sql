@@ -2,6 +2,10 @@
 -- Function: bal_prestamo_cerrar_si_completo
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.949Z
+-- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
+-- al cerrar el préstamo (sin detalles pendientes) cancela la actividad de
+-- RECOJO que siguiera PENDIENTE / PROGRAMADA para ese préstamo. Es el punto
+-- común de devolución en mostrador, renovación POS y anulación de comprobante.
 DROP FUNCTION IF EXISTS bal_prestamo_cerrar_si_completo(p_id_prestamo integer, p_fecha date, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_prestamo_cerrar_si_completo(p_id_prestamo integer, p_fecha date DEFAULT CURRENT_DATE, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -40,5 +44,15 @@ BEGIN
         fecha_modificacion = NOW()
     WHERE id = p_id_prestamo
       AND estado = 1;
+
+    -- Sin cilindros pendientes no hay nada que recoger: la actividad de
+    -- RECOJO pendiente se cancela. Una EN_RUTA no se toca (la cierra el chofer
+    -- con age_culminar_recojo, que es quien suele llegar aquí).
+    PERFORM age_cancelar_recojos_pendientes_origen(
+        'PRESTAMO',
+        p_id_prestamo,
+        p_id_usuario_auditoria,
+        'Cancelada: el préstamo quedó sin cilindros pendientes de recojo'
+    );
 END;
 $function$;

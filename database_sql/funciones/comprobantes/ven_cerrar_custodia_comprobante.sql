@@ -2,6 +2,8 @@
 -- Function: ven_cerrar_custodia_comprobante
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.965Z
+-- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
+-- bal_devolver_regulador_alquiler ya no recibe p_id_recojo.
 DROP FUNCTION IF EXISTS ven_cerrar_custodia_comprobante(p_id_comprobante integer, p_id_usuario integer);
 
 CREATE OR REPLACE FUNCTION ven_cerrar_custodia_comprobante(p_id_comprobante integer, p_id_usuario integer DEFAULT NULL::integer)
@@ -71,7 +73,6 @@ BEGIN
             CURRENT_DATE,
             'BUENO',
             'Devolución automática por anulación/NC del comprobante',
-            NULL,
             p_id_usuario
         );
         IF v_result->>'error' IS NOT NULL

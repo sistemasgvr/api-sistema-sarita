@@ -397,25 +397,6 @@ export class RegistrarDireccionEntregaDto extends AuditoriaDto {
   guardarEnCliente?: boolean;
 }
 
-export class GenerarRecojoDocSalidaDto extends AuditoriaDto {
-  @ApiPropertyOptional({ example: '2026-09-05' })
-  @IsOptional()
-  @IsDateString()
-  fechaProgramada?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  idUsuarioResponsable?: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  observacion?: string;
-}
-
 export class AnularDocSalidaDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @IsOptional()

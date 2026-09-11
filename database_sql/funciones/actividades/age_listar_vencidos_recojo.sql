@@ -1,11 +1,14 @@
 -- Function: age_listar_vencidos_recojo
 -- Synced from migracion 20260908_age_recojo_vencidos_fk.sql
 --
--- Actualizada por database_sql/migraciones/20260910_age_custodia_recojo_candado.sql:
--- además de la actividad RECOJO vigente, se excluyen los orígenes con una
--- visita viva en bal_recojo. La lista alimenta el botón de crear actividad de
--- recojo, que ahora rechaza esos orígenes (candado de consistencia):
--- ofrecerlos era ofrecer un error.
+-- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
+-- el módulo Balones > Recojos (bal_recojo) se retiró; el único recojo vivo que
+-- excluye un origen es la actividad RECOJO vigente.
+-- Además deja de ser STABLE: hacía SET TIME ZONE, que Postgres rechaza en
+-- funciones no volátiles ("SET is not allowed in a non-volatile function"), así
+-- que el selector de vencidos del formulario de actividades fallaba siempre.
+-- Y el total se calcula en la misma sentencia que la página: el CTE
+-- "filtrado" no existía para el segundo SELECT.
 
 DROP FUNCTION IF EXISTS age_listar_vencidos_recojo(character varying, integer, integer);
 
@@ -16,7 +19,6 @@ CREATE OR REPLACE FUNCTION age_listar_vencidos_recojo(
 )
 RETURNS json
 LANGUAGE plpgsql
-STABLE
 AS $function$
 DECLARE
     v_busqueda VARCHAR := LOWER(TRIM(COALESCE(p_busqueda, '')));
@@ -33,13 +35,6 @@ BEGIN
         WHERE a.estado = 1
           AND ta.nombre = 'RECOJO'
           AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO', 'REALIZADA')
-    ),
-    visitas AS (
-        SELECT r.id_prestamo, r.id_alquiler
-        FROM bal_recojo r
-        JOIN gen_lista_opciones er ON er.id = r.id_estado
-        WHERE r.estado = 1
-          AND UPPER(TRIM(er.nombre)) IN ('PROGRAMADO', 'EN_RUTA')
     ),
     base AS (
         SELECT
@@ -88,7 +83,6 @@ BEGIN
                 AND pd.id_balon IS NOT NULL
           )
           AND NOT EXISTS (SELECT 1 FROM vigentes v WHERE v.id_prestamo = p.id)
-          AND NOT EXISTS (SELECT 1 FROM visitas vi WHERE vi.id_prestamo = p.id)
 
         UNION ALL
 
@@ -147,7 +141,6 @@ BEGIN
               )
           )
           AND NOT EXISTS (SELECT 1 FROM vigentes v WHERE v.id_alquiler = a.id)
-          AND NOT EXISTS (SELECT 1 FROM visitas vi WHERE vi.id_alquiler = a.id)
     ),
     filtrado AS (
         SELECT *
@@ -157,17 +150,22 @@ BEGIN
            OR LOWER(COALESCE(nombre_cliente, '')) LIKE '%' || v_busqueda || '%'
            OR LOWER(origen) LIKE '%' || v_busqueda || '%'
     )
-    SELECT COUNT(*) INTO v_total FROM filtrado;
-
-    SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.dias_vencido DESC, t.numero), '[]'::JSON)
-    INTO v_rows
-    FROM (
-        SELECT *
-        FROM filtrado
-        ORDER BY dias_vencido DESC, numero
-        LIMIT GREATEST(COALESCE(p_limite, 30), 1)
-        OFFSET GREATEST(COALESCE(p_offset, 0), 0)
-    ) t;
+    -- Total y página en la MISMA sentencia: un CTE solo vive dentro de la
+    -- sentencia que lo declara (el segundo SELECT fallaba con
+    -- «relation "filtrado" does not exist»).
+    SELECT
+        (SELECT COUNT(*) FROM filtrado),
+        (
+            SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.dias_vencido DESC, t.numero), '[]'::JSON)
+            FROM (
+                SELECT *
+                FROM filtrado
+                ORDER BY dias_vencido DESC, numero
+                LIMIT GREATEST(COALESCE(p_limite, 30), 1)
+                OFFSET GREATEST(COALESCE(p_offset, 0), 0)
+            ) t
+        )
+    INTO v_total, v_rows;
 
     RETURN json_build_object('registros', v_rows, 'total', v_total);
 END;

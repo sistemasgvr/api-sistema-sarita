@@ -20,7 +20,11 @@
 -- envases que no tenemos. La corrección documental es una nota de crédito.
 --
 -- Actualizada por database_sql/migraciones/20260911_w1_nc_planta_devolver.sql:
--- bloquea si hay bal_recojo PROGRAMADO/EN_RUTA con id_doc_salida = p_id.
+-- bloqueaba si había bal_recojo PROGRAMADO/EN_RUTA con id_doc_salida = p_id.
+--
+-- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
+-- se retira ese bloqueo: bal_recojo y el recojo de planta ya no existen; el
+-- retorno de planta se registra solo con bal_finalizar_recarga_planta.
 DROP FUNCTION IF EXISTS doc_anular_salida(p_id integer, p_motivo character varying, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION doc_anular_salida(p_id integer, p_motivo character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -124,23 +128,6 @@ BEGIN
     ) THEN
         RETURN json_build_object(
             'error', 'Hay actividad de reparto vigente; cancélala antes de anular la OS',
-            'registro', NULL
-        );
-    END IF;
-
-    -- Recojo vivo de planta: anular la OS dejaría el recojo apuntando a un
-    -- documento muerto y, al cerrarlo, ENTRADA_LLENADO sin ida que revertir.
-    IF EXISTS (
-        SELECT 1
-        FROM bal_recojo r
-        JOIN gen_lista_opciones er ON er.id = r.id_estado
-        WHERE r.id_doc_salida = p_id
-          AND r.estado = 1
-          AND UPPER(TRIM(er.nombre)) IN ('PROGRAMADO', 'EN_RUTA')
-    ) THEN
-        RETURN json_build_object(
-            'error',
-            'La orden tiene un recojo programado o en ruta; ciérralo o cancélalo antes de anularla',
             'registro', NULL
         );
     END IF;

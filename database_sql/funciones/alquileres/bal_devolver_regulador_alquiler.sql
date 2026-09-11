@@ -2,9 +2,12 @@
 -- Function: bal_devolver_regulador_alquiler
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.945Z
+-- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
+-- se retira p_id_recojo (bal_recojo y bal_mantenimiento.id_recojo ya no existen).
 DROP FUNCTION IF EXISTS bal_devolver_regulador_alquiler(p_id_alquiler integer, p_fecha date, p_condicion character varying, p_observacion character varying, p_id_recojo integer, p_id_usuario_auditoria integer);
+DROP FUNCTION IF EXISTS bal_devolver_regulador_alquiler(p_id_alquiler integer, p_fecha date, p_condicion character varying, p_observacion character varying, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION bal_devolver_regulador_alquiler(p_id_alquiler integer, p_fecha date DEFAULT CURRENT_DATE, p_condicion character varying DEFAULT 'BUENO'::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_recojo integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION bal_devolver_regulador_alquiler(p_id_alquiler integer, p_fecha date DEFAULT CURRENT_DATE, p_condicion character varying DEFAULT 'BUENO'::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -145,7 +148,6 @@ BEGIN
             id_producto,
             id_almacen,
             id_alquiler,
-            id_recojo,
             id_tipo_mantenimiento,
             fecha_ingreso,
             descripcion,
@@ -161,7 +163,6 @@ BEGIN
             v_producto,
             v_almacen,
             p_id_alquiler,
-            p_id_recojo,
             v_id_tipo_rep,
             COALESCE(p_fecha, CURRENT_DATE),
             'Reparación de regulador/accesorio devuelto del alquiler '

@@ -2,6 +2,8 @@
 -- Function: bal_listar_mantenimientos
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.947Z
+-- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
+-- sin columna id_recojo (bal_recojo eliminada).
 DROP FUNCTION IF EXISTS bal_listar_mantenimientos(p_busqueda character varying, p_limite integer, p_offset integer, p_id_balon integer, p_id_tipo_mantenimiento integer, p_id_estado integer, p_es_externo boolean);
 
 CREATE OR REPLACE FUNCTION bal_listar_mantenimientos(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_balon integer DEFAULT NULL::integer, p_id_tipo_mantenimiento integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer, p_es_externo boolean DEFAULT NULL::boolean)
@@ -76,7 +78,6 @@ BEGIN
                 ELSE CONCAT_WS('-', cc.serie, cc.numero)
             END AS comprobante_compra,
             m.id_alquiler,
-            m.id_recojo,
             m.estado,
             m.fecha_creacion,
             (

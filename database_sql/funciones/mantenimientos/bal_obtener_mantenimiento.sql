@@ -2,6 +2,8 @@
 -- Function: bal_obtener_mantenimiento
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.948Z
+-- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
+-- sin columna id_recojo (bal_recojo eliminada).
 DROP FUNCTION IF EXISTS bal_obtener_mantenimiento(p_id integer);
 
 CREATE OR REPLACE FUNCTION bal_obtener_mantenimiento(p_id integer)
@@ -28,7 +30,6 @@ BEGIN
             END AS tipo_origen,
             m.id_almacen,
             m.id_alquiler,
-            m.id_recojo,
             b.id_propietario,
             prop.nombre AS nombre_propietario,
             b.id_cliente_propietario,

@@ -29,7 +29,6 @@ import {
   CrearDesdeVentaDto,
   FiltroDocSalidaDto,
   FinalizarRecargaDto,
-  GenerarRecojoDocSalidaDto,
   RegistrarDireccionEntregaDto,
   SeriesGreQueryDto,
   SiguienteNumeroDocSalidaQueryDto,
@@ -260,19 +259,6 @@ export class DocumentosSalidaController {
   ) {
     dto.idUsuarioAuditoria = req.user.id;
     return this.logic.finalizarRecarga(id, dto);
-  }
-
-  @Post(':id/recojo')
-  @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EDITAR)
-  @ApiOperation({ summary: 'Generar recojo PROGRAMADO de los balones en planta externa' })
-  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  generarRecojo(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: GenerarRecojoDocSalidaDto,
-    @Req() req: AuthRequest,
-  ) {
-    dto.idUsuarioAuditoria = req.user.id;
-    return this.logic.generarRecojo(id, dto);
   }
 
   @Post(':id/anular')

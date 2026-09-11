@@ -11,7 +11,6 @@ import {
   CrearDesdeVentaDto,
   FiltroDocSalidaDto,
   FinalizarRecargaDto,
-  GenerarRecojoDocSalidaDto,
   RegistrarDireccionEntregaDto,
   SiguienteNumeroDocSalidaQueryDto,
   SeriesGreQueryDto,
@@ -225,19 +224,6 @@ export class DocumentosSalidaModel {
         dto.fechaPruebaHidrostatica ?? null,
         dto.idUsuarioAuditoria ?? null,
         dto.idLoteProtocolo ?? null,
-      ],
-    );
-  }
-
-  generarRecojo(id: number, dto: GenerarRecojoDocSalidaDto) {
-    return this.db.callFunctionJson<DocumentoSalidaCompletoResult>(
-      'bal_generar_recojo_recarga_planta',
-      [
-        id,
-        dto.fechaProgramada ?? null,
-        dto.idUsuarioResponsable ?? null,
-        dto.observacion ?? null,
-        dto.idUsuarioAuditoria ?? null,
       ],
     );
   }

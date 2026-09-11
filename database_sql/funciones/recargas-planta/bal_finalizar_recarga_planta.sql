@@ -41,6 +41,9 @@
 --   (ENTRADA_PLANTA_EXTERNA) no veía al otro. Ahora el retorno se rechaza si hay
 --   un recojo vivo (PROGRAMADO / EN_RUTA) sobre la orden o si el recojo ya
 --   ingresó los cilindros (ENTRADA_LLENADO vigente).
+-- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
+--   el recojo de planta (bal_recojo) se retiró; queda solo el guard sobre
+--   ENTRADA_LLENADO histórica para órdenes que cerraron por ese camino.
 DROP FUNCTION IF EXISTS bal_finalizar_recarga_planta(p_id_recarga_planta integer, p_id_comprobante_compra integer, p_fecha_llegada_almacen date, p_id_almacen integer, p_id_proveedor integer, p_guardar_balones_almacen boolean, p_id_usuario_auditoria integer);
 DROP FUNCTION IF EXISTS bal_finalizar_recarga_planta(p_id_recarga_planta integer, p_id_comprobante_compra integer, p_fecha_llegada_almacen date, p_id_almacen integer, p_id_proveedor integer, p_guardar_balones_almacen boolean, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_id_usuario_auditoria integer);
 
@@ -59,7 +62,6 @@ DECLARE
     v_id_estado_en_almacen INTEGER;
     v_id_tipo_entrada_planta INTEGER;
     v_retorno_fisico BOOLEAN;
-    v_id_recojo_vivo INTEGER;
     v_retorno_por_recojo BOOLEAN;
     v_det RECORD;
     v_mov JSON;
@@ -148,32 +150,10 @@ BEGIN
             );
         END IF;
 
-        -- El recojo es el otro camino por el que vuelven estos mismos
-        -- cilindros. Con uno vivo, registrar el retorno acá los ingresaría al
-        -- almacén y el cierre del recojo volvería a ingresarlos (con su gas)
-        -- unos días después: el mismo viaje contado dos veces.
-        SELECT r.id INTO v_id_recojo_vivo
-        FROM bal_recojo r
-        JOIN gen_lista_opciones er ON er.id = r.id_estado
-        WHERE r.id_doc_salida = p_id_recarga_planta
-          AND r.estado = 1
-          AND UPPER(TRIM(er.nombre)) IN ('PROGRAMADO', 'EN_RUTA')
-        ORDER BY r.id
-        LIMIT 1;
-
-        IF v_id_recojo_vivo IS NOT NULL THEN
-            RETURN json_build_object(
-                'error', format(
-                    'La orden tiene el recojo #%s programado o en ruta; ciérralo o cancélalo antes de registrar el retorno',
-                    v_id_recojo_vivo
-                ),
-                'registro', NULL
-            );
-        END IF;
-
-        -- Recojo ya cerrado: los cilindros entraron con ENTRADA_LLENADO, que el
-        -- guard de arriba (ENTRADA_PLANTA_EXTERNA) no ve. Sin esto, el retorno
-        -- los ingresaba de nuevo con una segunda entrada de gas.
+        -- Órdenes cerradas por el antiguo recojo de planta (retirado): sus
+        -- cilindros entraron con ENTRADA_LLENADO, que el guard de arriba
+        -- (ENTRADA_PLANTA_EXTERNA) no ve. Sin esto, el retorno los ingresaría
+        -- de nuevo con una segunda entrada de gas.
         SELECT EXISTS (
             SELECT 1
             FROM inv_movimiento m

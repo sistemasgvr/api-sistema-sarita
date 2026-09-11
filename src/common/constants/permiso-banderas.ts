@@ -235,11 +235,6 @@ export const PermisoBanderas = {
   LOTES_PROTOCOLO_CREAR: 'lotes_protocolo.crear',
   LOTES_PROTOCOLO_EDITAR: 'lotes_protocolo.editar',
   LOTES_PROTOCOLO_ELIMINAR: 'lotes_protocolo.eliminar',
-  RECOJOS_BALON_LISTAR: 'recojos_balon.listar',
-  RECOJOS_BALON_VER: 'recojos_balon.ver',
-  RECOJOS_BALON_CREAR: 'recojos_balon.crear',
-  RECOJOS_BALON_EDITAR: 'recojos_balon.editar',
-  RECOJOS_BALON_ELIMINAR: 'recojos_balon.eliminar',
 
   RUTAS_PUEBLOS_LISTAR: 'rutas_pueblos.listar',
   RUTAS_PUEBLOS_VER: 'rutas_pueblos.ver',

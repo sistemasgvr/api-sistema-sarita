@@ -1,4 +1,7 @@
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
+-- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
+-- el auto-recojo del préstamo POS se agenda como actividad RECOJO
+-- (age_crear_recojo_origen); bal_recojo dejó de existir como flujo.
 -- Actualizada por database_sql/migraciones/20260909_prestamo_renovacion_fecha_y_garantia.sql:
 -- la renovación recibe la fecha de retorno pactada (antes se perdía) y la
 -- garantía queda ligada al detalle del cilindro que respalda.
@@ -30,7 +33,6 @@ DECLARE
     v_periodo JSON;
     v_id_producto INTEGER;
     v_id_prestamo_detalle INTEGER;
-    v_arr_detalles JSONB := '[]'::JSONB;
     v_garantia_balon JSON;
     v_id_balon_garantia INTEGER;
     v_id_propietario_garantia INTEGER;
@@ -148,31 +150,22 @@ BEGIN
         END IF;
 
         -- Auto-recojo: el préstamo ya tiene fecha de retorno pactada, por lo que se
-        -- programa el recojo sin pasar por la pantalla de programación manual.
+        -- agenda la actividad de RECOJO sin pasar por la pantalla manual. Nace
+        -- PENDIENTE, sin responsable y a las 08:00 (misma hora que el batch
+        -- age_generar_recojos_por_vencer); los ítems se materializan al iniciar.
         -- El cilindro se queda PRESTADO_CLIENTE hasta que el chófer inicia la ruta.
         IF v_id_prestamo_detalle IS NOT NULL
            AND NULLIF(v_item->>'idBalon', '') IS NOT NULL
            AND NULLIF(v_item->>'fechaRetornoPactada', '') IS NOT NULL
         THEN
-            v_arr_detalles := jsonb_build_array(
-                jsonb_build_object(
-                    'idPrestamoDetalle', v_id_prestamo_detalle,
-                    'observacion', 'Recojo automático generado al vender el préstamo'
-                )
-            );
-
-            v_result := bal_crear_recojo(
-                v_id_cliente,
+            v_result := age_crear_recojo_origen(
+                'PRESTAMO',
                 v_id_prestamo,
-                NULL,
-                NULL,
                 NULLIF(v_item->>'fechaRetornoPactada', '')::DATE,
-                NULL::TIME,
+                TIME '08:00',
                 NULL::INTEGER,
                 'Recojo automático generado al vender el préstamo',
-                v_arr_detalles::JSON,
-                p_id_usuario,
-                FALSE
+                p_id_usuario
             );
             PERFORM ven_raise_si_error(v_result);
         END IF;
