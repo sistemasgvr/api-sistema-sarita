@@ -75,12 +75,6 @@ export class DashboardModel {
     ]);
   }
 
-  async balonesAlquilados(idCliente?: number | null): Promise<unknown> {
-    return this.db.callFunctionJson('dash_balones_alquilados', [
-      idCliente ?? null,
-    ]);
-  }
-
   async balonesMantenimiento(idCliente?: number | null): Promise<unknown> {
     return this.db.callFunctionJson('dash_balones_mantenimiento', [
       idCliente ?? null,

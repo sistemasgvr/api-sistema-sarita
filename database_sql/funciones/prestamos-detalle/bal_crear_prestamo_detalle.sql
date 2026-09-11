@@ -12,6 +12,8 @@
 -- renombró a "id_doc_salida_devolucion" al migrar de gre_guia_remision a
 -- doc_salida; el par "id_doc_salida_entrega" sí se corrigió, este no). Cualquier
 -- llamada a esta función fallaba con "column id_guia_devolucion does not exist".
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- sin chequeo de bal_alquiler_detalle (el cilindro nunca se alquila).
 DROP FUNCTION IF EXISTS bal_crear_prestamo_detalle(p_id_prestamo integer, p_id_balon integer, p_id_producto integer, p_motivo_especifico character varying, p_fecha_entregado date, p_fecha_prestamo date, p_dias_prestamo integer, p_fecha_vencimiento date, p_fecha_devolucion date, p_serie_guia_entrega character varying, p_numero_guia_entrega character varying, p_serie_guia_devolucion character varying, p_numero_guia_devolucion character varying, p_id_estado integer, p_observacion character varying, p_id_usuario_auditoria integer, p_id_guia_entrega integer, p_id_guia_devolucion integer);
 
 CREATE OR REPLACE FUNCTION bal_crear_prestamo_detalle(p_id_prestamo integer, p_id_balon integer DEFAULT NULL::integer, p_id_producto integer DEFAULT NULL::integer, p_motivo_especifico character varying DEFAULT NULL::character varying, p_fecha_entregado date DEFAULT NULL::date, p_fecha_prestamo date DEFAULT NULL::date, p_dias_prestamo integer DEFAULT 30, p_fecha_vencimiento date DEFAULT NULL::date, p_fecha_devolucion date DEFAULT NULL::date, p_serie_guia_entrega character varying DEFAULT NULL::character varying, p_numero_guia_entrega character varying DEFAULT NULL::character varying, p_serie_guia_devolucion character varying DEFAULT NULL::character varying, p_numero_guia_devolucion character varying DEFAULT NULL::character varying, p_id_estado integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_guia_entrega integer DEFAULT NULL::integer, p_id_guia_devolucion integer DEFAULT NULL::integer, p_rol character varying DEFAULT 'ENTREGADO'::character varying)
@@ -82,20 +84,6 @@ BEGIN
         SELECT COALESCE(b.id_producto_gas, v_id_producto) INTO v_id_producto
         FROM bal_balon b
         WHERE b.id = p_id_balon AND b.estado = 1;
-
-        IF EXISTS (
-            SELECT 1
-            FROM bal_alquiler_detalle ad
-            INNER JOIN bal_alquiler al ON al.id = ad.id_alquiler AND al.estado = 1
-            WHERE ad.id_balon = p_id_balon
-              AND ad.estado = 1
-              AND ad.fecha_devolucion IS NULL
-        ) THEN
-            RETURN json_build_object(
-                'error', 'El cilindro está alquilado actualmente; no se puede prestar',
-                'registro', NULL
-            );
-        END IF;
 
         IF EXISTS (
             SELECT 1

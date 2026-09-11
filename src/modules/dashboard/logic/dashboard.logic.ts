@@ -49,32 +49,26 @@ export class DashboardLogic {
       totalBalones,
       enAlmacen,
       prestados,
-      alquilados,
       mantenimiento,
       phPorVencer,
     ] = await Promise.all([
       this.dashboardModel.totalBalones(idCliente),
       this.dashboardModel.balonesEnAlmacen(idCliente),
       this.dashboardModel.balonesPrestados(idCliente),
-      this.dashboardModel.balonesAlquilados(idCliente),
       this.dashboardModel.balonesMantenimiento(idCliente),
       this.dashboardModel.balonesPhPorVencer(diasAlerta, idCliente),
     ]);
 
-    // Balance de envases en campo = préstamos + alquileres activos.
+    // Balance de envases en campo = préstamos activos (el cilindro nunca se
+    // alquila; el alquiler es solo del regulador).
     const grupoPrestados = (prestados ?? {}) as BalonesGrupo;
-    const grupoAlquilados = (alquilados ?? {}) as BalonesGrupo;
-    const enCampo =
-      (grupoPrestados.cantidad ?? 0) + (grupoAlquilados.cantidad ?? 0);
-    const retrasoCritico =
-      (grupoPrestados.detalle ?? []).filter(esRetrasoCritico).length +
-      (grupoAlquilados.detalle ?? []).filter(esRetrasoCritico).length;
+    const enCampo = grupoPrestados.cantidad ?? 0;
+    const retrasoCritico = (grupoPrestados.detalle ?? []).filter(esRetrasoCritico).length;
 
     return {
       totalBalones,
       enAlmacen,
       prestados,
-      alquilados,
       mantenimiento,
       phPorVencer,
       envasesEnCampo: {
@@ -176,17 +170,14 @@ export class DashboardLogic {
   }
 
   async garantiasAlquiler() {
-    const [garantias, totalBalones, prestados, alquilados] = await Promise.all([
+    const [garantias, totalBalones, prestados] = await Promise.all([
       this.dashboardModel.garantiasAlquiler(),
       this.dashboardModel.totalBalones(),
       this.dashboardModel.balonesPrestados(),
-      this.dashboardModel.balonesAlquilados(),
     ]);
 
     const grupoPrestados = (prestados ?? {}) as BalonesGrupo;
-    const grupoAlquilados = (alquilados ?? {}) as BalonesGrupo;
-    const balonesEnCampo =
-      (grupoPrestados.cantidad ?? 0) + (grupoAlquilados.cantidad ?? 0);
+    const balonesEnCampo = grupoPrestados.cantidad ?? 0;
     const total = totalBalones ?? 0;
     const porcentajeBalonesEnCampo =
       total > 0 ? Math.round((balonesEnCampo / total) * 10000) / 100 : 0;

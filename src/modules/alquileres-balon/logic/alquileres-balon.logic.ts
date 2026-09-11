@@ -10,6 +10,7 @@ import {
   FiltroAlquileresAntiguedadDto,
   FiltroAlquileresBalonDto,
   RegistrarAlquilerPeriodoDto,
+  DevolverReguladorAlquilerDto,
   RenovarAlquilerDto,
   UpdateAlquileresBalonDto,
 } from '../dto/alquileres-balon.dto';
@@ -82,6 +83,14 @@ export class AlquileresBalonLogic {
   async registrarPeriodo(idAlquiler: number, dto: RegistrarAlquilerPeriodoDto) {
     const result = await this.model.registrarPeriodo(idAlquiler, dto);
     return mapSingleResult(result, 'No se pudo registrar el periodo');
+  }
+
+  async devolverRegulador(idAlquiler: number, dto: DevolverReguladorAlquilerDto) {
+    const result = await this.model.devolverRegulador(idAlquiler, dto);
+    mapSingleResult(result, `No se pudo devolver el regulador del alquiler ${idAlquiler}`);
+    // bal_devolver_regulador_alquiler devuelve solo un resumen; el frontend
+    // necesita el alquiler completo (ya FINALIZADO).
+    return this.obtenerPorId(idAlquiler);
   }
 
   async renovar(idAlquiler: number, dto: RenovarAlquilerDto) {

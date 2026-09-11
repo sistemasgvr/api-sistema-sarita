@@ -248,11 +248,6 @@ export const PermisoBanderas = {
   ALQUILERES_BALON_EDITAR: 'alquileres_balon.editar',
   ALQUILERES_BALON_ELIMINAR: 'alquileres_balon.eliminar',
 
-  ALQUILERES_DETALLE_LISTAR: 'alquileres_detalle.listar',
-  ALQUILERES_DETALLE_VER: 'alquileres_detalle.ver',
-  ALQUILERES_DETALLE_CREAR: 'alquileres_detalle.crear',
-  ALQUILERES_DETALLE_EDITAR: 'alquileres_detalle.editar',
-  ALQUILERES_DETALLE_ELIMINAR: 'alquileres_detalle.eliminar',
 
   MANTENIMIENTOS_BALON_LISTAR: 'mantenimientos_balon.listar',
   MANTENIMIENTOS_BALON_VER: 'mantenimientos_balon.ver',

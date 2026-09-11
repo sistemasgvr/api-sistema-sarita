@@ -22,6 +22,7 @@ import {
   FiltroAlquileresAntiguedadDto,
   FiltroAlquileresBalonDto,
   RegistrarAlquilerPeriodoDto,
+  DevolverReguladorAlquilerDto,
   RenovarAlquilerDto,
   UpdateAlquileresBalonDto,
 } from '../dto/alquileres-balon.dto';
@@ -83,6 +84,21 @@ export class AlquileresBalonController {
   ) {
     dto.idUsuarioAuditoria = req.user.id;
     return this.logic.registrarPeriodo(id, dto);
+  }
+
+  @Post(':id/devolver-regulador')
+  @Permisos(PermisoBanderas.ALQUILERES_BALON_EDITAR)
+  @ApiOperation({
+    summary: 'Devolver el regulador/accesorio alquilado (finaliza el alquiler)',
+  })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  devolverRegulador(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: DevolverReguladorAlquilerDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
+    return this.logic.devolverRegulador(id, dto);
   }
 
   @Post(':id/renovar')

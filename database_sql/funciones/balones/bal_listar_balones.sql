@@ -2,6 +2,8 @@
 -- Function: bal_listar_balones
 -- Overloads: 3
 -- Generated: 2026-09-03T16:50:38.946Z
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- sin chequeo de bal_alquiler_detalle en puede_eliminar (el cilindro nunca se alquila).
 DROP FUNCTION IF EXISTS bal_listar_balones(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_balon integer, p_id_almacen integer, p_id_estado_balon integer, p_id_cliente_ubicacion integer, p_id_marca_cilindro integer, p_ph_vencida boolean, p_ph_por_vencer_dias integer, p_id_cliente_relacionado integer, p_solo_bajas boolean, p_familia_gas character varying, p_id_propietario integer, p_id_producto_gas integer, p_solo_llenos_fuera boolean, p_id_planta integer, p_tipo_valvula character varying);
 
 CREATE OR REPLACE FUNCTION bal_listar_balones(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_tipo_balon integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_estado_balon integer DEFAULT NULL::integer, p_id_cliente_ubicacion integer DEFAULT NULL::integer, p_id_marca_cilindro integer DEFAULT NULL::integer, p_ph_vencida boolean DEFAULT NULL::boolean, p_ph_por_vencer_dias integer DEFAULT NULL::integer, p_id_cliente_relacionado integer DEFAULT NULL::integer, p_solo_bajas boolean DEFAULT NULL::boolean, p_familia_gas character varying DEFAULT NULL::character varying, p_id_propietario integer DEFAULT NULL::integer, p_id_producto_gas integer DEFAULT NULL::integer, p_solo_llenos_fuera boolean DEFAULT NULL::boolean, p_id_planta integer DEFAULT NULL::integer, p_tipo_valvula character varying DEFAULT NULL::character varying)
@@ -202,7 +204,6 @@ BEGIN
                 OR EXISTS (SELECT 1 FROM inv_movimiento m WHERE m.id_balon = b.id AND m.estado = 1)
                 OR EXISTS (SELECT 1 FROM bal_movimiento_recarga mr WHERE mr.id_balon = b.id AND mr.estado = 1)
                 OR EXISTS (SELECT 1 FROM bal_prestamo_detalle pd WHERE pd.id_balon = b.id AND pd.estado = 1)
-                OR EXISTS (SELECT 1 FROM bal_alquiler_detalle ad WHERE ad.id_balon = b.id AND ad.estado = 1)
                 OR EXISTS (SELECT 1 FROM bal_mantenimiento mt WHERE mt.id_balon = b.id AND mt.estado = 1)
                 OR EXISTS (SELECT 1 FROM bal_balon_ph_historial ph WHERE ph.id_balon = b.id AND ph.estado = 1)
                 OR EXISTS (SELECT 1 FROM bal_balon_estado_historial eh WHERE eh.id_balon = b.id AND eh.estado = 1)

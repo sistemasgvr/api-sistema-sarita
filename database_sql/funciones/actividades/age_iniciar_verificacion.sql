@@ -1,5 +1,9 @@
 -- Function: age_iniciar_verificacion
 -- Source: migraciones/20260909_age_reparto_flujo_entrega.sql
+--
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- origen ALQUILER materializa solo el regulador/accesorio (bal_alquiler_detalle
+-- eliminada; el cilindro siempre es préstamo).
 
 DROP FUNCTION IF EXISTS age_iniciar_verificacion(integer, integer);
 
@@ -14,7 +18,6 @@ DECLARE
     v_act RECORD;
     v_id_pendiente INTEGER;
     v_items INTEGER := 0;
-    v_n INTEGER := 0;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -91,64 +94,32 @@ BEGIN
           AND pd.id_balon IS NOT NULL;
         GET DIAGNOSTICS v_items = ROW_COUNT;
     ELSIF v_act.id_alquiler IS NOT NULL THEN
+        -- El alquiler es solo del regulador/accesorio (el cilindro va por
+        -- préstamo): un único ítem sin balón, con el producto alquilado.
         INSERT INTO age_actividad_item (
             id_actividad, item, id_producto, descripcion, cantidad, id_balon,
-            id_alquiler_detalle, id_estado_verificacion_salida, id_estado_verificacion_llegada,
+            id_estado_verificacion_salida, id_estado_verificacion_llegada,
             id_usuario_creacion, id_usuario_modificacion
         )
         SELECT
             p_id_actividad,
-            ROW_NUMBER() OVER (ORDER BY ad.id),
-            b.id_producto_gas,
-            COALESCE(b.codigo_balon, 'Cilindro'),
             1,
-            ad.id_balon,
-            ad.id,
+            COALESCE(a.id_producto_regulador, a.id_producto_stock),
+            COALESCE(pr.nombre, ps.nombre, 'Regulador / accesorio'),
+            1,
+            NULL,
             v_id_pendiente,
             v_id_pendiente,
             p_id_usuario_auditoria,
             p_id_usuario_auditoria
-        FROM bal_alquiler_detalle ad
-        LEFT JOIN bal_balon b ON b.id = ad.id_balon
-        WHERE ad.id_alquiler = v_act.id_alquiler
-          AND ad.estado = 1
-          AND ad.fecha_devolucion IS NULL
-          AND ad.id_balon IS NOT NULL;
+        FROM bal_alquiler a
+        LEFT JOIN pro_producto pr ON pr.id = a.id_producto_regulador
+        LEFT JOIN pro_producto ps ON ps.id = a.id_producto_stock
+        WHERE a.id = v_act.id_alquiler
+          AND a.estado = 1
+          AND COALESCE(a.id_producto_regulador, a.id_producto_stock) IS NOT NULL
+          AND a.fecha_devolucion_regulador IS NULL;
         GET DIAGNOSTICS v_items = ROW_COUNT;
-
-        -- Regulador pendiente: fila sin balon, solo producto.
-        IF EXISTS (
-            SELECT 1 FROM bal_alquiler a
-            WHERE a.id = v_act.id_alquiler
-              AND a.id_producto_regulador IS NOT NULL
-              AND a.fecha_devolucion_regulador IS NULL
-        ) THEN
-            SELECT COALESCE(MAX(item), 0) INTO v_n
-            FROM age_actividad_item
-            WHERE id_actividad = p_id_actividad AND estado = 1;
-
-            INSERT INTO age_actividad_item (
-                id_actividad, item, id_producto, descripcion, cantidad, id_balon,
-                id_estado_verificacion_salida, id_estado_verificacion_llegada,
-                id_usuario_creacion, id_usuario_modificacion
-            )
-            SELECT
-                p_id_actividad,
-                v_n + 1,
-                a.id_producto_regulador,
-                COALESCE(pr.nombre, 'Regulador / accesorio'),
-                1,
-                NULL,
-                v_id_pendiente,
-                v_id_pendiente,
-                p_id_usuario_auditoria,
-                p_id_usuario_auditoria
-            FROM bal_alquiler a
-            LEFT JOIN pro_producto pr ON pr.id = a.id_producto_regulador
-            WHERE a.id = v_act.id_alquiler;
-
-            v_items := v_items + 1;
-        END IF;
     ELSIF v_act.id_doc_salida IS NOT NULL OR v_act.id_comprobante IS NOT NULL THEN
         -- REPARTO sin items materializados: no hay nada que derivar aqui, los
         -- items los crea age_crear_actividad desde el detalle del documento.

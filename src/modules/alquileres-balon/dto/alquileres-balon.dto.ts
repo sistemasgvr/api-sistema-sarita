@@ -3,6 +3,7 @@ import { Type, Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -54,12 +55,6 @@ export class FiltroAlquileresAntiguedadDto extends FiltroPaginacionDto {
   @IsString()
   @MaxLength(40)
   rangoDias?: string;
-
-  @ApiPropertyOptional({ description: 'Excluir cilindros dados de baja/robados (default true)' })
-  @Transform(({ value }) => toOptionalBoolean(value))
-  @IsOptional()
-  @IsBoolean()
-  excluirBajas?: boolean;
 
   @ApiPropertyOptional({ description: 'Solo pendientes de devolución (default true)' })
   @Transform(({ value }) => toOptionalBoolean(value))
@@ -277,6 +272,28 @@ export class RegistrarAlquilerPeriodoDto extends AuditoriaDto {
   @MaxLength(500)
   @IsOptional()
   @IsString()
+  observacion?: string;
+}
+
+export class DevolverReguladorAlquilerDto extends AuditoriaDto {
+  @ApiPropertyOptional({ example: '2026-09-11', description: 'Fecha de devolución (default hoy)' })
+  @IsOptional()
+  @IsDateString()
+  fecha?: string;
+
+  @ApiPropertyOptional({
+    description: 'BUENO reingresa a stock; PARA_REPARAR abre un mantenimiento del accesorio',
+    enum: ['BUENO', 'PARA_REPARAR'],
+    default: 'BUENO',
+  })
+  @IsOptional()
+  @IsIn(['BUENO', 'PARA_REPARAR'])
+  condicion?: 'BUENO' | 'PARA_REPARAR';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
   observacion?: string;
 }
 

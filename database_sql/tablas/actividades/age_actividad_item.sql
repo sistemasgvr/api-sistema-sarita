@@ -21,8 +21,7 @@ CREATE TABLE age_actividad_item (
     id_estado_verificacion_llegada integer,
     observacion_salida character varying(500),
     observacion_llegada character varying(500),
-    id_estado_producto_recogido integer,
-    id_alquiler_detalle integer
+    id_estado_producto_recogido integer
 );
 
 CREATE SEQUENCE age_actividad_item_id_seq
@@ -42,17 +41,12 @@ ALTER TABLE age_actividad_item
 
 CREATE INDEX idx_age_actividad_item_act ON age_actividad_item USING btree (id_actividad) WHERE (estado = 1);
 
-CREATE INDEX idx_age_actividad_item_id_alquiler_detalle ON age_actividad_item USING btree (id_alquiler_detalle) WHERE (id_alquiler_detalle IS NOT NULL);
-
 CREATE INDEX idx_age_item_doc_det ON age_actividad_item USING btree (id_doc_salida_detalle);
 
 CREATE INDEX idx_age_item_prestamo_det ON age_actividad_item USING btree (id_prestamo_detalle);
 
 ALTER TABLE age_actividad_item
     ADD CONSTRAINT age_actividad_item_id_actividad_fkey FOREIGN KEY (id_actividad) REFERENCES public.age_actividad(id);
-
-ALTER TABLE age_actividad_item
-    ADD CONSTRAINT age_actividad_item_id_alquiler_detalle_fkey FOREIGN KEY (id_alquiler_detalle) REFERENCES public.bal_alquiler_detalle(id);
 
 ALTER TABLE age_actividad_item
     ADD CONSTRAINT age_actividad_item_id_balon_fkey FOREIGN KEY (id_balon) REFERENCES public.bal_balon(id);

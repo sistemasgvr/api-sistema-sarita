@@ -10,6 +10,7 @@ import {
   FiltroAlquileresAntiguedadDto,
   FiltroAlquileresBalonDto,
   RegistrarAlquilerPeriodoDto,
+  DevolverReguladorAlquilerDto,
   RenovarAlquilerDto,
   UpdateAlquileresBalonDto,
 } from '../dto/alquileres-balon.dto';
@@ -48,7 +49,6 @@ export class AlquileresBalonModel {
         filtros.offset,
         filtros.idCliente ?? null,
         filtros.rangoDias ?? null,
-        filtros.excluirBajas ?? true,
         filtros.soloPendientes ?? true,
       ],
     );
@@ -129,6 +129,16 @@ export class AlquileresBalonModel {
       dto.monto ?? null,
       dto.idProducto ?? null,
       dto.idComprobante ?? null,
+      dto.observacion ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  devolverRegulador(idAlquiler: number, dto: DevolverReguladorAlquilerDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('bal_devolver_regulador_alquiler', [
+      idAlquiler,
+      dto.fecha ?? null,
+      dto.condicion ?? 'BUENO',
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
     ]);

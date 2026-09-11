@@ -23,7 +23,9 @@
 --  4) bal_prestamo_cerrar_si_completo: al cerrar el préstamo cancela la
 --     actividad pendiente (punto común de mostrador, renovación POS y NC).
 --     bal_devolver_prestamo_detalle deja de tocar recojos directamente.
---  5) bal_devolver_alquiler_detalle: al finalizar el alquiler cancela la
+--  5) (bal_devolver_alquiler_detalle se eliminó después en
+--     20260911_alquiler_solo_regulador.sql; ya no forma parte de esta migración.)
+--     Al finalizar el alquiler, bal_devolver_regulador_alquiler cancela la
 --     actividad pendiente.
 --  6) bal_devolver_regulador_alquiler pierde p_id_recojo (y con ello
 --     bal_mantenimiento.id_recojo); se ajustan age_culminar_recojo,
@@ -294,6 +296,10 @@ $function$;
 -- que el selector de vencidos del formulario de actividades fallaba siempre.
 -- Y el total se calcula en la misma sentencia que la página: el CTE
 -- "filtrado" no existía para el segundo SELECT.
+--
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- el alquiler vencido entra solo por el regulador/accesorio pendiente
+-- (bal_alquiler_detalle eliminada).
 
 DROP FUNCTION IF EXISTS age_listar_vencidos_recojo(character varying, integer, integer);
 
@@ -383,14 +389,8 @@ BEGIN
             ),
             a.fecha_fin_pactada,
             (CURRENT_DATE - a.fecha_fin_pactada)::INTEGER,
-            (
-                SELECT COUNT(*)::INTEGER
-                FROM bal_alquiler_detalle ad
-                WHERE ad.id_alquiler = a.id
-                  AND ad.estado = 1
-                  AND ad.fecha_devolucion IS NULL
-                  AND ad.id_balon IS NOT NULL
-            ),
+            -- El alquiler no lleva cilindros (van por préstamo).
+            0::INTEGER,
             (
                 SELECT COUNT(*)::INTEGER
                 FROM ven_garantia g
@@ -400,7 +400,7 @@ BEGIN
                   AND eg.nombre = 'ACTIVA'
             ),
             (
-                a.id_producto_regulador IS NOT NULL
+                COALESCE(a.id_producto_regulador, a.id_producto_stock) IS NOT NULL
                 AND a.fecha_devolucion_regulador IS NULL
             )
         FROM bal_alquiler a
@@ -411,20 +411,9 @@ BEGIN
           AND a.fecha_fin_pactada IS NOT NULL
           AND a.fecha_fin_pactada < CURRENT_DATE
           AND COALESCE(ea.nombre, 'ACTIVO') = 'ACTIVO'
-          AND (
-              EXISTS (
-                  SELECT 1
-                  FROM bal_alquiler_detalle ad
-                  WHERE ad.id_alquiler = a.id
-                    AND ad.estado = 1
-                    AND ad.fecha_devolucion IS NULL
-                    AND ad.id_balon IS NOT NULL
-              )
-              OR (
-                  a.id_producto_regulador IS NOT NULL
-                  AND a.fecha_devolucion_regulador IS NULL
-              )
-          )
+          -- Solo hay algo que recoger si el regulador/accesorio sigue fuera.
+          AND COALESCE(a.id_producto_regulador, a.id_producto_stock) IS NOT NULL
+          AND a.fecha_devolucion_regulador IS NULL
           AND NOT EXISTS (SELECT 1 FROM vigentes v WHERE v.id_alquiler = a.id)
     ),
     filtrado AS (
@@ -463,6 +452,10 @@ $function$;
 -- Generated: 2026-09-03T16:50:38.945Z
 -- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
 -- se retira p_id_recojo (bal_recojo y bal_mantenimiento.id_recojo ya no existen).
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- al devolver el regulador el alquiler queda FINALIZADO y se cancela la
+-- actividad de RECOJO pendiente (antes lo hacía bal_devolver_alquiler_detalle,
+-- eliminada junto con bal_alquiler_detalle).
 DROP FUNCTION IF EXISTS bal_devolver_regulador_alquiler(p_id_alquiler integer, p_fecha date, p_condicion character varying, p_observacion character varying, p_id_recojo integer, p_id_usuario_auditoria integer);
 DROP FUNCTION IF EXISTS bal_devolver_regulador_alquiler(p_id_alquiler integer, p_fecha date, p_condicion character varying, p_observacion character varying, p_id_usuario_auditoria integer);
 
@@ -483,6 +476,7 @@ DECLARE
     v_obs VARCHAR(500);
     v_ya_devuelto DATE;
     v_stock_ok BOOLEAN;
+    v_id_estado_finalizado INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -643,6 +637,30 @@ BEGIN
         WHERE id = p_id_alquiler AND estado = 1;
     END IF;
 
+    -- El alquiler es solo del regulador/accesorio: devuelto este, el contrato
+    -- queda FINALIZADO y la actividad de RECOJO que siguiera pendiente ya no
+    -- aplica (una EN_RUTA la cierra el chofer con age_culminar_recojo).
+    SELECT lo.id INTO v_id_estado_finalizado
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'EstadoAlquiler' AND lo.nombre = 'FINALIZADO' AND lo.estado = 1
+    LIMIT 1;
+
+    UPDATE bal_alquiler
+    SET
+        fecha_fin_real = COALESCE(fecha_fin_real, COALESCE(p_fecha, CURRENT_DATE)),
+        id_estado = COALESCE(v_id_estado_finalizado, id_estado),
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id_alquiler AND estado = 1;
+
+    PERFORM age_cancelar_recojos_pendientes_origen(
+        'ALQUILER',
+        p_id_alquiler,
+        p_id_usuario_auditoria,
+        'Cancelada: el regulador/accesorio del alquiler ya fue devuelto'
+    );
+
     RETURN json_build_object(
         'error', NULL,
         'registro', json_build_object(
@@ -662,7 +680,12 @@ $function$;
 -- ===== funciones\actividades\age_culminar_recojo.sql =====
 -- Function: age_culminar_recojo
 -- Cierra el recojo como REALIZADA tras verificar lo recogido y elige almacén
--- destino. Devuelve cada cilindro (préstamo/alquiler) al almacén indicado.
+-- destino. Devuelve cada cilindro del préstamo al almacén indicado y, en un
+-- recojo de alquiler, reingresa el regulador/accesorio.
+--
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- el alquiler ya no tiene detalle de cilindros (bal_alquiler_detalle eliminada);
+-- el ítem de alquiler es siempre el regulador (sin balón).
 
 DROP FUNCTION IF EXISTS age_culminar_recojo(integer, integer, integer);
 
@@ -807,7 +830,6 @@ BEGIN
     WHERE ai.id_actividad = p_id AND ai.estado = 1
       AND (
             ai.id_prestamo_detalle IS NOT NULL
-         OR ai.id_alquiler_detalle IS NOT NULL
          OR (ai.id_balon IS NULL AND ai.id_producto IS NOT NULL AND v_act.id_alquiler IS NOT NULL)
       );
 
@@ -815,7 +837,7 @@ BEGIN
     -- Cualquier error de bal_devolver_* aborta con RAISE para revertir
     -- devoluciones parciales ya aplicadas en esta misma transacción.
     FOR v_item IN
-        SELECT ai.id, ai.id_balon, ai.id_prestamo_detalle, ai.id_alquiler_detalle,
+        SELECT ai.id, ai.id_balon, ai.id_prestamo_detalle,
                ai.id_producto, ai.observacion_llegada
         FROM age_actividad_item ai
         WHERE ai.id_actividad = p_id AND ai.estado = 1
@@ -835,22 +857,10 @@ BEGIN
             END IF;
             v_devueltos := v_devueltos + 1;
 
-        ELSIF v_item.id_alquiler_detalle IS NOT NULL THEN
-            v_dev := bal_devolver_alquiler_detalle(
-                p_id                   => v_item.id_alquiler_detalle,
-                p_fecha_devolucion     => CURRENT_DATE,
-                p_id_almacen_destino   => p_id_almacen_destino,
-                p_id_usuario_auditoria => p_id_usuario_auditoria
-            );
-            IF v_dev->>'error' IS NOT NULL THEN
-                RAISE EXCEPTION '%', v_dev->>'error';
-            END IF;
-            v_devueltos := v_devueltos + 1;
-
         ELSIF v_item.id_balon IS NULL
               AND v_item.id_producto IS NOT NULL
               AND v_act.id_alquiler IS NOT NULL THEN
-            -- Accesorio/regulador materializado sin balón.
+            -- Regulador/accesorio del alquiler (ítem sin balón).
             -- bal_devolver_regulador_alquiler NO acepta p_id_almacen_destino:
             -- reingresa stock con bal_alquiler.id_almacen. Si es NULL, falla
             -- en claro en lugar de marcar REALIZADA sin reingreso.
@@ -912,6 +922,9 @@ $function$;
 -- Antes llamaba a gre_eliminar_guia_remision (modelo gre_guia_remision,
 -- anterior a doc_salida) que ya no existe en la BD: anular o emitir NC total
 -- de un comprobante con guía pendiente fallaba con "function does not exist".
+--
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- sin loop de bal_alquiler_detalle (tabla eliminada; el alquiler es solo regulador).
 DROP FUNCTION IF EXISTS ven_cerrar_custodia_comprobante(p_id_comprobante integer, p_id_usuario integer);
 
 CREATE OR REPLACE FUNCTION ven_cerrar_custodia_comprobante(p_id_comprobante integer, p_id_usuario integer DEFAULT NULL::integer)
@@ -923,7 +936,6 @@ DECLARE
     v_detalle RECORD;
     v_recarga RECORD;
     v_alquiler RECORD;
-    v_alq_det RECORD;
     v_guia RECORD;
     v_mant RECORD;
     v_result JSON;
@@ -971,7 +983,9 @@ BEGIN
         WHERE id = v_recarga.id AND estado = 1;
     END LOOP;
 
-    -- Alquileres: reingreso de regulador y cilindros de detalle
+    -- Alquileres: reingreso del regulador/accesorio (el alquiler no lleva
+    -- cilindros; esos van por préstamo). bal_devolver_regulador_alquiler ya
+    -- finaliza el contrato; el UPDATE de abajo cubre un alquiler sin accesorio.
     FOR v_alquiler IN
         SELECT id FROM bal_alquiler
         WHERE estado = 1 AND id_comprobante_venta = p_id_comprobante
@@ -988,14 +1002,6 @@ BEGIN
         THEN
             PERFORM ven_raise_si_error(v_result);
         END IF;
-
-        FOR v_alq_det IN
-            SELECT id FROM bal_alquiler_detalle
-            WHERE estado = 1 AND id_alquiler = v_alquiler.id AND fecha_devolucion IS NULL
-        LOOP
-            v_result := bal_devolver_alquiler_detalle(v_alq_det.id, CURRENT_DATE, NULL, p_id_usuario);
-            PERFORM ven_raise_si_error(v_result);
-        END LOOP;
 
         SELECT lo.id INTO v_id_estado_final
         FROM gen_lista_opciones lo
@@ -1304,214 +1310,6 @@ BEGIN
     );
 
     RETURN bal_obtener_prestamo_detalle(p_id);
-END;
-$function$;
-
--- ===== funciones\alquileres-detalle\bal_devolver_alquiler_detalle.sql =====
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: bal_devolver_alquiler_detalle
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.945Z
---
--- Actualizada por database_sql/migraciones/20260911_w1_nc_planta_devolver.sql:
--- al devolver, cancelaba recojos vivos del alquiler (bal_recojo).
---
--- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
--- bal_recojo ya no existe; al finalizar el alquiler se cancela la actividad de
--- RECOJO que siguiera pendiente (age_cancelar_recojos_pendientes_origen).
-DROP FUNCTION IF EXISTS bal_devolver_alquiler_detalle(p_id integer, p_fecha_devolucion date, p_id_almacen_destino integer, p_id_usuario_auditoria integer);
-
-CREATE OR REPLACE FUNCTION bal_devolver_alquiler_detalle(p_id integer, p_fecha_devolucion date DEFAULT CURRENT_DATE, p_id_almacen_destino integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-    v_id_alquiler INTEGER;
-    v_id_balon INTEGER;
-    v_id_cliente INTEGER;
-    v_id_almacen INTEGER;
-    v_fecha_devolucion DATE;
-    v_id_almacen_destino INTEGER;
-    v_id_estado_en_almacen INTEGER;
-    v_id_estado_finalizado INTEGER;
-    v_mov_result JSON;
-    v_pendientes INTEGER;
-    v_nombre_estado_balon VARCHAR;
-BEGIN
-    SET TIME ZONE 'America/Lima';
-
-    SELECT
-        ad.id_alquiler,
-        ad.id_balon,
-        ad.fecha_devolucion,
-        al.id_cliente,
-        al.id_almacen
-    INTO
-        v_id_alquiler,
-        v_id_balon,
-        v_fecha_devolucion,
-        v_id_cliente,
-        v_id_almacen
-    FROM bal_alquiler_detalle ad
-    INNER JOIN bal_alquiler al ON al.id = ad.id_alquiler AND al.estado = 1
-    WHERE ad.id = p_id
-      AND ad.estado = 1
-    FOR UPDATE OF ad;
-
-    IF v_id_alquiler IS NULL THEN
-        RETURN json_build_object(
-            'error', 'El detalle de alquiler no existe o está inactivo',
-            'registro', NULL
-        );
-    END IF;
-
-    IF v_fecha_devolucion IS NOT NULL THEN
-        RETURN json_build_object(
-            'error', 'El cilindro ya fue registrado como devuelto',
-            'registro', NULL
-        );
-    END IF;
-
-    v_id_almacen_destino := COALESCE(p_id_almacen_destino, v_id_almacen);
-
-    IF v_id_almacen_destino IS NULL THEN
-        RETURN json_build_object(
-            'error', 'Debe indicar el almacén de destino de la devolución',
-            'registro', NULL
-        );
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM gen_almacen WHERE id = v_id_almacen_destino AND estado = 1
-    ) THEN
-        RETURN json_build_object(
-            'error', 'El almacén de destino no existe o está inactivo',
-            'registro', NULL
-        );
-    END IF;
-
-    SELECT UPPER(TRIM(eb.nombre))
-    INTO v_nombre_estado_balon
-    FROM bal_balon b
-    LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
-    WHERE b.id = v_id_balon AND b.estado = 1;
-
-    IF v_nombre_estado_balon IS NULL THEN
-        RETURN json_build_object(
-            'error', 'El cilindro del detalle no existe o está inactivo',
-            'registro', NULL
-        );
-    END IF;
-
-    -- Solo forzar DISPONIBLE si el balón está en un estado esperado de alquiler.
-    IF v_nombre_estado_balon NOT IN ('ALQUILADO', 'POR_RECOGER') THEN
-        RETURN json_build_object(
-            'error',
-            format(
-                'No se puede devolver: el cilindro está %s (se esperaba ALQUILADO o POR_RECOGER)',
-                LOWER(REPLACE(v_nombre_estado_balon, '_', ' '))
-            ),
-            'registro', NULL
-        );
-    END IF;
-
-    SELECT lo.id INTO v_id_estado_en_almacen
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
-    LIMIT 1;
-
-    IF v_id_estado_en_almacen IS NULL THEN
-        RETURN json_build_object(
-            'error', 'No se encontró el estado DISPONIBLE del cilindro. Revise el catálogo EstadoBalon.',
-            'registro', NULL
-        );
-    END IF;
-
-    SELECT lo.id INTO v_id_estado_finalizado
-    FROM gen_lista_opciones lo
-    INNER JOIN gen_lista l ON lo.id_lista = l.id
-    WHERE l.nombre = 'EstadoAlquiler' AND lo.nombre = 'FINALIZADO' AND lo.estado = 1
-    LIMIT 1;
-
-    UPDATE bal_alquiler_detalle
-    SET
-        fecha_devolucion = COALESCE(p_fecha_devolucion, CURRENT_DATE),
-        id_usuario_modificacion = p_id_usuario_auditoria,
-        fecha_modificacion = NOW()
-    WHERE id = p_id
-      AND estado = 1;
-
-    v_mov_result := inv_registrar_movimiento(
-        p_naturaleza                => 'BALON',
-        p_codigo_tipo_movimiento    => 'ENTRADA_DEVOLUCION',
-        p_fecha                     => LOCALTIMESTAMP,
-        p_id_balon                  => v_id_balon,
-        p_cantidad                  => 1,
-        p_id_almacen_destino        => v_id_almacen_destino,
-        p_id_cliente                => v_id_cliente,
-        p_codigo_tipo_documento_origen => 'ALQUILER',
-        p_id_documento_origen       => v_id_alquiler,
-        p_glosa                     => 'Entrada por devolución de alquiler',
-        p_id_usuario_auditoria      => p_id_usuario_auditoria
-    );
-
-    IF v_mov_result->>'error' IS NOT NULL THEN
-        RAISE EXCEPTION '%', v_mov_result->>'error';
-    END IF;
-
-    -- Custodia: vuelve a almacén. Contenido: se asume vacío (envase usado que regresa).
-    UPDATE bal_balon
-    SET
-        id_cliente_ubicacion = NULL,
-        id_almacen = v_id_almacen_destino,
-        id_estado_balon = v_id_estado_en_almacen,
-        id_usuario_modificacion = p_id_usuario_auditoria,
-        fecha_modificacion = NOW()
-    WHERE id = v_id_balon
-      AND estado = 1;
-
-    SELECT COUNT(*) INTO v_pendientes
-    FROM bal_alquiler_detalle
-    WHERE id_alquiler = v_id_alquiler
-      AND estado = 1
-      AND fecha_devolucion IS NULL;
-
-    -- No cerrar si aún falta devolver el regulador/accesorio
-    IF v_pendientes = 0
-       AND NOT EXISTS (
-           SELECT 1
-           FROM bal_alquiler a
-           WHERE a.id = v_id_alquiler
-             AND a.estado = 1
-             AND COALESCE(a.id_producto_regulador, a.id_producto_stock) IS NOT NULL
-             AND a.fecha_devolucion_regulador IS NULL
-       )
-    THEN
-        UPDATE bal_alquiler
-        SET
-            fecha_fin_real = COALESCE(fecha_fin_real, COALESCE(p_fecha_devolucion, CURRENT_DATE)),
-            id_estado = COALESCE(v_id_estado_finalizado, id_estado),
-            id_usuario_modificacion = p_id_usuario_auditoria,
-            fecha_modificacion = NOW()
-        WHERE id = v_id_alquiler
-          AND estado = 1;
-
-        -- Alquiler finalizado: la actividad de RECOJO pendiente ya no aplica.
-        -- Una EN_RUTA no se toca (la cierra el chofer con age_culminar_recojo).
-        PERFORM age_cancelar_recojos_pendientes_origen(
-            'ALQUILER',
-            v_id_alquiler,
-            p_id_usuario_auditoria,
-            'Cancelada: el alquiler quedó sin cilindros ni accesorios pendientes de recojo'
-        );
-    END IF;
-
-    RETURN bal_obtener_alquiler_detalle(p_id);
-EXCEPTION
-    WHEN OTHERS THEN
-        -- Revierte fecha_devolucion / movimiento parcial y expone al API.
-        RETURN json_build_object('error', SQLERRM, 'registro', NULL);
 END;
 $function$;
 

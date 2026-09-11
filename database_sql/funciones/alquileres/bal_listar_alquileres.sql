@@ -2,6 +2,9 @@
 -- Function: bal_listar_alquileres
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.946Z
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- sin total_detalles (bal_alquiler_detalle eliminada); puede_eliminar depende solo del
+-- comprobante; expone fecha_devolucion_regulador / condición / mantenimiento del accesorio.
 DROP FUNCTION IF EXISTS bal_listar_alquileres(p_busqueda character varying, p_limite integer, p_offset integer, p_id_cliente integer, p_id_almacen integer, p_id_estado integer);
 
 CREATE OR REPLACE FUNCTION bal_listar_alquileres(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_cliente integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer)
@@ -63,24 +66,18 @@ BEGIN
             al.id_producto_stock,
             ps.codigo AS codigo_producto_stock,
             ps.nombre AS nombre_producto_stock,
+            al.fecha_devolucion_regulador,
+            al.id_condicion_regulador,
+            cr.nombre AS nombre_condicion_regulador,
+            al.id_mantenimiento_regulador,
             al.estado,
             al.fecha_creacion,
-            (
-                SELECT COUNT(*)::INTEGER
-                FROM bal_alquiler_detalle ad
-                WHERE ad.id_alquiler = al.id AND ad.estado = 1
-            ) AS total_detalles,
-            (
-                al.id_comprobante_venta IS NULL
-                AND NOT EXISTS (
-                    SELECT 1 FROM bal_alquiler_detalle ad
-                    WHERE ad.id_alquiler = al.id AND ad.estado = 1
-                )
-            ) AS puede_eliminar
+            (al.id_comprobante_venta IS NULL) AS puede_eliminar
         FROM bal_alquiler al
         INNER JOIN cli_clientes c ON al.id_cliente = c.id
         INNER JOIN gen_almacen a ON al.id_almacen = a.id
         LEFT JOIN gen_lista_opciones ea ON al.id_estado = ea.id
+        LEFT JOIN gen_lista_opciones cr ON al.id_condicion_regulador = cr.id
         LEFT JOIN ven_comprobante cv ON al.id_comprobante_venta = cv.id
         LEFT JOIN pro_producto pr ON al.id_producto_regulador = pr.id
         LEFT JOIN pro_producto ps ON al.id_producto_stock = ps.id

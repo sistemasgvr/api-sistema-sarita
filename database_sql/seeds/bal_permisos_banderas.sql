@@ -45,11 +45,6 @@ FROM (
         ('alquileres_balon.crear', 'Crear alquileres de regulador/accesorio'),
         ('alquileres_balon.editar', 'Editar alquileres de regulador/accesorio'),
         ('alquileres_balon.eliminar', 'Eliminar alquileres de regulador/accesorio'),
-        ('alquileres_detalle.listar', 'Listar cilindros vinculados a alquiler'),
-        ('alquileres_detalle.ver', 'Ver vínculo cilindro-alquiler'),
-        ('alquileres_detalle.crear', 'Vincular cilindros a alquiler (legado; preferir préstamo)'),
-        ('alquileres_detalle.editar', 'Editar vínculo cilindro-alquiler'),
-        ('alquileres_detalle.eliminar', 'Eliminar vínculo cilindro-alquiler'),
         ('mantenimientos_balon.listar', 'Listar mantenimientos de cilindros'),
         ('mantenimientos_balon.ver', 'Ver detalle de mantenimiento'),
         ('mantenimientos_balon.crear', 'Registrar mantenimientos'),
@@ -85,7 +80,6 @@ WHERE r.nombre = 'Administrador'
       OR p.nombre LIKE 'prestamos_balon.%'
       OR p.nombre LIKE 'prestamos_detalle.%'
       OR p.nombre LIKE 'alquileres_balon.%'
-      OR p.nombre LIKE 'alquileres_detalle.%'
       OR p.nombre LIKE 'mantenimientos_balon.%'
       OR p.nombre LIKE 'bajas_balon.%'
       OR p.nombre LIKE 'rutas_pueblos.%'

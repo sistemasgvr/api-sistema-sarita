@@ -62,7 +62,6 @@ WHERE r.nombre = 'Vendedor'
       OR p.nombre LIKE 'comprobantes.%'
       OR p.nombre LIKE 'movimientos_recarga.%'
       OR p.nombre LIKE 'alquileres_balon.%'
-      OR p.nombre LIKE 'alquileres_detalle.%'
       OR p.nombre LIKE 'mantenimientos_balon.%'
       OR p.nombre IN (
           'balones.listar',
@@ -151,7 +150,6 @@ WHERE r.nombre = 'Operario'
       OR p.nombre LIKE 'prestamos_balon.%'
       OR p.nombre LIKE 'prestamos_detalle.%'
       OR p.nombre LIKE 'alquileres_balon.%'
-      OR p.nombre LIKE 'alquileres_detalle.%'
   )
   AND p.nombre NOT IN (
       'balones.eliminar',
@@ -226,7 +224,6 @@ WHERE r.nombre = 'Supervisor'
       OR p.nombre LIKE 'prestamos_balon.%'
       OR p.nombre LIKE 'prestamos_detalle.%'
       OR p.nombre LIKE 'alquileres_balon.%'
-      OR p.nombre LIKE 'alquileres_detalle.%'
       OR p.nombre LIKE 'lotes_protocolo.%'
   )
   AND p.nombre NOT IN (

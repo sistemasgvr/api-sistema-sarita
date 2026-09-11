@@ -1,6 +1,11 @@
 -- Function: age_culminar_recojo
 -- Cierra el recojo como REALIZADA tras verificar lo recogido y elige almacén
--- destino. Devuelve cada cilindro (préstamo/alquiler) al almacén indicado.
+-- destino. Devuelve cada cilindro del préstamo al almacén indicado y, en un
+-- recojo de alquiler, reingresa el regulador/accesorio.
+--
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- el alquiler ya no tiene detalle de cilindros (bal_alquiler_detalle eliminada);
+-- el ítem de alquiler es siempre el regulador (sin balón).
 
 DROP FUNCTION IF EXISTS age_culminar_recojo(integer, integer, integer);
 
@@ -145,7 +150,6 @@ BEGIN
     WHERE ai.id_actividad = p_id AND ai.estado = 1
       AND (
             ai.id_prestamo_detalle IS NOT NULL
-         OR ai.id_alquiler_detalle IS NOT NULL
          OR (ai.id_balon IS NULL AND ai.id_producto IS NOT NULL AND v_act.id_alquiler IS NOT NULL)
       );
 
@@ -153,7 +157,7 @@ BEGIN
     -- Cualquier error de bal_devolver_* aborta con RAISE para revertir
     -- devoluciones parciales ya aplicadas en esta misma transacción.
     FOR v_item IN
-        SELECT ai.id, ai.id_balon, ai.id_prestamo_detalle, ai.id_alquiler_detalle,
+        SELECT ai.id, ai.id_balon, ai.id_prestamo_detalle,
                ai.id_producto, ai.observacion_llegada
         FROM age_actividad_item ai
         WHERE ai.id_actividad = p_id AND ai.estado = 1
@@ -173,22 +177,10 @@ BEGIN
             END IF;
             v_devueltos := v_devueltos + 1;
 
-        ELSIF v_item.id_alquiler_detalle IS NOT NULL THEN
-            v_dev := bal_devolver_alquiler_detalle(
-                p_id                   => v_item.id_alquiler_detalle,
-                p_fecha_devolucion     => CURRENT_DATE,
-                p_id_almacen_destino   => p_id_almacen_destino,
-                p_id_usuario_auditoria => p_id_usuario_auditoria
-            );
-            IF v_dev->>'error' IS NOT NULL THEN
-                RAISE EXCEPTION '%', v_dev->>'error';
-            END IF;
-            v_devueltos := v_devueltos + 1;
-
         ELSIF v_item.id_balon IS NULL
               AND v_item.id_producto IS NOT NULL
               AND v_act.id_alquiler IS NOT NULL THEN
-            -- Accesorio/regulador materializado sin balón.
+            -- Regulador/accesorio del alquiler (ítem sin balón).
             -- bal_devolver_regulador_alquiler NO acepta p_id_almacen_destino:
             -- reingresa stock con bal_alquiler.id_almacen. Si es NULL, falla
             -- en claro en lugar de marcar REALIZADA sin reingreso.

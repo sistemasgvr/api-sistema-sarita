@@ -1,0 +1,10 @@
+require('dotenv').config(); const { Client } = require('pg');
+(async () => { const c = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }); await c.connect();
+const q=async(l,s)=>{try{const r=await c.query(s);console.log(l,JSON.stringify(r.rows))}catch(e){console.log(l,'ERR',e.message)}};
+await q('alq_detalle total/vivos:', `SELECT COUNT(*) total, COUNT(*) FILTER (WHERE estado=1 AND fecha_devolucion IS NULL) vivos FROM bal_alquiler_detalle`);
+await q('alquileres:', `SELECT COUNT(*) n, COUNT(*) FILTER (WHERE id_producto_regulador IS NOT NULL OR id_producto_stock IS NOT NULL) con_regulador FROM bal_alquiler WHERE estado=1`);
+await q('age_item con id_alquiler_detalle:', `SELECT COUNT(*) n FROM age_actividad_item WHERE id_alquiler_detalle IS NOT NULL`);
+await q('FKs hacia bal_alquiler_detalle:', `SELECT conrelid::regclass t, conname FROM pg_constraint WHERE confrelid='bal_alquiler_detalle'::regclass`);
+await q('balones ALQUILADO/POR_RECOGER:', `SELECT eb.nombre, COUNT(*) FROM bal_balon b JOIN gen_lista_opciones eb ON eb.id=b.id_estado_balon WHERE b.estado=1 AND eb.nombre IN ('ALQUILADO','POR_RECOGER') GROUP BY 1`);
+await q('permisos alquileres_detalle:', `SELECT nombre FROM auth_permisos WHERE nombre LIKE 'alquileres_detalle%' OR nombre LIKE '%alquiler%detalle%'`);
+await c.end(); })();

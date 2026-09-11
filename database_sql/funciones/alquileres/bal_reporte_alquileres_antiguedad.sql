@@ -1,12 +1,25 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: bal_reporte_alquileres_antiguedad
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.950Z
-DROP FUNCTION IF EXISTS bal_reporte_alquileres_antiguedad(p_busqueda character varying, p_limite integer, p_offset integer, p_id_cliente integer, p_rango_dias character varying, p_excluir_bajas boolean, p_solo_pendientes boolean);
+-- Reescrita por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- el alquiler es solo del regulador/accesorio (el cilindro va por préstamo y
+-- bal_alquiler_detalle se eliminó). El reporte es una fila por alquiler con
+-- accesorio pendiente de devolución; los días se cuentan desde fecha_inicio
+-- y el atraso desde fecha_fin_pactada.
+--
+-- Firma: se retira p_excluir_bajas (era un filtro sobre el estado del cilindro).
 
-CREATE OR REPLACE FUNCTION bal_reporte_alquileres_antiguedad(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 50, p_offset integer DEFAULT 0, p_id_cliente integer DEFAULT NULL::integer, p_rango_dias character varying DEFAULT NULL::character varying, p_excluir_bajas boolean DEFAULT true, p_solo_pendientes boolean DEFAULT true)
- RETURNS json
- LANGUAGE plpgsql
+DROP FUNCTION IF EXISTS bal_reporte_alquileres_antiguedad(p_busqueda character varying, p_limite integer, p_offset integer, p_id_cliente integer, p_rango_dias character varying, p_excluir_bajas boolean, p_solo_pendientes boolean);
+DROP FUNCTION IF EXISTS bal_reporte_alquileres_antiguedad(p_busqueda character varying, p_limite integer, p_offset integer, p_id_cliente integer, p_rango_dias character varying, p_solo_pendientes boolean);
+
+CREATE OR REPLACE FUNCTION bal_reporte_alquileres_antiguedad(
+    p_busqueda character varying DEFAULT ''::character varying,
+    p_limite integer DEFAULT 50,
+    p_offset integer DEFAULT 0,
+    p_id_cliente integer DEFAULT NULL::integer,
+    p_rango_dias character varying DEFAULT NULL::character varying,
+    p_solo_pendientes boolean DEFAULT true
+)
+RETURNS json
+LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_registros JSON;
@@ -17,79 +30,62 @@ BEGIN
 
     WITH base AS (
         SELECT
-            ad.id AS id_detalle,
             a.id AS id_alquiler,
             a.numero_alquiler,
             a.id_cliente,
             COALESCE(
-                c.razon_social,
-                TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno))
+                NULLIF(TRIM(c.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), ''),
+                c.numero_documento
             ) AS nombre_cliente,
             a.id_almacen,
             alm.nombre AS nombre_almacen,
-            ad.id_balon,
-            b.codigo_balon,
-            b.numero_serie,
-            b.id_tipo_balon,
-            tb.nombre AS nombre_tipo_balon,
-            tb.capacidad,
-            um.nombre AS nombre_unidad_medida,
-            b.id_producto_gas,
-            pg.nombre AS nombre_producto_gas,
-            b.id_marca_cilindro,
-            mc.nombre AS nombre_marca_cilindro,
-            b.id_organo_inspector,
-            oi.nombre AS nombre_organo_inspector,
-            b.organo_inspector_no_aplica,
-            b.id_planta,
-            COALESCE(pl.razon_social, TRIM(CONCAT_WS(' ', pl.nombres, pl.apellido_paterno))) AS nombre_planta,
-            b.fecha_proxima_prueba_hidrostatica,
-            b.mes_fabricacion,
-            b.anio_fabricacion,
-            eb.nombre AS nombre_estado_balon,
+            COALESCE(a.id_producto_regulador, a.id_producto_stock) AS id_producto,
+            COALESCE(pr.nombre, ps.nombre) AS nombre_producto,
+            COALESCE(pr.codigo, ps.codigo) AS codigo_producto,
+            ea.nombre AS nombre_estado,
+            a.dias_periodo,
+            a.tarifa_diaria,
             a.fecha_inicio AS fecha_inicio_alquiler,
             a.fecha_fin_pactada,
-            ad.fecha_devolucion,
+            a.fecha_devolucion_regulador AS fecha_devolucion,
+            cr.nombre AS nombre_condicion_regulador,
             CASE
-                WHEN ad.fecha_devolucion IS NOT NULL THEN NULL
+                WHEN a.fecha_devolucion_regulador IS NOT NULL THEN NULL
                 ELSE (CURRENT_DATE - a.fecha_inicio)::INTEGER
             END AS dias_en_alquiler,
             CASE
-                WHEN ad.fecha_devolucion IS NOT NULL THEN 'DEVUELTO'
+                WHEN a.fecha_devolucion_regulador IS NOT NULL THEN NULL
+                WHEN a.fecha_fin_pactada IS NULL THEN NULL
+                ELSE GREATEST((CURRENT_DATE - a.fecha_fin_pactada)::INTEGER, 0)
+            END AS dias_atraso,
+            CASE
+                WHEN a.fecha_devolucion_regulador IS NOT NULL THEN 'DEVUELTO'
                 WHEN (CURRENT_DATE - a.fecha_inicio) >= 180 THEN 'CRITICO_180'
                 WHEN (CURRENT_DATE - a.fecha_inicio) >= 90 THEN 'SEGUIMIENTO_90_180'
                 WHEN (CURRENT_DATE - a.fecha_inicio) >= 30 THEN 'ATENCION_30_90'
                 ELSE 'RECIENTE_0_30'
             END AS rango_antiguedad
-        FROM bal_alquiler_detalle ad
-        INNER JOIN bal_alquiler a ON a.id = ad.id_alquiler AND a.estado = 1
-        LEFT JOIN bal_balon b ON b.id = ad.id_balon
-        LEFT JOIN bal_tipo_balon tb ON b.id_tipo_balon = tb.id
-        LEFT JOIN gen_lista_opciones um ON tb.id_unidad_medida = um.id
-        LEFT JOIN pro_producto pg ON b.id_producto_gas = pg.id
-        LEFT JOIN gen_lista_opciones mc ON b.id_marca_cilindro = mc.id
-        LEFT JOIN gen_lista_opciones oi ON b.id_organo_inspector = oi.id
-        LEFT JOIN gen_lista_opciones eb ON b.id_estado_balon = eb.id
-        LEFT JOIN cli_clientes c ON a.id_cliente = c.id
-        LEFT JOIN cli_clientes pl ON b.id_planta = pl.id
-        LEFT JOIN gen_almacen alm ON a.id_almacen = alm.id
-        WHERE ad.estado = 1
-          AND (p_solo_pendientes = FALSE OR ad.fecha_devolucion IS NULL)
-          AND (
-              p_excluir_bajas = FALSE
-              OR eb.nombre IS NULL
-              OR eb.nombre NOT IN ('DADO_DE_BAJA', 'ROBO')
-          )
-          AND (p_id_cliente IS NULL OR a.id_cliente = p_id_cliente)
+        FROM bal_alquiler a
+        LEFT JOIN cli_clientes c ON c.id = a.id_cliente
+        LEFT JOIN gen_almacen alm ON alm.id = a.id_almacen
+        LEFT JOIN pro_producto pr ON pr.id = a.id_producto_regulador
+        LEFT JOIN pro_producto ps ON ps.id = a.id_producto_stock
+        LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado
+        LEFT JOIN gen_lista_opciones cr ON cr.id = a.id_condicion_regulador
+        WHERE a.estado = 1
+          AND COALESCE(a.id_producto_regulador, a.id_producto_stock) IS NOT NULL
           AND a.fecha_inicio IS NOT NULL
+          AND (p_solo_pendientes = FALSE OR a.fecha_devolucion_regulador IS NULL)
+          AND (p_id_cliente IS NULL OR a.id_cliente = p_id_cliente)
           AND (
-              p_busqueda = ''
+              COALESCE(p_busqueda, '') = ''
               OR gen_texto_coincide(COALESCE(a.numero_alquiler, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(b.codigo_balon, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(b.numero_serie, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(c.nombres, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(pg.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(c.numero_documento, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(pr.nombre, ps.nombre, ''), p_busqueda)
+              OR gen_texto_coincide(COALESCE(pr.codigo, ps.codigo, ''), p_busqueda)
           )
     ),
     filtrado AS (
@@ -111,11 +107,12 @@ BEGIN
                     FROM filtrado
                     ORDER BY
                         CASE WHEN dias_en_alquiler IS NULL THEN 1 ELSE 0 END,
+                        dias_atraso DESC NULLS LAST,
                         dias_en_alquiler DESC NULLS LAST,
                         nombre_cliente ASC NULLS LAST,
-                        codigo_balon ASC NULLS LAST
-                    LIMIT p_limite
-                    OFFSET p_offset
+                        numero_alquiler ASC NULLS LAST
+                    LIMIT GREATEST(COALESCE(p_limite, 50), 1)
+                    OFFSET GREATEST(COALESCE(p_offset, 0), 0)
                 ) t
             ) AS registros,
             (
@@ -129,9 +126,9 @@ BEGIN
                 FROM base
             ) AS resumen
     )
-    SELECT a.total, a.registros, a.resumen
+    SELECT ag.total, ag.registros, ag.resumen
     INTO v_total, v_registros, v_resumen
-    FROM agregado a;
+    FROM agregado ag;
 
     RETURN json_build_object(
         'registros', COALESCE(v_registros, '[]'::JSON),

@@ -9,6 +9,10 @@
 -- que el selector de vencidos del formulario de actividades fallaba siempre.
 -- Y el total se calcula en la misma sentencia que la página: el CTE
 -- "filtrado" no existía para el segundo SELECT.
+--
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- el alquiler vencido entra solo por el regulador/accesorio pendiente
+-- (bal_alquiler_detalle eliminada).
 
 DROP FUNCTION IF EXISTS age_listar_vencidos_recojo(character varying, integer, integer);
 
@@ -98,14 +102,8 @@ BEGIN
             ),
             a.fecha_fin_pactada,
             (CURRENT_DATE - a.fecha_fin_pactada)::INTEGER,
-            (
-                SELECT COUNT(*)::INTEGER
-                FROM bal_alquiler_detalle ad
-                WHERE ad.id_alquiler = a.id
-                  AND ad.estado = 1
-                  AND ad.fecha_devolucion IS NULL
-                  AND ad.id_balon IS NOT NULL
-            ),
+            -- El alquiler no lleva cilindros (van por préstamo).
+            0::INTEGER,
             (
                 SELECT COUNT(*)::INTEGER
                 FROM ven_garantia g
@@ -115,7 +113,7 @@ BEGIN
                   AND eg.nombre = 'ACTIVA'
             ),
             (
-                a.id_producto_regulador IS NOT NULL
+                COALESCE(a.id_producto_regulador, a.id_producto_stock) IS NOT NULL
                 AND a.fecha_devolucion_regulador IS NULL
             )
         FROM bal_alquiler a
@@ -126,20 +124,9 @@ BEGIN
           AND a.fecha_fin_pactada IS NOT NULL
           AND a.fecha_fin_pactada < CURRENT_DATE
           AND COALESCE(ea.nombre, 'ACTIVO') = 'ACTIVO'
-          AND (
-              EXISTS (
-                  SELECT 1
-                  FROM bal_alquiler_detalle ad
-                  WHERE ad.id_alquiler = a.id
-                    AND ad.estado = 1
-                    AND ad.fecha_devolucion IS NULL
-                    AND ad.id_balon IS NOT NULL
-              )
-              OR (
-                  a.id_producto_regulador IS NOT NULL
-                  AND a.fecha_devolucion_regulador IS NULL
-              )
-          )
+          -- Solo hay algo que recoger si el regulador/accesorio sigue fuera.
+          AND COALESCE(a.id_producto_regulador, a.id_producto_stock) IS NOT NULL
+          AND a.fecha_devolucion_regulador IS NULL
           AND NOT EXISTS (SELECT 1 FROM vigentes v WHERE v.id_alquiler = a.id)
     ),
     filtrado AS (

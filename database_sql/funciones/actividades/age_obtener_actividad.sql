@@ -1,5 +1,9 @@
 -- Function: age_obtener_actividad
 -- Synced from migracion 20260908_age_recojo_vencidos_fk.sql
+--
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- el alquiler ya no tiene detalle de cilindros (bal_alquiler_detalle eliminada);
+-- el origen ALQUILER expone solo el regulador/accesorio pendiente.
 
 CREATE OR REPLACE FUNCTION age_obtener_actividad(p_id integer)
 RETURNS json
@@ -41,8 +45,7 @@ BEGIN
             epr.nombre AS estado_producto_recogido,
             i.id_doc_salida_detalle,
             i.id_venta_detalle,
-            i.id_prestamo_detalle,
-            i.id_alquiler_detalle
+            i.id_prestamo_detalle
         FROM age_actividad_item i
         LEFT JOIN pro_producto p ON p.id = i.id_producto
         LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
@@ -118,29 +121,9 @@ BEGIN
             'id_origen', a.id,
             'numero', a.numero_alquiler,
             'fecha_pactada', a.fecha_fin_pactada,
-            'cilindros', COALESCE((
-                SELECT json_agg(row_to_json(c) ORDER BY c.id)
-                FROM (
-                    SELECT
-                        ad.id,
-                        ad.id_balon,
-                        b.codigo_balon,
-                        b.numero_serie AS numero_serie_balon,
-                        tb.nombre AS nombre_tipo_balon,
-                        b.id_producto_gas AS id_producto,
-                        pgb.nombre AS nombre_producto,
-                        pgb.nombre AS nombre_producto_gas,
-                        1::NUMERIC AS cantidad
-                    FROM bal_alquiler_detalle ad
-                    LEFT JOIN bal_balon b ON b.id = ad.id_balon
-                    LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
-                    LEFT JOIN pro_producto pgb ON pgb.id = b.id_producto_gas
-                    WHERE ad.id_alquiler = a.id
-                      AND ad.estado = 1
-                      AND ad.fecha_devolucion IS NULL
-                      AND ad.id_balon IS NOT NULL
-                ) c
-            ), '[]'::JSON),
+            -- El alquiler es solo del regulador/accesorio; el cilindro va por
+            -- préstamo. Se mantiene la clave para el frontend, siempre vacía.
+            'cilindros', '[]'::JSON,
             'garantias', COALESCE((
                 SELECT json_agg(row_to_json(g) ORDER BY g.id)
                 FROM (
@@ -158,9 +141,9 @@ BEGIN
                 ) g
             ), '[]'::JSON),
             'regulador', CASE
-                WHEN a.id_producto_regulador IS NOT NULL AND a.fecha_devolucion_regulador IS NULL
+                WHEN COALESCE(a.id_producto_regulador, a.id_producto_stock) IS NOT NULL AND a.fecha_devolucion_regulador IS NULL
                 THEN json_build_object(
-                    'id_producto', a.id_producto_regulador,
+                    'id_producto', COALESCE(a.id_producto_regulador, a.id_producto_stock),
                     'nombre_producto', COALESCE(pr.nombre, ps.nombre),
                     'codigo_producto', COALESCE(pr.codigo, ps.codigo),
                     'pendiente', TRUE

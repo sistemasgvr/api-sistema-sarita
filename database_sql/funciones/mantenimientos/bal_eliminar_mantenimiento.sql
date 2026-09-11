@@ -2,6 +2,8 @@
 -- Function: bal_eliminar_mantenimiento
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.945Z
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- sin rama de restauración a ALQUILADO (bal_alquiler_detalle eliminada).
 DROP FUNCTION IF EXISTS bal_eliminar_mantenimiento(p_id integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_eliminar_mantenimiento(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -70,43 +72,6 @@ BEGIN
     -- Si no estaba finalizado, restaurar custodia previa (alquiler / préstamo / almacén).
     IF v_id_balon IS NOT NULL AND UPPER(COALESCE(v_nombre_estado, '')) <> 'FINALIZADO' THEN
         IF EXISTS (
-            SELECT 1
-            FROM bal_alquiler_detalle ad
-            INNER JOIN bal_alquiler al ON al.id = ad.id_alquiler AND al.estado = 1
-            WHERE ad.id_balon = v_id_balon
-              AND ad.estado = 1
-              AND ad.fecha_devolucion IS NULL
-        ) THEN
-            SELECT lo.id INTO v_id_estado_en_almacen
-            FROM gen_lista_opciones lo
-            INNER JOIN gen_lista l ON lo.id_lista = l.id
-            WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'ALQUILADO' AND lo.estado = 1
-            LIMIT 1;
-
-            UPDATE bal_balon b
-            SET
-                id_estado_balon = COALESCE(v_id_estado_en_almacen, b.id_estado_balon),
-                id_almacen = NULL,
-                id_cliente_ubicacion = (
-                    SELECT al.id_cliente
-                    FROM bal_alquiler_detalle ad
-                    INNER JOIN bal_alquiler al ON al.id = ad.id_alquiler
-                    WHERE ad.id_balon = v_id_balon
-                      AND ad.estado = 1
-                      AND ad.fecha_devolucion IS NULL
-                    ORDER BY ad.id DESC
-                    LIMIT 1
-                ),
-                id_usuario_modificacion = p_id_usuario_auditoria,
-                fecha_modificacion = NOW()
-            WHERE b.id = v_id_balon
-              AND b.estado = 1
-              AND EXISTS (
-                  SELECT 1 FROM gen_lista_opciones eb
-                  WHERE eb.id = b.id_estado_balon
-                    AND UPPER(COALESCE(eb.nombre, '')) = 'EN_MANTENIMIENTO'
-              );
-        ELSIF EXISTS (
             SELECT 1
             FROM bal_prestamo_detalle pd
             INNER JOIN bal_prestamo p2 ON p2.id = pd.id_prestamo AND p2.estado = 1

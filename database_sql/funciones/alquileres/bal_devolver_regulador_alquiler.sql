@@ -4,6 +4,10 @@
 -- Generated: 2026-09-03T16:50:38.945Z
 -- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
 -- se retira p_id_recojo (bal_recojo y bal_mantenimiento.id_recojo ya no existen).
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- al devolver el regulador el alquiler queda FINALIZADO y se cancela la
+-- actividad de RECOJO pendiente (antes lo hacía bal_devolver_alquiler_detalle,
+-- eliminada junto con bal_alquiler_detalle).
 DROP FUNCTION IF EXISTS bal_devolver_regulador_alquiler(p_id_alquiler integer, p_fecha date, p_condicion character varying, p_observacion character varying, p_id_recojo integer, p_id_usuario_auditoria integer);
 DROP FUNCTION IF EXISTS bal_devolver_regulador_alquiler(p_id_alquiler integer, p_fecha date, p_condicion character varying, p_observacion character varying, p_id_usuario_auditoria integer);
 
@@ -24,6 +28,7 @@ DECLARE
     v_obs VARCHAR(500);
     v_ya_devuelto DATE;
     v_stock_ok BOOLEAN;
+    v_id_estado_finalizado INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -183,6 +188,30 @@ BEGIN
             fecha_modificacion = NOW()
         WHERE id = p_id_alquiler AND estado = 1;
     END IF;
+
+    -- El alquiler es solo del regulador/accesorio: devuelto este, el contrato
+    -- queda FINALIZADO y la actividad de RECOJO que siguiera pendiente ya no
+    -- aplica (una EN_RUTA la cierra el chofer con age_culminar_recojo).
+    SELECT lo.id INTO v_id_estado_finalizado
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'EstadoAlquiler' AND lo.nombre = 'FINALIZADO' AND lo.estado = 1
+    LIMIT 1;
+
+    UPDATE bal_alquiler
+    SET
+        fecha_fin_real = COALESCE(fecha_fin_real, COALESCE(p_fecha, CURRENT_DATE)),
+        id_estado = COALESCE(v_id_estado_finalizado, id_estado),
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id_alquiler AND estado = 1;
+
+    PERFORM age_cancelar_recojos_pendientes_origen(
+        'ALQUILER',
+        p_id_alquiler,
+        p_id_usuario_auditoria,
+        'Cancelada: el regulador/accesorio del alquiler ya fue devuelto'
+    );
 
     RETURN json_build_object(
         'error', NULL,

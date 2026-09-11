@@ -10,6 +10,9 @@
 -- Antes llamaba a gre_eliminar_guia_remision (modelo gre_guia_remision,
 -- anterior a doc_salida) que ya no existe en la BD: anular o emitir NC total
 -- de un comprobante con guía pendiente fallaba con "function does not exist".
+--
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- sin loop de bal_alquiler_detalle (tabla eliminada; el alquiler es solo regulador).
 DROP FUNCTION IF EXISTS ven_cerrar_custodia_comprobante(p_id_comprobante integer, p_id_usuario integer);
 
 CREATE OR REPLACE FUNCTION ven_cerrar_custodia_comprobante(p_id_comprobante integer, p_id_usuario integer DEFAULT NULL::integer)
@@ -21,7 +24,6 @@ DECLARE
     v_detalle RECORD;
     v_recarga RECORD;
     v_alquiler RECORD;
-    v_alq_det RECORD;
     v_guia RECORD;
     v_mant RECORD;
     v_result JSON;
@@ -69,7 +71,9 @@ BEGIN
         WHERE id = v_recarga.id AND estado = 1;
     END LOOP;
 
-    -- Alquileres: reingreso de regulador y cilindros de detalle
+    -- Alquileres: reingreso del regulador/accesorio (el alquiler no lleva
+    -- cilindros; esos van por préstamo). bal_devolver_regulador_alquiler ya
+    -- finaliza el contrato; el UPDATE de abajo cubre un alquiler sin accesorio.
     FOR v_alquiler IN
         SELECT id FROM bal_alquiler
         WHERE estado = 1 AND id_comprobante_venta = p_id_comprobante
@@ -86,14 +90,6 @@ BEGIN
         THEN
             PERFORM ven_raise_si_error(v_result);
         END IF;
-
-        FOR v_alq_det IN
-            SELECT id FROM bal_alquiler_detalle
-            WHERE estado = 1 AND id_alquiler = v_alquiler.id AND fecha_devolucion IS NULL
-        LOOP
-            v_result := bal_devolver_alquiler_detalle(v_alq_det.id, CURRENT_DATE, NULL, p_id_usuario);
-            PERFORM ven_raise_si_error(v_result);
-        END LOOP;
 
         SELECT lo.id INTO v_id_estado_final
         FROM gen_lista_opciones lo

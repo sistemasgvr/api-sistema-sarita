@@ -2,6 +2,8 @@
 -- Function: cli_listar_clientes_mapa
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.952Z
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- sin lateral sobre bal_alquiler_detalle (el cilindro nunca se alquila; solo préstamo).
 DROP FUNCTION IF EXISTS cli_listar_clientes_mapa(p_solo_activos integer, p_buscar character varying, p_filtro_balones character varying, p_limite integer, p_offset integer);
 
 CREATE OR REPLACE FUNCTION cli_listar_clientes_mapa(p_solo_activos integer DEFAULT 1, p_buscar character varying DEFAULT NULL::character varying, p_filtro_balones character varying DEFAULT NULL::character varying, p_limite integer DEFAULT 500, p_offset integer DEFAULT 0)
@@ -51,12 +53,12 @@ BEGIN
                     WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER')
                         THEN COALESCE(prest.fecha_inicio, b.fecha_modificacion::date)
                     WHEN eb.nombre = 'ALQUILADO'
-                        THEN COALESCE(alq.fecha_inicio, b.fecha_modificacion::date)
+                        THEN COALESCE(NULL::date, b.fecha_modificacion::date)
                     ELSE NULL
                 END AS fecha_inicio,
                 CASE
                     WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER') THEN prest.fecha_limite
-                    WHEN eb.nombre = 'ALQUILADO' THEN alq.fecha_limite
+                    WHEN eb.nombre = 'ALQUILADO' THEN NULL::date
                     ELSE NULL
                 END AS fecha_limite,
                 CASE
@@ -64,7 +66,7 @@ BEGIN
                          AND COALESCE(
                              CASE
                                  WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER') THEN prest.fecha_inicio
-                                 WHEN eb.nombre = 'ALQUILADO' THEN alq.fecha_inicio
+                                 WHEN eb.nombre = 'ALQUILADO' THEN NULL::date
                              END,
                              b.fecha_modificacion::date
                          ) IS NOT NULL
@@ -72,7 +74,7 @@ BEGIN
                         CURRENT_DATE - COALESCE(
                             CASE
                                 WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER') THEN prest.fecha_inicio
-                                WHEN eb.nombre = 'ALQUILADO' THEN alq.fecha_inicio
+                                WHEN eb.nombre = 'ALQUILADO' THEN NULL::date
                             END,
                             b.fecha_modificacion::date
                         )
@@ -81,8 +83,8 @@ BEGIN
                 END AS dias_en_cliente,
                 CASE
                     WHEN eb.nombre = 'ALQUILADO'
-                         AND alq.fecha_limite IS NOT NULL
-                         AND CURRENT_DATE > alq.fecha_limite
+                         AND NULL::date IS NOT NULL
+                         AND CURRENT_DATE > NULL::date
                     THEN TRUE
                     WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER')
                          AND prest.fecha_limite IS NOT NULL
@@ -96,7 +98,7 @@ BEGIN
                         CURRENT_DATE - COALESCE(
                             CASE
                                 WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER') THEN prest.fecha_inicio
-                                WHEN eb.nombre = 'ALQUILADO' THEN alq.fecha_inicio
+                                WHEN eb.nombre = 'ALQUILADO' THEN NULL::date
                             END,
                             b.fecha_modificacion::date
                         )
@@ -105,7 +107,7 @@ BEGIN
                         CURRENT_DATE - COALESCE(
                             CASE
                                 WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER') THEN prest.fecha_inicio
-                                WHEN eb.nombre = 'ALQUILADO' THEN alq.fecha_inicio
+                                WHEN eb.nombre = 'ALQUILADO' THEN NULL::date
                             END,
                             b.fecha_modificacion::date
                         )
@@ -114,7 +116,7 @@ BEGIN
                         CURRENT_DATE - COALESCE(
                             CASE
                                 WHEN eb.nombre IN ('PRESTADO_CLIENTE', 'POR_RECOGER') THEN prest.fecha_inicio
-                                WHEN eb.nombre = 'ALQUILADO' THEN alq.fecha_inicio
+                                WHEN eb.nombre = 'ALQUILADO' THEN NULL::date
                             END,
                             b.fecha_modificacion::date
                         )
@@ -137,24 +139,11 @@ BEGIN
                 ORDER BY pd.id DESC
                 LIMIT 1
             ) prest ON TRUE
-            LEFT JOIN LATERAL (
-                SELECT
-                    al.fecha_inicio,
-                    al.fecha_fin_pactada AS fecha_limite
-                FROM bal_alquiler_detalle ad
-                INNER JOIN bal_alquiler al ON al.id = ad.id_alquiler AND al.estado = 1
-                WHERE ad.id_balon = b.id
-                  AND ad.estado = 1
-                  AND ad.fecha_devolucion IS NULL
-                  AND al.id_cliente = COALESCE(b.id_cliente_ubicacion, b.id_cliente_propietario)
-                ORDER BY ad.id DESC
-                LIMIT 1
-            ) alq ON TRUE
             WHERE b.estado = 1
+              -- ALQUILADO ya no existe como custodia: el cilindro nunca se alquila.
               AND eb.nombre IN (
                   'PRESTADO_CLIENTE',
                   'POR_RECOGER',
-                  'ALQUILADO',
                   'EN_PODER_CLIENTE'
               )
               AND COALESCE(b.id_cliente_ubicacion, b.id_cliente_propietario) IS NOT NULL

@@ -2,6 +2,9 @@
 -- Function: bal_obtener_alquiler
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.947Z
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- sin total_detalles (bal_alquiler_detalle eliminada); expone fecha_devolucion_regulador /
+-- condición / mantenimiento del accesorio.
 DROP FUNCTION IF EXISTS bal_obtener_alquiler(p_id integer);
 
 CREATE OR REPLACE FUNCTION bal_obtener_alquiler(p_id integer)
@@ -46,6 +49,10 @@ BEGIN
             al.id_producto_stock,
             ps.codigo AS codigo_producto_stock,
             ps.nombre AS nombre_producto_stock,
+            al.fecha_devolucion_regulador,
+            al.id_condicion_regulador,
+            cr.nombre AS nombre_condicion_regulador,
+            al.id_mantenimiento_regulador,
             al.dias_periodo,
             al.estado,
             al.fecha_creacion,
@@ -53,16 +60,12 @@ BEGIN
             al.id_usuario_creacion,
             uc.nombre AS nombre_usuario_creacion,
             al.id_usuario_modificacion,
-            um.nombre AS nombre_usuario_modificacion,
-            (
-                SELECT COUNT(*)::INTEGER
-                FROM bal_alquiler_detalle ad
-                WHERE ad.id_alquiler = al.id AND ad.estado = 1
-            ) AS total_detalles
+            um.nombre AS nombre_usuario_modificacion
         FROM bal_alquiler al
         INNER JOIN cli_clientes c ON al.id_cliente = c.id
         INNER JOIN gen_almacen a ON al.id_almacen = a.id
         LEFT JOIN gen_lista_opciones ea ON al.id_estado = ea.id
+        LEFT JOIN gen_lista_opciones cr ON al.id_condicion_regulador = cr.id
         LEFT JOIN ven_comprobante cv ON al.id_comprobante_venta = cv.id
         LEFT JOIN cli_clientes cv_cli ON cv.id_cliente = cv_cli.id
         LEFT JOIN pro_producto pr ON al.id_producto_regulador = pr.id

@@ -2,6 +2,8 @@
 -- Function: bal_eliminar_balon
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.945Z
+-- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
+-- sin chequeo de bal_alquiler_detalle (el cilindro nunca se alquila).
 DROP FUNCTION IF EXISTS bal_eliminar_balon(p_id integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION bal_eliminar_balon(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -69,13 +71,6 @@ BEGIN
         RETURN json_build_object(
             'eliminado', FALSE, 'id', p_id,
             'error', 'No se puede eliminar el balón porque está en préstamos. Solicite baja si corresponde.'
-        );
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM bal_alquiler_detalle WHERE id_balon = p_id AND estado = 1) THEN
-        RETURN json_build_object(
-            'eliminado', FALSE, 'id', p_id,
-            'error', 'No se puede eliminar el balón porque está en alquileres. Solicite baja si corresponde.'
         );
     END IF;
 
