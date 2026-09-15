@@ -250,14 +250,85 @@ export class FacturacionApisperuClient {
   async enviarGuiaRemision(
     payload: FacturacionApisperuPayload,
   ): Promise<FacturacionApisperuDocumentResponse> {
+    console.log('enviarGuiaRemision payload', payload);
     const ruc = await this.extractCompanyRuc(payload);
     await this.asegurarCredencialesGreEnEmpresa(ruc);
 
-    return this.request<FacturacionApisperuDocumentResponse>(
-      'POST',
-      '/despatch/send',
-      payload,
-    );
+    try {
+      return await this.request<FacturacionApisperuDocumentResponse>(
+        'POST',
+        '/despatch/send',
+        payload,
+      );
+    } catch (error: unknown) {
+      // APIsPERU responde 500 "Error al comunicarse con el servidor interno"
+      // cuando su llamada a SUNAT (OAuth GRE) falla: el mensaje no dice nada
+      // y el usuario revisa el payload en vano. Se le agrega el motivo más
+      // probable a partir de cómo está configurada la empresa en el PSE.
+      if (error instanceof BadGatewayException) {
+        throw new BadGatewayException(
+          `${error.message}${await this.diagnosticoEntornoGre(ruc)}`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Credenciales OAuth de prueba que exige el simulador GRE de SUNAT
+   * (gre-test.nubefact.com) cuando la empresa del PSE está en entorno beta.
+   * Un client_id real de SOL no autentica ahí y APIsPERU devuelve 500.
+   */
+  private static readonly GRE_TEST_CLIENT_ID_PREFIX = 'test-';
+
+  private async diagnosticoEntornoGre(ruc?: string): Promise<string> {
+    try {
+      const creds = await this.credentialsService.resolve();
+      const companyId = await this.resolveCompanyId(ruc, creds);
+      if (companyId == null) return '';
+
+      const empresa = (await this.obtenerEmpresa(companyId)) as {
+        environment?: { nombre?: string; api_cpe_url?: string } | string;
+        client_id?: string;
+      };
+      const entorno =
+        typeof empresa.environment === 'string'
+          ? empresa.environment
+          : (empresa.environment?.nombre ?? '');
+      const apiCpe =
+        typeof empresa.environment === 'object'
+          ? (empresa.environment?.api_cpe_url ?? '')
+          : '';
+      const clientId = String(empresa.client_id ?? creds.clientId ?? '');
+      const esCredencialPrueba = clientId.startsWith(
+        FacturacionApisperuClient.GRE_TEST_CLIENT_ID_PREFIX,
+      );
+
+      if (entorno === 'beta' && !esCredencialPrueba) {
+        return (
+          ` — La empresa está en entorno BETA del PSE (GRE contra ${apiCpe || 'gre-test.nubefact.com'}), ` +
+          'que solo acepta las credenciales OAuth de prueba de SUNAT (client_id "test-85e5b0ae-255c-4891-a595-0b98c65c9854", ' +
+          'client_secret "test-Hty/M6QshYvPgItX2P0+Kw=="). Configúralas en Configuración → SUNAT mientras pruebas, ' +
+          'o cambia la empresa a PRODUCCIÓN en APIsPERU para usar el client_id generado en SOL.'
+        );
+      }
+
+      if (entorno !== 'beta' && esCredencialPrueba) {
+        return (
+          ' — La empresa está en PRODUCCIÓN pero el client_id GRE es el de prueba (test-…). ' +
+          'Genera las credenciales reales en SUNAT SOL (Empresas → Comprobantes de pago → Credenciales API) y regístralas en Configuración → SUNAT.'
+        );
+      }
+
+      return entorno
+        ? ` — Revisa en APIsPERU las credenciales OAuth GRE de la empresa (entorno ${entorno}).`
+        : '';
+    } catch (diagError: unknown) {
+      this.logger.warn(
+        `No se pudo diagnosticar el entorno GRE: ${diagError instanceof Error ? diagError.message : String(diagError)}`,
+      );
+      return '';
+    }
   }
 
   async consultarEstadoGuiaRemision(

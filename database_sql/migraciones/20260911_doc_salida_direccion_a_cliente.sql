@@ -1,40 +1,4 @@
--- Dirección de entrega marcada desde la orden de salida → ficha del
--- cliente/proveedor → mapa.
---
--- Hoy la dirección manual del modal "Dirección de entrega" solo queda en
--- doc_salida, así que el cliente/proveedor sigue sin ubicación y no aparece en
--- el mapa. Con este cambio:
---   1) doc_registrar_direccion_entrega recibe p_guardar_en_cliente (default TRUE)
---      y, en modo manual, inserta/reutiliza la dirección en cli_direcciones del
---      destinatario (id_destinatario → id_cliente → id_proveedor) y enlaza el
---      documento a esa fila. Es principal solo si el cliente no tenía una.
---   2) cli_listar_clientes_mapa deja de exigir es_principal: dibuja la principal
---      si está georreferenciada y, si no, la dirección con coordenadas más
---      reciente.
---
--- ⚠️ NO EJECUTAR sin revisión — aplicar con apply-migration.js cuando el
--- usuario lo confirme:
---   node database_sql/scripts/apply-migration.js database_sql/migraciones/20260911_doc_salida_direccion_a_cliente.sql
 
--- 1) ===== database_sql/funciones/documentos-salida/doc_registrar_direccion_entrega.sql =====
--- Registra o actualiza la dirección de entrega + coordenadas de un documento
--- de salida. Se puede llamar en cualquier momento del ciclo (BORRADOR o
--- GENERADA) — no mueve inventario ni cambia estado, solo guarda dónde
--- entregar. Si viene de una dirección guardada del cliente (p_id_direccion_cliente),
--- se copia el snapshot de esa fila; si es manual, se usan los parámetros tal cual.
---
--- Dirección manual + p_guardar_en_cliente (default TRUE): la dirección se
--- registra también en cli_direcciones del destinatario del documento
--- (id_destinatario → id_cliente → id_proveedor; los proveedores también son
--- filas de cli_clientes) y el doc queda enlazado a esa fila. Así una dirección
--- marcada desde la orden de salida aparece en la ficha del cliente/proveedor
--- y en el mapa (cli_listar_clientes_mapa). Si el cliente ya tiene una
--- dirección activa con el mismo texto se reutiliza (y se completan sus
--- coordenadas/referencia/distrito con lo nuevo) en vez de duplicarla. Solo se
--- marca como principal cuando el cliente aún no tiene una.
---
--- ⚠️ Requiere las columnas agregadas por
--- database_sql/migraciones/20260904_doc_salida_direccion_entrega.sql.
 DROP FUNCTION IF EXISTS doc_registrar_direccion_entrega(p_id integer, p_direccion_entrega character varying, p_referencia_entrega character varying, p_latitud numeric, p_longitud numeric, p_id_distrito_entrega integer, p_id_direccion_cliente integer, p_id_usuario_auditoria integer);
 DROP FUNCTION IF EXISTS doc_registrar_direccion_entrega(p_id integer, p_direccion_entrega character varying, p_referencia_entrega character varying, p_latitud numeric, p_longitud numeric, p_id_distrito_entrega integer, p_id_direccion_cliente integer, p_id_usuario_auditoria integer, p_guardar_en_cliente boolean);
 
