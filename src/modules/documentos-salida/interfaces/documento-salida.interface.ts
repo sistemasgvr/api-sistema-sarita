@@ -49,6 +49,7 @@ export interface DocumentoSalidaReferenciaRegistro {
 
 /** Cabecera completa devuelta por `doc_obtener_salida`. */
 export interface DocumentoSalidaRegistro {
+  id_empresa: number | null;
   id: number;
   numero: string;
   id_tipo_orden: number;

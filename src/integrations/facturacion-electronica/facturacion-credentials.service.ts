@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../../database/database.service';
 
@@ -38,6 +39,12 @@ interface CredencialesDbRow {
 @Injectable()
 export class FacturacionCredentialsService {
   private readonly logger = new Logger(FacturacionCredentialsService.name);
+  private readonly empresaContext = new AsyncLocalStorage<number>();
+
+  withEmpresa<T>(idEmpresa: number, operation: () => Promise<T>): Promise<T> {
+    return this.empresaContext.run(idEmpresa, operation);
+  }
+
   private cache: FacturacionCredentials | null = null;
   private cacheAt = 0;
   private readonly ttlMs = 15_000;
@@ -53,6 +60,26 @@ export class FacturacionCredentialsService {
   }
 
   async resolve(): Promise<FacturacionCredentials> {
+    const idEmpresa = this.empresaContext.getStore();
+    if (idEmpresa != null) {
+      const result = await this.db.query<CredencialesDbRow>(
+        `SELECT cs.*, e.ruc AS ruc_empresa FROM gen_configuracion_sunat cs
+         JOIN gen_empresa e ON e.id = cs.id_empresa AND e.estado = 1
+         WHERE cs.estado = 1 AND cs.id_empresa = $1`, [idEmpresa],
+      );
+      if (result.rows.length !== 1) {
+        throw new BadRequestException('La empresa emisora debe tener una única configuración SUNAT activa');
+      }
+      const row = result.rows[0];
+      if (row.ruc_emisor?.trim() && row.ruc_emisor.trim() !== row.ruc_empresa?.trim()) {
+        throw new BadRequestException('El RUC emisor SUNAT no coincide con la empresa de la guía');
+      }
+      // Nunca completar secretos con credenciales de otra empresa o del entorno.
+      return this.merge({ ...row, ruc_emisor: row.ruc_empresa }, {
+        enabled: false, provider: null, baseUrl: '', token: '', username: '', password: '',
+        defaultRuc: '', clientId: '', clientSecret: '', timeoutMs: 60000, source: 'database',
+      });
+    }
     if (this.cache && Date.now() - this.cacheAt < this.ttlMs) {
       return this.cache;
     }

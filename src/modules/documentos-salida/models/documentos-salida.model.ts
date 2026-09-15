@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../../../database/database.service';
 import {
   ActualizarDocSalidaDetalleDto,
@@ -37,7 +36,6 @@ interface EmpresaEmisoraRow {
 export class DocumentosSalidaModel {
   constructor(
     private readonly db: DatabaseService,
-    private readonly configService: ConfigService,
   ) {}
 
   listar(filtros: FiltroDocSalidaDto) {
@@ -94,6 +92,7 @@ export class DocumentosSalidaModel {
       dto.pesoBruto ?? null,
       dto.numeroBultos ?? null,
       dto.idAlmacenDestino ?? null,
+      dto.idEmpresa ?? null,
     ]);
   }
 
@@ -103,6 +102,7 @@ export class DocumentosSalidaModel {
       dto.idDestinatario ?? null,
       dto.fechaTraslado ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idEmpresa ?? null,
     ]);
   }
 
@@ -163,7 +163,7 @@ export class DocumentosSalidaModel {
   }
 
   convertirAGre(id: number, dto: ConvertirGreDto) {
-    return this.db.callFunctionJson<DocumentoSalidaCompletoResult>('doc_convertir_a_gre', [
+    const params = [
       id,
       dto.idTipoGuiaRemision ?? null,
       dto.serie,
@@ -181,7 +181,16 @@ export class DocumentosSalidaModel {
       dto.idDistritoLlegada ?? null,
       dto.fechaTraslado ?? null,
       dto.idUsuarioAuditoria ?? null,
-    ]);
+      dto.idEmpresa,
+    ];
+    return this.db.query<{ result: DocumentoSalidaCompletoResult }>(
+      `SELECT public.doc_convertir_a_gre(
+        $1::integer, $2::integer, $3::varchar, $4::integer, $5::integer,
+        $6::integer, $7::integer, $8::integer, $9::integer, $10::numeric,
+        $11::integer, $12::varchar, $13::integer, $14::varchar, $15::integer,
+        $16::date, $17::integer, p_id_empresa => $18::integer
+      ) AS result`, params,
+    ).then(({ rows }) => rows[0].result);
   }
 
   registrarDireccionEntrega(id: number, dto: RegistrarDireccionEntregaDto) {
@@ -293,33 +302,11 @@ export class DocumentosSalidaModel {
     };
   }
 
-  async obtenerEmpresaEmisora(preferredRuc?: string | null): Promise<EmpresaEmisoraRow | null> {
-    const defaultRuc = (
-      preferredRuc ||
-      this.configService.get<string>('facturacion.defaultRuc') ||
-      ''
-    ).trim();
-
-    if (defaultRuc) {
-      const byRuc = await this.db.query<EmpresaEmisoraRow>(
-        `SELECT id, ruc, razon_social, nombre_comercial, direccion
-         FROM gen_empresa
-         WHERE estado = 1 AND ruc = $1
-         LIMIT 1`,
-        [defaultRuc],
-      );
-
-      if (byRuc.rows[0]) return byRuc.rows[0];
-    }
-
+  async obtenerEmpresaEmisora(idEmpresa: number): Promise<EmpresaEmisoraRow | null> {
     const result = await this.db.query<EmpresaEmisoraRow>(
       `SELECT id, ruc, razon_social, nombre_comercial, direccion
-       FROM gen_empresa
-       WHERE estado = 1
-       ORDER BY id
-       LIMIT 1`,
+       FROM gen_empresa WHERE estado = 1 AND id = $1`, [idEmpresa],
     );
-
     return result.rows[0] ?? null;
   }
 }

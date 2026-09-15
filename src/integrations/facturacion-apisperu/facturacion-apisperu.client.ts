@@ -28,8 +28,6 @@ import type {
 @Injectable()
 export class FacturacionApisperuClient {
   private readonly logger = new Logger(FacturacionApisperuClient.name);
-  private sessionToken: string | null = null;
-  private sessionTokenExpiresAt = 0;
 
   constructor(
     private readonly httpService: HttpService,
@@ -90,8 +88,6 @@ export class FacturacionApisperuClient {
       { auth: false },
     );
 
-    this.sessionToken = response.token;
-    this.sessionTokenExpiresAt = Date.now() + 23 * 60 * 60 * 1000;
 
     return response;
   }
@@ -250,7 +246,6 @@ export class FacturacionApisperuClient {
   async enviarGuiaRemision(
     payload: FacturacionApisperuPayload,
   ): Promise<FacturacionApisperuDocumentResponse> {
-    console.log('enviarGuiaRemision payload', payload);
     const ruc = await this.extractCompanyRuc(payload);
     await this.asegurarCredencialesGreEnEmpresa(ruc);
 
@@ -365,10 +360,31 @@ export class FacturacionApisperuClient {
       );
     }
 
-    this.logger.log(
-      `Sincronizando credenciales GRE (client_id) en empresa PSE ${companyId}`,
-    );
-
+    const company = await this.obtenerEmpresa(companyId) as {
+      environment?: string | { nombre?: string; api_cpe_url?: string; auth_url?: string };
+    };
+    const environment = typeof company.environment === 'string'
+      ? company.environment : company.environment?.nombre;
+    if (environment === 'beta') {
+      const urls = typeof company.environment === 'object'
+        ? [company.environment.api_cpe_url, company.environment.auth_url].filter(Boolean)
+        : [];
+      if (urls.some(url => !/^https:\/\/gre-test\.nubefact\.com\/v1\/?$/.test(url!))) {
+        throw new BadRequestException('El entorno BETA tiene URLs GRE distintas del simulador esperado. Revisa el entorno en APIsPERU.');
+      }
+      // Credenciales públicas del simulador GRE (Greenter / Lycet .env.test).
+      // No sobrescribir los secretos reales almacenados en configuración SUNAT.
+      await this.actualizarEmpresa(companyId, {
+        client_id: 'test-85e5b0ae-255c-4891-a595-0b98c65c9854',
+        client_secret: 'test-Hty/M6QshYvPgItX2P0+Kw==',
+        sol_user: 'MODDATOS',
+        sol_pass: 'MODDATOS',
+      });
+      return;
+    }
+    if (clientId.startsWith('test-')) {
+      throw new BadRequestException('Las credenciales GRE de prueba solo pueden usarse en el entorno BETA.');
+    }
     await this.actualizarEmpresa(companyId, {
       client_id: clientId,
       client_secret: clientSecret,
@@ -394,7 +410,7 @@ export class FacturacionApisperuClient {
               String((item as { ruc?: string | number }).ruc ?? '').trim() ===
               rucNorm,
           )
-        : undefined) ?? empresas[0];
+        : undefined);
 
     const companyId = (empresa as { id?: number } | undefined)?.id;
     return companyId ?? null;
@@ -490,7 +506,7 @@ export class FacturacionApisperuClient {
                 String((item as { ruc?: string | number }).ruc ?? '').trim() ===
                 rucNorm,
             )
-          : undefined) ?? empresas[0];
+          : undefined);
 
       const companyId = (empresa as { id?: number } | undefined)?.id;
       if (companyId == null) {
@@ -565,10 +581,6 @@ export class FacturacionApisperuClient {
   private async resolveAuthToken(): Promise<string> {
     const creds = await this.credentialsService.resolve();
     if (creds.token) return creds.token;
-
-    if (this.sessionToken && Date.now() < this.sessionTokenExpiresAt) {
-      return this.sessionToken;
-    }
 
     const login = await this.login();
     return login.token;

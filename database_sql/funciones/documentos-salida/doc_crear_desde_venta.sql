@@ -9,7 +9,7 @@
 -- cilindros de préstamo (rol ENTREGADO) que aparecen en doc_obtener_salida.
 DROP FUNCTION IF EXISTS doc_crear_desde_venta(p_id_venta integer, p_id_destinatario integer, p_fecha_traslado date, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION doc_crear_desde_venta(p_id_venta integer, p_id_destinatario integer DEFAULT NULL::integer, p_fecha_traslado date DEFAULT NULL::date, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION doc_crear_desde_venta(p_id_venta integer, p_id_destinatario integer DEFAULT NULL::integer, p_fecha_traslado date DEFAULT NULL::date, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_empresa integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -84,7 +84,8 @@ BEGIN
         p_fecha                => v_venta.fecha,
         p_fecha_traslado       => COALESCE(p_fecha_traslado, v_venta.fecha),
         p_observaciones        => format('Orden de salida de la venta %s-%s', v_venta.serie, v_venta.numero),
-        p_id_usuario_auditoria => p_id_usuario_auditoria
+        p_id_usuario_auditoria => p_id_usuario_auditoria,
+        p_id_empresa => p_id_empresa
     );
 
     IF v_resultado->>'error' IS NOT NULL THEN

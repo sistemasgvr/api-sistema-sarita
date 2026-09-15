@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -15,6 +16,7 @@ export class CreateEmpresaDto extends AuditoriaDto {
   @ApiProperty({ example: '20123456789', maxLength: 11 })
   @IsString()
   @IsNotEmpty()
+  @Matches(/^\d{11}$/, { message: 'El RUC debe tener 11 dígitos' })
   @MaxLength(11)
   ruc!: string;
 
@@ -73,6 +75,7 @@ export class UpdateEmpresaDto extends AuditoriaDto {
   @ApiPropertyOptional({ maxLength: 11 })
   @IsOptional()
   @IsString()
+  @Matches(/^\d{11}$/, { message: 'El RUC debe tener 11 dígitos' })
   @MaxLength(11)
   ruc?: string;
 

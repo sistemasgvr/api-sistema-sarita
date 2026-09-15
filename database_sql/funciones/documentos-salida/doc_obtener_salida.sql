@@ -207,7 +207,7 @@ BEGIN
     SELECT row_to_json(t) INTO v_registro
     FROM (
         SELECT
-            d.id, d.numero,
+            d.id, d.numero, d.id_empresa,
             d.id_tipo_orden, tor.nombre AS nombre_tipo_orden,
             d.id_estado_ciclo, ec.nombre AS nombre_estado_ciclo,
             d.emitido_sunat,

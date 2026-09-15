@@ -11,6 +11,7 @@
 -- database_sql/migraciones/20260910_retorno_fisico_fecha_ph.sql.
 
 CREATE TABLE doc_salida (
+    id_empresa integer REFERENCES gen_empresa(id),
     id integer NOT NULL,
     numero character varying(30) NOT NULL,
     id_tipo_orden integer NOT NULL,

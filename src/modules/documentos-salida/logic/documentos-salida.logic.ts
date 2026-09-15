@@ -139,7 +139,16 @@ export class DocumentosSalidaLogic {
     return this.obtener(id);
   }
 
-  async generarPdf(id: number) {
+  async generarPdf(id: number, idEmpresaSeleccionada?: number) {
+    const doc = await this.model.obtener(id);
+    if (!doc.registro) throw new NotFoundException('Documento de salida no encontrado');
+    const esGuia = Boolean(doc.registro.serie || doc.registro.numero_sunat || doc.registro.ticket_sunat);
+    const idEmpresa = doc.registro.id_empresa ?? (esGuia ? undefined : idEmpresaSeleccionada);
+    if (!idEmpresa) throw new BadRequestException('El documento no tiene empresa emisora vinculada. Verifica su emisor antes de emitir, consultar o generar el PDF.');
+    return this.credentialsService.withEmpresa(idEmpresa, () => this.generarPdfParaEmpresa(id, idEmpresa));
+  }
+
+  private async generarPdfParaEmpresa(id: number, idEmpresa: number) {
     const doc = await this.model.obtener(id);
 
     if (doc.error) {
@@ -150,7 +159,7 @@ export class DocumentosSalidaLogic {
       throw new NotFoundException(`Documento de salida ${id} no encontrado`);
     }
 
-    const empresa = await this.obtenerEmpresaEmisoraResuelta();
+    const empresa = await this.obtenerEmpresaEmisoraResuelta(idEmpresa);
     const buffer = await this.pdfGenerator.generarA4(doc, empresa);
     const esGre = Boolean(doc.registro.serie && doc.registro.numero_sunat);
     const filename = esGre
@@ -161,6 +170,14 @@ export class DocumentosSalidaLogic {
   }
 
   async emitirSunat(id: number, dto: AuditoriaDto) {
+    const doc = await this.model.obtener(id);
+    if (!doc.registro) throw new NotFoundException('Documento de salida no encontrado');
+    const idEmpresa = doc.registro.id_empresa;
+    if (!idEmpresa) throw new BadRequestException('El documento no tiene empresa emisora vinculada. Verifica su emisor antes de emitir, consultar o generar el PDF.');
+    return this.credentialsService.withEmpresa(idEmpresa, () => this.emitirSunatParaEmpresa(id, dto));
+  }
+
+  private async emitirSunatParaEmpresa(id: number, dto: AuditoriaDto) {
     const doc = await this.model.obtener(id);
 
     if (doc.error) {
@@ -193,7 +210,7 @@ export class DocumentosSalidaLogic {
 
     await this.assertFacturacionConfigurada({ requireGre: true });
 
-    const empresa = await this.obtenerEmpresaEmisoraResuelta();
+    const empresa = await this.obtenerEmpresaEmisoraResuelta(doc.registro.id_empresa);
     const payload = this.despatchMapper.mapToDespatchPayload(doc, empresa);
 
     let respuesta: FacturacionApisperuDocumentResponse;
@@ -256,6 +273,14 @@ export class DocumentosSalidaLogic {
   }
 
   async consultarEstado(id: number, dto: AuditoriaDto) {
+    const doc = await this.model.obtener(id);
+    if (!doc.registro) throw new NotFoundException('Documento de salida no encontrado');
+    const idEmpresa = doc.registro.id_empresa;
+    if (!idEmpresa) throw new BadRequestException('La guía no tiene empresa emisora vinculada. Verifica su emisor histórico antes de consultar.');
+    return this.credentialsService.withEmpresa(idEmpresa, () => this.consultarEstadoParaEmpresa(id, dto));
+  }
+
+  private async consultarEstadoParaEmpresa(id: number, dto: AuditoriaDto) {
     await this.assertFacturacionConfigurada({ requireGre: true });
 
     const doc = await this.model.obtener(id);
@@ -281,7 +306,7 @@ export class DocumentosSalidaLogic {
       );
     }
 
-    const empresa = await this.obtenerEmpresaEmisoraResuelta();
+    const empresa = await this.obtenerEmpresaEmisoraResuelta(doc.registro.id_empresa);
     await this.facturacionClient.asegurarCredencialesGreEnEmpresa(empresa.ruc);
 
     const respuesta = await this.facturacionClient.consultarEstadoGuiaRemision({ ticket });
@@ -394,16 +419,10 @@ export class DocumentosSalidaLogic {
     return this.resolverEstadoSunatNombre(nested as SunatResponsePayload);
   }
 
-  private async obtenerEmpresaEmisoraResuelta() {
-    const creds = await this.credentialsService.resolve();
-    const empresa = await this.model.obtenerEmpresaEmisora(creds.defaultRuc || undefined);
-
-    if (!empresa) {
-      throw new BadRequestException(
-        'No hay empresa emisora configurada en gen_empresa (revisa RUC en Configuración → SUNAT)',
-      );
-    }
-
+  private async obtenerEmpresaEmisoraResuelta(idEmpresa: number | null) {
+    if (!idEmpresa) throw new BadRequestException('Selecciona la empresa emisora de la guía');
+    const empresa = await this.model.obtenerEmpresaEmisora(idEmpresa);
+    if (!empresa) throw new BadRequestException('La empresa emisora de la guía no está activa');
     return empresa;
   }
 

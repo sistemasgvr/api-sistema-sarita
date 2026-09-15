@@ -17,6 +17,13 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
 export class CreateDocSalidaDto extends AuditoriaDto {
+  @ApiPropertyOptional({ description: 'Empresa activa al crear el documento' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idEmpresa?: number;
+
   @ApiProperty({
     example: 'ORDEN_SALIDA_INTERNA',
     description:
@@ -174,6 +181,13 @@ export class ActualizarDocSalidaDto extends AuditoriaDto {
 }
 
 export class CrearDesdeVentaDto extends AuditoriaDto {
+  @ApiPropertyOptional({ description: 'Empresa activa al crear el documento' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idEmpresa?: number;
+
   @ApiProperty()
   @Type(() => Number)
   @IsInt()
@@ -192,6 +206,12 @@ export class CrearDesdeVentaDto extends AuditoriaDto {
 }
 
 export class ConvertirGreDto extends AuditoriaDto {
+  @ApiProperty({ description: 'Empresa emisora elegida explícitamente' })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idEmpresa!: number;
+
   @ApiProperty({ description: 'ID opción TipoGuiaRemision (09/31)' })
   @IsOptional()
   @Type(() => Number)

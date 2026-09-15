@@ -11,7 +11,9 @@
 DROP FUNCTION IF EXISTS doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer, p_id_cliente integer, p_id_destinatario integer, p_id_proveedor integer, p_id_doc_salida_origen integer, p_fecha date, p_fecha_traslado date, p_observaciones character varying, p_id_usuario_auditoria integer);
 DROP FUNCTION IF EXISTS doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer, p_id_cliente integer, p_id_destinatario integer, p_id_proveedor integer, p_id_doc_salida_origen integer, p_fecha date, p_fecha_traslado date, p_observaciones character varying, p_id_usuario_auditoria integer, p_peso_bruto numeric, p_numero_bultos integer);
 
-CREATE OR REPLACE FUNCTION doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_id_destinatario integer DEFAULT NULL::integer, p_id_proveedor integer DEFAULT NULL::integer, p_id_doc_salida_origen integer DEFAULT NULL::integer, p_fecha date DEFAULT NULL::date, p_fecha_traslado date DEFAULT NULL::date, p_observaciones character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_peso_bruto numeric DEFAULT NULL::numeric, p_numero_bultos integer DEFAULT NULL::integer, p_id_almacen_destino integer DEFAULT NULL::integer)
+DROP FUNCTION IF EXISTS doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer, p_id_cliente integer, p_id_destinatario integer, p_id_proveedor integer, p_id_doc_salida_origen integer, p_fecha date, p_fecha_traslado date, p_observaciones character varying, p_id_usuario_auditoria integer, p_peso_bruto numeric, p_numero_bultos integer, p_id_almacen_destino integer);
+
+CREATE OR REPLACE FUNCTION doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_id_destinatario integer DEFAULT NULL::integer, p_id_proveedor integer DEFAULT NULL::integer, p_id_doc_salida_origen integer DEFAULT NULL::integer, p_fecha date DEFAULT NULL::date, p_fecha_traslado date DEFAULT NULL::date, p_observaciones character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_peso_bruto numeric DEFAULT NULL::numeric, p_numero_bultos integer DEFAULT NULL::integer, p_id_almacen_destino integer DEFAULT NULL::integer, p_id_empresa integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -24,6 +26,9 @@ DECLARE
     v_id_almacen INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
+    IF p_id_empresa IS NOT NULL AND NOT EXISTS (SELECT 1 FROM gen_empresa WHERE id = p_id_empresa AND estado = 1) THEN
+        RETURN json_build_object('error', 'La empresa seleccionada no está activa', 'registro', NULL);
+    END IF;
     v_fecha := COALESCE(p_fecha, CURRENT_DATE);
 
     SELECT lo.id INTO v_id_tipo_orden
@@ -88,6 +93,7 @@ BEGIN
     v_numero := doc_obtener_siguiente_numero(p_id_sucursal, v_fecha);
 
     INSERT INTO doc_salida (
+        id_empresa,
         numero, id_tipo_orden, id_estado_ciclo, emitido_sunat,
         id_venta, id_doc_salida_origen,
         id_sucursal, id_almacen, id_almacen_destino, id_cliente, id_destinatario, id_proveedor,
@@ -95,6 +101,7 @@ BEGIN
         peso_bruto, numero_bultos,
         id_usuario_creacion, id_usuario_modificacion
     ) VALUES (
+        p_id_empresa,
         v_numero, v_id_tipo_orden, v_id_borrador, FALSE,
         p_id_venta, p_id_doc_salida_origen,
         p_id_sucursal, v_id_almacen, p_id_almacen_destino,

@@ -79,8 +79,11 @@ export class DocumentosSalidaController {
   @ApiProduces('application/pdf')
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   @Header('Content-Type', 'application/pdf')
-  async generarPdf(@Param('id', ParseIntPipe) id: number) {
-    const { buffer, filename } = await this.logic.generarPdf(id);
+  async generarPdf(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('idEmpresa', new ParseIntPipe({ optional: true })) idEmpresa?: number,
+  ) {
+    const { buffer, filename } = await this.logic.generarPdf(id, idEmpresa);
     return new StreamableFile(buffer, { type: 'application/pdf', disposition: `inline; filename="${filename}"` });
   }
 
