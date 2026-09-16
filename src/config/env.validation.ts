@@ -56,6 +56,8 @@ export const envValidationSchema = Joi.object({
   FACTURACION_APISPERU_GRE_CLIENT_ID: Joi.string().optional().allow(''),
   FACTURACION_APISPERU_GRE_CLIENT_SECRET: Joi.string().optional().allow(''),
   FACTURACION_APISPERU_TIMEOUT_MS: Joi.number().integer().min(1000).default(60000),
+  GRE_CONSULTA_AUTOMATICA_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
+  GRE_CONSULTA_AUTOMATICA_LOTE: Joi.number().integer().min(1).max(200).default(20),
 
   // Supabase Storage
   SUPABASE_URL: Joi.string().uri().optional().allow(''),

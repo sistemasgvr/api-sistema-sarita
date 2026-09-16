@@ -1,10 +1,16 @@
 -- Firma única: empresa emisora y datos adicionales GRE.
 -- Sustituye las variantes incompatibles de 17 y 18 parámetros, sin CASCADE.
+--
+-- Actualizada por database_sql/migraciones/20260916_gre_p0_fiscal_numeracion_entorno.sql:
+-- el correlativo se reserva por empresa + serie (índice único
+-- uq_doc_salida_empresa_serie_numero); antes era global por serie.
 DROP FUNCTION IF EXISTS public.doc_convertir_a_gre(integer, integer, character varying, integer, integer, integer, integer, integer, integer, numeric, integer, character varying, integer, character varying, integer, date, integer);
 DROP FUNCTION IF EXISTS public.doc_convertir_a_gre(integer, integer, character varying, integer, integer, integer, integer, integer, integer, numeric, integer, character varying, integer, character varying, integer, date, integer, integer);
 DROP FUNCTION IF EXISTS public.doc_convertir_a_gre(integer, integer, character varying, integer, integer, integer, integer, integer, integer, numeric, integer, character varying, integer, character varying, integer, date, integer, json);
 
-CREATE OR REPLACE FUNCTION public.doc_convertir_a_gre(p_id integer, p_id_tipo_guia_remision integer, p_serie character varying, p_id_motivo_traslado integer DEFAULT NULL::integer, p_id_modalidad_traslado integer DEFAULT NULL::integer, p_id_transportista integer DEFAULT NULL::integer, p_id_chofer integer DEFAULT NULL::integer, p_id_vehiculo integer DEFAULT NULL::integer, p_id_unidad_medida integer DEFAULT NULL::integer, p_peso_bruto numeric DEFAULT NULL::numeric, p_numero_bultos integer DEFAULT NULL::integer, p_direccion_origen character varying DEFAULT NULL::character varying, p_id_distrito_origen integer DEFAULT NULL::integer, p_direccion_llegada character varying DEFAULT NULL::character varying, p_id_distrito_llegada integer DEFAULT NULL::integer, p_fecha_traslado date DEFAULT NULL::date, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_empresa integer DEFAULT NULL::integer, p_gre_extra json DEFAULT NULL::json)
+DROP FUNCTION IF EXISTS public.doc_convertir_a_gre(integer, integer, character varying, integer, integer, integer, integer, integer, integer, numeric, integer, character varying, integer, character varying, integer, date, integer, integer, json);
+
+CREATE OR REPLACE FUNCTION public.doc_convertir_a_gre(p_id integer, p_id_tipo_guia_remision integer, p_serie character varying, p_id_motivo_traslado integer DEFAULT NULL::integer, p_id_modalidad_traslado integer DEFAULT NULL::integer, p_id_transportista integer DEFAULT NULL::integer, p_id_chofer integer DEFAULT NULL::integer, p_id_vehiculo integer DEFAULT NULL::integer, p_id_unidad_medida integer DEFAULT NULL::integer, p_peso_bruto numeric DEFAULT NULL::numeric, p_numero_bultos integer DEFAULT NULL::integer, p_direccion_origen character varying DEFAULT NULL::character varying, p_id_distrito_origen integer DEFAULT NULL::integer, p_direccion_llegada character varying DEFAULT NULL::character varying, p_id_distrito_llegada integer DEFAULT NULL::integer, p_fecha_traslado date DEFAULT NULL::date, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_empresa integer DEFAULT NULL::integer, p_gre_extra json DEFAULT NULL::json, p_fecha_emision_gre date DEFAULT NULL::date)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -56,6 +62,13 @@ BEGIN
 
     IF COALESCE(v_doc.emitido_sunat, FALSE) THEN
         RETURN json_build_object('error', 'El documento ya fue emitido a SUNAT', 'registro', NULL);
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM doc_gre_intento WHERE id_doc_salida = p_id AND estado <> 'RECHAZADO') THEN
+        RETURN json_build_object('error', 'La GRE tiene un envío en curso, aceptado o pendiente de verificar', 'registro', NULL);
+    END IF;
+    IF COALESCE(p_fecha_emision_gre, v_doc.fecha_emision_gre) IS NULL THEN
+        RETURN json_build_object('error', 'Indica la fecha de emisión de la GRE', 'registro', NULL);
     END IF;
 
     v_serie := UPPER(TRIM(COALESCE(p_serie, v_doc.serie, '')));
@@ -111,16 +124,21 @@ BEGIN
     END IF;
 
     -- El correlativo SUNAT se reserva ahora; si ya tenía uno, se conserva.
-    IF v_doc.numero_sunat IS NOT NULL AND v_doc.serie = v_serie THEN
+    IF v_doc.numero_sunat IS NOT NULL AND v_doc.serie = v_serie AND v_doc.id_empresa = p_id_empresa THEN
         v_numero := v_doc.numero_sunat;
     ELSE
-        -- Candado por serie dentro de la TX: evita dos GRE concurrentes con el mismo correlativo.
-        PERFORM pg_advisory_xact_lock(872017, hashtext(v_serie));
+        -- Candado por empresa + serie dentro de la TX: dos empresas pueden usar
+        -- la misma serie (cada RUC numera aparte en SUNAT) sin bloquearse ni
+        -- colisionar; dos GRE concurrentes de la misma empresa se serializan.
+        PERFORM pg_advisory_xact_lock(872017, hashtext(p_id_empresa::TEXT || '|' || v_serie));
 
+        -- Se cuentan también los documentos anulados (no se reutilizan números)
+        -- y los históricos sin empresa: mientras no se determine su emisor, es
+        -- más seguro asumir que ese correlativo ya se usó ante SUNAT.
         SELECT COALESCE(MAX(NULLIF(REGEXP_REPLACE(numero_sunat, '\D', '', 'g'), '')::INTEGER), 0) + 1
         INTO v_siguiente
         FROM doc_salida
-        WHERE serie = v_serie;
+        WHERE serie = v_serie AND (id_empresa = p_id_empresa OR id_empresa IS NULL);
 
         v_numero := LPAD(v_siguiente::TEXT, 8, '0');
     END IF;
@@ -142,6 +160,7 @@ BEGIN
         id_distrito_origen = COALESCE(p_id_distrito_origen, id_distrito_origen),
         direccion_llegada = COALESCE(p_direccion_llegada, direccion_llegada),
         id_distrito_llegada = COALESCE(p_id_distrito_llegada, id_distrito_llegada),
+        fecha_emision_gre = COALESCE(p_fecha_emision_gre, fecha_emision_gre),
         fecha_traslado = COALESCE(p_fecha_traslado, fecha_traslado, fecha),
         -- Datos opcionales SUNAT (indicadores, MTC, docBaja, tercero...). NULL = no tocar;
         -- {} = limpiar.

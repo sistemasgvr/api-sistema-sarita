@@ -90,6 +90,10 @@ export interface DocumentoSalidaRegistro {
   nombre_proveedor: string | null
   documento_proveedor?: string | null;
   fecha: string;
+  fecha_emision_gre?: string | null;
+  gre_estado_envio?: string | null;
+  /** Entorno del PSE (beta/produccion) con el que se envió el último intento. */
+  gre_entorno?: string | null;
   fecha_traslado: string | null;
   fecha_retorno: string | null;
   id_tipo_guia_remision: number | null;
@@ -142,9 +146,13 @@ export interface DocumentoSalidaRegistro {
   documento_transportista: string | null;
   id_chofer: number | null;
   nombre_chofer: string | null;
+  nombres_chofer?: string | null;
+  apellido_paterno_chofer?: string | null;
+  apellido_materno_chofer?: string | null;
   documento_chofer: string | null;
   codigo_tipo_doc_chofer: string | null;
   licencia_chofer: string | null;
+  licencia_chofer_vencimiento?: string | null;
   id_vehiculo: number | null;
   placa_vehiculo: string | null;
   placa: string | null;
@@ -206,6 +214,8 @@ export interface DocumentoSalidaListItem {
   serie_venta: string | null;
   numero_venta: string | null;
   fecha: string;
+  fecha_emision_gre?: string | null;
+  gre_estado_envio?: string | null;
   fecha_traslado: string | null;
   fecha_llegada_almacen: string | null;
   id_sucursal: number;
@@ -248,12 +258,6 @@ export interface DocumentoSalidaListResult {
   resumen: DocumentoSalidaListResumen;
 }
 
-export interface ListaOpcionBasica {
-  id: number;
-  nombre: string;
-  descripcion: string | null;
-}
-
 /** Serie de guía de remisión con su correlativo (doc_listar_series_gre). */
 export interface SerieGre {
   serie: string;
@@ -262,18 +266,47 @@ export interface SerieGre {
   total: number;
 }
 
-export interface DocumentoSalidaCatalogos {
-  tiposOrden: ListaOpcionBasica[];
-  estadosCiclo: ListaOpcionBasica[];
-  tiposGuia: ListaOpcionBasica[];
-  modalidadesTraslado: ListaOpcionBasica[];
-  motivosTraslado: ListaOpcionBasica[];
-  estadosSunat: ListaOpcionBasica[];
-  unidadesMedida: ListaOpcionBasica[];
-}
-
 export interface DocSalidaEliminarDetalleResult {
   eliminado: boolean;
   id: number;
   error?: string;
+}
+
+/** Empresa emisora con su domicilio fiscal (gen_empresa + ubigeo). */
+export interface EmpresaEmisora {
+  id: number;
+  ruc: string;
+  razon_social: string | null;
+  nombre_comercial: string | null;
+  direccion: string | null;
+  id_distrito?: number | null;
+  codigo_ubigeo?: string | null;
+  nombre_distrito?: string | null;
+  nombre_provincia?: string | null;
+  nombre_departamento?: string | null;
+}
+
+export type GreSeveridad = 'error' | 'advertencia';
+
+/** Problema detectado por la prevalidación GRE; `campo` apunta al dato a corregir. */
+export interface GreProblema {
+  codigo: string;
+  campo: string;
+  mensaje: string;
+  severidad: GreSeveridad;
+}
+
+export interface GreIntentoRegistro {
+  id: number;
+  estado: string;
+  entorno: string | null;
+  id_empresa: number | null;
+  ruc_emisor: string | null;
+  ticket: string | null;
+  consultas: number;
+  proxima_consulta: string | null;
+  creado: string;
+  actualizado: string;
+  respuesta: unknown;
+  consultas_detalle: { id: number; creado: string; respuesta: unknown }[];
 }

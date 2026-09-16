@@ -1,3 +1,4 @@
+import { adjuntarTributos, crearConTributo } from '../../../common/helpers/crear-con-tributo.helper';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -7,10 +8,8 @@ import {
 } from '../../../common/interfaces/auth-db.interface';
 import { DatabaseService } from '../../../database/database.service';
 import type {
-  ComprobanteCatalogosPos,
   ComprobanteCompletoResult,
   ComprobanteResumenDiarioItem,
-  ListaOpcionBasica,
   ResumenDiarioCompletoResult,
   SiguienteCorrelativoResumenResult,
 } from '../interfaces/comprobante.interface';
@@ -119,51 +118,9 @@ export class ComprobantesModel {
     );
   }
 
-  obtenerPorId(id: number) {
-    return this.obtenerCompleto(id);
-  }
-
-  async listarOpcionesPorLista(nombreLista: string) {
-    const result = await this.db.query<ListaOpcionBasica>(
-      `SELECT lo.id, lo.nombre, lo.descripcion
-       FROM gen_lista_opciones lo
-       INNER JOIN gen_lista l ON lo.id_lista = l.id
-       WHERE l.nombre = $1 AND lo.estado = 1
-       ORDER BY lo.nombre`,
-      [nombreLista],
-    );
-
-    return result.rows;
-  }
-
-  async obtenerCatalogosPos(): Promise<ComprobanteCatalogosPos> {
-    const [
-      tiposComprobante,
-      afectacionesIgv,
-      monedas,
-      mediosPago,
-      tiposOperacionSunat,
-      estadosSunat,
-      motivosNotaCredito,
-    ] = await Promise.all([
-      this.listarOpcionesPorLista('TipoComprobante'),
-      this.listarOpcionesPorLista('AfectacionIgv'),
-      this.listarOpcionesPorLista('Moneda'),
-      this.listarOpcionesPorLista('MedioPago'),
-      this.listarOpcionesPorLista('TipoOperacionSunat'),
-      this.listarOpcionesPorLista('EstadoSunat'),
-      this.listarOpcionesPorLista('MotivoNotaCredito'),
-    ]);
-
-    return {
-      tiposComprobante,
-      afectacionesIgv,
-      monedas,
-      mediosPago,
-      tiposOperacionSunat,
-      estadosSunat,
-      motivosNotaCredito,
-    };
+  async obtenerPorId(id: number) {
+    const result = await this.obtenerCompleto(id);
+    return adjuntarTributos(this.db, 'percepcion', id, result);
   }
 
   async listarParaResumenDiario(
@@ -311,7 +268,7 @@ export class ComprobantesModel {
   }
 
   crear(dto: CreateComprobantesDto) {
-    return this.db.callFunctionJson<AuthSingleResult>('ven_crear_comprobante', [
+    return crearConTributo(this.db, 'percepcion', [
       dto.idTipoComprobante,
       dto.serie,
       dto.numero ?? null,
@@ -340,7 +297,7 @@ export class ComprobantesModel {
       dto.origenPos ?? null,
       mapEfectosPosToJson(dto.efectosPos),
       dto.pagos ? JSON.stringify(dto.pagos) : null,
-    ]);
+    ], dto.percepcion, dto.idUsuarioAuditoria);
   }
 
   actualizar(id: number, dto: UpdateComprobantesDto) {

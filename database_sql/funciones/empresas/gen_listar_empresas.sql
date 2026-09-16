@@ -33,6 +33,9 @@ BEGIN
             e.razon_social,
             e.nombre_comercial,
             e.direccion,
+            e.id_distrito,
+            dist.nombre AS nombre_distrito,
+            dist.codigo_ubigeo,
             e.telefono,
             e.email,
             e.tolerancia_m3_ruta_pueblo,
@@ -45,6 +48,7 @@ BEGIN
             e.id_usuario_modificacion,
             um.nombre AS nombre_usuario_modificacion
         FROM gen_empresa e
+        LEFT JOIN gen_distrito dist ON dist.id = e.id_distrito
         LEFT JOIN auth_usuarios uc ON e.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON e.id_usuario_modificacion = um.id
         WHERE e.estado = 1

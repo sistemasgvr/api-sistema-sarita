@@ -1,23 +1,30 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { FacturacionApisperuPayload } from '../../../integrations/facturacion-apisperu/interfaces/facturacion-apisperu.interface';
+import {
+  esFlotaPropia,
+  nombresChofer,
+  normalizarPlaca,
+  soloErrores,
+  validarGre,
+  type ContextoValidacionGre,
+} from '../helpers/gre-validacion';
 import type {
   DocumentoSalidaCompletoResult,
   DocumentoSalidaDetalleRegistro,
   DocumentoSalidaRegistro,
+  EmpresaEmisora,
 } from '../interfaces/documento-salida.interface';
-
-interface EmpresaEmisora {
-  ruc: string;
-  razon_social?: string | null;
-  nombre_comercial?: string | null;
-  direccion?: string | null;
-}
 
 @Injectable()
 export class DocSalidaDespatchMapper {
+  /**
+   * Arma el payload de `despatch/send`. Corre la misma prevalidación que el
+   * endpoint `validar-gre`: si hay errores, no se envía nada.
+   */
   mapToDespatchPayload(
     doc: DocumentoSalidaCompletoResult,
     empresa: EmpresaEmisora,
+    contexto: ContextoValidacionGre = {},
   ): FacturacionApisperuPayload {
     const cabecera = doc.registro;
 
@@ -25,44 +32,22 @@ export class DocSalidaDespatchMapper {
       throw new BadRequestException('Documento de salida inválido');
     }
 
+    const errores = soloErrores(validarGre(cabecera, empresa, contexto));
+    if (errores.length > 0) {
+      throw new BadRequestException(errores.map((e) => e.mensaje).join('; '));
+    }
+
     const detalles = cabecera.detalle ?? [];
-
-    if (detalles.length === 0) {
-      throw new BadRequestException('El documento no tiene ítems');
-    }
-
-    const tipoDoc = cabecera.codigo_tipo_guia;
-
-    if (!tipoDoc || !['09', '31'].includes(tipoDoc)) {
-      throw new BadRequestException(
-        `Tipo de guía ${tipoDoc ?? '—'} no soportado para emisión electrónica`,
-      );
-    }
-
-    if (!cabecera.numero_sunat) {
-      throw new BadRequestException(
-        'El documento no tiene correlativo SUNAT; conviértelo a guía de remisión primero',
-      );
-    }
-
-    const modalidad = cabecera.codigo_modalidad_traslado ?? '02';
-    const ubigeoPartida = (cabecera.ubigeo_origen ?? '').trim();
-    const ubigeoLlegada = (cabecera.ubigeo_llegada ?? '').trim();
-
-    if (!ubigeoPartida || !ubigeoLlegada) {
-      throw new BadRequestException(
-        'Origen y destino requieren código ubigeo SUNAT (distrito)',
-      );
-    }
+    const tipoDoc = cabecera.codigo_tipo_guia as string;
+    const flotaPropia = esFlotaPropia(cabecera);
 
     const envio: Record<string, unknown> = {
-      codTraslado: cabecera.codigo_motivo_traslado ?? '01',
+      codTraslado: cabecera.codigo_motivo_traslado,
       desTraslado: this.mapDesTraslado(
         cabecera.nombre_motivo_traslado,
         cabecera.codigo_motivo_traslado,
       ),
-      modTraslado: modalidad,
-      fecTraslado: this.formatFecha(cabecera.fecha_traslado ?? cabecera.fecha),
+      fecTraslado: this.formatFecha(cabecera.fecha_traslado as string),
       pesoTotal: Number(cabecera.peso_bruto ?? 0),
       undPesoTotal: this.mapUnidadPeso(
         cabecera.codigo_unidad_medida,
@@ -70,37 +55,27 @@ export class DocSalidaDespatchMapper {
       ),
       numBultos: Number(cabecera.numero_bultos ?? 1),
       llegada: {
-        ubigueo: ubigeoLlegada,
-        direccion: (cabecera.direccion_llegada ?? 'S/N').trim() || 'S/N',
+        ubigueo: (cabecera.ubigeo_llegada as string).trim(),
+        direccion: (cabecera.direccion_llegada as string).trim(),
       },
       partida: {
-        ubigueo: ubigeoPartida,
-        direccion: (cabecera.direccion_origen ?? 'S/N').trim() || 'S/N',
+        ubigueo: (cabecera.ubigeo_origen as string).trim(),
+        direccion: (cabecera.direccion_origen as string).trim(),
       },
     };
 
-    if (modalidad === '02') {
-      const placa = (cabecera.placa_vehiculo ?? '').trim();
+    // La modalidad (público/privado) es un dato de la guía remitente; en la
+    // transportista (31) no existe: el emisor es quien transporta.
+    if (tipoDoc === '09') {
+      envio.modTraslado = flotaPropia ? '02' : '01';
+    }
+
+    if (flotaPropia) {
+      // La placa impresa puede incluir guion; GRE recibe su identificador sin separadores.
+      const placa = normalizarPlaca(cabecera.placa_vehiculo);
       const docChofer = (cabecera.documento_chofer ?? '').trim();
       const licencia = (cabecera.licencia_chofer ?? '').trim();
-
-      if (!placa) {
-        throw new BadRequestException(
-          'Transporte privado requiere placa del vehículo',
-        );
-      }
-
-      if (!docChofer) {
-        throw new BadRequestException(
-          'Transporte privado requiere documento del chofer',
-        );
-      }
-
-      if (!licencia) {
-        throw new BadRequestException(
-          'El chofer seleccionado no tiene licencia registrada. Actualiza el chofer antes de emitir.',
-        );
-      }
+      const nombres = nombresChofer(cabecera);
 
       envio.vehiculo = { placa };
       envio.choferes = [
@@ -112,35 +87,15 @@ export class DocSalidaDespatchMapper {
           ),
           nroDoc: docChofer,
           licencia,
-          nombres: this.splitNombre(cabecera.nombre_chofer).nombres,
-          apellidos: this.splitNombre(cabecera.nombre_chofer).apellidos,
+          nombres: nombres.nombres,
+          apellidos: nombres.apellidos,
         },
       ];
-
-      if (tipoDoc === '31') {
-        envio.transportista = {
-          tipoDoc: '6',
-          numDoc: empresa.ruc,
-          rznSocial:
-            empresa.razon_social?.trim() ||
-            empresa.nombre_comercial?.trim() ||
-            'TRANSPORTISTA',
-        };
-      }
-    } else if (modalidad === '01') {
-      const rucTrans = (cabecera.documento_transportista ?? '').trim();
-      const razonTrans = (cabecera.nombre_transportista ?? '').trim();
-
-      if (!rucTrans || rucTrans.length !== 11) {
-        throw new BadRequestException(
-          'Transporte público requiere RUC del transportista',
-        );
-      }
-
+    } else {
       envio.transportista = {
         tipoDoc: '6',
-        numDoc: rucTrans,
-        rznSocial: razonTrans || 'TRANSPORTISTA',
+        numDoc: (cabecera.documento_transportista as string).trim(),
+        rznSocial: (cabecera.nombre_transportista as string).trim(),
       };
     }
 
@@ -148,8 +103,8 @@ export class DocSalidaDespatchMapper {
       version: '2022',
       tipoDoc,
       serie: cabecera.serie ?? '',
-      correlativo: this.parseCorrelativo(cabecera.numero_sunat),
-      fechaEmision: this.formatFecha(cabecera.fecha),
+      correlativo: this.parseCorrelativo(cabecera.numero_sunat as string),
+      fechaEmision: this.formatFecha(cabecera.fecha_emision_gre as string),
       company: this.mapEmpresa(empresa),
       destinatario: this.resolverDestinatario(cabecera),
       envio,
@@ -157,12 +112,7 @@ export class DocSalidaDespatchMapper {
     };
 
     if (tipoDoc === '31') {
-      const remitenteDoc = (cabecera.documento_cliente ?? '').trim();
-      if (!remitenteDoc) {
-        throw new BadRequestException(
-          'GRE transportista (31) requiere remitente con documento (cliente o nombre libre)',
-        );
-      }
+      const remitenteDoc = (cabecera.documento_cliente as string).trim();
       payload.remitente = {
         tipoDoc: this.mapTipoDocCliente(
           cabecera.nombre_tipo_doc_cliente,
@@ -277,19 +227,20 @@ export class DocSalidaDespatchMapper {
     };
   }
 
+  /** Domicilio fiscal desde gen_empresa + ubigeo; ya validado (sin valores fijos). */
   private mapEmpresa(empresa: EmpresaEmisora) {
+    const razonSocial =
+      empresa.razon_social?.trim() || empresa.nombre_comercial?.trim() || '';
     return {
       ruc: empresa.ruc,
-      razonSocial:
-        empresa.razon_social ?? empresa.nombre_comercial ?? 'Empresa',
-      nombreComercial:
-        empresa.nombre_comercial ?? empresa.razon_social ?? 'Empresa',
+      razonSocial,
+      nombreComercial: empresa.nombre_comercial?.trim() || razonSocial,
       address: {
-        direccion: empresa.direccion?.trim() || 'S/N',
-        provincia: 'LIMA',
-        departamento: 'LIMA',
-        distrito: 'LIMA',
-        ubigueo: '150101',
+        direccion: (empresa.direccion ?? '').trim(),
+        provincia: (empresa.nombre_provincia ?? '').trim().toUpperCase(),
+        departamento: (empresa.nombre_departamento ?? '').trim().toUpperCase(),
+        distrito: (empresa.nombre_distrito ?? '').trim().toUpperCase(),
+        ubigueo: (empresa.codigo_ubigeo ?? '').trim(),
       },
     };
   }
@@ -378,17 +329,6 @@ export class DocSalidaDespatchMapper {
 
   private mapUnidadItem(codigo?: string | null, nombre?: string | null) {
     return this.resolverUnidadSunat([nombre, codigo], 'NIU');
-  }
-
-  private splitNombre(nombreCompleto?: string | null) {
-    const parts = (nombreCompleto ?? 'CHOFER')
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
-    if (parts.length === 1) {
-      return { nombres: parts[0], apellidos: parts[0] };
-    }
-    return { nombres: parts[0], apellidos: parts.slice(1).join(' ') };
   }
 
   private parseCorrelativo(numero: string) {

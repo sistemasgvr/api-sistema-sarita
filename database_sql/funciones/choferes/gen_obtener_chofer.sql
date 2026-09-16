@@ -33,7 +33,7 @@ BEGIN
             COALESCE(tr.numero_documento, ch.numero_documento) AS numero_documento,
             ch.telefono,
 
-            -- Licencia vigente (la más reciente activa)
+            -- Licencia activa con mayor fecha de vencimiento (igual que listado y GRE)
             lic.id                    AS id_licencia,
             lic.codigo                AS codigo_licencia,
             lic.fecha_emision,
@@ -62,7 +62,7 @@ BEGIN
             FROM gen_licencia gl
             WHERE gl.id_chofer = ch.id
               AND gl.estado = 1
-            ORDER BY gl.fecha_emision DESC, gl.id DESC
+            ORDER BY gl.fecha_vencimiento DESC, gl.fecha_emision DESC, gl.id DESC
             LIMIT 1
         ) lic ON TRUE
         LEFT JOIN gen_lista_opciones tl ON lic.id_tipo_licencia = tl.id

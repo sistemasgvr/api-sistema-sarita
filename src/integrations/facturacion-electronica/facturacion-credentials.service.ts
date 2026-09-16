@@ -14,6 +14,9 @@ export interface FacturacionCredentials {
   defaultRuc: string;
   clientId: string;
   clientSecret: string;
+  /** Usuario/clave SOL de la empresa (solo BD); en producción el PSE los exige. */
+  solUser: string;
+  solPass: string;
   timeoutMs: number;
   source: 'database' | 'env' | 'mixed';
 }
@@ -29,6 +32,8 @@ interface CredencialesDbRow {
   ruc_empresa?: string | null;
   client_id?: string | null;
   client_secret?: string | null;
+  usuario_sol?: string | null;
+  clave_sol?: string | null;
   timeout_ms?: number | null;
 }
 
@@ -77,7 +82,7 @@ export class FacturacionCredentialsService {
       // Nunca completar secretos con credenciales de otra empresa o del entorno.
       return this.merge({ ...row, ruc_emisor: row.ruc_empresa }, {
         enabled: false, provider: null, baseUrl: '', token: '', username: '', password: '',
-        defaultRuc: '', clientId: '', clientSecret: '', timeoutMs: 60000, source: 'database',
+        defaultRuc: '', clientId: '', clientSecret: '', solUser: '', solPass: '', timeoutMs: 60000, source: 'database',
       });
     }
     if (this.cache && Date.now() - this.cacheAt < this.ttlMs) {
@@ -129,6 +134,8 @@ export class FacturacionCredentialsService {
       clientSecret: (
         this.configService.get<string>('facturacion.clientSecret') ?? ''
       ).trim(),
+      solUser: '',
+      solPass: '',
       timeoutMs: this.configService.get<number>('facturacion.timeoutMs') ?? 60_000,
       source: 'env',
     };
@@ -164,6 +171,8 @@ export class FacturacionCredentialsService {
       defaultRuc: pick(db.ruc_emisor ?? db.ruc_empresa, env.defaultRuc),
       clientId: pick(db.client_id, env.clientId),
       clientSecret: pick(db.client_secret, env.clientSecret),
+      solUser: pick(db.usuario_sol),
+      solPass: pick(db.clave_sol),
       timeoutMs:
         db.timeout_ms != null && Number(db.timeout_ms) > 0
           ? Number(db.timeout_ms)

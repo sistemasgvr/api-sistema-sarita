@@ -3,8 +3,9 @@
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.961Z
 DROP FUNCTION IF EXISTS gen_actualizar_empresa(p_id integer, p_ruc character varying, p_razon_social character varying, p_nombre_comercial character varying, p_direccion character varying, p_telefono character varying, p_email character varying, p_tolerancia_m3_ruta_pueblo numeric, p_psi_minimo_util numeric, p_id_usuario_auditoria integer);
+DROP FUNCTION IF EXISTS gen_actualizar_empresa(p_id integer, p_ruc character varying, p_razon_social character varying, p_nombre_comercial character varying, p_direccion character varying, p_telefono character varying, p_email character varying, p_tolerancia_m3_ruta_pueblo numeric, p_psi_minimo_util numeric, p_id_usuario_auditoria integer, p_id_distrito integer);
 
-CREATE OR REPLACE FUNCTION gen_actualizar_empresa(p_id integer, p_ruc character varying DEFAULT NULL::character varying, p_razon_social character varying DEFAULT NULL::character varying, p_nombre_comercial character varying DEFAULT NULL::character varying, p_direccion character varying DEFAULT NULL::character varying, p_telefono character varying DEFAULT NULL::character varying, p_email character varying DEFAULT NULL::character varying, p_tolerancia_m3_ruta_pueblo numeric DEFAULT NULL::numeric, p_psi_minimo_util numeric DEFAULT NULL::numeric, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+CREATE OR REPLACE FUNCTION gen_actualizar_empresa(p_id integer, p_ruc character varying DEFAULT NULL::character varying, p_razon_social character varying DEFAULT NULL::character varying, p_nombre_comercial character varying DEFAULT NULL::character varying, p_direccion character varying DEFAULT NULL::character varying, p_telefono character varying DEFAULT NULL::character varying, p_email character varying DEFAULT NULL::character varying, p_tolerancia_m3_ruta_pueblo numeric DEFAULT NULL::numeric, p_psi_minimo_util numeric DEFAULT NULL::numeric, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_distrito integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -19,6 +20,12 @@ BEGIN
         RETURN json_build_object('error', 'El umbral PSI mínimo no puede ser negativo', 'registro', NULL);
     END IF;
 
+    IF p_id_distrito IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM gen_distrito WHERE id = p_id_distrito AND estado = 1 AND codigo_ubigeo IS NOT NULL
+    ) THEN
+        RETURN json_build_object('error', 'El distrito fiscal no existe o no tiene código ubigeo', 'registro', NULL);
+    END IF;
+
     UPDATE gen_empresa
     SET
         ruc = COALESCE(p_ruc, ruc),
@@ -29,6 +36,7 @@ BEGIN
         email = COALESCE(p_email, email),
         tolerancia_m3_ruta_pueblo = COALESCE(p_tolerancia_m3_ruta_pueblo, tolerancia_m3_ruta_pueblo),
         psi_minimo_util = COALESCE(p_psi_minimo_util, psi_minimo_util),
+        id_distrito = COALESCE(p_id_distrito, id_distrito),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;

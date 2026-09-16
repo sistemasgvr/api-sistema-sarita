@@ -1,3 +1,4 @@
+import { autorizarTributo } from '../../../common/helpers/crear-con-tributo.helper';
 import {
   Body,
   Controller,
@@ -47,13 +48,6 @@ export class ComprobantesController {
   @ApiOperation({ summary: 'Listar comprobantes de venta' })
   listar(@Query() filtros: FiltroComprobantesDto) {
     return this.logic.listar(filtros);
-  }
-
-  @Get('catalogos/pos')
-  @Permisos(PermisoBanderas.COMPROBANTES_LISTAR)
-  @ApiOperation({ summary: 'Catálogos para punto de venta y notas' })
-  obtenerCatalogosPos() {
-    return this.logic.obtenerCatalogosPos();
   }
 
   @Get('siguiente-numero')
@@ -156,6 +150,7 @@ export class ComprobantesController {
   @Permisos(PermisoBanderas.COMPROBANTES_CREAR)
   @ApiOperation({ summary: 'Crear comprobante de venta' })
   crear(@Body() dto: CreateComprobantesDto, @Req() req: AuthRequest) {
+    if (dto.percepcion) autorizarTributo(req.user, 'percepcion');
     dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crear(dto);
   }

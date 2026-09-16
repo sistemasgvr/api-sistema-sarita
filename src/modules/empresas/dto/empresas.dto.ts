@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsEmail,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -69,6 +70,16 @@ export class CreateEmpresaDto extends AuditoriaDto {
   @IsNumber()
   @Min(0)
   psiMinimoUtil?: number;
+
+  @ApiPropertyOptional({
+    description: 'Distrito del domicilio fiscal (ubigeo SUNAT de la GRE)',
+    example: 1234,
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  idDistrito?: number;
 }
 
 export class UpdateEmpresaDto extends AuditoriaDto {
@@ -128,4 +139,14 @@ export class UpdateEmpresaDto extends AuditoriaDto {
   @IsNumber()
   @Min(0)
   psiMinimoUtil?: number;
+
+  @ApiPropertyOptional({
+    description: 'Distrito del domicilio fiscal (ubigeo SUNAT de la GRE)',
+    example: 1234,
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  idDistrito?: number;
 }

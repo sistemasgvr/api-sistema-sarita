@@ -37,6 +37,8 @@ CREATE TABLE doc_salida (
     numero_sunat character varying(15),
     id_estado_sunat integer,
     ticket_sunat character varying(100),
+    -- Fecha propia de emisión de la GRE (no hereda la fecha de la orden). 20260916_gre_fecha_e_intentos.
+    fecha_emision_gre date,
     hash_documento character varying(100),
     xml_firmado text,
     cdr_respuesta text,
@@ -108,7 +110,9 @@ CREATE INDEX idx_doc_salida_venta ON public.doc_salida USING btree (id_venta);
 
 CREATE UNIQUE INDEX uq_doc_salida_numero ON public.doc_salida USING btree (numero) WHERE (estado = 1);
 
-CREATE UNIQUE INDEX uq_doc_salida_serie_numero ON public.doc_salida USING btree (serie, numero_sunat) WHERE ((serie IS NOT NULL) AND (numero_sunat IS NOT NULL) AND (estado = 1));
+-- Correlativo GRE único por empresa + serie (históricos sin empresa en el grupo 0).
+-- 20260916_gre_p0_fiscal_numeracion_entorno.sql reemplazó el índice global por serie.
+CREATE UNIQUE INDEX uq_doc_salida_empresa_serie_numero ON public.doc_salida USING btree (COALESCE(id_empresa, 0), serie, numero_sunat) WHERE ((serie IS NOT NULL) AND (numero_sunat IS NOT NULL) AND (estado = 1));
 
 ALTER TABLE doc_salida
     ADD CONSTRAINT doc_salida_id_almacen_fkey FOREIGN KEY (id_almacen) REFERENCES public.gen_almacen(id);

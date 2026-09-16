@@ -29,4 +29,10 @@ export default registerAs('facturacion', () => ({
     process.env.FACTURACION_APISPERU_GRE_CLIENT_SECRET ??
     '',
   timeoutMs: Number(process.env.FACTURACION_APISPERU_TIMEOUT_MS ?? 60_000),
+  /**
+   * Consulta automática de tickets GRE pendientes (cron cada 5 min en el API;
+   * también disponible como job HTTP). Solo hace GET al PSE.
+   */
+  greConsultaAutomatica: process.env.GRE_CONSULTA_AUTOMATICA_ENABLED !== 'false',
+  greConsultaLote: Number(process.env.GRE_CONSULTA_AUTOMATICA_LOTE ?? 20),
 }));

@@ -161,7 +161,7 @@ export class DocSalidaPdfGenerator {
         '—';
 
       y = this.kv(pdf, left, y, pageWidth, [
-        ['Fecha emisión', cabecera.fecha?.slice(0, 10) ?? '—'],
+        ['Fecha emisión', (cabecera.serie ? cabecera.fecha_emision_gre : cabecera.fecha)?.slice(0, 10) ?? '—'],
         ['Fecha traslado', cabecera.fecha_traslado?.slice(0, 10) ?? '—'],
         ['Estado', cabecera.nombre_estado_ciclo ?? '—'],
         ['Motivo', motivo],
@@ -385,18 +385,14 @@ export class DocSalidaPdfGenerator {
       }
 
       y += 20;
+      const sunatLine = esGre
+        ? `Estado SUNAT: ${cabecera.nombre_estado_sunat ?? 'PENDIENTE'}${cabecera.gre_entorno ? ` · Entorno: ${cabecera.gre_entorno.toUpperCase()}` : ''}${cabecera.hash_documento ? ` · Hash: ${cabecera.hash_documento}` : ''}`
+        : `Documento interno — no emitido a SUNAT`;
       pdf
         .font('Helvetica')
         .fontSize(8)
         .fillColor('#6B7280')
-        .text(
-          esGre
-            ? `Estado SUNAT: ${cabecera.nombre_estado_sunat ?? 'PENDIENTE'}${cabecera.hash_documento ? ` · Hash: ${cabecera.hash_documento}` : ''}`
-            : `Documento interno — no emitido a SUNAT`,
-          left,
-          y,
-          { width: pageWidth },
-        );
+        .text(sunatLine, left, y, { width: pageWidth });
 
       pdf.end();
     });

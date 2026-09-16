@@ -172,22 +172,6 @@ export interface ComprobanteCompletoResult {
   garantias?: ComprobanteGarantiaRegistro[];
 }
 
-export interface ListaOpcionBasica {
-  id: number;
-  nombre: string;
-  descripcion?: string | null;
-}
-
-export interface ComprobanteCatalogosPos {
-  tiposComprobante: ListaOpcionBasica[];
-  afectacionesIgv: ListaOpcionBasica[];
-  monedas: ListaOpcionBasica[];
-  mediosPago: ListaOpcionBasica[];
-  tiposOperacionSunat: ListaOpcionBasica[];
-  estadosSunat: ListaOpcionBasica[];
-  motivosNotaCredito: ListaOpcionBasica[];
-}
-
 export interface ComprobanteResumenDiarioItem {
   id: number;
   codigo_tipo_comprobante?: string | null;

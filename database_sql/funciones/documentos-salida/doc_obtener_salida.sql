@@ -247,7 +247,12 @@ BEGIN
             COALESCE(NULLIF(TRIM(prov.razon_social), ''),
                      NULLIF(TRIM(CONCAT_WS(' ', prov.nombres, prov.apellido_paterno, prov.apellido_materno)), '')) AS nombre_proveedor,
             prov.numero_documento AS documento_proveedor,
-            d.fecha, d.fecha_traslado, d.fecha_retorno,
+            d.fecha, d.fecha_emision_gre,
+            (SELECT i.estado FROM doc_gre_intento i WHERE i.id_doc_salida = d.id ORDER BY i.id DESC LIMIT 1) AS gre_estado_envio,
+            -- Entorno (beta/produccion) con el que se envió el último intento: la
+            -- consulta posterior debe usar ese y no la configuración vigente.
+            (SELECT i.entorno FROM doc_gre_intento i WHERE i.id_doc_salida = d.id ORDER BY i.id DESC LIMIT 1) AS gre_entorno,
+            d.fecha_traslado, d.fecha_retorno,
             d.id_tipo_guia_remision, tgr.nombre AS nombre_tipo_guia_remision,
             tgr.descripcion AS codigo_tipo_guia,
             d.serie, d.numero_sunat,
@@ -290,11 +295,19 @@ BEGIN
                 COALESCE(NULLIF(TRIM(tra.apellido_paterno), ''), cho.apellido_paterno),
                 COALESCE(NULLIF(TRIM(tra.apellido_materno), ''), cho.apellido_materno)
             )) AS nombre_chofer,
+            -- Nombres y apellidos por separado: la GRE los exige estructurados y
+            -- partir la cadena falla con nombres compuestos.
+            COALESCE(NULLIF(TRIM(tra.nombres), ''), NULLIF(TRIM(cho.nombres), '')) AS nombres_chofer,
+            COALESCE(NULLIF(TRIM(tra.apellido_paterno), ''), NULLIF(TRIM(cho.apellido_paterno), '')) AS apellido_paterno_chofer,
+            COALESCE(NULLIF(TRIM(tra.apellido_materno), ''), NULLIF(TRIM(cho.apellido_materno), '')) AS apellido_materno_chofer,
             COALESCE(NULLIF(TRIM(tra.numero_documento), ''), cho.numero_documento) AS documento_chofer,
             COALESCE(tdtra.descripcion, tdch.descripcion) AS codigo_tipo_doc_chofer,
             (SELECT lic.codigo FROM gen_licencia lic
               WHERE lic.id_chofer = cho.id AND lic.estado = 1
-              ORDER BY lic.fecha_vencimiento DESC LIMIT 1) AS licencia_chofer,
+              ORDER BY lic.fecha_vencimiento DESC, lic.fecha_emision DESC, lic.id DESC LIMIT 1) AS licencia_chofer,
+            (SELECT lic.fecha_vencimiento FROM gen_licencia lic
+              WHERE lic.id_chofer = cho.id AND lic.estado = 1
+              ORDER BY lic.fecha_vencimiento DESC, lic.fecha_emision DESC, lic.id DESC LIMIT 1) AS licencia_chofer_vencimiento,
             d.id_vehiculo, veh.placa AS placa_vehiculo, veh.placa,
             d.id_responsable, d.remitente_nombre, d.remitente_documento,
             d.id_comprobante_compra,

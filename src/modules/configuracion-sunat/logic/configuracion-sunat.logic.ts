@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   mapDeleteResult,
   mapListResult,
   mapSingleResult,
 } from '../../../common/helpers/auth-response.helper';
+import { DatabaseService } from '../../../database/database.service';
+import { FacturacionApisperuClient } from '../../../integrations/facturacion-apisperu/facturacion-apisperu.client';
 import { FacturacionCredentialsService } from '../../../integrations/facturacion-electronica/facturacion-credentials.service';
 import {
   CreateConfiguracionSunatDto,
@@ -20,7 +22,50 @@ export class ConfiguracionSunatLogic {
   constructor(
     private readonly configuracionSunatModel: ConfiguracionSunatModel,
     private readonly facturacionCredentials: FacturacionCredentialsService,
+    private readonly facturacionClient: FacturacionApisperuClient,
+    private readonly db: DatabaseService,
   ) {}
+
+  /**
+   * «Verificar conexión y empresa»: solo lecturas al PSE con las credenciales
+   * de esa empresa. No modifica nada ni en el PSE ni en la base.
+   */
+  async verificarGre(idEmpresa: number) {
+    const ruc = await this.rucDeEmpresa(idEmpresa);
+    this.facturacionCredentials.invalidate();
+    return this.facturacionCredentials.withEmpresa(idEmpresa, () =>
+      this.facturacionClient.verificarEmpresaGre(ruc),
+    );
+  }
+
+  /**
+   * «Sincronizar configuración GRE»: la única acción que escribe credenciales
+   * en la empresa del PSE. Requiere permiso de edición y queda en el log.
+   */
+  async sincronizarGre(idEmpresa: number, idUsuarioAuditoria?: number) {
+    const ruc = await this.rucDeEmpresa(idEmpresa);
+    this.facturacionCredentials.invalidate();
+    const resultado = await this.facturacionCredentials.withEmpresa(idEmpresa, () =>
+      this.facturacionClient.sincronizarCredencialesGre(ruc),
+    );
+    await this.db.query(
+      `UPDATE gen_configuracion_sunat SET id_usuario_modificacion = $2, fecha_modificacion = now()
+       WHERE id_empresa = $1 AND estado = 1`,
+      [idEmpresa, idUsuarioAuditoria ?? null],
+    );
+    return resultado;
+  }
+
+  private async rucDeEmpresa(idEmpresa: number): Promise<string> {
+    const result = await this.db.query<{ ruc: string }>(
+      'SELECT ruc FROM gen_empresa WHERE id = $1 AND estado = 1',
+      [idEmpresa],
+    );
+    const ruc = result.rows[0]?.ruc?.trim();
+    if (!ruc) throw new NotFoundException(`Empresa ${idEmpresa} no encontrada`);
+    if (!/^\d{11}$/.test(ruc)) throw new BadRequestException('El RUC de la empresa debe tener 11 dígitos');
+    return ruc;
+  }
 
   async listar(filtros: FiltroConfiguracionSunatDto) {
     const result = await this.configuracionSunatModel.listar(filtros);

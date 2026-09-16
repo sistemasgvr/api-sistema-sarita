@@ -35,6 +35,7 @@ export class EmpresasModel {
     idUsuarioAuditoria?: number,
     toleranciaM3RutaPueblo?: number | null,
     psiMinimoUtil?: number | null,
+    idDistrito?: number | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('gen_crear_empresa', [
       ruc,
@@ -46,6 +47,7 @@ export class EmpresasModel {
       idUsuarioAuditoria ?? null,
       toleranciaM3RutaPueblo ?? null,
       psiMinimoUtil ?? null,
+      idDistrito ?? null,
     ]);
   }
 
@@ -60,6 +62,7 @@ export class EmpresasModel {
     toleranciaM3RutaPueblo: number | null,
     psiMinimoUtil: number | null,
     idUsuarioAuditoria?: number,
+    idDistrito?: number | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('gen_actualizar_empresa', [
       id,
@@ -72,6 +75,7 @@ export class EmpresasModel {
       toleranciaM3RutaPueblo,
       psiMinimoUtil,
       idUsuarioAuditoria ?? null,
+      idDistrito ?? null,
     ]);
   }
 

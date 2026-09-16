@@ -206,6 +206,11 @@ export class CrearDesdeVentaDto extends AuditoriaDto {
 }
 
 export class ConvertirGreDto extends AuditoriaDto {
+  @ApiProperty({ description: 'Fecha de emisión de la GRE, independiente de la orden de salida', example: '2026-09-16' })
+  @IsDateString({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  fechaEmisionGre!: string;
+
   @ApiProperty({ description: 'Empresa emisora elegida explícitamente' })
   @Type(() => Number)
   @IsInt()

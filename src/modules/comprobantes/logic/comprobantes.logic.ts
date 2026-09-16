@@ -126,10 +126,6 @@ export class ComprobantesLogic {
     };
   }
 
-  async obtenerCatalogosPos() {
-    return this.model.obtenerCatalogosPos();
-  }
-
   async previewResumenDiario(fecha: string) {
     const items = await this.model.listarParaResumenDiario(fecha);
     const yaInformados = await this.model.existeResumenDiarioInformado(fecha);

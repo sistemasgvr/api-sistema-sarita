@@ -339,6 +339,20 @@ export const PermisoBanderas = {
   CAJA_REGISTRAR_DEPOSITO: 'caja.registrar_deposito',
   CAJA_OBSERVACION: 'caja.observacion',
   CAJA_LIBRO_DIARIO: 'caja.libro_diario',
+
+  PERCEPCIONES_LISTAR: 'percepciones.listar',
+  PERCEPCIONES_VER: 'percepciones.ver',
+  PERCEPCIONES_CREAR: 'percepciones.crear',
+  PERCEPCIONES_EDITAR: 'percepciones.editar',
+  PERCEPCIONES_ELIMINAR: 'percepciones.eliminar',
+  PERCEPCIONES_EMITIR: 'percepciones.emitir',
+
+  RETENCIONES_LISTAR: 'retenciones.listar',
+  RETENCIONES_VER: 'retenciones.ver',
+  RETENCIONES_CREAR: 'retenciones.crear',
+  RETENCIONES_EDITAR: 'retenciones.editar',
+  RETENCIONES_ELIMINAR: 'retenciones.eliminar',
+  RETENCIONES_EMITIR: 'retenciones.emitir',
 } as const;
 
 export type PermisoBandera =

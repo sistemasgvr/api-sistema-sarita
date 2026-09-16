@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Header,
+  NotFoundException,
   Param,
   ParseIntPipe,
   Patch,
@@ -15,6 +16,7 @@ import {
 import { ApiNotFoundResponse, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
+import { NotificacionesJobsAuth } from '../../../common/decorators/notificaciones-jobs.decorator';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
@@ -48,13 +50,6 @@ export class DocumentosSalidaController {
   @ApiOperation({ summary: 'Listar documentos de salida (órdenes, recargas planta, guías)' })
   listar(@Query() filtros: FiltroDocSalidaDto) {
     return this.logic.listar(filtros);
-  }
-
-  @Get('catalogos')
-  @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_LISTAR)
-  @ApiOperation({ summary: 'Catálogos para el formulario' })
-  obtenerCatalogos() {
-    return this.logic.obtenerCatalogos();
   }
 
   @Get('siguiente-numero')
@@ -212,6 +207,29 @@ export class DocumentosSalidaController {
     return this.logic.convertirAGre(id, dto);
   }
 
+  @Post('jobs/consultar-gre-pendientes')
+  @NotificacionesJobsAuth()
+  @ApiOperation({ summary: 'Job: consultar tickets GRE pendientes con espera progresiva (solo GET al PSE)' })
+  consultarGrePendientes() {
+    return this.logic.consultarPendientes();
+  }
+
+  @Post(':id/validar-gre')
+  @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EMITIR)
+  @ApiOperation({ summary: 'Prevalidar la GRE (misma validación que la emisión) y verificar empresa/entorno en el PSE; no escribe nada' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  validarGre(@Param('id', ParseIntPipe) id: number) {
+    return this.logic.validarGre(id);
+  }
+
+  @Get(':id/gre-historial')
+  @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_VER)
+  @ApiOperation({ summary: 'Historial de intentos de envío y consultas de la GRE (sin secretos)' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  historialGre(@Param('id', ParseIntPipe) id: number) {
+    return this.logic.historialGre(id);
+  }
+
   @Post(':id/emitir-sunat')
   @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EMITIR)
   @ApiOperation({ summary: 'Emitir a SUNAT (despatch/send)' })
@@ -236,6 +254,48 @@ export class DocumentosSalidaController {
   ) {
     dto.idUsuarioAuditoria = req.user.id;
     return this.logic.consultarEstado(id, dto);
+  }
+
+  @Post(':id/descargar-pdf-xml-sunat')
+  @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_EMITIR)
+  @ApiOperation({ summary: 'Preparar PDF del proveedor y XML original del envío' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  descargarPdfXmlSunat(@Param('id', ParseIntPipe) id: number) {
+    return this.logic.descargarPdfXmlOficiales(id);
+  }
+
+  @Get(':id/pdf-oficial')
+  @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_VER)
+  @ApiOperation({ summary: 'Obtener PDF del proveedor (conservado del envío)' })
+  @ApiProduces('application/pdf')
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  @Header('Content-Type', 'application/pdf')
+  async obtenerPdfOficial(@Param('id', ParseIntPipe) id: number) {
+    const resultado = await this.logic.obtenerPdfOficial(id);
+    if (!resultado) {
+      throw new NotFoundException('No hay PDF oficial disponible para este documento');
+    }
+    return new StreamableFile(resultado.buffer, {
+      type: 'application/pdf',
+      disposition: `inline; filename="${resultado.filename}"`,
+    });
+  }
+
+  @Get(':id/xml-oficial')
+  @Permisos(PermisoBanderas.DOCUMENTOS_SALIDA_VER)
+  @ApiOperation({ summary: 'Obtener XML original conservado del envío' })
+  @ApiProduces('application/xml')
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  @Header('Content-Type', 'application/xml')
+  async obtenerXmlOficial(@Param('id', ParseIntPipe) id: number) {
+    const resultado = await this.logic.obtenerXmlOficial(id);
+    if (!resultado) {
+      throw new NotFoundException('No hay XML oficial disponible para este documento');
+    }
+    return new StreamableFile(resultado.buffer, {
+      type: 'application/xml',
+      disposition: `inline; filename="${resultado.filename}"`,
+    });
   }
 
   @Post(':id/direccion-entrega')

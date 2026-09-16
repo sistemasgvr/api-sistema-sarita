@@ -61,3 +61,33 @@ export interface FacturacionConfigStatus {
   hasGreCredentials: boolean;
   defaultRuc: string | null;
 }
+
+export type GreEntorno = 'beta' | 'produccion';
+
+/**
+ * Resultado de «Verificar conexión y empresa»: solo lecturas al PSE. Dice con
+ * qué entorno y credenciales saldría una GRE, sin modificar nada.
+ */
+export interface GreEmpresaVerificacion {
+  ruc: string;
+  companyId: number | null;
+  /** RUC local encontrado en el PSE con el mismo valor. */
+  rucCoincide: boolean;
+  entorno: GreEntorno | null;
+  entornoNombre: string | null;
+  apiCpeUrl: string | null;
+  urlsCoherentes: boolean;
+  /** client_id GRE registrado hoy en la empresa del PSE (sin secreto). */
+  clientIdPse: string | null;
+  clientIdLocal: string | null;
+  esCredencialPrueba: boolean;
+  tieneSolLocal: boolean;
+  /** La GRE puede enviarse tal como está configurado. */
+  listo: boolean;
+  problemas: string[];
+}
+
+export interface GreSincronizacionResultado extends GreEmpresaVerificacion {
+  sincronizado: boolean;
+  camposActualizados: string[];
+}

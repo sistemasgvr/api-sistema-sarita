@@ -1,7 +1,3 @@
--- Synced from DEV via database_sql/scripts/sync-tables-from-dev.js
--- Table: gen_empresa
--- Generated: 2026-09-02T21:47:46.507Z
-
 CREATE TABLE gen_empresa (
     id integer NOT NULL,
     ruc character varying(11) NOT NULL,
@@ -16,7 +12,9 @@ CREATE TABLE gen_empresa (
     fecha_creacion timestamp without time zone DEFAULT now(),
     fecha_modificacion timestamp without time zone DEFAULT now(),
     tolerancia_m3_ruta_pueblo numeric(12,4) DEFAULT 0.5000,
-    psi_minimo_util numeric(12,2) DEFAULT 100
+    psi_minimo_util numeric(12,2) DEFAULT 100,
+    -- Distrito del domicilio fiscal (ubigeo de la GRE). 20260916_gre_p0_fiscal_numeracion_entorno.
+    id_distrito integer REFERENCES gen_distrito(id)
 );
 
 CREATE SEQUENCE gen_empresa_id_seq

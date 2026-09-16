@@ -25,7 +25,7 @@ BEGIN
     SELECT d.*, ec.nombre AS estado_ciclo INTO v_doc
     FROM doc_salida d
     JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
-    WHERE d.id = p_id AND d.estado = 1;
+    WHERE d.id = p_id AND d.estado = 1 FOR UPDATE OF d;
 
     IF NOT FOUND THEN
         RETURN json_build_object('error', 'El documento de salida no existe o está anulado', 'registro', NULL);
@@ -43,6 +43,11 @@ BEGIN
             'error', 'El documento aún no tiene serie y número SUNAT; conviértelo a guía de remisión primero',
             'registro', NULL
         );
+    END IF;
+
+    -- Una consulta atrasada nunca hace retroceder una aceptación ya registrada.
+    IF EXISTS (SELECT 1 FROM gen_lista_opciones WHERE id = v_doc.id_estado_sunat AND nombre = 'ACEPTADO') THEN
+        RETURN doc_obtener_salida(p_id);
     END IF;
 
     v_codigo := UPPER(TRIM(COALESCE(p_codigo_estado_sunat, '')));

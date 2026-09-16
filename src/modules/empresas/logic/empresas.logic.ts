@@ -33,6 +33,7 @@ export class EmpresasLogic {
       dto.idUsuarioAuditoria,
       dto.toleranciaM3RutaPueblo ?? null,
       dto.psiMinimoUtil ?? null,
+      dto.idDistrito ?? null,
     );
     return mapSingleResult(result, 'No se pudo crear la empresa');
   }
@@ -49,6 +50,7 @@ export class EmpresasLogic {
       dto.toleranciaM3RutaPueblo ?? null,
       dto.psiMinimoUtil ?? null,
       dto.idUsuarioAuditoria,
+      dto.idDistrito ?? null,
     );
     return mapSingleResult(result, `Empresa ${id} no encontrada`);
   }

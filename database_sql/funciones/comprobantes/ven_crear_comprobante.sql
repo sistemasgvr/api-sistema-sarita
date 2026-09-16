@@ -347,8 +347,22 @@ BEGIN
 
         -- Cilindro ya comprometido / fuera de stock entregable: no venderlo de nuevo
         -- (cierra el hueco hasta que la OS lo marque; ver reserva PENDIENTE_ENVIO al final).
+        -- Conversión VSD→CPE: el cilindro ya salió con la VSD (PRESTADO_CLIENTE /
+        -- PENDIENTE_ENVIO...), el CPE solo lo documenta; se omite la validación para los
+        -- cilindros que ya están en el detalle del origen (uno distinto sí se valida).
         v_id_balon := NULLIF((v_detalle->>'id_balon')::INTEGER, 0);
-        IF v_id_balon IS NOT NULL AND NOT v_es_nota_credito THEN
+        IF v_id_balon IS NOT NULL AND NOT v_es_nota_credito
+           AND NOT (
+               v_es_conversion_vsd
+               AND EXISTS (
+                   SELECT 1
+                   FROM ven_comprobante_detalle od
+                   WHERE od.id_comprobante = p_id_comprobante_origen
+                     AND od.estado = 1
+                     AND od.id_balon = v_id_balon
+               )
+           )
+        THEN
             SELECT UPPER(TRIM(COALESCE(eb.nombre, '')))
             INTO v_nombre_estado_balon
             FROM bal_balon b

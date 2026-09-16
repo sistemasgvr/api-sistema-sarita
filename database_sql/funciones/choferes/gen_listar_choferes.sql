@@ -51,6 +51,14 @@ BEGIN
             td.nombre AS nombre_tipo_documento,
             COALESCE(tr.numero_documento, ch.numero_documento) AS numero_documento,
             ch.telefono,
+            lic.id AS id_licencia,
+            lic.codigo AS codigo_licencia,
+            lic.fecha_emision,
+            lic.fecha_vencimiento,
+            lic.id_tipo_licencia,
+            tl.nombre AS nombre_tipo_licencia,
+            lic.id_categoria_licencia,
+            cl.nombre AS nombre_categoria_licencia,
             ch.estado,
             ch.fecha_creacion,
             ch.fecha_modificacion,
@@ -61,6 +69,14 @@ BEGIN
         FROM gen_chofer ch
         LEFT JOIN cli_clientes c ON ch.id_cliente = c.id
         LEFT JOIN tra_trabajadores tr ON tr.id = ch.id_trabajador
+        LEFT JOIN LATERAL (
+            SELECT gl.* FROM gen_licencia gl
+            WHERE gl.id_chofer = ch.id AND gl.estado = 1
+            ORDER BY gl.fecha_vencimiento DESC, gl.fecha_emision DESC, gl.id DESC
+            LIMIT 1
+        ) lic ON TRUE
+        LEFT JOIN gen_lista_opciones tl ON tl.id = lic.id_tipo_licencia
+        LEFT JOIN gen_lista_opciones cl ON cl.id = lic.id_categoria_licencia
         LEFT JOIN gen_lista_opciones td ON COALESCE(tr.id_tipo_documento, ch.id_tipo_documento) = td.id
         LEFT JOIN auth_usuarios uc ON ch.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON ch.id_usuario_modificacion = um.id

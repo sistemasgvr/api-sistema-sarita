@@ -1,3 +1,4 @@
+import { adjuntarTributos, crearConTributo } from '../../../common/helpers/crear-con-tributo.helper';
 import { Injectable } from '@nestjs/common';
 import {
   AuthDeleteResult,
@@ -77,14 +78,13 @@ export class ComprasModel {
     ]);
   }
 
-  obtenerPorId(id: number) {
-    return this.db.callFunctionJson<AuthSingleResult>('com_obtener_compra', [
-      id,
-    ]);
+  async obtenerPorId(id: number) {
+    const result = await this.db.callFunctionJson<AuthSingleResult>('com_obtener_compra', [id]);
+    return adjuntarTributos(this.db, 'retencion', id, result);
   }
 
   crear(dto: CreateCompraDto) {
-    return this.db.callFunctionJson<AuthSingleResult>('com_crear_compra', [
+    return crearConTributo(this.db, 'retencion', [
       dto.idTipoComprobante ?? null,
       dto.serie ?? null,
       dto.numero ?? null,
@@ -118,7 +118,7 @@ export class ComprasModel {
             })),
           )
         : null,
-    ]);
+    ], dto.retencion, dto.idUsuarioAuditoria);
   }
 
   actualizarCabecera(id: number, dto: ActualizarCompraCabeceraDto) {

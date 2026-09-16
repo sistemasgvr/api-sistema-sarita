@@ -23,7 +23,28 @@ import type {
   FacturacionComprobanteStatusQuery,
   FacturacionConfigStatus,
   FacturacionResumenStatusQuery,
+  GreEmpresaVerificacion,
+  GreEntorno,
+  GreSincronizacionResultado,
 } from './interfaces/facturacion-apisperu.interface';
+
+/** Empresa tal como la devuelve GET /companies/{id} (campos que importan a GRE). */
+interface EmpresaPse {
+  id?: number;
+  ruc?: string | number;
+  environment?: string | { nombre?: string; api_cpe_url?: string; auth_url?: string };
+  client_id?: string;
+  sol_user?: string;
+}
+
+/**
+ * Credenciales OAuth públicas del simulador GRE de SUNAT (gre-test.nubefact.com),
+ * las únicas que autentica el entorno BETA del PSE (Greenter / Lycet .env.test).
+ */
+const GRE_TEST_CLIENT_ID = 'test-85e5b0ae-255c-4891-a595-0b98c65c9854';
+const GRE_TEST_CLIENT_SECRET = 'test-Hty/M6QshYvPgItX2P0+Kw==';
+const GRE_TEST_SOL_USER = 'MODDATOS';
+const GRE_TEST_URL = /^https:\/\/gre-test\.nubefact\.com\/v1\/?$/;
 
 @Injectable()
 export class FacturacionApisperuClient {
@@ -243,11 +264,23 @@ export class FacturacionApisperuClient {
     );
   }
 
+  /**
+   * Envía la GRE. No modifica la empresa del PSE: la sincronización de
+   * credenciales es una acción explícita de configuración
+   * (`sincronizarCredencialesGre`). Aquí solo se verifica que el entorno y las
+   * credenciales registradas permitan el envío.
+   */
   async enviarGuiaRemision(
     payload: FacturacionApisperuPayload,
+    verificacion?: GreEmpresaVerificacion,
   ): Promise<FacturacionApisperuDocumentResponse> {
     const ruc = await this.extractCompanyRuc(payload);
-    await this.asegurarCredencialesGreEnEmpresa(ruc);
+    const estado = verificacion ?? (await this.verificarEmpresaGre(ruc));
+    if (!estado.listo) {
+      throw new BadRequestException(
+        `La empresa no está lista para emitir GRE: ${estado.problemas.join('; ')}`,
+      );
+    }
 
     try {
       return await this.request<FacturacionApisperuDocumentResponse>(
@@ -262,7 +295,7 @@ export class FacturacionApisperuClient {
       // probable a partir de cómo está configurada la empresa en el PSE.
       if (error instanceof BadGatewayException) {
         throw new BadGatewayException(
-          `${error.message}${await this.diagnosticoEntornoGre(ruc)}`,
+          `${error.message}${this.diagnosticoEntornoGre(estado)}`,
         );
       }
       throw error;
@@ -270,62 +303,243 @@ export class FacturacionApisperuClient {
   }
 
   /**
-   * Credenciales OAuth de prueba que exige el simulador GRE de SUNAT
-   * (gre-test.nubefact.com) cuando la empresa del PSE está en entorno beta.
-   * Un client_id real de SOL no autentica ahí y APIsPERU devuelve 500.
+   * PDF oficial (binario, `application/pdf` según el swagger) de un documento
+   * ya construido, devuelto en base64. `null` si el PSE no pudo generarlo:
+   * el llamador decide si eso es error o solo «sin PDF disponible».
    */
-  private static readonly GRE_TEST_CLIENT_ID_PREFIX = 'test-';
-
-  private async diagnosticoEntornoGre(ruc?: string): Promise<string> {
+  private async documentoPdfBase64(path: string, payload: FacturacionApisperuPayload): Promise<string | null> {
     try {
-      const creds = await this.credentialsService.resolve();
-      const companyId = await this.resolveCompanyId(ruc, creds);
-      if (companyId == null) return '';
-
-      const empresa = (await this.obtenerEmpresa(companyId)) as {
-        environment?: { nombre?: string; api_cpe_url?: string } | string;
-        client_id?: string;
-      };
-      const entorno =
-        typeof empresa.environment === 'string'
-          ? empresa.environment
-          : (empresa.environment?.nombre ?? '');
-      const apiCpe =
-        typeof empresa.environment === 'object'
-          ? (empresa.environment?.api_cpe_url ?? '')
-          : '';
-      const clientId = String(empresa.client_id ?? creds.clientId ?? '');
-      const esCredencialPrueba = clientId.startsWith(
-        FacturacionApisperuClient.GRE_TEST_CLIENT_ID_PREFIX,
-      );
-
-      if (entorno === 'beta' && !esCredencialPrueba) {
-        return (
-          ` — La empresa está en entorno BETA del PSE (GRE contra ${apiCpe || 'gre-test.nubefact.com'}), ` +
-          'que solo acepta las credenciales OAuth de prueba de SUNAT (client_id "test-85e5b0ae-255c-4891-a595-0b98c65c9854", ' +
-          'client_secret "test-Hty/M6QshYvPgItX2P0+Kw=="). Configúralas en Configuración → SUNAT mientras pruebas, ' +
-          'o cambia la empresa a PRODUCCIÓN en APIsPERU para usar el client_id generado en SOL.'
-        );
-      }
-
-      if (entorno !== 'beta' && esCredencialPrueba) {
-        return (
-          ' — La empresa está en PRODUCCIÓN pero el client_id GRE es el de prueba (test-…). ' +
-          'Genera las credenciales reales en SUNAT SOL (Empresas → Comprobantes de pago → Credenciales API) y regístralas en Configuración → SUNAT.'
-        );
-      }
-
-      return entorno
-        ? ` — Revisa en APIsPERU las credenciales OAuth GRE de la empresa (entorno ${entorno}).`
-        : '';
-    } catch (diagError: unknown) {
-      this.logger.warn(
-        `No se pudo diagnosticar el entorno GRE: ${diagError instanceof Error ? diagError.message : String(diagError)}`,
-      );
-      return '';
+      const data = await this.request<ArrayBuffer>('POST', path, payload, {
+        responseType: 'arraybuffer',
+        accept: 'application/pdf',
+      });
+      const buffer = Buffer.from(data);
+      return buffer.subarray(0, 5).toString('ascii') === '%PDF-' ? buffer.toString('base64') : null;
+    } catch (error: unknown) {
+      this.logger.warn(`No se pudo generar PDF (${path}): ${error instanceof Error ? error.message : String(error)}`);
+      return null;
     }
   }
 
+  /** XML firmado (`text/xml`) de un documento ya construido, en base64. */
+  private async documentoXmlBase64(path: string, payload: FacturacionApisperuPayload): Promise<string | null> {
+    try {
+      const data = await this.request<string>('POST', path, payload, {
+        responseType: 'text',
+        accept: 'text/xml',
+      });
+      const xml = typeof data === 'string' ? data.trim() : '';
+      return xml ? Buffer.from(xml, 'utf8').toString('base64') : null;
+    } catch (error: unknown) {
+      this.logger.warn(`No se pudo generar XML (${path}): ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }
+  }
+
+  despatchPdf(payload: FacturacionApisperuPayload) {
+    return this.documentoPdfBase64('/despatch/pdf', payload);
+  }
+
+  despatchXml(payload: FacturacionApisperuPayload) {
+    return this.documentoXmlBase64('/despatch/xml', payload);
+  }
+
+  percepcionPdf(payload: FacturacionApisperuPayload) {
+    return this.documentoPdfBase64('/perception/pdf', payload);
+  }
+
+  percepcionXml(payload: FacturacionApisperuPayload) {
+    return this.documentoXmlBase64('/perception/xml', payload);
+  }
+
+  retencionPdf(payload: FacturacionApisperuPayload) {
+    return this.documentoPdfBase64('/retention/pdf', payload);
+  }
+
+  retencionXml(payload: FacturacionApisperuPayload) {
+    return this.documentoXmlBase64('/retention/xml', payload);
+  }
+
+  private diagnosticoEntornoGre(estado: GreEmpresaVerificacion): string {
+    if (estado.entorno === 'beta' && !estado.esCredencialPrueba) {
+      return (
+        ` — La empresa está en entorno BETA del PSE (GRE contra ${estado.apiCpeUrl || 'gre-test.nubefact.com'}), ` +
+        'que solo acepta las credenciales OAuth de prueba de SUNAT. Usa «Sincronizar configuración GRE» en Configuración → SUNAT ' +
+        'o cambia la empresa a PRODUCCIÓN en APIsPERU para usar el client_id generado en SOL.'
+      );
+    }
+    if (estado.entorno === 'produccion' && estado.esCredencialPrueba) {
+      return (
+        ' — La empresa está en PRODUCCIÓN pero el client_id GRE es el de prueba (test-…). ' +
+        'Genera las credenciales reales en SUNAT SOL (Empresas → Comprobantes de pago → Credenciales API) y regístralas en Configuración → SUNAT.'
+      );
+    }
+    return estado.entornoNombre
+      ? ` — Revisa en APIsPERU las credenciales OAuth GRE de la empresa (entorno ${estado.entornoNombre}).`
+      : '';
+  }
+
+  private normalizarEntorno(nombre: string | null | undefined): GreEntorno | null {
+    const value = (nombre ?? '').trim().toLowerCase();
+    if (!value) return null;
+    if (value.includes('beta') || value.includes('test') || value.includes('prueba')) return 'beta';
+    return 'produccion';
+  }
+
+  /**
+   * «Verificar conexión y empresa»: solo GET al PSE. Contrasta RUC, entorno,
+   * URLs y credenciales registradas contra la configuración local de la
+   * empresa, sin escribir nada en el proveedor ni en la base.
+   */
+  async verificarEmpresaGre(ruc: string): Promise<GreEmpresaVerificacion> {
+    const creds = await this.credentialsService.resolve();
+    const rucNorm = String(ruc ?? '').trim();
+    const problemas: string[] = [];
+
+    const resultado: GreEmpresaVerificacion = {
+      ruc: rucNorm,
+      companyId: null,
+      rucCoincide: false,
+      entorno: null,
+      entornoNombre: null,
+      apiCpeUrl: null,
+      urlsCoherentes: true,
+      clientIdPse: null,
+      clientIdLocal: creds.clientId || null,
+      esCredencialPrueba: false,
+      tieneSolLocal: Boolean(creds.solUser && creds.solPass),
+      listo: false,
+      problemas,
+    };
+
+    if (!creds.enabled) {
+      problemas.push('La integración de facturación electrónica está deshabilitada');
+      return resultado;
+    }
+    if (!creds.token && !(creds.username && creds.password)) {
+      problemas.push('Configura token o usuario/clave del PSE en Configuración → SUNAT');
+      return resultado;
+    }
+    if (creds.defaultRuc && creds.defaultRuc !== rucNorm) {
+      problemas.push(`El RUC emisor configurado (${creds.defaultRuc}) no coincide con el de la empresa (${rucNorm})`);
+    }
+
+    const companyId = await this.resolveCompanyId(rucNorm, creds);
+    if (companyId == null) {
+      problemas.push(`El RUC ${rucNorm} no está registrado como empresa en el PSE`);
+      return resultado;
+    }
+    resultado.companyId = companyId;
+    resultado.rucCoincide = true;
+
+    const empresa = (await this.obtenerEmpresa(companyId)) as EmpresaPse;
+    const entornoNombre =
+      typeof empresa.environment === 'string' ? empresa.environment : (empresa.environment?.nombre ?? null);
+    const urls =
+      typeof empresa.environment === 'object' && empresa.environment
+        ? [empresa.environment.api_cpe_url, empresa.environment.auth_url].filter(Boolean)
+        : [];
+    resultado.entornoNombre = entornoNombre;
+    resultado.entorno = this.normalizarEntorno(entornoNombre);
+    resultado.apiCpeUrl =
+      typeof empresa.environment === 'object' && empresa.environment
+        ? (empresa.environment.api_cpe_url ?? null)
+        : null;
+    resultado.clientIdPse = String(empresa.client_id ?? '').trim() || null;
+
+    // Lo que autentica ante SUNAT es el client_id que tiene la empresa en el
+    // PSE, no el local: se evalúa ese.
+    const clientIdEfectivo = resultado.clientIdPse ?? '';
+    resultado.esCredencialPrueba = clientIdEfectivo.startsWith('test-');
+
+    if (!resultado.entorno) {
+      problemas.push('El PSE no informa el entorno de la empresa');
+    } else if (resultado.entorno === 'beta') {
+      if (urls.length > 0 && urls.some((url) => !GRE_TEST_URL.test(String(url)))) {
+        resultado.urlsCoherentes = false;
+        problemas.push('El entorno BETA tiene URLs GRE distintas del simulador esperado (gre-test.nubefact.com)');
+      }
+      if (!clientIdEfectivo) {
+        problemas.push('La empresa BETA no tiene credenciales OAuth GRE en el PSE: usa «Sincronizar configuración GRE»');
+      } else if (!resultado.esCredencialPrueba) {
+        problemas.push('La empresa BETA tiene un client_id real; el simulador solo acepta el de prueba: usa «Sincronizar configuración GRE»');
+      }
+    } else {
+      if (urls.some((url) => GRE_TEST_URL.test(String(url)))) {
+        resultado.urlsCoherentes = false;
+        problemas.push('La empresa está en PRODUCCIÓN pero apunta al simulador GRE de pruebas');
+      }
+      if (!creds.clientId || !creds.clientSecret) {
+        problemas.push('Configura Client ID y Client Secret OAuth GRE reales en Configuración → SUNAT');
+      } else if (creds.clientId.startsWith('test-')) {
+        problemas.push('Las credenciales OAuth GRE locales son de prueba; en producción se requieren las generadas en SOL');
+      }
+      if (!clientIdEfectivo) {
+        problemas.push('La empresa del PSE no tiene credenciales OAuth GRE: usa «Sincronizar configuración GRE»');
+      } else if (resultado.esCredencialPrueba) {
+        problemas.push('La empresa del PSE tiene el client_id de prueba; sincroniza las credenciales reales');
+      } else if (creds.clientId && clientIdEfectivo !== creds.clientId) {
+        problemas.push('El client_id GRE del PSE no coincide con el configurado localmente: usa «Sincronizar configuración GRE»');
+      }
+      if (!resultado.tieneSolLocal) {
+        problemas.push('Registra usuario y clave SOL reales en Configuración → SUNAT antes de emitir en producción');
+      } else if (String(empresa.sol_user ?? '').trim().toUpperCase() === GRE_TEST_SOL_USER) {
+        problemas.push('La empresa del PSE conserva el usuario SOL de pruebas (MODDATOS); sincroniza las credenciales reales');
+      }
+    }
+
+    resultado.listo = problemas.length === 0;
+    return resultado;
+  }
+
+  /**
+   * «Sincronizar configuración GRE»: la única operación que escribe en la
+   * empresa del PSE. En BETA registra las credenciales públicas del simulador
+   * (sin tocar los secretos reales guardados localmente); en producción envía
+   * OAuth y SOL reales de la configuración de la empresa.
+   */
+  async sincronizarCredencialesGre(ruc: string): Promise<GreSincronizacionResultado> {
+    const previo = await this.verificarEmpresaGre(ruc);
+    if (previo.companyId == null || !previo.entorno) {
+      return { ...previo, sincronizado: false, camposActualizados: [] };
+    }
+
+    const creds = await this.credentialsService.resolve();
+    let cambios: Partial<FacturacionApisperuCompanyPayload>;
+    if (previo.entorno === 'beta') {
+      if (!previo.urlsCoherentes) {
+        throw new BadRequestException('El entorno BETA tiene URLs GRE distintas del simulador esperado. Revisa el entorno en APIsPERU.');
+      }
+      cambios = {
+        client_id: GRE_TEST_CLIENT_ID,
+        client_secret: GRE_TEST_CLIENT_SECRET,
+        sol_user: GRE_TEST_SOL_USER,
+        sol_pass: GRE_TEST_SOL_USER,
+      };
+    } else {
+      if (!creds.clientId || !creds.clientSecret) {
+        throw new BadRequestException('Configura Client ID y Client Secret OAuth GRE en Configuración → SUNAT antes de sincronizar producción.');
+      }
+      if (creds.clientId.startsWith('test-')) {
+        throw new BadRequestException('Las credenciales GRE de prueba solo pueden usarse en el entorno BETA.');
+      }
+      if (!creds.solUser || !creds.solPass) {
+        throw new BadRequestException('Registra usuario y clave SOL reales en Configuración → SUNAT antes de sincronizar producción.');
+      }
+      cambios = {
+        client_id: creds.clientId,
+        client_secret: creds.clientSecret,
+        sol_user: creds.solUser,
+        sol_pass: creds.solPass,
+      };
+    }
+
+    await this.actualizarEmpresa(previo.companyId, cambios);
+    const posterior = await this.verificarEmpresaGre(ruc);
+    return { ...posterior, sincronizado: true, camposActualizados: Object.keys(cambios) };
+  }
+
+  /** Consulta de ticket GRE: solo lectura, nunca modifica la empresa del PSE. */
   async consultarEstadoGuiaRemision(
     query: FacturacionResumenStatusQuery,
   ): Promise<FacturacionApisperuPayload> {
@@ -339,56 +553,24 @@ export class FacturacionApisperuClient {
     );
   }
 
-  /**
-   * APIsPERU exige client_id/client_secret GRE en la empresa (swagger tag despatch).
-   * Los toma de configuración SUNAT (BD) o .env y los sincroniza vía PUT /companies/{id}.
-   */
-  async asegurarCredencialesGreEnEmpresa(ruc?: string): Promise<void> {
-    const creds = await this.credentialsService.resolve();
-    const { clientId, clientSecret } = creds;
+  async enviarPercepcion(
+    payload: FacturacionApisperuPayload,
+  ): Promise<FacturacionApisperuDocumentResponse> {
+    return this.request<FacturacionApisperuDocumentResponse>(
+      'POST',
+      '/perception/send',
+      payload,
+    );
+  }
 
-    if (!clientId || !clientSecret) {
-      throw new BadRequestException(
-        'Configure client_id y client_secret OAuth GRE en Configuración → SUNAT (o variables de entorno de facturación).',
-      );
-    }
-
-    const companyId = await this.resolveCompanyId(ruc, creds);
-    if (companyId == null) {
-      throw new BadRequestException(
-        'No se encontró la empresa emisora en el PSE para sincronizar credenciales GRE',
-      );
-    }
-
-    const company = await this.obtenerEmpresa(companyId) as {
-      environment?: string | { nombre?: string; api_cpe_url?: string; auth_url?: string };
-    };
-    const environment = typeof company.environment === 'string'
-      ? company.environment : company.environment?.nombre;
-    if (environment === 'beta') {
-      const urls = typeof company.environment === 'object'
-        ? [company.environment.api_cpe_url, company.environment.auth_url].filter(Boolean)
-        : [];
-      if (urls.some(url => !/^https:\/\/gre-test\.nubefact\.com\/v1\/?$/.test(url!))) {
-        throw new BadRequestException('El entorno BETA tiene URLs GRE distintas del simulador esperado. Revisa el entorno en APIsPERU.');
-      }
-      // Credenciales públicas del simulador GRE (Greenter / Lycet .env.test).
-      // No sobrescribir los secretos reales almacenados en configuración SUNAT.
-      await this.actualizarEmpresa(companyId, {
-        client_id: 'test-85e5b0ae-255c-4891-a595-0b98c65c9854',
-        client_secret: 'test-Hty/M6QshYvPgItX2P0+Kw==',
-        sol_user: 'MODDATOS',
-        sol_pass: 'MODDATOS',
-      });
-      return;
-    }
-    if (clientId.startsWith('test-')) {
-      throw new BadRequestException('Las credenciales GRE de prueba solo pueden usarse en el entorno BETA.');
-    }
-    await this.actualizarEmpresa(companyId, {
-      client_id: clientId,
-      client_secret: clientSecret,
-    });
+  async enviarRetencion(
+    payload: FacturacionApisperuPayload,
+  ): Promise<FacturacionApisperuDocumentResponse> {
+    return this.request<FacturacionApisperuDocumentResponse>(
+      'POST',
+      '/retention/send',
+      payload,
+    );
   }
 
   private async resolveCompanyId(

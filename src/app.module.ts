@@ -59,6 +59,8 @@ import { FacturacionApisperuModule } from './integrations/facturacion-apisperu/f
 import { FacturacionElectronicaModule } from './modules/facturacion-electronica/facturacion-electronica.module';
 import { ComprobantesModule } from './modules/comprobantes/comprobantes.module';
 import { DocumentosSalidaModule } from './modules/documentos-salida/documentos-salida.module';
+import { PercepcionesModule } from './modules/percepciones/percepciones.module';
+import { RetencionesModule } from './modules/retenciones/retenciones.module';
 import { BajasClienteModule } from './modules/bajas-cliente/bajas-cliente.module';
 import { CuentasBancariasModule } from './modules/cuentas-bancarias/cuentas-bancarias.module';
 import { DocumentosVencimientoModule } from './modules/documentos-vencimiento/documentos-vencimiento.module';
@@ -133,6 +135,8 @@ import { CajaModule } from './modules/caja/caja.module';
     FacturacionElectronicaModule,
     ComprobantesModule,
     DocumentosSalidaModule,
+    PercepcionesModule,
+    RetencionesModule,
     BajasClienteModule,
     CuentasBancariasModule,
     DocumentosVencimientoModule,

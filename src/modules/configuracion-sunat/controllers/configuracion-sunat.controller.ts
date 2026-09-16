@@ -37,6 +37,27 @@ export class ConfiguracionSunatController {
     return this.configuracionSunatLogic.listar(filtros);
   }
 
+  @Post('empresa/:idEmpresa/verificar-gre')
+  @Permisos(PermisoBanderas.CONFIGURACION_SUNAT_VER)
+  @ApiOperation({ summary: 'Verificar conexión, RUC, entorno y credenciales GRE de la empresa en el PSE (solo lectura)' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  verificarGre(@Param('idEmpresa', ParseIntPipe) idEmpresa: number) {
+    return this.configuracionSunatLogic.verificarGre(idEmpresa);
+  }
+
+  @Post('empresa/:idEmpresa/sincronizar-gre')
+  @Permisos(PermisoBanderas.CONFIGURACION_SUNAT_EDITAR)
+  @ApiOperation({ summary: 'Sincronizar credenciales GRE (OAuth y SOL) de la empresa en el PSE según su entorno' })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  sincronizarGre(
+    @Param('idEmpresa', ParseIntPipe) idEmpresa: number,
+    @Body() dto: AuditoriaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
+    return this.configuracionSunatLogic.sincronizarGre(idEmpresa, dto.idUsuarioAuditoria);
+  }
+
   @Get(':id')
   @Permisos(PermisoBanderas.CONFIGURACION_SUNAT_VER)
   @ApiOperation({ summary: 'Obtener configuración SUNAT por ID' })
