@@ -1,4 +1,3 @@
-import { autorizarTributo } from '../../../common/helpers/crear-con-tributo.helper';
 import {
   Body,
   Controller,
@@ -78,7 +77,6 @@ export class ComprasController {
   @Permisos(PermisoBanderas.COMPRAS_CREAR)
   @ApiOperation({ summary: 'Registrar nuevo comprobante de compra' })
   crear(@Body() dto: CreateCompraDto, @Req() req: AuthRequest) {
-    if (dto.retencion) autorizarTributo(req.user, 'retencion');
     dto.idUsuarioAuditoria = req.user.id;
     return this.comprasLogic.crear(dto);
   }

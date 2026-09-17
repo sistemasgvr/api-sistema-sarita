@@ -1,141 +1,142 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsDateString, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsDateString,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class PercepcionDetalleDto {
-  @ApiPropertyOptional({ description: 'ID del comprobante de venta asociado' })
-  @IsNumber()
+/** Comprobante de venta ya emitido cuyo cobro genera la percepción. */
+export class PercepcionComprobanteDto {
+  @ApiProperty({ description: 'ID de ven_comprobante (factura/boleta aceptada por SUNAT)' })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idComprobante!: number;
+
+  @ApiPropertyOptional({ description: 'Fecha del cobro (YYYY-MM-DD); por defecto la fecha de emisión de la percepción' })
   @IsOptional()
-  idComprobante?: number;
-
-  @ApiProperty({ description: 'Tipo de documento SUNAT (01=Factura, 03=Boleta)' })
-  @IsString()
-  tipoDoc: string;
-
-  @ApiProperty({ description: 'Número del documento' })
-  @IsString()
-  numDoc: string;
-
-  @ApiProperty({ description: 'Fecha de emisión del documento (YYYY-MM-DD)' })
-  @IsDateString()
-  fechaEmision: string;
-
-  @ApiProperty({ description: 'Fecha de percepción (YYYY-MM-DD)' })
-  @IsDateString()
-  fechaPercepcion: string;
-
-  @ApiPropertyOptional({ description: 'Moneda (PEN, USD)' })
-  @IsString()
-  @IsOptional()
-  moneda?: string;
-
-  @ApiProperty({ description: 'Importe total del documento' })
-  @IsNumber()
-  @Min(0)
-  impTotal: number;
-
-  @ApiProperty({ description: 'Importe percibido sobre este documento' })
-  @IsNumber()
-  @Min(0)
-  impPercibido: number;
-
-  @ApiProperty({ description: 'Importe pendiente de cobrar' })
-  @IsNumber()
-  @Min(0)
-  impCobrar: number;
+  @IsDateString({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  fechaCobro?: string;
 }
 
+/**
+ * La percepción se arma sobre comprobantes de venta emitidos: cliente,
+ * sucursal, importes y detalle salen del comprobante, no del formulario.
+ */
 export class CreatePercepcionDto {
-  @ApiProperty({ description: 'Serie de la percepción (ej: P001)' })
+  @ApiProperty({ description: 'Empresa emisora (agente de percepción)' })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idEmpresa!: number;
+
+  @ApiProperty({ example: 'P001' })
   @IsString()
-  serie: string;
+  @Matches(/^P\d{3}$/, { message: 'La serie de percepción es P001–P999' })
+  serie!: string;
 
-  @ApiProperty({ description: 'Fecha de emisión (YYYY-MM-DD)' })
-  @IsDateString()
-  fechaEmision: string;
+  @ApiProperty({ example: '2026-09-17' })
+  @IsDateString({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  fechaEmision!: string;
 
-  @ApiProperty({ description: 'ID de la empresa emisora' })
-  @IsNumber()
-  idEmpresa: number;
+  @ApiProperty({ description: 'Régimen SUNAT (catálogo 22): 01, 02 o 03' })
+  @IsString()
+  @Matches(/^\d{2}$/)
+  regimen!: string;
 
-  @ApiProperty({ description: 'ID del cliente (sujeto percibido)' })
-  @IsNumber()
-  idCliente: number;
-
-  @ApiPropertyOptional({ description: 'ID de la sucursal' })
-  @IsNumber()
+  @ApiPropertyOptional({ description: 'Tasa %; por defecto la del régimen' })
   @IsOptional()
-  idSucursal?: number;
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
+  @Max(100)
+  tasa?: number;
 
-  @ApiProperty({ description: 'Código de régimen de percepción (01=Venta Interna, etc.)' })
-  @IsString()
-  regimen: string;
-
-  @ApiProperty({ description: 'Tasa de percepción (ej: 2 para 2%)' })
-  @IsNumber()
-  @Min(0)
-  tasa: number;
-
-  @ApiProperty({ description: 'Base imponible (monto sobre el que se percibe)' })
-  @IsNumber()
-  @Min(0)
-  baseImponible: number;
-
-  @ApiProperty({ description: 'Monto total percibido' })
-  @IsNumber()
-  @Min(0)
-  montoPercibido: number;
-
-  @ApiProperty({ description: 'Monto total cobrado (base + percepción)' })
-  @IsNumber()
-  @Min(0)
-  montoCobrado: number;
-
-  @ApiPropertyOptional({ description: 'Observaciones' })
-  @IsString()
+  @ApiPropertyOptional({ maxLength: 500 })
   @IsOptional()
+  @IsString()
+  @MaxLength(500)
   observacion?: string;
 
-  @ApiPropertyOptional({ description: 'Detalle de documentos asociados', type: [PercepcionDetalleDto] })
+  @ApiProperty({ type: [PercepcionComprobanteDto] })
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
-  @Type(() => PercepcionDetalleDto)
-  @IsOptional()
-  detalles?: PercepcionDetalleDto[];
+  @Type(() => PercepcionComprobanteDto)
+  comprobantes!: PercepcionComprobanteDto[];
 }
 
 export class FiltroPercepcionDto {
   @ApiPropertyOptional()
-  @IsNumber()
+  @IsOptional()
+  @IsString()
+  buscar?: string;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
   idEmpresa?: number;
 
   @ApiPropertyOptional()
-  @IsDateString()
   @IsOptional()
+  @IsDateString()
   fechaDesde?: string;
 
   @ApiPropertyOptional()
-  @IsDateString()
   @IsOptional()
+  @IsDateString()
   fechaHasta?: string;
 
   @ApiPropertyOptional()
-  @IsNumber()
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
   idCliente?: number;
 
   @ApiPropertyOptional({ default: 1 })
-  @IsNumber()
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
   pagina?: number;
 
   @ApiPropertyOptional({ default: 20 })
-  @IsNumber()
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
   tamano?: number;
+}
+
+/** Comprobantes de venta aceptados por SUNAT que aún no tienen percepción. */
+export class ComprobantesElegiblesQueryDto {
+  @ApiPropertyOptional({ description: 'Cliente (sujeto percibido)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCliente?: number;
+
+  @ApiPropertyOptional({ description: 'Serie-número o nombre del cliente' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  buscar?: string;
+
+  @ApiPropertyOptional({ default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limite?: number;
 }

@@ -84,3 +84,33 @@ export interface ListaOpcionBasica {
   nombre: string;
   descripcion: string | null;
 }
+
+/** Compra candidata a retención (ver RetencionesModel.SQL_ELEGIBLES). */
+export interface CompraElegibleRetencion {
+  id: number;
+  serie: string | null;
+  numero: string | null;
+  fecha: string;
+  tipo_doc: string | null;
+  nombre_tipo_comprobante: string | null;
+  total: number | string;
+  moneda: string | null;
+  id_proveedor: number | null;
+  nombre_proveedor: string | null;
+  documento_proveedor: string | null;
+  con_retencion: boolean;
+  id_sucursal: number | null;
+}
+
+/** Línea tal como la lee com_crear_retencion (claves snake_case). */
+export interface RetencionDetalleSql {
+  id_compra: number | null;
+  tipo_doc: string;
+  num_doc: string;
+  fecha_emision: string;
+  fecha_retencion: string;
+  moneda: string;
+  imp_total: number;
+  imp_retenido: number;
+  imp_pagar: number;
+}

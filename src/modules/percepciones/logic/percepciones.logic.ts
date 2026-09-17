@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
-import { mapListResult } from '../../../common/helpers/auth-response.helper';
+import { mapListResult, mapSingleResult } from '../../../common/helpers/auth-response.helper';
+import { armarTributoDesdeOrigen } from '../../../common/helpers/tributo-desde-origen.helper';
 import {
   assertPseConfigurado,
   documentoOficialBase64,
@@ -10,11 +11,12 @@ import {
   obtenerContrapartePse,
   obtenerEmpresaEmisoraPse,
   resolverIdEstadoSunat,
+  TASAS_PERCEPCION,
 } from '../../../common/helpers/comprobante-sunat.helper';
 import { DatabaseService } from '../../../database/database.service';
 import { FacturacionApisperuClient } from '../../../integrations/facturacion-apisperu/facturacion-apisperu.client';
 import { FacturacionCredentialsService } from '../../../integrations/facturacion-electronica/facturacion-credentials.service';
-import type { CreatePercepcionDto, FiltroPercepcionDto } from '../dto/percepcion.dto';
+import type { ComprobantesElegiblesQueryDto, CreatePercepcionDto, FiltroPercepcionDto } from '../dto/percepcion.dto';
 import type { PercepcionCompletoResult } from '../interfaces/percepcion.interface';
 import { PercepcionMapper } from '../mappers/percepcion.mapper';
 import { PercepcionesModel } from '../models/percepciones.model';
@@ -42,32 +44,102 @@ export class PercepcionesLogic {
     return mapListResult(result, { pagina: filtros.pagina ?? 1, limite: filtros.tamano ?? 20 } as FiltroPaginacionDto);
   }
 
-  async obtener(id: number): Promise<PercepcionCompletoResult> {
+  /** Registro completo (data = registro), como el resto de módulos. */
+  async obtenerPorId(id: number) {
+    const result = await this.model.obtener(id);
+    return mapSingleResult(result, `Percepción ${id} no encontrada`);
+  }
+
+  private async obtener(id: number): Promise<PercepcionCompletoResult> {
     const result = await this.model.obtener(id);
     if (result.error) throw new BadRequestException(result.error);
     if (!result.registro) throw new NotFoundException(`Percepción ${id} no encontrada`);
     return result;
   }
 
+  listarComprobantesElegibles(query: ComprobantesElegiblesQueryDto) {
+    return this.model.listarComprobantesElegibles(query);
+  }
+
+  /**
+   * La percepción nace de comprobantes de venta ya aceptados por SUNAT, del
+   * mismo cliente y en soles: cliente, sucursal, importes y detalle salen de
+   * ellos. El documento queda pendiente de emisión al PSE.
+   */
   async crear(dto: CreatePercepcionDto, idUsuarioAuditoria?: number) {
+    await this.assertRegimen(dto.regimen);
+    const origenes = await this.model.obtenerComprobantes(dto.comprobantes.map((c) => c.idComprobante));
+    const calculo = armarTributoDesdeOrigen(
+      'percepcion',
+      {
+        regimen: dto.regimen,
+        tasa: dto.tasa,
+        fechaEmision: dto.fechaEmision,
+        origenes: dto.comprobantes.map((c) => ({ id: c.idComprobante, fechaOperacion: c.fechaCobro })),
+      },
+      origenes.map((o) => ({
+        id: o.id,
+        estado: o.estado,
+        serie: o.serie,
+        numero: o.numero,
+        fecha: o.fecha,
+        tipo_doc: o.tipo_doc,
+        total: o.total,
+        moneda: o.moneda,
+        id_contraparte: o.id_cliente,
+        nombre_contraparte: o.nombre_cliente,
+        documento_contraparte: o.documento_cliente,
+        nombre_estado_sunat: o.nombre_estado_sunat,
+        con_tributo: o.con_percepcion,
+      })),
+    );
+
     const result = await this.model.crear({
       serie: dto.serie,
       fechaEmision: dto.fechaEmision,
       idEmpresa: dto.idEmpresa,
-      idCliente: dto.idCliente,
-      idSucursal: dto.idSucursal,
+      idCliente: calculo.idContraparte,
+      idSucursal: calculo.idSucursal,
       regimen: dto.regimen,
-      tasa: dto.tasa,
-      baseImponible: dto.baseImponible,
-      montoPercibido: dto.montoPercibido,
-      montoCobrado: dto.montoCobrado,
+      tasa: calculo.tasa,
+      baseImponible: calculo.baseImponible,
+      montoPercibido: calculo.montoTributo,
+      montoCobrado: calculo.montoNeto,
       observacion: dto.observacion,
-      detalles: dto.detalles,
+      detalles: calculo.detalles.map((d) => ({
+        id_comprobante: d.id_origen,
+        tipo_doc: d.tipo_doc,
+        num_doc: d.num_doc,
+        fecha_emision: d.fecha_emision,
+        fecha_percepcion: d.fecha_operacion,
+        moneda: d.moneda,
+        imp_total: d.imp_total,
+        imp_percibido: d.imp_tributo,
+        imp_cobrar: d.imp_neto,
+      })),
       idUsuarioAuditoria,
     });
 
     if (result.error) throw new BadRequestException(result.error);
     return result;
+  }
+
+  private async assertRegimen(regimen: string) {
+    const { regimenesPercepcion } = await this.model.obtenerCatalogos();
+    if (!regimenesPercepcion.some((r) => r.descripcion === regimen)) {
+      throw new BadRequestException(`Régimen de percepción ${regimen} no válido`);
+    }
+  }
+
+  async catalogos() {
+    const catalogos = await this.model.obtenerCatalogos();
+    return {
+      ...catalogos,
+      regimenesPercepcion: catalogos.regimenesPercepcion.map((r) => ({
+        ...r,
+        tasa: r.descripcion ? (TASAS_PERCEPCION[r.descripcion] ?? null) : null,
+      })),
+    };
   }
 
   /**

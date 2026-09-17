@@ -101,7 +101,8 @@ export class ComprobantesLogic {
   }
 
   async obtenerPorId(id: number) {
-    const result = await this.model.obtenerCompleto(id);
+    // Incluye las percepciones vinculadas (solo lectura).
+    const result = await this.model.obtenerPorId(id);
 
     if (result.error) {
       throw new BadRequestException(result.error);

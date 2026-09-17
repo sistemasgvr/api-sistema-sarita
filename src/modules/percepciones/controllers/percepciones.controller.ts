@@ -18,7 +18,7 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
-import { CreatePercepcionDto, FiltroPercepcionDto } from '../dto/percepcion.dto';
+import { ComprobantesElegiblesQueryDto, CreatePercepcionDto, FiltroPercepcionDto } from '../dto/percepcion.dto';
 import { PercepcionesLogic } from '../logic/percepciones.logic';
 
 type AuthRequest = Request & { user: AuthenticatedUser };
@@ -35,12 +35,26 @@ export class PercepcionesController {
     return this.logic.listar(filtros);
   }
 
+  @Get('catalogos')
+  @Permisos(PermisoBanderas.PERCEPCIONES_LISTAR)
+  @ApiOperation({ summary: 'Regímenes SUNAT de percepción con su tasa vigente y estados SUNAT' })
+  catalogos() {
+    return this.logic.catalogos();
+  }
+
+  @Get('comprobantes-elegibles')
+  @Permisos(PermisoBanderas.PERCEPCIONES_CREAR)
+  @ApiOperation({ summary: 'Facturas/boletas aceptadas por SUNAT, en soles y sin percepción, para armar una percepción' })
+  comprobantesElegibles(@Query() query: ComprobantesElegiblesQueryDto) {
+    return this.logic.listarComprobantesElegibles(query);
+  }
+
   @Get(':id')
   @Permisos(PermisoBanderas.PERCEPCIONES_VER)
   @ApiOperation({ summary: 'Obtener percepción por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtener(@Param('id', ParseIntPipe) id: number) {
-    return this.logic.obtener(id);
+    return this.logic.obtenerPorId(id);
   }
 
   @Get(':id/pdf-oficial')
@@ -75,7 +89,7 @@ export class PercepcionesController {
 
   @Post()
   @Permisos(PermisoBanderas.PERCEPCIONES_CREAR)
-  @ApiOperation({ summary: 'Crear un comprobante de percepción' })
+  @ApiOperation({ summary: 'Crear una percepción a partir de comprobantes de venta aceptados por SUNAT (queda pendiente de emisión)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   crear(@Body() dto: CreatePercepcionDto, @Req() req: AuthRequest) {
     return this.logic.crear(dto, req.user.id);

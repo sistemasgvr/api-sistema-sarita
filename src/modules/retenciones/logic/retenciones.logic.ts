@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
-import { mapListResult } from '../../../common/helpers/auth-response.helper';
+import { mapListResult, mapSingleResult } from '../../../common/helpers/auth-response.helper';
+import { armarTributoDesdeOrigen } from '../../../common/helpers/tributo-desde-origen.helper';
 import {
   assertPseConfigurado,
   documentoOficialBase64,
@@ -10,11 +11,12 @@ import {
   obtenerContrapartePse,
   obtenerEmpresaEmisoraPse,
   resolverIdEstadoSunat,
+  TASAS_RETENCION,
 } from '../../../common/helpers/comprobante-sunat.helper';
 import { DatabaseService } from '../../../database/database.service';
 import { FacturacionApisperuClient } from '../../../integrations/facturacion-apisperu/facturacion-apisperu.client';
 import { FacturacionCredentialsService } from '../../../integrations/facturacion-electronica/facturacion-credentials.service';
-import type { CreateRetencionDto, FiltroRetencionDto } from '../dto/retencion.dto';
+import type { ComprasElegiblesQueryDto, CreateRetencionDto, FiltroRetencionDto } from '../dto/retencion.dto';
 import type { RetencionCompletoResult } from '../interfaces/retencion.interface';
 import { RetencionMapper } from '../mappers/retencion.mapper';
 import { RetencionesModel } from '../models/retenciones.model';
@@ -42,32 +44,101 @@ export class RetencionesLogic {
     return mapListResult(result, { pagina: filtros.pagina ?? 1, limite: filtros.tamano ?? 20 } as FiltroPaginacionDto);
   }
 
-  async obtener(id: number): Promise<RetencionCompletoResult> {
+  /** Registro completo (data = registro), como el resto de módulos. */
+  async obtenerPorId(id: number) {
+    const result = await this.model.obtener(id);
+    return mapSingleResult(result, `Retención ${id} no encontrada`);
+  }
+
+  private async obtener(id: number): Promise<RetencionCompletoResult> {
     const result = await this.model.obtener(id);
     if (result.error) throw new BadRequestException(result.error);
     if (!result.registro) throw new NotFoundException(`Retención ${id} no encontrada`);
     return result;
   }
 
+  listarComprasElegibles(query: ComprasElegiblesQueryDto) {
+    return this.model.listarComprasElegibles(query);
+  }
+
+  /**
+   * La retención nace de compras registradas (facturas del proveedor), del mismo
+   * proveedor y en soles: proveedor, sucursal, importes y detalle salen de ellas. El documento queda pendiente de emisión al PSE.
+   */
   async crear(dto: CreateRetencionDto, idUsuarioAuditoria?: number) {
+    await this.assertRegimen(dto.regimen);
+    const origenes = await this.model.obtenerCompras(dto.compras.map((c) => c.idCompra));
+    const calculo = armarTributoDesdeOrigen(
+      'retencion',
+      {
+        regimen: dto.regimen,
+        tasa: dto.tasa,
+        fechaEmision: dto.fechaEmision,
+        origenes: dto.compras.map((c) => ({ id: c.idCompra, fechaOperacion: c.fechaPago })),
+      },
+      origenes.map((o) => ({
+        id: o.id,
+        estado: o.estado,
+        serie: o.serie,
+        numero: o.numero,
+        fecha: o.fecha,
+        tipo_doc: o.tipo_doc,
+        total: o.total,
+        moneda: o.moneda,
+        id_contraparte: o.id_proveedor,
+        nombre_contraparte: o.nombre_proveedor,
+        documento_contraparte: o.documento_proveedor,
+        con_tributo: o.con_retencion,
+        id_sucursal: o.id_sucursal,
+      })),
+    );
+
     const result = await this.model.crear({
       serie: dto.serie,
       fechaEmision: dto.fechaEmision,
       idEmpresa: dto.idEmpresa,
-      idProveedor: dto.idProveedor,
-      idSucursal: dto.idSucursal,
+      idProveedor: calculo.idContraparte,
+      idSucursal: calculo.idSucursal,
       regimen: dto.regimen,
-      tasa: dto.tasa,
-      baseImponible: dto.baseImponible,
-      montoRetenido: dto.montoRetenido,
-      montoPagado: dto.montoPagado,
+      tasa: calculo.tasa,
+      baseImponible: calculo.baseImponible,
+      montoRetenido: calculo.montoTributo,
+      montoPagado: calculo.montoNeto,
       observacion: dto.observacion,
-      detalles: dto.detalles,
+      detalles: calculo.detalles.map((d) => ({
+        id_compra: d.id_origen,
+        tipo_doc: d.tipo_doc,
+        num_doc: d.num_doc,
+        fecha_emision: d.fecha_emision,
+        fecha_retencion: d.fecha_operacion,
+        moneda: d.moneda,
+        imp_total: d.imp_total,
+        imp_retenido: d.imp_tributo,
+        imp_pagar: d.imp_neto,
+      })),
       idUsuarioAuditoria,
     });
 
     if (result.error) throw new BadRequestException(result.error);
     return result;
+  }
+
+  private async assertRegimen(regimen: string) {
+    const { regimenesRetencion } = await this.model.obtenerCatalogos();
+    if (!regimenesRetencion.some((r) => r.descripcion === regimen)) {
+      throw new BadRequestException(`Régimen de retención ${regimen} no válido`);
+    }
+  }
+
+  async catalogos() {
+    const catalogos = await this.model.obtenerCatalogos();
+    return {
+      ...catalogos,
+      regimenesRetencion: catalogos.regimenesRetencion.map((r) => ({
+        ...r,
+        tasa: r.descripcion ? (TASAS_RETENCION[r.descripcion] ?? null) : null,
+      })),
+    };
   }
 
   /**

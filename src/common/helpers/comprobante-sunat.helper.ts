@@ -121,3 +121,29 @@ export function documentoOficialBase64(cdrRespuesta: string | null | undefined, 
   const valor = leerCdrJson(cdrRespuesta)[clave];
   return typeof valor === 'string' && valor.trim() ? valor : null;
 }
+
+/**
+ * Tasas vigentes por régimen (catálogos SUNAT 22 y 23). La UI las propone y el
+ * servidor las usa por defecto; una tasa distinta debe venir explícita.
+ */
+export const TASAS_PERCEPCION: Record<string, number> = { '01': 2, '02': 1, '03': 0.5 };
+export const TASAS_RETENCION: Record<string, number> = { '01': 3, '02': 6 };
+
+export function redondear2(valor: number): number {
+  return Math.round((valor + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * Importe del tributo y neto de una línea. La percepción se suma a lo que
+ * cobra el emisor; la retención se descuenta de lo que paga.
+ */
+export function calcularLineaTributo(
+  impTotal: number,
+  tasa: number,
+  tipo: 'percepcion' | 'retencion',
+): { tributo: number; neto: number } {
+  const total = redondear2(Number(impTotal));
+  const tributo = redondear2((total * tasa) / 100);
+  const neto = redondear2(tipo === 'percepcion' ? total + tributo : total - tributo);
+  return { tributo, neto };
+}

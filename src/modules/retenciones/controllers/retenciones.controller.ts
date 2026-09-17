@@ -18,7 +18,7 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
-import { CreateRetencionDto, FiltroRetencionDto } from '../dto/retencion.dto';
+import { ComprasElegiblesQueryDto, CreateRetencionDto, FiltroRetencionDto } from '../dto/retencion.dto';
 import { RetencionesLogic } from '../logic/retenciones.logic';
 
 type AuthRequest = Request & { user: AuthenticatedUser };
@@ -35,12 +35,26 @@ export class RetencionesController {
     return this.logic.listar(filtros);
   }
 
+  @Get('catalogos')
+  @Permisos(PermisoBanderas.RETENCIONES_LISTAR)
+  @ApiOperation({ summary: 'Regímenes SUNAT de retención con su tasa vigente y estados SUNAT' })
+  catalogos() {
+    return this.logic.catalogos();
+  }
+
+  @Get('compras-elegibles')
+  @Permisos(PermisoBanderas.RETENCIONES_CREAR)
+  @ApiOperation({ summary: 'Compras con factura de proveedor (RUC), en soles y sin retención, para armar una retención' })
+  comprasElegibles(@Query() query: ComprasElegiblesQueryDto) {
+    return this.logic.listarComprasElegibles(query);
+  }
+
   @Get(':id')
   @Permisos(PermisoBanderas.RETENCIONES_VER)
   @ApiOperation({ summary: 'Obtener retención por ID' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtener(@Param('id', ParseIntPipe) id: number) {
-    return this.logic.obtener(id);
+    return this.logic.obtenerPorId(id);
   }
 
   @Get(':id/pdf-oficial')
@@ -75,7 +89,7 @@ export class RetencionesController {
 
   @Post()
   @Permisos(PermisoBanderas.RETENCIONES_CREAR)
-  @ApiOperation({ summary: 'Crear un comprobante de retención' })
+  @ApiOperation({ summary: 'Crear una retención a partir de compras registradas (queda pendiente de emisión)' })
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   crear(@Body() dto: CreateRetencionDto, @Req() req: AuthRequest) {
     return this.logic.crear(dto, req.user.id);

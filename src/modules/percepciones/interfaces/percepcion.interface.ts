@@ -84,3 +84,33 @@ export interface ListaOpcionBasica {
   nombre: string;
   descripcion: string | null;
 }
+
+/** Comprobante de venta candidato a percepción (ver PercepcionesModel.SQL_ELEGIBLES). */
+export interface ComprobanteElegiblePercepcion {
+  id: number;
+  serie: string;
+  numero: string;
+  fecha: string;
+  tipo_doc: string;
+  nombre_tipo_comprobante: string | null;
+  total: number | string;
+  moneda: string | null;
+  id_cliente: number | null;
+  nombre_cliente: string | null;
+  documento_cliente: string | null;
+  nombre_estado_sunat: string | null;
+  con_percepcion: boolean;
+}
+
+/** Línea tal como la lee ven_crear_percepcion (claves snake_case). */
+export interface PercepcionDetalleSql {
+  id_comprobante: number | null;
+  tipo_doc: string;
+  num_doc: string;
+  fecha_emision: string;
+  fecha_percepcion: string;
+  moneda: string;
+  imp_total: number;
+  imp_percibido: number;
+  imp_cobrar: number;
+}

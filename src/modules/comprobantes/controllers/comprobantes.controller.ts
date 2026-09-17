@@ -1,4 +1,3 @@
-import { autorizarTributo } from '../../../common/helpers/crear-con-tributo.helper';
 import {
   Body,
   Controller,
@@ -150,7 +149,6 @@ export class ComprobantesController {
   @Permisos(PermisoBanderas.COMPROBANTES_CREAR)
   @ApiOperation({ summary: 'Crear comprobante de venta' })
   crear(@Body() dto: CreateComprobantesDto, @Req() req: AuthRequest) {
-    if (dto.percepcion) autorizarTributo(req.user, 'percepcion');
     dto.idUsuarioAuditoria = req.user.id;
     return this.logic.crear(dto);
   }

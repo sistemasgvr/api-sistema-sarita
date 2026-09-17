@@ -1,4 +1,4 @@
-import { adjuntarTributos, crearConTributo } from '../../../common/helpers/crear-con-tributo.helper';
+import { adjuntarTributos } from '../../../common/helpers/tributos-vinculados.helper';
 import { Injectable } from '@nestjs/common';
 import {
   AuthDeleteResult,
@@ -84,7 +84,7 @@ export class ComprasModel {
   }
 
   crear(dto: CreateCompraDto) {
-    return crearConTributo(this.db, 'retencion', [
+    return this.db.callFunctionJson<AuthSingleResult>('com_crear_compra', [
       dto.idTipoComprobante ?? null,
       dto.serie ?? null,
       dto.numero ?? null,
@@ -118,7 +118,7 @@ export class ComprasModel {
             })),
           )
         : null,
-    ], dto.retencion, dto.idUsuarioAuditoria);
+    ]);
   }
 
   actualizarCabecera(id: number, dto: ActualizarCompraCabeceraDto) {

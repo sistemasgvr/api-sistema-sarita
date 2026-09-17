@@ -1,4 +1,3 @@
-import { TributoOrigenDto } from '../../../common/dto/tributo-origen.dto';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
@@ -159,12 +158,6 @@ export class CreateCompraDetalleDto {
 }
 
 export class CreateCompraDto extends AuditoriaDto {
-  @ApiPropertyOptional({ type: TributoOrigenDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => TributoOrigenDto)
-  retencion?: TributoOrigenDto;
-
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
   @Type(() => Number)

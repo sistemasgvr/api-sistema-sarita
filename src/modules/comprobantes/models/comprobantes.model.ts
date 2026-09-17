@@ -1,4 +1,4 @@
-import { adjuntarTributos, crearConTributo } from '../../../common/helpers/crear-con-tributo.helper';
+import { adjuntarTributos } from '../../../common/helpers/tributos-vinculados.helper';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -268,7 +268,7 @@ export class ComprobantesModel {
   }
 
   crear(dto: CreateComprobantesDto) {
-    return crearConTributo(this.db, 'percepcion', [
+    return this.db.callFunctionJson<AuthSingleResult>('ven_crear_comprobante', [
       dto.idTipoComprobante,
       dto.serie,
       dto.numero ?? null,
@@ -297,7 +297,7 @@ export class ComprobantesModel {
       dto.origenPos ?? null,
       mapEfectosPosToJson(dto.efectosPos),
       dto.pagos ? JSON.stringify(dto.pagos) : null,
-    ], dto.percepcion, dto.idUsuarioAuditoria);
+    ]);
   }
 
   actualizar(id: number, dto: UpdateComprobantesDto) {
