@@ -15,10 +15,16 @@ function build() {
   const registro = {
     id: 1, serie: 'P001', numero: '00000001', fecha_emision: '2026-09-17', id_empresa: 18, id_cliente: 15,
     regimen: '01', tasa: 2, base_imponible: 1180, monto_percibido: 23.6, monto_cobrado: 1203.6,
-    nombre_estado_sunat: null as string | null, cdr_respuesta: null as string | null, detalles: [],
+    nombre_estado_sunat: null as string | null, cdr_respuesta: null as string | null,
+    detalles: [] as { id_comprobante: number; estado: number }[],
   };
   const model = {
-    obtenerCatalogos: jest.fn(() => Promise.resolve({ regimenesPercepcion: [{ id: 1, nombre: 'Venta interna', descripcion: '01' }], estadosSunat: [] })),
+    // La tasa sale del catálogo TasaPercepcion, asociada al régimen por su código.
+    obtenerCatalogos: jest.fn(() => Promise.resolve({
+      regimenesPercepcion: [{ id: 1, nombre: 'Percepción venta interna', descripcion: '01' }],
+      tasasPercepcion: [{ id: 5, nombre: '2%', descripcion: '01' }],
+      estadosSunat: [],
+    })),
     obtenerComprobantes: jest.fn(() => Promise.resolve([comprobante])),
     crear: jest.fn(() => Promise.resolve({ id: 1, serie: 'P001', numero: '00000001' })),
     obtener: jest.fn(() => Promise.resolve({ registro })),
@@ -53,14 +59,23 @@ describe('Creación de percepción desde comprobantes', () => {
     }));
   });
 
-  it('rechaza régimen inexistente y comprobantes no aceptados sin llamar a la BD de escritura', async () => {
+  it('rechaza régimen inexistente, tasa ajena al régimen y comprobantes rechazados por SUNAT sin llamar a la BD de escritura', async () => {
     const { logic, model } = build();
     await expect(logic.crear({ idEmpresa: 18, serie: 'P001', fechaEmision: '2026-09-17', regimen: '77', comprobantes: [{ idComprobante: 10 }] }))
       .rejects.toThrow(BadRequestException);
+    await expect(logic.crear({ idEmpresa: 18, serie: 'P001', fechaEmision: '2026-09-17', regimen: '01', tasa: 7, comprobantes: [{ idComprobante: 10 }] }))
+      .rejects.toThrow('no está registrada para el régimen');
+    model.obtenerComprobantes.mockResolvedValueOnce([{ ...(await model.obtenerComprobantes())[0], nombre_estado_sunat: 'RECHAZADO' }]);
+    await expect(logic.crear({ idEmpresa: 18, serie: 'P001', fechaEmision: '2026-09-17', regimen: '01', comprobantes: [{ idComprobante: 10 }] }))
+      .rejects.toThrow('está RECHAZADO ante SUNAT');
+    expect(model.crear).not.toHaveBeenCalled();
+  });
+
+  it('acepta comprobantes aún pendientes de envío: la percepción se arma al cobrar', async () => {
+    const { logic, model } = build();
     model.obtenerComprobantes.mockResolvedValueOnce([{ ...(await model.obtenerComprobantes())[0], nombre_estado_sunat: 'PENDIENTE' }]);
     await expect(logic.crear({ idEmpresa: 18, serie: 'P001', fechaEmision: '2026-09-17', regimen: '01', comprobantes: [{ idComprobante: 10 }] }))
-      .rejects.toThrow('no está aceptado');
-    expect(model.crear).not.toHaveBeenCalled();
+      .resolves.toEqual({ id: 1, serie: 'P001', numero: '00000001' });
   });
 });
 
@@ -75,6 +90,15 @@ describe('Emisión de percepción', () => {
     const aceptada = await logic.emitir(1, {});
     expect(aceptada.sunat.estado).toBe('ACEPTADO');
     expect(model.registrarRespuestaSunat).toHaveBeenLastCalledWith(1, expect.objectContaining({ idEstadoSunat: 127 }));
+  });
+
+  it('no emite mientras algún comprobante de origen siga sin aceptar', async () => {
+    const { logic, model, client } = build();
+    const base = (await model.obtener()).registro;
+    model.obtener.mockResolvedValueOnce({ registro: { ...base, detalles: [{ id_comprobante: 10, estado: 1 }] } });
+    model.obtenerComprobantes.mockResolvedValueOnce([{ ...(await model.obtenerComprobantes())[0], nombre_estado_sunat: 'PENDIENTE' }]);
+    await expect(logic.emitir(1, {})).rejects.toThrow('Emite primero a SUNAT los comprobantes de la percepción: F001-00000012 (PENDIENTE)');
+    expect(client.enviarPercepcion).not.toHaveBeenCalled();
   });
 
   it('no reemite una percepción aceptada', async () => {

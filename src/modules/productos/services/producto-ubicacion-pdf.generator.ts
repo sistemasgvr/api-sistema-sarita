@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import PDFDocument from 'pdfkit';
+import {
+  crearEtiquetaDoc,
+  ETIQUETA_ALTO_PT,
+  ETIQUETA_ANCHO_PT,
+  ETIQUETA_ANCHO_UTIL_PT,
+  ETIQUETA_MARGEN_PT,
+  MM,
+} from '../../../common/helpers/etiqueta-pdf.helper';
 
 export interface ProductoUbicacionLabelItem {
   codigo_ubicacion: string;
@@ -7,118 +14,74 @@ export interface ProductoUbicacionLabelItem {
   nombre: string;
 }
 
-const PAGE_WIDTH = 595.28;
-const PAGE_HEIGHT = 841.89;
-const MARGIN_X = 18;
-const MARGIN_Y = 18;
-const GAP_X = 8;
-const GAP_Y = 8;
-const COLS = 3;
-/** Altura fija al contenido (sin línea decorativa ni huecos). */
-const CARD_HEIGHT = 64;
-const PAD_X = 8;
-const PAD_Y = 6;
-
-function truncateText(text: string, maxChars: number): string {
-  const value = text.trim();
-  if (value.length <= maxChars) return value;
-  return `${value.slice(0, Math.max(0, maxChars - 1))}…`;
-}
-
+/**
+ * Tarjetas de ubicación en el mismo papel de 50 × 25 mm que el resto de
+ * etiquetas: una por página, sin marco de recorte. El código de ubicación es lo
+ * que se busca en el anaquel, así que va grande y centrado.
+ */
 @Injectable()
 export class ProductoUbicacionPdfGenerator {
   generarTarjetas(items: ProductoUbicacionLabelItem[]): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({
-        size: 'A4',
-        margin: 0,
-        info: {
-          Title: 'Tarjetas de ubicación de productos',
-          Author: 'Sistema Sarita',
-        },
-      });
+    const { doc, terminado } = crearEtiquetaDoc(
+      'Tarjetas de ubicación de productos',
+    );
+    const x0 = ETIQUETA_MARGEN_PT;
+    const ancho = ETIQUETA_ANCHO_UTIL_PT;
 
-      const chunks: Buffer[] = [];
-      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
+    items.forEach((item, index) => {
+      if (index > 0)
+        doc.addPage({ size: [ETIQUETA_ANCHO_PT, ETIQUETA_ALTO_PT], margin: 0 });
+      let y = ETIQUETA_MARGEN_PT;
 
-      const cardWidth = (PAGE_WIDTH - MARGIN_X * 2 - GAP_X * (COLS - 1)) / COLS;
-      const rows = Math.max(
-        1,
-        Math.floor((PAGE_HEIGHT - MARGIN_Y * 2 + GAP_Y) / (CARD_HEIGHT + GAP_Y)),
-      );
-      const cardsPerPage = COLS * rows;
+      doc
+        .fillColor('#6b6b6b')
+        .font('Helvetica')
+        .fontSize(5.5)
+        .text('UBICACIÓN', x0, y, {
+          width: ancho,
+          align: 'center',
+          lineBreak: false,
+        });
+      y += 2.6 * MM;
 
-      items.forEach((item, index) => {
-        if (index > 0 && index % cardsPerPage === 0) {
-          doc.addPage();
-        }
+      doc
+        .fillColor('#141414')
+        .font('Helvetica-Bold')
+        .fontSize(17)
+        .text(item.codigo_ubicacion.trim(), x0, y, {
+          width: ancho,
+          align: 'center',
+          lineBreak: false,
+          ellipsis: true,
+        });
+      y += 7.4 * MM;
 
-        const pageIndex = index % cardsPerPage;
-        const col = pageIndex % COLS;
-        const row = Math.floor(pageIndex / COLS);
-        const x = MARGIN_X + col * (cardWidth + GAP_X);
-        const y = MARGIN_Y + row * (CARD_HEIGHT + GAP_Y);
-        const contentWidth = cardWidth - PAD_X * 2;
-        let cursorY = y + PAD_Y;
+      doc
+        .fillColor('#1e1e1e')
+        .font('Helvetica-Bold')
+        .fontSize(6.5)
+        .text(item.nombre.trim(), x0, y, {
+          width: ancho,
+          align: 'center',
+          height: 2 * 2.6 * MM,
+          lineGap: -0.5,
+          ellipsis: true,
+        });
+      y += 2 * 2.6 * MM + 1.2 * MM;
 
-        doc
-          .save()
-          .lineWidth(0.9)
-          .strokeColor('#787878')
-          .dash(2.5, { space: 2.5 })
-          .roundedRect(x, y, cardWidth, CARD_HEIGHT, 4)
-          .stroke()
-          .undash()
-          .restore();
-
-        doc
-          .fillColor('#6b6b6b')
-          .font('Helvetica')
-          .fontSize(7)
-          .text('UBICACIÓN', x + PAD_X, cursorY, {
-            width: contentWidth,
-            align: 'center',
-            lineBreak: false,
-          });
-        cursorY += 9;
-
-        doc
-          .fillColor('#141414')
-          .font('Helvetica-Bold')
-          .fontSize(14)
-          .text(truncateText(item.codigo_ubicacion, 18), x + PAD_X, cursorY, {
-            width: contentWidth,
-            align: 'center',
-            lineBreak: false,
-          });
-        cursorY += 16;
-
-        doc
-          .fillColor('#1e1e1e')
-          .font('Helvetica-Bold')
-          .fontSize(8)
-          .text(truncateText(item.nombre, 56), x + PAD_X, cursorY, {
-            width: contentWidth,
-            align: 'center',
-            height: 18,
-            ellipsis: true,
-          });
-        cursorY += 18;
-
-        doc
-          .fillColor('#5a5a5a')
-          .font('Helvetica')
-          .fontSize(7.5)
-          .text(`Cód: ${truncateText(item.codigo, 24)}`, x + PAD_X, cursorY, {
-            width: contentWidth,
-            align: 'center',
-            lineBreak: false,
-          });
-      });
-
-      doc.end();
+      doc
+        .fillColor('#5a5a5a')
+        .font('Helvetica')
+        .fontSize(6)
+        .text(`Cód.: ${item.codigo.trim()}`, x0, y, {
+          width: ancho,
+          align: 'center',
+          lineBreak: false,
+          ellipsis: true,
+        });
     });
+
+    doc.end();
+    return terminado;
   }
 }

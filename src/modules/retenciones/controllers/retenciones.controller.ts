@@ -18,7 +18,12 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
-import { ComprasElegiblesQueryDto, CreateRetencionDto, FiltroRetencionDto } from '../dto/retencion.dto';
+import {
+  ComprasElegiblesQueryDto,
+  CreateRetencionDto,
+  FiltroRetencionDto,
+  SeriesRetencionQueryDto,
+} from '../dto/retencion.dto';
 import { RetencionesLogic } from '../logic/retenciones.logic';
 
 type AuthRequest = Request & { user: AuthenticatedUser };
@@ -37,9 +42,16 @@ export class RetencionesController {
 
   @Get('catalogos')
   @Permisos(PermisoBanderas.RETENCIONES_LISTAR)
-  @ApiOperation({ summary: 'Regímenes SUNAT de retención con su tasa vigente y estados SUNAT' })
+  @ApiOperation({ summary: 'Regímenes SUNAT de retención con las tasas registradas para cada uno y estados SUNAT' })
   catalogos() {
     return this.logic.catalogos();
+  }
+
+  @Get('series')
+  @Permisos(PermisoBanderas.RETENCIONES_CREAR)
+  @ApiOperation({ summary: 'Series de retención usadas por la empresa, con el último y el siguiente correlativo' })
+  series(@Query() query: SeriesRetencionQueryDto) {
+    return this.logic.series(query.idEmpresa);
   }
 
   @Get('compras-elegibles')

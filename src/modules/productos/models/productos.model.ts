@@ -6,6 +6,7 @@ import {
 } from '../../../common/interfaces/auth-db.interface';
 import { DatabaseService } from '../../../database/database.service';
 import { FiltroProductosDto } from '../dto/productos.dto';
+import type { ProductoEtiquetaDatos } from '../services/producto-etiqueta-pdf.generator';
 
 @Injectable()
 export class ProductosModel {
@@ -30,6 +31,14 @@ export class ProductosModel {
 
   obtenerPorId(id: number) {
     return this.db.callFunctionJson<AuthSingleResult>('pro_obtener_producto', [id]);
+  }
+
+  /** Solo lo que lleva la etiqueta impresa del producto. */
+  obtenerEtiqueta(id: number) {
+    return this.db.callFunctionJson<AuthSingleResult<ProductoEtiquetaDatos>>(
+      'pro_obtener_etiqueta_producto',
+      [id],
+    );
   }
 
   generarCodigoUbicacion(prefijo?: string | null, idProducto?: number | null) {

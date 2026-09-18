@@ -4,14 +4,16 @@ import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 import { mapListResult, mapSingleResult } from '../../../common/helpers/auth-response.helper';
 import { armarTributoDesdeOrigen } from '../../../common/helpers/tributo-desde-origen.helper';
 import {
+  asociarTasasARegimenes,
   assertPseConfigurado,
   documentoOficialBase64,
   estadoDesdeRespuestaPse,
   leerCdrJson,
+  mismaTasa,
   obtenerContrapartePse,
   obtenerEmpresaEmisoraPse,
   resolverIdEstadoSunat,
-  TASAS_RETENCION,
+  type RegimenConTasas,
 } from '../../../common/helpers/comprobante-sunat.helper';
 import { DatabaseService } from '../../../database/database.service';
 import { FacturacionApisperuClient } from '../../../integrations/facturacion-apisperu/facturacion-apisperu.client';
@@ -61,18 +63,23 @@ export class RetencionesLogic {
     return this.model.listarComprasElegibles(query);
   }
 
+  /** Series R001–R999 ya usadas por la empresa, con el correlativo que sigue. */
+  async series(idEmpresa?: number) {
+    return { series: await this.model.listarSeries(idEmpresa) };
+  }
+
   /**
    * La retención nace de compras registradas (facturas del proveedor), del mismo
    * proveedor y en soles: proveedor, sucursal, importes y detalle salen de ellas. El documento queda pendiente de emisión al PSE.
    */
   async crear(dto: CreateRetencionDto, idUsuarioAuditoria?: number) {
-    await this.assertRegimen(dto.regimen);
+    const tasa = await this.resolverTasa(dto.regimen, dto.tasa);
     const origenes = await this.model.obtenerCompras(dto.compras.map((c) => c.idCompra));
     const calculo = armarTributoDesdeOrigen(
       'retencion',
       {
         regimen: dto.regimen,
-        tasa: dto.tasa,
+        tasa,
         fechaEmision: dto.fechaEmision,
         origenes: dto.compras.map((c) => ({ id: c.idCompra, fechaOperacion: c.fechaPago })),
       },
@@ -123,22 +130,34 @@ export class RetencionesLogic {
     return result;
   }
 
-  private async assertRegimen(regimen: string) {
-    const { regimenesRetencion } = await this.model.obtenerCatalogos();
-    if (!regimenesRetencion.some((r) => r.descripcion === regimen)) {
-      throw new BadRequestException(`Régimen de retención ${regimen} no válido`);
+  /**
+   * La tasa la fija el catálogo, no el cliente: si no viene se toma la del
+   * régimen y si viene debe ser una de las registradas para ese régimen.
+   */
+  private async resolverTasa(regimen: string, tasa?: number): Promise<number> {
+    const encontrado = (await this.regimenesConTasas()).find((r) => (r.descripcion ?? '').trim() === regimen);
+    if (!encontrado) throw new BadRequestException(`Régimen de retención ${regimen} no válido`);
+    if (encontrado.tasas.length === 0) {
+      throw new BadRequestException(
+        `El régimen de retención ${regimen} no tiene tasas registradas; agrégalas en el catálogo TasaRetencion`,
+      );
     }
+    if (tasa == null) return encontrado.tasa!;
+    if (!encontrado.tasas.some((t) => mismaTasa(t.tasa, tasa))) {
+      const validas = encontrado.tasas.map((t) => t.etiqueta).join(', ');
+      throw new BadRequestException(`La tasa ${tasa}% no está registrada para el régimen ${regimen} (tasas: ${validas})`);
+    }
+    return tasa;
+  }
+
+  private async regimenesConTasas(): Promise<RegimenConTasas[]> {
+    const { regimenesRetencion, tasasRetencion } = await this.model.obtenerCatalogos();
+    return asociarTasasARegimenes(regimenesRetencion, tasasRetencion ?? []);
   }
 
   async catalogos() {
-    const catalogos = await this.model.obtenerCatalogos();
-    return {
-      ...catalogos,
-      regimenesRetencion: catalogos.regimenesRetencion.map((r) => ({
-        ...r,
-        tasa: r.descripcion ? (TASAS_RETENCION[r.descripcion] ?? null) : null,
-      })),
-    };
+    const { estadosSunat } = await this.model.obtenerCatalogos();
+    return { regimenesRetencion: await this.regimenesConTasas(), estadosSunat };
   }
 
   /**

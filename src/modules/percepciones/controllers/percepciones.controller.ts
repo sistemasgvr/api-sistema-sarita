@@ -18,7 +18,12 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
 import { ApiErrorResponseDto } from '../../../common/dto/api-response.dto';
 import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
-import { ComprobantesElegiblesQueryDto, CreatePercepcionDto, FiltroPercepcionDto } from '../dto/percepcion.dto';
+import {
+  ComprobantesElegiblesQueryDto,
+  CreatePercepcionDto,
+  FiltroPercepcionDto,
+  SeriesPercepcionQueryDto,
+} from '../dto/percepcion.dto';
 import { PercepcionesLogic } from '../logic/percepciones.logic';
 
 type AuthRequest = Request & { user: AuthenticatedUser };
@@ -37,9 +42,16 @@ export class PercepcionesController {
 
   @Get('catalogos')
   @Permisos(PermisoBanderas.PERCEPCIONES_LISTAR)
-  @ApiOperation({ summary: 'Regímenes SUNAT de percepción con su tasa vigente y estados SUNAT' })
+  @ApiOperation({ summary: 'Regímenes SUNAT de percepción con las tasas registradas para cada uno y estados SUNAT' })
   catalogos() {
     return this.logic.catalogos();
+  }
+
+  @Get('series')
+  @Permisos(PermisoBanderas.PERCEPCIONES_CREAR)
+  @ApiOperation({ summary: 'Series de percepción usadas por la empresa, con el último y el siguiente correlativo' })
+  series(@Query() query: SeriesPercepcionQueryDto) {
+    return this.logic.series(query.idEmpresa);
   }
 
   @Get('comprobantes-elegibles')

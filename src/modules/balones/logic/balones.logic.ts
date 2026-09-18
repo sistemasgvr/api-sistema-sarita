@@ -26,6 +26,7 @@ import {
   UpdateBalonesDto,
 } from '../dto/balones.dto';
 import { BalonesModel } from '../models/balones.model';
+import { BalonEtiquetaPdfGenerator } from '../services/balon-etiqueta-pdf.generator';
 import { ResponseHelper } from '../../../common/helpers/response.helper';
 
 @Injectable()
@@ -35,6 +36,7 @@ export class BalonesLogic {
   constructor(
     private readonly model: BalonesModel,
     private readonly notificacionesLogic: NotificacionesLogic,
+    private readonly etiquetaPdf: BalonEtiquetaPdfGenerator,
   ) {}
 
   async listar(filtros: FiltroBalonesDto) {
@@ -73,6 +75,15 @@ export class BalonesLogic {
     return mapSingleResult(result, `Balón ${id} no encontrado`);
   }
 
+  async generarEtiquetaPdf(id: number) {
+    const balon = mapSingleResult(
+      await this.model.obtenerEtiqueta(id),
+      `Balón ${id} no encontrado`,
+    );
+    const buffer = await this.etiquetaPdf.generar(balon);
+    return { buffer, filename: `ETIQUETA-${balon.codigo_balon.trim()}.pdf` };
+  }
+
   async crear(dto: CreateBalonesDto) {
     const result = await this.model.crear(dto);
     return mapSingleResult(result, 'No se pudo crear el registro');
@@ -95,7 +106,10 @@ export class BalonesLogic {
 
   async registrarPhHistorial(idBalon: number, dto: RegistrarPhHistorialDto) {
     const result = await this.model.registrarPhHistorial(idBalon, dto);
-    return mapSingleResult(result, 'No se pudo registrar la prueba hidrostática');
+    return mapSingleResult(
+      result,
+      'No se pudo registrar la prueba hidrostática',
+    );
   }
 
   async obtenerBajaPorBalon(idBalon: number) {
@@ -115,13 +129,15 @@ export class BalonesLogic {
       'No se pudo registrar la solicitud de baja',
     ) as Record<string, unknown>;
 
-    void this.notificarSolicitudBajaCilindro(registro, dto).catch((error: unknown) => {
-      this.logger.warn(
-        `No se pudo notificar baja de cilindro: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    });
+    void this.notificarSolicitudBajaCilindro(registro, dto).catch(
+      (error: unknown) => {
+        this.logger.warn(
+          `No se pudo notificar baja de cilindro: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      },
+    );
 
     return registro;
   }
@@ -138,15 +154,17 @@ export class BalonesLogic {
       'No se pudo aprobar la solicitud de baja',
     ) as Record<string, unknown>;
 
-    void this.notificarResultadoBajaCilindro(registro, 'aprobada', dto.idUsuarioAuditoria).catch(
-      (error: unknown) => {
-        this.logger.warn(
-          `No se pudo notificar aprobación de baja: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      },
-    );
+    void this.notificarResultadoBajaCilindro(
+      registro,
+      'aprobada',
+      dto.idUsuarioAuditoria,
+    ).catch((error: unknown) => {
+      this.logger.warn(
+        `No se pudo notificar aprobación de baja: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    });
 
     return registro;
   }
@@ -158,20 +176,25 @@ export class BalonesLogic {
       'No se pudo rechazar la solicitud de baja',
     ) as Record<string, unknown>;
 
-    void this.notificarResultadoBajaCilindro(registro, 'rechazada', dto.idUsuarioAuditoria).catch(
-      (error: unknown) => {
-        this.logger.warn(
-          `No se pudo notificar rechazo de baja: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      },
-    );
+    void this.notificarResultadoBajaCilindro(
+      registro,
+      'rechazada',
+      dto.idUsuarioAuditoria,
+    ).catch((error: unknown) => {
+      this.logger.warn(
+        `No se pudo notificar rechazo de baja: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    });
 
     return registro;
   }
 
-  async listarEstadoHistorial(idBalon: number, filtros: FiltroEstadoHistorialDto) {
+  async listarEstadoHistorial(
+    idBalon: number,
+    filtros: FiltroEstadoHistorialDto,
+  ) {
     const result = await this.model.listarEstadoHistorial(idBalon, filtros);
     return mapListResult(result, filtros);
   }
@@ -226,7 +249,9 @@ export class BalonesLogic {
   ) {
     const idBaja = Number(registro.id);
     const codigo = String(registro.codigo_balon ?? registro.id_balon ?? 'N/D');
-    const solicitante = String(registro.nombre_usuario_solicita ?? 'Un usuario');
+    const solicitante = String(
+      registro.nombre_usuario_solicita ?? 'Un usuario',
+    );
     const motivo = String(registro.nombre_motivo_baja ?? 'Sin motivo');
     const hoy = new Date().toISOString().slice(0, 10);
 

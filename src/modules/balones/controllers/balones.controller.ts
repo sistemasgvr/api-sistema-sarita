@@ -3,14 +3,21 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   ParseIntPipe,
   Patch,
   Post,
   Query,
   Req,
+  StreamableFile,
 } from '@nestjs/common';
-import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiNotFoundResponse,
+  ApiOperation,
+  ApiProduces,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import { Permisos } from '../../../common/decorators/permisos.decorator';
@@ -70,7 +77,9 @@ export class BalonesController {
 
   @Get('bajas/pendientes')
   @Permisos(PermisoBanderas.BAJAS_BALON_LISTAR)
-  @ApiOperation({ summary: 'Listar solicitudes de baja pendientes de aprobación' })
+  @ApiOperation({
+    summary: 'Listar solicitudes de baja pendientes de aprobación',
+  })
   listarBajasPendientes(@Query() filtros: FiltroPaginacionDto) {
     return this.logic.listarSolicitudesBaja(filtros);
   }
@@ -93,7 +102,8 @@ export class BalonesController {
   @Post('bajas/:idBaja/rechazar')
   @Permisos(PermisoBanderas.BAJAS_BALON_RECHAZAR)
   @ApiOperation({
-    summary: 'Rechazar solicitud de baja (administrador + bajas_balon.rechazar)',
+    summary:
+      'Rechazar solicitud de baja (administrador + bajas_balon.rechazar)',
   })
   rechazarBaja(
     @Param('idBaja', ParseIntPipe) idBaja: number,
@@ -145,7 +155,10 @@ export class BalonesController {
 
   @Post(':id/baja')
   @Permisos(PermisoBanderas.BAJAS_BALON_SOLICITAR)
-  @ApiOperation({ summary: 'Solicitar baja de cilindro (requiere aprobación de administrador)' })
+  @ApiOperation({
+    summary:
+      'Solicitar baja de cilindro (requiere aprobación de administrador)',
+  })
   darBaja(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: DarBajaBalonDto,
@@ -157,7 +170,9 @@ export class BalonesController {
 
   @Post(':id/restaurar')
   @Permisos(PermisoBanderas.BALONES_EDITAR)
-  @ApiOperation({ summary: 'Reactivar cilindro dado de baja o reportado como robo' })
+  @ApiOperation({
+    summary: 'Reactivar cilindro dado de baja o reportado como robo',
+  })
   restaurar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RestaurarBalonDto,
@@ -173,6 +188,23 @@ export class BalonesController {
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
   obtenerPorId(@Param('id', ParseIntPipe) id: number) {
     return this.logic.obtenerPorId(id);
+  }
+
+  @Get(':id/etiqueta.pdf')
+  @Permisos(PermisoBanderas.BALONES_VER)
+  @ApiOperation({
+    summary:
+      'Etiqueta adhesiva del cilindro (PDF 50 × 25 mm con código de barras)',
+  })
+  @ApiProduces('application/pdf')
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  @Header('Content-Type', 'application/pdf')
+  async etiquetaPdf(@Param('id', ParseIntPipe) id: number) {
+    const { buffer, filename } = await this.logic.generarEtiquetaPdf(id);
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `inline; filename="${filename}"`,
+    });
   }
 
   @Post()

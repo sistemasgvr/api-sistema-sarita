@@ -14,6 +14,7 @@ import {
   UpdateProductoDto,
 } from '../dto/productos.dto';
 import { ProductosModel } from '../models/productos.model';
+import { ProductoEtiquetaPdfGenerator } from '../services/producto-etiqueta-pdf.generator';
 import {
   ProductoUbicacionLabelItem,
   ProductoUbicacionPdfGenerator,
@@ -48,6 +49,7 @@ export class ProductosLogic {
   constructor(
     private readonly productosModel: ProductosModel,
     private readonly ubicacionPdfGenerator: ProductoUbicacionPdfGenerator,
+    private readonly etiquetaPdfGenerator: ProductoEtiquetaPdfGenerator,
     private readonly storageLogic: StorageLogic,
   ) {}
 
@@ -107,6 +109,16 @@ export class ProductosLogic {
   async obtenerPorId(id: number) {
     const result = await this.productosModel.obtenerPorId(id);
     return mapSingleResult(result, `Producto ${id} no encontrado`);
+  }
+
+  /** Etiqueta 50 × 25 mm del producto (logo, código de barras, nombre, categoría y código). */
+  async generarEtiquetaPdf(id: number) {
+    const producto = mapSingleResult(
+      await this.productosModel.obtenerEtiqueta(id),
+      `Producto ${id} no encontrado`,
+    );
+    const buffer = await this.etiquetaPdfGenerator.generar(producto);
+    return { buffer, filename: `ETIQUETA-${producto.codigo.trim() || id}.pdf` };
   }
 
   async generarCodigoUbicacion(dto: GenerarCodigoUbicacionDto) {

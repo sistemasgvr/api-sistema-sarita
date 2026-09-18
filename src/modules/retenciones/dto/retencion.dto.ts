@@ -118,6 +118,16 @@ export class FiltroRetencionDto {
   tamano?: number;
 }
 
+/** Series de retención disponibles para la empresa emisora. */
+export class SeriesRetencionQueryDto {
+  @ApiPropertyOptional({ description: 'Empresa emisora; sin ella se listan las series de todas' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idEmpresa?: number;
+}
+
 /** Compras con factura de proveedor (RUC), en soles, sin retención. */
 export class ComprasElegiblesQueryDto {
   @ApiPropertyOptional({ description: 'Proveedor (sujeto retenido)' })

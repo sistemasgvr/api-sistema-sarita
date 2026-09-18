@@ -1,4 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import {
+  normalizarBusqueda,
+  sqlCoincideBusqueda,
+  type SerieTributo,
+} from '../../../common/helpers/tributo-busqueda.helper';
 import { DatabaseService } from '../../../database/database.service';
 import type {
   ComprobanteElegiblePercepcion,
@@ -13,10 +18,14 @@ export class PercepcionesModel {
 
   /**
    * Facturas y boletas (01/03) en soles (la lista Moneda usa NUEVOS_SOLES y el POS
-   * deja id_moneda nulo, que también es soles), aceptadas por SUNAT, no anuladas y sin
-   * percepción vigente: los únicos comprobantes sobre los que se puede percibir.
+   * deja id_moneda nulo, que también es soles), no anuladas, no rechazadas ni dadas de
+   * baja por SUNAT y sin percepción vigente: los únicos comprobantes sobre los que se
+   * puede percibir. Un comprobante aún pendiente de envío sí entra (la percepción se
+   * arma al cobrar); lo que se exige es que esté aceptado antes de emitir la percepción.
    * Solo clientes con documento (la percepción los identifica ante SUNAT).
    */
+  private static readonly SQL_COINCIDE = sqlCoincideBusqueda('c', 'cl');
+
   private static readonly SQL_ELEGIBLES = `
     SELECT c.id, c.serie, c.numero, c.fecha::text AS fecha, TRIM(tc.descripcion) AS tipo_doc,
            tc.nombre AS nombre_tipo_comprobante, c.total_importe AS total,
@@ -37,17 +46,16 @@ export class PercepcionesModel {
     LEFT JOIN cli_clientes cl ON cl.id = c.id_cliente`;
 
   async listarComprobantesElegibles(params: { idCliente?: number; buscar?: string; limite?: number }) {
-    const buscar = (params.buscar ?? '').trim().toLowerCase().replace(/\s+/g, '');
+    const buscar = normalizarBusqueda(params.buscar);
     const result = await this.db.query<ComprobanteElegiblePercepcion>(
       `${PercepcionesModel.SQL_ELEGIBLES}
        WHERE c.estado = 1
          AND TRIM(tc.descripcion) IN ('01', '03')
          AND (m.id IS NULL OR m.nombre IN ('PEN', 'NUEVOS_SOLES'))
-         AND es.nombre = 'ACEPTADO'
+         AND COALESCE(es.nombre, 'PENDIENTE') IN ('ACEPTADO', 'PENDIENTE')
          AND NULLIF(TRIM(cl.numero_documento), '') IS NOT NULL AND TRIM(cl.numero_documento) !~ '^0+$'
          AND ($1::integer IS NULL OR c.id_cliente = $1)
-         AND ($2 = '' OR LOWER(c.serie || '-' || c.numero) LIKE '%' || $2 || '%'
-              OR LOWER(REPLACE(COALESCE(cl.razon_social, CONCAT_WS(' ', cl.nombres, cl.apellido_paterno)), ' ', '')) LIKE '%' || $2 || '%')
+         AND ($2 = '' OR ${PercepcionesModel.SQL_COINCIDE})
          AND NOT EXISTS (
            SELECT 1 FROM ven_percepcion_detalle d JOIN ven_percepcion p ON p.id = d.id_percepcion
            WHERE d.id_comprobante = c.id AND d.estado = 1 AND p.estado = 1
@@ -57,6 +65,11 @@ export class PercepcionesModel {
       [params.idCliente ?? null, buscar, params.limite ?? 20],
     );
     return result.rows;
+  }
+
+  /** Series de percepción ya usadas por la empresa, con su siguiente correlativo. */
+  async listarSeries(idEmpresa?: number): Promise<SerieTributo[]> {
+    return this.db.callFunctionJson<SerieTributo[]>('ven_listar_series_percepcion', [idEmpresa ?? null]);
   }
 
   /** Los comprobantes elegidos, con todo lo que la validación necesita. */
@@ -145,12 +158,20 @@ export class PercepcionesModel {
   }
 
   async obtenerCatalogos() {
-    const [regimenesPercepcion, estadosSunat] = await Promise.all([
+    const [regimenesPercepcion, tasasPercepcion, estadosSunat] = await Promise.all([
       this.db.query<{ id: number; nombre: string; descripcion: string | null }>(
         `SELECT o.id, o.nombre, o.descripcion
          FROM gen_lista_opciones o
          INNER JOIN gen_lista l ON o.id_lista = l.id
          WHERE l.nombre = 'RegimenPercepcion' AND o.estado = 1
+         ORDER BY o.descripcion, o.id`,
+      ),
+      // `descripcion` es el código del régimen al que aplica la tasa.
+      this.db.query<{ id: number; nombre: string; descripcion: string | null }>(
+        `SELECT o.id, o.nombre, o.descripcion
+         FROM gen_lista_opciones o
+         INNER JOIN gen_lista l ON o.id_lista = l.id
+         WHERE l.nombre = 'TasaPercepcion' AND o.estado = 1
          ORDER BY o.descripcion, o.id`,
       ),
       this.db.query<{ id: number; nombre: string; descripcion: string | null }>(
@@ -164,6 +185,7 @@ export class PercepcionesModel {
 
     return {
       regimenesPercepcion: regimenesPercepcion.rows,
+      tasasPercepcion: tasasPercepcion.rows,
       estadosSunat: estadosSunat.rows,
     };
   }

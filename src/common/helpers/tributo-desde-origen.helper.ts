@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { calcularLineaTributo, redondear2, TASAS_PERCEPCION, TASAS_RETENCION } from './comprobante-sunat.helper';
+import { calcularLineaTributo, redondear2 } from './comprobante-sunat.helper';
 
 /**
  * Armado de una percepción (sobre comprobantes de venta emitidos) o una
@@ -31,7 +31,8 @@ export interface OrigenTributo {
 
 export interface SolicitudTributo {
   regimen: string;
-  tasa?: number;
+  /** Resuelta contra el catálogo de tasas del régimen antes de llegar aquí. */
+  tasa: number;
   fechaEmision: string;
   origenes: { id: number; fechaOperacion?: string }[];
 }
@@ -58,14 +59,18 @@ export interface TributoCalculado {
   detalles: DetalleTributoCalculado[];
 }
 
+/**
+ * Estados SUNAT del comprobante de venta sobre los que se puede armar una
+ * percepción: aceptado, o todavía sin enviar (rechazado, dado de baja o "no
+ * aplica" —notas de venta— quedan fuera). Debe coincidir con el filtro de
+ * PercepcionesModel.SQL_ELEGIBLES.
+ */
+export const ESTADOS_SUNAT_PERCIBIBLES = ['ACEPTADO', 'PENDIENTE'];
+
 const ETIQUETA: Record<TipoTributo, { doc: string; contraparte: string; tributo: string }> = {
   percepcion: { doc: 'comprobante', contraparte: 'cliente', tributo: 'percepción' },
   retencion: { doc: 'compra', contraparte: 'proveedor', tributo: 'retención' },
 };
-
-export function tasaPorDefecto(tipo: TipoTributo, regimen: string): number | undefined {
-  return (tipo === 'percepcion' ? TASAS_PERCEPCION : TASAS_RETENCION)[regimen];
-}
 
 export function armarTributoDesdeOrigen(
   tipo: TipoTributo,
@@ -73,9 +78,9 @@ export function armarTributoDesdeOrigen(
   origenes: OrigenTributo[],
 ): TributoCalculado {
   const e = ETIQUETA[tipo];
-  const tasa = solicitud.tasa ?? tasaPorDefecto(tipo, solicitud.regimen);
-  if (!tasa || tasa <= 0) {
-    throw new BadRequestException(`Indica la tasa de ${e.tributo} (el régimen ${solicitud.regimen} no tiene tasa por defecto)`);
+  const tasa = Number(solicitud.tasa);
+  if (!(tasa > 0) || tasa > 100) {
+    throw new BadRequestException(`Indica la tasa de ${e.tributo} del régimen ${solicitud.regimen}`);
   }
 
   const idsPedidos = solicitud.origenes.map((o) => o.id);
@@ -103,10 +108,9 @@ export function armarTributoDesdeOrigen(
     if ((o.moneda ?? '') !== 'PEN') {
       throw new BadRequestException(`El ${e.doc} ${ref} no está en soles; otras monedas requieren tipo de cambio`);
     }
-    if (tipo === 'percepcion' && o.nombre_estado_sunat !== 'ACEPTADO') {
-      throw new BadRequestException(
-        `El comprobante ${ref} no está aceptado por SUNAT (${o.nombre_estado_sunat ?? 'sin emitir'}): emítelo antes de percibir`,
-      );
+    // Pendiente de envío vale (la percepción nace al cobrar); aceptado se exige al emitirla.
+    if (tipo === 'percepcion' && !ESTADOS_SUNAT_PERCIBIBLES.includes(o.nombre_estado_sunat ?? 'PENDIENTE')) {
+      throw new BadRequestException(`El comprobante ${ref} está ${o.nombre_estado_sunat} ante SUNAT: no se puede percibir sobre él`);
     }
     if (o.con_tributo) throw new BadRequestException(`El ${e.doc} ${ref} ya tiene ${e.tributo}`);
     if (!o.id_contraparte) throw new BadRequestException(`El ${e.doc} ${ref} no tiene ${e.contraparte}`);

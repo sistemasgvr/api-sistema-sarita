@@ -90,6 +90,22 @@ export class ProductosController {
     return this.productosLogic.obtenerPorId(id);
   }
 
+  @Get(':id/etiqueta.pdf')
+  @Permisos(PermisoBanderas.PRODUCTOS_VER)
+  @ApiOperation({
+    summary: 'Etiqueta adhesiva del producto (PDF 50 × 25 mm con código de barras)',
+  })
+  @ApiProduces('application/pdf')
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  @Header('Content-Type', 'application/pdf')
+  async etiquetaPdf(@Param('id', ParseIntPipe) id: number) {
+    const { buffer, filename } = await this.productosLogic.generarEtiquetaPdf(id);
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `inline; filename="${filename}"`,
+    });
+  }
+
   @Post()
   @Permisos(PermisoBanderas.PRODUCTOS_CREAR)
   @ApiOperation({ summary: 'Crear producto' })

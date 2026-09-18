@@ -1,4 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import {
+  normalizarBusqueda,
+  sqlCoincideBusqueda,
+  type SerieTributo,
+} from '../../../common/helpers/tributo-busqueda.helper';
 import { DatabaseService } from '../../../database/database.service';
 import type {
   CompraElegibleRetencion,
@@ -15,6 +20,8 @@ export class RetencionesModel {
    * Compras con factura del proveedor (serie y número), en soles, no anuladas,
    * de proveedor con RUC y sin retención vigente: sobre esas se retiene al pagar.
    */
+  private static readonly SQL_COINCIDE = sqlCoincideBusqueda('c', 'pr');
+
   private static readonly SQL_ELEGIBLES = `
     SELECT c.id, c.serie, c.numero, c.fecha::text AS fecha, TRIM(tc.descripcion) AS tipo_doc,
            tc.nombre AS nombre_tipo_comprobante, c.total_importe AS total,
@@ -33,7 +40,7 @@ export class RetencionesModel {
     LEFT JOIN cli_clientes pr ON pr.id = c.id_proveedor`;
 
   async listarComprasElegibles(params: { idProveedor?: number; buscar?: string; limite?: number }) {
-    const buscar = (params.buscar ?? '').trim().toLowerCase().replace(/\s+/g, '');
+    const buscar = normalizarBusqueda(params.buscar);
     const result = await this.db.query<CompraElegibleRetencion>(
       `${RetencionesModel.SQL_ELEGIBLES}
        WHERE c.estado = 1
@@ -42,8 +49,7 @@ export class RetencionesModel {
          AND (m.id IS NULL OR m.nombre IN ('PEN', 'NUEVOS_SOLES'))
          AND pr.numero_documento ~ '^[0-9]{11}$'
          AND ($1::integer IS NULL OR c.id_proveedor = $1)
-         AND ($2 = '' OR LOWER(c.serie || '-' || c.numero) LIKE '%' || $2 || '%'
-              OR LOWER(REPLACE(COALESCE(pr.razon_social, CONCAT_WS(' ', pr.nombres, pr.apellido_paterno)), ' ', '')) LIKE '%' || $2 || '%')
+         AND ($2 = '' OR ${RetencionesModel.SQL_COINCIDE})
          AND NOT EXISTS (
            SELECT 1 FROM com_retencion_detalle d JOIN com_retencion r ON r.id = d.id_retencion
            WHERE d.id_compra = c.id AND d.estado = 1 AND r.estado = 1
@@ -53,6 +59,11 @@ export class RetencionesModel {
       [params.idProveedor ?? null, buscar, params.limite ?? 20],
     );
     return result.rows;
+  }
+
+  /** Series de retención ya usadas por la empresa, con su siguiente correlativo. */
+  async listarSeries(idEmpresa?: number): Promise<SerieTributo[]> {
+    return this.db.callFunctionJson<SerieTributo[]>('com_listar_series_retencion', [idEmpresa ?? null]);
   }
 
   /** Las compras elegidas, con todo lo que la validación necesita. */
@@ -141,12 +152,20 @@ export class RetencionesModel {
   }
 
   async obtenerCatalogos() {
-    const [regimenesRetencion, estadosSunat] = await Promise.all([
+    const [regimenesRetencion, tasasRetencion, estadosSunat] = await Promise.all([
       this.db.query<{ id: number; nombre: string; descripcion: string | null }>(
         `SELECT o.id, o.nombre, o.descripcion
          FROM gen_lista_opciones o
          INNER JOIN gen_lista l ON o.id_lista = l.id
          WHERE l.nombre = 'RegimenRetencion' AND o.estado = 1
+         ORDER BY o.descripcion, o.id`,
+      ),
+      // `descripcion` es el código del régimen al que aplica la tasa.
+      this.db.query<{ id: number; nombre: string; descripcion: string | null }>(
+        `SELECT o.id, o.nombre, o.descripcion
+         FROM gen_lista_opciones o
+         INNER JOIN gen_lista l ON o.id_lista = l.id
+         WHERE l.nombre = 'TasaRetencion' AND o.estado = 1
          ORDER BY o.descripcion, o.id`,
       ),
       this.db.query<{ id: number; nombre: string; descripcion: string | null }>(
@@ -160,6 +179,7 @@ export class RetencionesModel {
 
     return {
       regimenesRetencion: regimenesRetencion.rows,
+      tasasRetencion: tasasRetencion.rows,
       estadosSunat: estadosSunat.rows,
     };
   }

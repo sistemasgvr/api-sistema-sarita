@@ -118,6 +118,16 @@ export class FiltroPercepcionDto {
   tamano?: number;
 }
 
+/** Series de percepción disponibles para la empresa emisora. */
+export class SeriesPercepcionQueryDto {
+  @ApiPropertyOptional({ description: 'Empresa emisora; sin ella se listan las series de todas' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idEmpresa?: number;
+}
+
 /** Comprobantes de venta aceptados por SUNAT que aún no tienen percepción. */
 export class ComprobantesElegiblesQueryDto {
   @ApiPropertyOptional({ description: 'Cliente (sujeto percibido)' })

@@ -4,20 +4,22 @@ import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 import { mapListResult, mapSingleResult } from '../../../common/helpers/auth-response.helper';
 import { armarTributoDesdeOrigen } from '../../../common/helpers/tributo-desde-origen.helper';
 import {
+  asociarTasasARegimenes,
   assertPseConfigurado,
   documentoOficialBase64,
   estadoDesdeRespuestaPse,
   leerCdrJson,
+  mismaTasa,
   obtenerContrapartePse,
   obtenerEmpresaEmisoraPse,
   resolverIdEstadoSunat,
-  TASAS_PERCEPCION,
+  type RegimenConTasas,
 } from '../../../common/helpers/comprobante-sunat.helper';
 import { DatabaseService } from '../../../database/database.service';
 import { FacturacionApisperuClient } from '../../../integrations/facturacion-apisperu/facturacion-apisperu.client';
 import { FacturacionCredentialsService } from '../../../integrations/facturacion-electronica/facturacion-credentials.service';
 import type { ComprobantesElegiblesQueryDto, CreatePercepcionDto, FiltroPercepcionDto } from '../dto/percepcion.dto';
-import type { PercepcionCompletoResult } from '../interfaces/percepcion.interface';
+import type { PercepcionCompletoResult, PercepcionDetalleRegistro } from '../interfaces/percepcion.interface';
 import { PercepcionMapper } from '../mappers/percepcion.mapper';
 import { PercepcionesModel } from '../models/percepciones.model';
 
@@ -61,19 +63,24 @@ export class PercepcionesLogic {
     return this.model.listarComprobantesElegibles(query);
   }
 
+  /** Series P001–P999 ya usadas por la empresa, con el correlativo que sigue. */
+  async series(idEmpresa?: number) {
+    return { series: await this.model.listarSeries(idEmpresa) };
+  }
+
   /**
    * La percepción nace de comprobantes de venta ya aceptados por SUNAT, del
    * mismo cliente y en soles: cliente, sucursal, importes y detalle salen de
    * ellos. El documento queda pendiente de emisión al PSE.
    */
   async crear(dto: CreatePercepcionDto, idUsuarioAuditoria?: number) {
-    await this.assertRegimen(dto.regimen);
+    const tasa = await this.resolverTasa(dto.regimen, dto.tasa);
     const origenes = await this.model.obtenerComprobantes(dto.comprobantes.map((c) => c.idComprobante));
     const calculo = armarTributoDesdeOrigen(
       'percepcion',
       {
         regimen: dto.regimen,
-        tasa: dto.tasa,
+        tasa,
         fechaEmision: dto.fechaEmision,
         origenes: dto.comprobantes.map((c) => ({ id: c.idComprobante, fechaOperacion: c.fechaCobro })),
       },
@@ -124,22 +131,34 @@ export class PercepcionesLogic {
     return result;
   }
 
-  private async assertRegimen(regimen: string) {
-    const { regimenesPercepcion } = await this.model.obtenerCatalogos();
-    if (!regimenesPercepcion.some((r) => r.descripcion === regimen)) {
-      throw new BadRequestException(`Régimen de percepción ${regimen} no válido`);
+  /**
+   * La tasa la fija el catálogo, no el cliente: si no viene se toma la del
+   * régimen y si viene debe ser una de las registradas para ese régimen.
+   */
+  private async resolverTasa(regimen: string, tasa?: number): Promise<number> {
+    const encontrado = (await this.regimenesConTasas()).find((r) => (r.descripcion ?? '').trim() === regimen);
+    if (!encontrado) throw new BadRequestException(`Régimen de percepción ${regimen} no válido`);
+    if (encontrado.tasas.length === 0) {
+      throw new BadRequestException(
+        `El régimen de percepción ${regimen} no tiene tasas registradas; agrégalas en el catálogo TasaPercepcion`,
+      );
     }
+    if (tasa == null) return encontrado.tasa!;
+    if (!encontrado.tasas.some((t) => mismaTasa(t.tasa, tasa))) {
+      const validas = encontrado.tasas.map((t) => t.etiqueta).join(', ');
+      throw new BadRequestException(`La tasa ${tasa}% no está registrada para el régimen ${regimen} (tasas: ${validas})`);
+    }
+    return tasa;
+  }
+
+  private async regimenesConTasas(): Promise<RegimenConTasas[]> {
+    const { regimenesPercepcion, tasasPercepcion } = await this.model.obtenerCatalogos();
+    return asociarTasasARegimenes(regimenesPercepcion, tasasPercepcion ?? []);
   }
 
   async catalogos() {
-    const catalogos = await this.model.obtenerCatalogos();
-    return {
-      ...catalogos,
-      regimenesPercepcion: catalogos.regimenesPercepcion.map((r) => ({
-        ...r,
-        tasa: r.descripcion ? (TASAS_PERCEPCION[r.descripcion] ?? null) : null,
-      })),
-    };
+    const { estadosSunat } = await this.model.obtenerCatalogos();
+    return { regimenesPercepcion: await this.regimenesConTasas(), estadosSunat };
   }
 
   /**
@@ -155,6 +174,7 @@ export class PercepcionesLogic {
     }
     if (!cabecera.id_empresa) throw new BadRequestException('La percepción no tiene empresa emisora');
     if (!cabecera.id_cliente) throw new BadRequestException('La percepción no tiene cliente');
+    await this.assertComprobantesAceptados(cabecera.detalles);
 
     const empresa = await obtenerEmpresaEmisoraPse(this.db, cabecera.id_empresa);
     const cliente = await obtenerContrapartePse(this.db, cabecera.id_cliente, 'Cliente');
@@ -192,6 +212,23 @@ export class PercepcionesLogic {
         respuesta: respuesta.sunatResponse ?? null,
       },
     };
+  }
+
+  /**
+   * La percepción se puede armar sobre comprobantes pendientes de envío, pero
+   * SUNAT solo la acepta si los comprobantes que referencia ya están aceptados.
+   */
+  private async assertComprobantesAceptados(detalles: PercepcionDetalleRegistro[]) {
+    const ids = detalles.filter((d) => d.estado === 1 && d.id_comprobante != null).map((d) => d.id_comprobante!);
+    const comprobantes = await this.model.obtenerComprobantes(ids);
+    const noAceptados = comprobantes
+      .filter((c) => c.nombre_estado_sunat !== 'ACEPTADO')
+      .map((c) => `${c.serie}-${c.numero} (${c.nombre_estado_sunat ?? 'sin enviar'})`);
+    if (noAceptados.length > 0) {
+      throw new BadRequestException(
+        `Emite primero a SUNAT los comprobantes de la percepción: ${noAceptados.join(', ')}`,
+      );
+    }
   }
 
   /** PDF y XML oficiales desde `perception/pdf` y `perception/xml`, guardados en base64. */

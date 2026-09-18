@@ -122,12 +122,61 @@ export function documentoOficialBase64(cdrRespuesta: string | null | undefined, 
   return typeof valor === 'string' && valor.trim() ? valor : null;
 }
 
+/** Opción de `gen_lista_opciones` tal como la devuelven los catálogos. */
+export interface OpcionCatalogo {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+}
+
+export interface TasaRegimen {
+  id: number;
+  tasa: number;
+  etiqueta: string;
+}
+
+export interface RegimenConTasas extends OpcionCatalogo {
+  /** Tasa propuesta: la menor registrada para el régimen. */
+  tasa: number | null;
+  tasas: TasaRegimen[];
+}
+
 /**
- * Tasas vigentes por régimen (catálogos SUNAT 22 y 23). La UI las propone y el
- * servidor las usa por defecto; una tasa distinta debe venir explícita.
+ * Porcentaje guardado en el catálogo de tasas (listas TasaPercepcion /
+ * TasaRetencion), cuyo nombre de opción es el texto «2%» o «0.5%». Devuelve
+ * null si la opción no contiene un porcentaje usable.
  */
-export const TASAS_PERCEPCION: Record<string, number> = { '01': 2, '02': 1, '03': 0.5 };
-export const TASAS_RETENCION: Record<string, number> = { '01': 3, '02': 6 };
+export function leerTasaCatalogo(nombre: string | null | undefined): number | null {
+  const tasa = Number.parseFloat(String(nombre ?? '').replace(',', '.'));
+  return Number.isFinite(tasa) && tasa > 0 && tasa <= 100 ? tasa : null;
+}
+
+/** Dos tasas son la misma si coinciden al centésimo; evita comparar flotantes. */
+export function mismaTasa(a: number, b: number): boolean {
+  return Math.abs(a - b) < 0.0001;
+}
+
+/**
+ * Cruza el catálogo de regímenes (catálogos SUNAT 22/23) con el de tasas, que
+ * guarda en `descripcion` el código del régimen al que aplica. Un régimen puede
+ * tener varias tasas; la propuesta por defecto es la menor.
+ */
+export function asociarTasasARegimenes(
+  regimenes: OpcionCatalogo[],
+  tasas: OpcionCatalogo[],
+): RegimenConTasas[] {
+  return regimenes.map((regimen) => {
+    const codigo = (regimen.descripcion ?? '').trim();
+    const propias = tasas
+      .filter((opcion) => codigo !== '' && (opcion.descripcion ?? '').trim() === codigo)
+      .flatMap((opcion) => {
+        const tasa = leerTasaCatalogo(opcion.nombre);
+        return tasa === null ? [] : [{ id: opcion.id, tasa, etiqueta: opcion.nombre.trim() }];
+      })
+      .sort((a, b) => a.tasa - b.tasa);
+    return { ...regimen, tasa: propias[0]?.tasa ?? null, tasas: propias };
+  });
+}
 
 export function redondear2(valor: number): number {
   return Math.round((valor + Number.EPSILON) * 100) / 100;
