@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  Header,
   NotFoundException,
   Param,
   ParseIntPipe,
@@ -73,7 +72,6 @@ export class DocumentosSalidaController {
   @ApiOperation({ summary: 'Generar PDF A4 (orden interna o guía de remisión)' })
   @ApiProduces('application/pdf')
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  @Header('Content-Type', 'application/pdf')
   async generarPdf(
     @Param('id', ParseIntPipe) id: number,
     @Query('idEmpresa', new ParseIntPipe({ optional: true })) idEmpresa?: number,
@@ -269,7 +267,6 @@ export class DocumentosSalidaController {
   @ApiOperation({ summary: 'Obtener PDF del proveedor (conservado del envío)' })
   @ApiProduces('application/pdf')
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  @Header('Content-Type', 'application/pdf')
   async obtenerPdfOficial(@Param('id', ParseIntPipe) id: number) {
     const resultado = await this.logic.obtenerPdfOficial(id);
     if (!resultado) {
@@ -286,7 +283,6 @@ export class DocumentosSalidaController {
   @ApiOperation({ summary: 'Obtener XML original conservado del envío' })
   @ApiProduces('application/xml')
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  @Header('Content-Type', 'application/xml')
   async obtenerXmlOficial(@Param('id', ParseIntPipe) id: number) {
     const resultado = await this.logic.obtenerXmlOficial(id);
     if (!resultado) {

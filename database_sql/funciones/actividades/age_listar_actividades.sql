@@ -56,18 +56,21 @@ BEGIN
             act.id_prioridad,
             pr.nombre AS nombre_prioridad,
             act.id_cliente,
-            c.razon_social AS razon_social_cliente,
+            COALESCE(NULLIF(TRIM(c.razon_social), ''), NULLIF(TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)), ''), c.numero_documento) AS razon_social_cliente,
             act.id_trabajador_responsable,
             TRIM(CONCAT_WS(' ', tr.nombres, tr.apellido_paterno, tr.apellido_materno)) AS nombre_trabajador_responsable,
             act.id_trabajador_apoyo,
             TRIM(CONCAT_WS(' ', ap.nombres, ap.apellido_paterno, ap.apellido_materno)) AS nombre_trabajador_apoyo,
             act.id_usuario_responsable,
             au.nombre AS nombre_usuario_responsable,
-            act.id_chofer_responsable,
-            TRIM(CONCAT_WS(' ', ch.nombres, ch.apellido_paterno, ch.apellido_materno)) AS nombre_chofer_responsable,
-            act.id_comprobante,
+            ch.id AS id_chofer_responsable,
+            NULLIF(TRIM(CONCAT_WS(' ', ch.nombres, ch.apellido_paterno, ch.apellido_materno)), '') AS nombre_chofer_responsable,
+            COALESCE(act.id_comprobante, ds.id_venta) AS id_comprobante,
             vc.serie AS serie_comprobante,
             vc.numero AS numero_comprobante,
+            cc.id AS id_comprobante_compra,
+            cc.serie AS serie_comprobante_compra,
+            cc.numero AS numero_comprobante_compra,
             act.id_doc_salida,
             ds.serie AS serie_doc_salida,
             ds.numero_sunat AS numero_sunat_doc_salida,
@@ -95,9 +98,20 @@ BEGIN
         LEFT JOIN tra_trabajadores tr ON tr.id = act.id_trabajador_responsable
         LEFT JOIN tra_trabajadores ap ON ap.id = act.id_trabajador_apoyo
         LEFT JOIN auth_usuarios au ON au.id_trabajador = tr.id AND au.estado = TRUE
-        LEFT JOIN gen_chofer ch ON ch.id_trabajador = tr.id AND ch.estado = 1
-        LEFT JOIN ven_comprobante vc ON act.id_comprobante = vc.id
         LEFT JOIN doc_salida ds ON act.id_doc_salida = ds.id
+        LEFT JOIN LATERAL (
+            SELECT ch0.* FROM gen_chofer ch0
+            WHERE ch0.id = COALESCE(act.id_chofer_responsable, ds.id_chofer)
+               OR (act.id_chofer_responsable IS NULL AND ds.id_chofer IS NULL AND ch0.id_trabajador = tr.id AND ch0.estado = 1)
+            ORDER BY ch0.id LIMIT 1
+        ) ch ON TRUE
+        LEFT JOIN ven_comprobante vc ON vc.id = COALESCE(act.id_comprobante, ds.id_venta)
+        LEFT JOIN LATERAL (
+            SELECT compra.id, compra.serie, compra.numero FROM com_comprobante_compra compra
+            WHERE compra.id = ds.id_comprobante_compra
+               OR (ds.id_comprobante_compra IS NULL AND compra.id_doc_salida = ds.id AND compra.estado = 1)
+            ORDER BY compra.id DESC LIMIT 1
+        ) cc ON TRUE
         LEFT JOIN auth_usuarios uc ON act.id_usuario_creacion = uc.id
         LEFT JOIN auth_usuarios um ON act.id_usuario_modificacion = um.id
         WHERE act.estado = 1

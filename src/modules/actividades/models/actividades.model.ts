@@ -112,7 +112,7 @@ export class ActividadesModel {
   listarVencidosRecojo(filtros: FiltroVencidosRecojoDto) {
     return this.db.callFunctionJson<AuthListResult>(
       'age_listar_vencidos_recojo',
-      [filtros.buscar ?? '', filtros.limite ?? 30, filtros.offset],
+      [filtros.buscar ?? '', filtros.limite ?? 30, filtros.offset, filtros.incluirNoVencidos ?? false],
     );
   }
 
@@ -128,6 +128,7 @@ export class ActividadesModel {
       dto.idTrabajadorResponsable ?? null,
       dto.observaciones ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idsBalones ?? null,
     ]);
   }
 
@@ -198,6 +199,7 @@ export class ActividadesModel {
     idComprobante?: number | null,
     idDocSalida?: number | null,
     items?: ActividadItemDto[] | null,
+    idChoferResponsable?: number | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>('age_crear_actividad', [
       titulo,
@@ -215,6 +217,7 @@ export class ActividadesModel {
       idComprobante ?? null,
       idDocSalida ?? null,
       items?.length ? JSON.stringify(items) : null,
+      idChoferResponsable ?? null,
     ]);
   }
 
@@ -235,6 +238,7 @@ export class ActividadesModel {
     idComprobante?: number | null,
     idDocSalida?: number | null,
     items?: ActividadItemDto[] | null,
+    idChoferResponsable?: number | null,
   ) {
     return this.db.callFunctionJson<AuthSingleResult>(
       'age_actualizar_actividad',
@@ -256,6 +260,7 @@ export class ActividadesModel {
         idComprobante ?? null,
         idDocSalida ?? null,
         items ? JSON.stringify(items) : null,
+        idChoferResponsable ?? null,
       ],
     );
   }

@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  Header,
   Param,
   ParseIntPipe,
   Patch,
@@ -71,7 +70,6 @@ export class ProductosController {
     summary: 'Generar PDF de tarjetas de ubicación para productos seleccionados',
   })
   @ApiProduces('application/pdf')
-  @Header('Content-Type', 'application/pdf')
   async generarPdfUbicaciones(@Body() dto: ImprimirUbicacionesProductoDto) {
     const { buffer, filename } =
       await this.productosLogic.generarPdfUbicaciones(dto);
@@ -97,7 +95,6 @@ export class ProductosController {
   })
   @ApiProduces('application/pdf')
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  @Header('Content-Type', 'application/pdf')
   async etiquetaPdf(@Param('id', ParseIntPipe) id: number) {
     const { buffer, filename } = await this.productosLogic.generarEtiquetaPdf(id);
     return new StreamableFile(buffer, {

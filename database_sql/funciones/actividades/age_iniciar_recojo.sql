@@ -26,7 +26,7 @@ BEGIN
            a.id_estado_actividad, a.id_prestamo, a.id_alquiler
     INTO v_act
     FROM age_actividad a
-    WHERE a.id = p_id AND a.estado = 1;
+    WHERE a.id = p_id AND a.estado = 1 FOR UPDATE;
 
     IF v_act.id IS NULL THEN
         RETURN json_build_object('error', 'La actividad no existe o esta anulada', 'registro', NULL);
@@ -103,6 +103,21 @@ BEGIN
             'error', 'El recojo no tiene cilindros/accesorios pendientes que recoger',
             'registro', NULL
         );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM age_actividad_item ai
+        LEFT JOIN bal_prestamo_detalle pd ON pd.id = ai.id_prestamo_detalle
+        LEFT JOIN bal_balon b ON b.id = ai.id_balon
+        LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+        WHERE ai.id_actividad = p_id AND ai.estado = 1 AND ai.id_balon IS NOT NULL
+          AND (pd.id IS NULL OR pd.estado <> 1 OR pd.fecha_devolucion IS NOT NULL
+               OR pd.id_prestamo IS DISTINCT FROM v_act.id_prestamo
+               -- Mismo criterio que age_balones_disponibles_recojo: vale tanto
+               -- el despacho del préstamo como la entrega confirmada.
+               OR COALESCE(UPPER(TRIM(eb.nombre)), '') NOT IN ('EN_PODER_CLIENTE', 'PRESTADO_CLIENTE'))
+    ) THEN
+        RETURN json_build_object('error', 'Hay balones que ya no están pendientes de devolución o no fueron entregados. Revisa el recojo.', 'registro', NULL);
     END IF;
 
     UPDATE age_actividad

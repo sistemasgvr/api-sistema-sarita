@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  Header,
   Param,
   ParseIntPipe,
   Patch,
@@ -198,7 +197,6 @@ export class BalonesController {
   })
   @ApiProduces('application/pdf')
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  @Header('Content-Type', 'application/pdf')
   async etiquetaPdf(@Param('id', ParseIntPipe) id: number) {
     const { buffer, filename } = await this.logic.generarEtiquetaPdf(id);
     return new StreamableFile(buffer, {

@@ -536,6 +536,39 @@ export class SeriesGreQueryDto {
 }
 
 export class ActualizarTrasladoDto extends AuditoriaDto {
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  idTipoGuiaRemision?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  idChofer?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  idVehiculo?: number;
+
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  idTransportista?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  fechaTraslado?: string;
+
   @ApiPropertyOptional({ description: 'Motivo de traslado (catálogo SUNAT)' })
   @Type(() => Number)
   @IsOptional()

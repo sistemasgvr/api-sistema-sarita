@@ -335,6 +335,11 @@ export class DocumentosSalidaModel {
       dto.numeroBultos ?? null,
       dto.idUnidadMedida ?? null,
       dto.idUsuarioAuditoria ?? null,
+      dto.idTipoGuiaRemision ?? null,
+      dto.idChofer ?? null,
+      dto.idVehiculo ?? null,
+      dto.idTransportista ?? null,
+      dto.fechaTraslado ?? null,
     ]);
   }
 

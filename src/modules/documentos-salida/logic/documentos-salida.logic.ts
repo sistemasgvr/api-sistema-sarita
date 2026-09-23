@@ -82,6 +82,14 @@ export interface ResultadoValidacionGre {
   };
 }
 
+/**
+ * Falta la empresa emisora: solo bloquea lo que va a SUNAT (emitir, consultar
+ * estado, guías ya emitidas). El mensaje apunta a dónde se resuelve, porque
+ * "no tiene empresa vinculada" no le decía al cajero qué hacer.
+ */
+const SIN_EMPRESA_EMISORA =
+  'No hay una empresa configurada para la emisión electrónica. Ve a Configuración → SUNAT y registra o activa la empresa emisora.';
+
 @Injectable()
 export class DocumentosSalidaLogic {
   private readonly logger = new Logger(DocumentosSalidaLogic.name);
@@ -183,11 +191,17 @@ export class DocumentosSalidaLogic {
     if (!doc.registro) throw new NotFoundException('Documento de salida no encontrado');
     const esGuia = Boolean(doc.registro.serie || doc.registro.numero_sunat || doc.registro.ticket_sunat);
     const idEmpresa = doc.registro.id_empresa ?? (esGuia ? undefined : idEmpresaSeleccionada);
-    if (!idEmpresa) throw new BadRequestException('El documento no tiene empresa emisora vinculada. Verifica su emisor antes de emitir, consultar o generar el PDF.');
+    // La guía de remisión es un documento tributario: su PDF tiene que salir con
+    // el emisor real, así que sin empresa no se imprime.
+    if (esGuia && !idEmpresa) throw new BadRequestException(SIN_EMPRESA_EMISORA);
+    // La orden de salida, en cambio, es interna: la empresa solo alimenta el
+    // membrete. Sin ella el PDF se genera igual (sin cabecera de empresa) en vez
+    // de dejar al usuario sin comprobante hasta que configure SUNAT.
+    if (!idEmpresa) return this.generarPdfParaEmpresa(id, null);
     return this.credentialsService.withEmpresa(idEmpresa, () => this.generarPdfParaEmpresa(id, idEmpresa));
   }
 
-  private async generarPdfParaEmpresa(id: number, idEmpresa: number) {
+  private async generarPdfParaEmpresa(id: number, idEmpresa: number | null) {
     const doc = await this.model.obtener(id);
 
     if (doc.error) {
@@ -198,9 +212,15 @@ export class DocumentosSalidaLogic {
       throw new NotFoundException(`Documento de salida ${id} no encontrado`);
     }
 
-    const empresa = await this.obtenerEmpresaEmisoraResuelta(idEmpresa);
-    const buffer = await this.pdfGenerator.generarA4(doc, empresa);
     const esGre = Boolean(doc.registro.serie && doc.registro.numero_sunat);
+    // En la orden interna una empresa inactiva o borrada tampoco frena el PDF:
+    // se imprime sin membrete. En la guía sí se exige emisor válido.
+    const empresa = idEmpresa
+      ? esGre
+        ? await this.obtenerEmpresaEmisoraResuelta(idEmpresa)
+        : await this.model.obtenerEmpresaEmisora(idEmpresa)
+      : null;
+    const buffer = await this.pdfGenerator.generarA4(doc, empresa);
     const filename = esGre
       ? `GRE-${doc.registro.serie}-${doc.registro.numero_sunat}.pdf`
       : `OS-${doc.registro.numero}.pdf`;
@@ -212,7 +232,7 @@ export class DocumentosSalidaLogic {
     const doc = await this.model.obtener(id);
     if (!doc.registro) throw new NotFoundException('Documento de salida no encontrado');
     const idEmpresa = doc.registro.id_empresa;
-    if (!idEmpresa) throw new BadRequestException('El documento no tiene empresa emisora vinculada. Verifica su emisor antes de emitir, consultar o generar el PDF.');
+    if (!idEmpresa) throw new BadRequestException(SIN_EMPRESA_EMISORA);
     return this.credentialsService.withEmpresa(idEmpresa, () => this.emitirSunatParaEmpresa(id, dto));
   }
 
@@ -445,7 +465,7 @@ export class DocumentosSalidaLogic {
     const doc = await this.model.obtener(id);
     if (!doc.registro) throw new NotFoundException('Documento de salida no encontrado');
     const idEmpresa = doc.registro.id_empresa;
-    if (!idEmpresa) throw new BadRequestException('La guía no tiene empresa emisora vinculada. Verifica su emisor histórico antes de consultar.');
+    if (!idEmpresa) throw new BadRequestException(SIN_EMPRESA_EMISORA);
     return this.credentialsService.withEmpresa(idEmpresa, () => this.consultarEstadoParaEmpresa(id, dto));
   }
 
@@ -664,9 +684,12 @@ export class DocumentosSalidaLogic {
   }
 
   private async obtenerEmpresaEmisoraResuelta(idEmpresa: number | null) {
-    if (!idEmpresa) throw new BadRequestException('Selecciona la empresa emisora de la guía');
+    if (!idEmpresa) throw new BadRequestException(SIN_EMPRESA_EMISORA);
     const empresa = await this.model.obtenerEmpresaEmisora(idEmpresa);
-    if (!empresa) throw new BadRequestException('La empresa emisora de la guía no está activa');
+    if (!empresa)
+      throw new BadRequestException(
+        'La empresa emisora de la guía está inactiva. Actívala en Configuración → SUNAT para emitir o consultar.',
+      );
     return empresa;
   }
 

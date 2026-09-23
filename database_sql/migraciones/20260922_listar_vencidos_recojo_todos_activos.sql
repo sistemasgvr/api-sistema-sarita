@@ -1,27 +1,30 @@
--- Function: age_listar_vencidos_recojo
--- Synced from migracion 20260908_age_recojo_vencidos_fk.sql
+-- ============================================================
+-- Migración: el selector de origen de recojo lista todos los activos
+-- Fecha: 2026-09-22
 --
--- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
--- el módulo Balones > Recojos (bal_recojo) se retiró; el único recojo vivo que
--- excluye un origen es la actividad RECOJO vigente.
--- Además deja de ser STABLE: hacía SET TIME ZONE, que Postgres rechaza en
--- funciones no volátiles ("SET is not allowed in a non-volatile function"), así
--- que el selector de vencidos del formulario de actividades fallaba siempre.
--- Y el total se calcula en la misma sentencia que la página: el CTE
--- "filtrado" no existía para el segundo SELECT.
+-- Problema: age_listar_vencidos_recojo ocultaba todo préstamo/alquiler que
+-- ya tuviera una actividad RECOJO vigente y todo préstamo sin balones
+-- "disponibles" (age_balones_disponibles_recojo excluye los reservados por un
+-- recojo abierto). Al correr age_generar_recojos_por_vencer —que creó un
+-- recojo PENDIENTE por cada préstamo activo— el selector "Origen del recojo"
+-- del formulario de actividades quedó vacío, aunque hay 6 préstamos activos.
 --
--- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
--- el alquiler vencido entra solo por el regulador/accesorio pendiente
--- (bal_alquiler_detalle eliminada).
+-- Decisión: listar TODOS los préstamos/alquileres ACTIVOS (estado ACTIVO y sin
+-- devolución real), con un campo nuevo recojo_abierto (id de la actividad
+-- RECOJO vigente, o NULL). El front lo muestra como badge para que no se
+-- duplique: age_crear_recojo_origen sigue siendo idempotente por origen
+-- vigente y responde "creada: false" con la actividad existente.
 --
--- Actualizada por migraciones/20260922_listar_vencidos_recojo_todos_activos.sql:
--- el selector de origen del recojo ahora lista TODOS los préstamos y alquileres
--- ACTIVOS (estado ACTIVO, sin devolución real), aunque ya tengan una actividad
--- RECOJO vigente o hoy no tengan balones "disponibles": antes se ocultaban y,
--- al correr age_generar_recojos_por_vencer, el selector quedaba vacío.
--- Se agrega el campo recojo_abierto (id de la actividad RECOJO vigente, si
--- existe) para que el front lo muestre como badge y evite duplicar; la creación
--- sigue siendo idempotente en age_crear_recojo_origen.
+-- Qué cambia
+--  1) Se eliminan los filtros NOT EXISTS (vigentes), EXISTS (balones
+--     disponibles) y "regulador pendiente" del WHERE: el listado es por
+--     estado activo y la validación de "algo que recoger" queda en la
+--     creación (age_crear_recojo_origen ya responde con error claro).
+--  2) Nuevo campo recojo_abierto en cada fila.
+--  3) cilindros_pendientes ahora cuenta los cilindros entregados con el
+--     cliente sin ignorar el recojo abierto (antes mostraba 0 en pantalla).
+--  4) Orden con NULLS LAST para los orígenes sin fecha pactada.
+-- ============================================================
 
 DROP FUNCTION IF EXISTS age_listar_vencidos_recojo(character varying, integer, integer);
 DROP FUNCTION IF EXISTS age_listar_vencidos_recojo(character varying, integer, integer, boolean);
@@ -64,9 +67,6 @@ BEGIN
             ) AS nombre_cliente,
             p.fecha_retorno_pactada AS fecha_pactada,
             (CURRENT_DATE - p.fecha_retorno_pactada)::INTEGER AS dias_vencido,
-            -- Cilindros entregados aún con el cliente, sin importar si ya están
-            -- reservados por un recojo abierto (age_balones_disponibles_recojo
-            -- los excluye y daba 0 en pantalla).
             (
                 SELECT COUNT(*)::INTEGER
                 FROM bal_prestamo_detalle pd
@@ -111,7 +111,6 @@ BEGIN
             ),
             a.fecha_fin_pactada,
             (CURRENT_DATE - a.fecha_fin_pactada)::INTEGER,
-            -- El alquiler no lleva cilindros (van por préstamo).
             0::INTEGER,
             (
                 SELECT COUNT(*)::INTEGER
@@ -143,9 +142,6 @@ BEGIN
            OR LOWER(COALESCE(nombre_cliente, '')) LIKE '%' || v_busqueda || '%'
            OR LOWER(origen) LIKE '%' || v_busqueda || '%'
     )
-    -- Total y página en la MISMA sentencia: un CTE solo vive dentro de la
-    -- sentencia que lo declara (el segundo SELECT fallaba con
-    -- «relation "filtrado" does not exist»).
     SELECT
         (SELECT COUNT(*) FROM filtrado),
         (

@@ -24,6 +24,7 @@ export interface DocumentoSalidaDetalleRegistro {
   /** Gas del cilindro: una ficha de lote y protocolo cubre un solo gas. */
   id_producto_gas_balon?: number | null;
   nombre_producto_gas_balon?: string | null;
+  codigo_producto_gas_balon?: string | null;
   numero_serie_balon?: string | null;
   id_lote_protocolo_vigente?: number | null;
   cantidad: number;
@@ -49,6 +50,7 @@ export interface DocumentoSalidaReferenciaRegistro {
 
 /** Cabecera completa devuelta por `doc_obtener_salida`. */
 export interface DocumentoSalidaRegistro {
+  id_actividad_reparto?: number | null;
   id_empresa: number | null;
   id: number;
   numero: string;
@@ -65,6 +67,7 @@ export interface DocumentoSalidaRegistro {
   nombre_sucursal: string | null;
   id_almacen: number;
   nombre_almacen: string | null;
+  direccion_almacen?: string | null;
   /** Destino del traslado: mueve el stock y da el punto de llegada de la GRE. */
   id_almacen_destino?: number | null;
   nombre_almacen_destino?: string | null;
@@ -222,6 +225,7 @@ export interface DocumentoSalidaListItem {
   nombre_sucursal: string | null;
   id_almacen: number;
   nombre_almacen: string | null;
+  direccion_almacen?: string | null;
   /** Destino del traslado: mueve el stock y da el punto de llegada de la GRE. */
   id_almacen_destino?: number | null;
   nombre_almacen_destino?: string | null;
@@ -300,6 +304,7 @@ export interface GreIntentoRegistro {
   id: number;
   estado: string;
   entorno: string | null;
+  id_actividad_reparto?: number | null;
   id_empresa: number | null;
   ruc_emisor: string | null;
   ticket: string | null;

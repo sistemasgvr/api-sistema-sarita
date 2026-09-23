@@ -211,12 +211,6 @@ BEGIN
     FROM (
         SELECT
             d.id, d.numero, d.id_empresa,
-            (SELECT a.id FROM age_actividad a
-             JOIN gen_lista_opciones ta ON ta.id = a.id_tipo_actividad
-             LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
-             WHERE a.id_doc_salida = d.id AND a.estado = 1 AND UPPER(TRIM(ta.nombre)) = 'REPARTO'
-               AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO')
-             ORDER BY a.id DESC LIMIT 1) AS id_actividad_reparto,
             d.id_tipo_orden, tor.nombre AS nombre_tipo_orden,
             d.id_estado_ciclo, ec.nombre AS nombre_estado_ciclo,
             d.emitido_sunat,

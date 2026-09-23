@@ -20,7 +20,8 @@ CREATE OR REPLACE FUNCTION age_actualizar_actividad(
     p_id_usuario_auditoria integer DEFAULT NULL::integer,
     p_id_comprobante integer DEFAULT NULL::integer,
     p_id_doc_salida integer DEFAULT NULL::integer,
-    p_items json DEFAULT NULL::json
+    p_items json DEFAULT NULL::json,
+    p_id_chofer_responsable integer DEFAULT NULL
 )
 RETURNS json
 LANGUAGE plpgsql
@@ -181,6 +182,12 @@ BEGIN
         END IF;
     END IF;
 
+    IF p_id_chofer_responsable IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM gen_chofer WHERE id = p_id_chofer_responsable AND estado = 1
+    ) THEN
+        RETURN json_build_object('registro', NULL, 'error', 'El chofer seleccionado debe estar activo.');
+    END IF;
+
     UPDATE age_actividad
     SET
         titulo = COALESCE(p_titulo, titulo),
@@ -193,6 +200,7 @@ BEGIN
         id_prioridad = COALESCE(p_id_prioridad, id_prioridad),
         id_cliente = COALESCE(p_id_cliente, id_cliente),
         id_trabajador_responsable = COALESCE(p_id_trabajador_responsable, id_trabajador_responsable),
+        id_chofer_responsable = COALESCE(p_id_chofer_responsable, id_chofer_responsable, (SELECT id_chofer FROM doc_salida WHERE id = COALESCE(p_id_doc_salida, age_actividad.id_doc_salida))),
         id_comprobante = COALESCE(p_id_comprobante, id_comprobante),
         id_doc_salida = COALESCE(p_id_doc_salida, id_doc_salida),
         id_estado_actividad = COALESCE(p_id_estado_actividad, id_estado_actividad),

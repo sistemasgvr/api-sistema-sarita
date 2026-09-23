@@ -16,7 +16,8 @@ CREATE OR REPLACE FUNCTION age_crear_recojo_origen(
     p_hora_inicio_estimada time without time zone DEFAULT NULL::time without time zone,
     p_id_trabajador_responsable integer DEFAULT NULL::integer,
     p_observaciones character varying DEFAULT NULL::character varying,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer
+    p_id_usuario_auditoria integer DEFAULT NULL::integer,
+    p_ids_balones integer[] DEFAULT NULL
 )
 RETURNS json
 LANGUAGE plpgsql
@@ -35,6 +36,10 @@ DECLARE
     v_fecha_pactada DATE;
     v_titulo        VARCHAR;
     v_descripcion   VARCHAR;
+    v_balones integer[];
+    v_balon integer;
+    v_items integer := 0;
+    v_pendiente integer;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -69,6 +74,8 @@ BEGIN
     SELECT lo.id INTO v_id_origen_cat
     FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
     WHERE l.nombre = 'TipoOrigenActividad' AND lo.nombre = v_tipo_origen AND lo.estado = 1 LIMIT 1;
+
+    PERFORM pg_advisory_xact_lock(hashtext('recojo:' || v_tipo_origen), p_id_origen);
 
     IF v_tipo_origen = 'PRESTAMO' THEN
         SELECT p.id_cliente, p.numero_prestamo, p.fecha_retorno_pactada,
@@ -135,6 +142,46 @@ BEGIN
         );
     END IF;
 
+    IF v_tipo_origen = 'PRESTAMO' THEN
+        -- Bloquear en orden fijo impide reservar el mismo balón desde dos préstamos.
+        FOR v_balon IN SELECT DISTINCT pd.id_balon FROM bal_prestamo_detalle pd
+            WHERE pd.id_prestamo = p_id_origen AND pd.estado = 1 AND pd.id_balon IS NOT NULL ORDER BY pd.id_balon
+        LOOP
+            PERFORM pg_advisory_xact_lock(hashtext('recojo:balon'), v_balon);
+            PERFORM 1 FROM bal_balon WHERE id = v_balon FOR UPDATE;
+        END LOOP;
+        SELECT array_agg(x.id_balon ORDER BY x.id_balon) INTO v_balones
+        FROM age_balones_disponibles_recojo(p_id_origen) x;
+        IF COALESCE(cardinality(v_balones), 0) = 0 THEN
+            RETURN json_build_object('error', 'No hay balones entregados pendientes de devolución y disponibles para recojo', 'registro', NULL);
+        END IF;
+        IF p_ids_balones IS NOT NULL THEN
+            IF cardinality(p_ids_balones) = 0 OR array_position(p_ids_balones, NULL) IS NOT NULL OR NOT p_ids_balones <@ v_balones THEN
+                RETURN json_build_object('error', 'Selecciona únicamente balones entregados, pendientes y sin otro recojo activo', 'registro', NULL);
+            END IF;
+            v_balones := ARRAY(SELECT DISTINCT unnest(p_ids_balones));
+        END IF;
+    ELSE
+        IF NOT EXISTS (SELECT 1 FROM bal_alquiler WHERE id = p_id_origen AND estado = 1
+            AND fecha_fin_real IS NULL AND fecha_devolucion_regulador IS NULL
+            AND COALESCE(id_producto_regulador, id_producto_stock) IS NOT NULL) THEN
+            RETURN json_build_object('error', 'El alquiler no tiene accesorios pendientes de devolución', 'registro', NULL);
+        END IF;
+        IF p_ids_balones IS NOT NULL THEN
+            RETURN json_build_object('error', 'Los balones se recogen desde un préstamo', 'registro', NULL);
+        END IF;
+    END IF;
+    IF p_id_trabajador_responsable IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM tra_trabajadores WHERE id = p_id_trabajador_responsable AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El responsable debe ser un trabajador vigente', 'registro', NULL);
+    END IF;
+    SELECT lo.id INTO v_pendiente FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoVerificacionItem' AND lo.nombre = 'PENDIENTE' AND lo.estado = 1 LIMIT 1;
+    IF v_pendiente IS NULL THEN
+        RETURN json_build_object('error', 'Falta el estado de verificación PENDIENTE', 'registro', NULL);
+    END IF;
+
     INSERT INTO age_actividad (
         titulo, descripcion, fecha_programada, hora_inicio_estimada,
         id_tipo_actividad, id_prioridad,
@@ -154,9 +201,23 @@ BEGIN
     )
     RETURNING id INTO v_id_actividad;
 
+    IF v_tipo_origen = 'PRESTAMO' THEN
+        INSERT INTO age_actividad_item (id_actividad, item, id_producto, descripcion, cantidad, id_balon,
+            id_prestamo_detalle, id_estado_verificacion_salida, id_estado_verificacion_llegada,
+            id_usuario_creacion, id_usuario_modificacion)
+        SELECT v_id_actividad, ROW_NUMBER() OVER (ORDER BY pd.id), COALESCE(pd.id_producto, b.id_producto_gas),
+            b.codigo_balon, 1, b.id, pd.id, v_pendiente, v_pendiente, p_id_usuario_auditoria, p_id_usuario_auditoria
+        FROM bal_prestamo_detalle pd JOIN bal_balon b ON b.id = pd.id_balon
+        WHERE pd.id_prestamo = p_id_origen AND pd.estado = 1 AND pd.rol = 'ENTREGADO'
+            AND pd.fecha_devolucion IS NULL AND pd.id_balon = ANY(v_balones);
+        GET DIAGNOSTICS v_items = ROW_COUNT;
+        IF v_items <> cardinality(v_balones) THEN
+            RAISE EXCEPTION 'No se pudo reservar exactamente la selección de balones. Revisa el préstamo.';
+        END IF;
+    END IF;
     RETURN json_build_object(
         'error', NULL,
-        'registro', json_build_object('id', v_id_actividad, 'creada', TRUE, 'items', 0)
+        'registro', json_build_object('id', v_id_actividad, 'creada', TRUE, 'items', v_items)
     );
 END;
 $function$;

@@ -191,3 +191,51 @@ describe('Visualización GRE sin cambiar la emisión', () => {
     expect(client.verificarEmpresaGre).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * La orden de salida es un papel interno: su PDF no puede depender de que
+ * SUNAT esté configurado. Solo la guía de remisión, que sí es tributaria,
+ * exige empresa emisora.
+ */
+describe('PDF A4 sin empresa emisora configurada', () => {
+  function pdfDobles(registro: Record<string, unknown>) {
+    const model = {
+      obtener: jest.fn(() => Promise.resolve({ registro })),
+      obtenerEmpresaEmisora: jest.fn(() => Promise.resolve(null)),
+    };
+    const pdfGenerator = { generarA4: jest.fn(() => Promise.resolve(Buffer.from('%PDF-'))) };
+    const credentials = { withEmpresa: jest.fn((_id: number, op: () => Promise<unknown>) => op()) };
+    const logic = new DocumentosSalidaLogic(
+      model as never, {} as never, credentials as never, {} as never, pdfGenerator as never, {} as never,
+    );
+    return { logic, model, pdfGenerator, credentials };
+  }
+
+  const ordenInterna = {
+    id: 41, numero: '00000041', id_empresa: null,
+    serie: null, numero_sunat: null, ticket_sunat: null, detalle: [],
+  };
+
+  it('genera la orden interna sin membrete en vez de exigir configurar SUNAT', async () => {
+    const { logic, pdfGenerator, credentials } = pdfDobles(ordenInterna);
+    const r = await logic.generarPdf(41);
+    expect(r.filename).toBe('OS-00000041.pdf');
+    expect(pdfGenerator.generarA4).toHaveBeenCalledWith(expect.anything(), null);
+    // Sin empresa no hay credenciales del PSE que cargar.
+    expect(credentials.withEmpresa).not.toHaveBeenCalled();
+  });
+
+  it('la orden interna se imprime aunque la empresa elegida esté inactiva', async () => {
+    const { logic, pdfGenerator } = pdfDobles(ordenInterna);
+    await expect(logic.generarPdf(41, 18)).resolves.toBeDefined();
+    expect(pdfGenerator.generarA4).toHaveBeenCalledWith(expect.anything(), null);
+  });
+
+  it('la guía de remisión sí exige empresa y dice dónde configurarla', async () => {
+    const { logic, pdfGenerator } = pdfDobles({
+      ...ordenInterna, serie: 'T001', numero_sunat: '00000001',
+    });
+    await expect(logic.generarPdf(41, 18)).rejects.toThrow('Configuración → SUNAT');
+    expect(pdfGenerator.generarA4).not.toHaveBeenCalled();
+  });
+});

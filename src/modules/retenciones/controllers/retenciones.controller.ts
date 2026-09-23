@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Header,
   NotFoundException,
   Param,
   ParseIntPipe,
@@ -74,7 +73,6 @@ export class RetencionesController {
   @ApiOperation({ summary: 'Obtener PDF oficial de SUNAT' })
   @ApiProduces('application/pdf')
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  @Header('Content-Type', 'application/pdf')
   async obtenerPdfOficial(@Param('id', ParseIntPipe) id: number) {
     const resultado = await this.logic.obtenerPdfOficial(id);
     if (!resultado) throw new NotFoundException('No hay PDF oficial disponible');
@@ -89,7 +87,6 @@ export class RetencionesController {
   @ApiOperation({ summary: 'Obtener XML oficial de SUNAT' })
   @ApiProduces('application/xml')
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  @Header('Content-Type', 'application/xml')
   async obtenerXmlOficial(@Param('id', ParseIntPipe) id: number) {
     const resultado = await this.logic.obtenerXmlOficial(id);
     if (!resultado) throw new NotFoundException('No hay XML oficial disponible');

@@ -152,6 +152,13 @@ export class ActividadItemDto {
 }
 
 export class CreateActividadDto extends AuditoriaDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idChoferResponsable?: number;
+
   @ApiProperty({ example: 'Visita de seguimiento', maxLength: 150 })
   @ValidateIf((o: CreateActividadDto) => !o.idComprobante && !o.idDocSalida)
   @IsString()
@@ -249,6 +256,13 @@ export class CreateActividadDto extends AuditoriaDto {
 }
 
 export class UpdateActividadDto extends AuditoriaDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idChoferResponsable?: number;
+
   @ApiPropertyOptional({ maxLength: 150 })
   @IsOptional()
   @IsString()
@@ -437,9 +451,23 @@ export class VerificarActividadDto extends AuditoriaDto {
   lecturas!: LecturaVerificacionDto[];
 }
 
-export class FiltroVencidosRecojoDto extends FiltroPaginacionDto {}
+export class FiltroVencidosRecojoDto extends FiltroPaginacionDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  incluirNoVencidos?: boolean;
+}
 
 export class CrearRecojoOrigenDto extends AuditoriaDto {
+  @ApiPropertyOptional({ type: [Number] })
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  idsBalones?: number[];
+
   @ApiProperty({ enum: ['PRESTAMO', 'ALQUILER'], example: 'PRESTAMO' })
   @IsString()
   @IsIn(['PRESTAMO', 'ALQUILER'])

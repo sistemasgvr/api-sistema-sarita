@@ -18,7 +18,8 @@ CREATE OR REPLACE FUNCTION age_crear_actividad(
     p_id_usuario_auditoria integer DEFAULT NULL::integer,
     p_id_comprobante integer DEFAULT NULL::integer,
     p_id_doc_salida integer DEFAULT NULL::integer,
-    p_items json DEFAULT NULL::json
+    p_items json DEFAULT NULL::json,
+    p_id_chofer_responsable integer DEFAULT NULL
 )
 RETURNS json
 LANGUAGE plpgsql
@@ -82,6 +83,7 @@ BEGIN
     END IF;
 
     IF p_id_doc_salida IS NOT NULL THEN
+        PERFORM pg_advisory_xact_lock(hashtext('reparto:orden'), p_id_doc_salida);
         SELECT ds.id_cliente, ds.id_destinatario, ds.serie, ds.numero,
                UPPER(TRIM(ec.nombre))
         INTO v_cliente, v_destinatario, v_serie, v_numero, v_ciclo_os
@@ -115,6 +117,7 @@ BEGIN
             FROM age_actividad a
             LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
             WHERE a.id_doc_salida = p_id_doc_salida
+              AND EXISTS (SELECT 1 FROM gen_lista_opciones ta WHERE ta.id = a.id_tipo_actividad AND UPPER(TRIM(ta.nombre)) = 'REPARTO')
               AND a.estado = 1
               AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN ('CANCELADA', 'CANCELADO')
         ) THEN
@@ -204,11 +207,17 @@ BEGIN
         END IF;
     END IF;
 
+    IF p_id_chofer_responsable IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM gen_chofer WHERE id = p_id_chofer_responsable AND estado = 1
+    ) THEN
+        RETURN json_build_object('registro', NULL, 'error', 'El chofer seleccionado debe estar activo.');
+    END IF;
+
     INSERT INTO age_actividad (
         titulo, descripcion, fecha_programada,
         hora_inicio_estimada, hora_fin_estimada,
         id_tipo_actividad, id_prioridad, id_cliente,
-        id_trabajador_responsable, id_comprobante,
+        id_trabajador_responsable, id_comprobante, id_chofer_responsable,
         id_doc_salida, id_tipo_origen,
         id_estado_actividad, observaciones,
         id_usuario_creacion, id_usuario_modificacion
@@ -218,6 +227,7 @@ BEGIN
         p_hora_inicio_estimada, p_hora_fin_estimada,
         p_id_tipo_actividad, p_id_prioridad, v_cliente,
         p_id_trabajador_responsable, p_id_comprobante,
+        COALESCE(p_id_chofer_responsable, (SELECT id_chofer FROM doc_salida WHERE id = p_id_doc_salida)),
         p_id_doc_salida,
         CASE WHEN p_id_doc_salida IS NOT NULL THEN v_id_tipo_origen ELSE NULL END,
         p_id_estado_actividad, p_observaciones,

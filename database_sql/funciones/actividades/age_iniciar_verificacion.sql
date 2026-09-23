@@ -25,7 +25,7 @@ BEGIN
            a.id_trabajador_responsable
     INTO v_act
     FROM age_actividad a
-    WHERE a.id = p_id_actividad AND a.estado = 1;
+    WHERE a.id = p_id_actividad AND a.estado = 1 FOR UPDATE;
 
     IF v_act.id IS NULL THEN
         RETURN json_build_object('error', 'La actividad no existe', 'registro', NULL);
@@ -89,7 +89,7 @@ BEGIN
         FROM bal_prestamo_detalle pd
         LEFT JOIN bal_balon b ON b.id = pd.id_balon
         WHERE pd.id_prestamo = v_act.id_prestamo
-          AND pd.estado = 1
+          AND pd.estado = 1 AND pd.rol = 'ENTREGADO'
           AND pd.fecha_devolucion IS NULL
           AND pd.id_balon IS NOT NULL;
         GET DIAGNOSTICS v_items = ROW_COUNT;

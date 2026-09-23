@@ -38,7 +38,7 @@ BEGIN
            a.id_trabajador_responsable, a.id_usuario_responsable
     INTO v_act
     FROM age_actividad a
-    WHERE a.id = p_id AND a.estado = 1;
+    WHERE a.id = p_id AND a.estado = 1 FOR UPDATE;
 
     IF v_act.id IS NULL THEN
         RETURN json_build_object('error', 'La actividad no existe o esta anulada', 'registro', NULL);
@@ -152,6 +152,10 @@ BEGIN
             ai.id_prestamo_detalle IS NOT NULL
          OR (ai.id_balon IS NULL AND ai.id_producto IS NOT NULL AND v_act.id_alquiler IS NOT NULL)
       );
+
+    IF v_esperados = 0 THEN
+        RETURN json_build_object('error', 'No hay ítems de devolución para culminar el recojo', 'registro', NULL);
+    END IF;
 
     -- Devuelve cada cilindro al almacén elegido.
     -- Cualquier error de bal_devolver_* aborta con RAISE para revertir

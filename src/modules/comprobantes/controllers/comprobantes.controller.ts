@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  Header,
   Param,
   ParseIntPipe,
   Patch,
@@ -123,7 +122,6 @@ export class ComprobantesController {
   })
   @ApiProduces('application/pdf')
   @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
-  @Header('Content-Type', 'application/pdf')
   async generarPdf(
     @Param('id', ParseIntPipe) id: number,
     @Query() query: PdfComprobanteQueryDto,
