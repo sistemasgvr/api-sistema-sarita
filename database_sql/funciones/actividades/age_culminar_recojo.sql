@@ -168,6 +168,21 @@ BEGIN
         ORDER BY ai.item
     LOOP
         IF v_item.id_prestamo_detalle IS NOT NULL THEN
+            -- TODO: p_nombre_estado_contenido va fijo en 'VACIO'. Si el cilindro
+            -- vuelve con contenido (gas remanente), esto no lo registra ni ajusta
+            -- el stock: bal_prestamo_aplicar_retorno_cilindro recibe el parámetro
+            -- pero nunca lo usa (ver TODO ahí). Falta: (1) capturar el contenido
+            -- real por ítem al verificar la llegada del recojo (age_actividad_item
+            -- no tiene ese dato hoy), y (2) con LLENO, generar un movimiento
+            -- inv_registrar_movimiento(naturaleza=>'PRODUCTO',
+            -- codigo_tipo_movimiento=>'AJUSTE', sentido_ajuste=>'MAS') por el gas
+            -- devuelto. Para referenciar que el ajuste viene de este recojo:
+            -- inv_registrar_movimiento ya soporta p_codigo_tipo_documento_origen +
+            -- p_id_documento_origen (catálogo TipoDocumentoRef), pero ese catálogo
+            -- no tiene 'ACTIVIDAD' ni 'RECOJO' todavía — hay que agregarlo, o
+            -- reutilizar 'PRESTAMO' + id_prestamo como ya hace el movimiento
+            -- ENTRADA_DEVOLUCION del propio cilindro un poco más abajo en la
+            -- cadena (bal_prestamo_aplicar_retorno_cilindro).
             v_dev := bal_devolver_prestamo_detalle(
                 p_id                       => v_item.id_prestamo_detalle,
                 p_fecha_devolucion         => CURRENT_DATE,

@@ -12,6 +12,24 @@ DECLARE
     v_nombre_estado VARCHAR;
     v_id_almacen INTEGER;
     v_id_estado_en_almacen INTEGER;
+    -- TODO: p_nombre_contenido (LLENO/VACIO/DESCONOCIDO) llega pero nunca se usa
+    -- (v_contenido se declara y nunca se asigna). Hoy el cilindro siempre vuelve
+    -- a almacén como si estuviera vacío, sin importar el contenido real: si
+    -- vuelve LLENO no se ajusta el stock del gas que trae adentro.
+    -- Ya no se lleva control de contenido por balón, así que ese dato no sale
+    -- de ningún registro: lo tendría que ingresar el personal a mano al
+    -- culminar el recojo (cantidad remanente por cilindro).
+    -- Falta: (1) un campo en el flujo de culminar recojo donde el personal
+    -- indique la cantidad remanente por ítem con balón (no existe hoy en
+    -- age_actividad_item); (2) con contenido > 0, además del movimiento BALON
+    -- de abajo, registrar un inv_registrar_movimiento(naturaleza=>'PRODUCTO',
+    -- codigo_tipo_movimiento=>'AJUSTE', sentido_ajuste=>'MAS', id_producto=>
+    -- <gas del balón>, cantidad=><la ingresada por el personal>) para que el
+    -- gas remanente entre a pro_stock. Documento origen: ya existe el mecanismo
+    -- (p_codigo_tipo_documento_origen + p_id_documento_origen, ver el mismo
+    -- patrón abajo con 'PRESTAMO'/p_id_prestamo); el catálogo TipoDocumentoRef
+    -- no tiene 'ACTIVIDAD' ni 'RECOJO' aún, así que habría que agregarlo si se
+    -- quiere referenciar la actividad puntual en vez del préstamo.
     v_contenido VARCHAR;
     v_capacidad NUMERIC;
     v_mov JSON;

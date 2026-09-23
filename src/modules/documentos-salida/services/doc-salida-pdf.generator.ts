@@ -19,6 +19,19 @@ interface EmpresaEmisora {
   nombre_comercial?: string | null;
   direccion?: string | null;
 }
+
+/**
+ * Datos de Oxígeno Sarita para el membrete cuando el documento aún no tiene
+ * una empresa emisora configurada. El logo y el rubro son fijos igual que
+ * esto: sin empresa, el PDF sigue saliendo con la identidad del negocio en
+ * vez de un recuadro "EMPRESA" genérico.
+ */
+const EMPRESA_POR_DEFECTO: EmpresaEmisora = {
+  ruc: '10175332796',
+  razon_social: 'Haydee Ruiz de los Santos',
+  nombre_comercial: 'OXIGENO SARITA',
+  direccion: null,
+};
 @Injectable()
 export class DocSalidaPdfGenerator {
   private readonly logger = new Logger(DocSalidaPdfGenerator.name);
@@ -63,7 +76,8 @@ export class DocSalidaPdfGenerator {
 
   /**
    * `empresa` llega en null cuando la orden interna todavía no tiene emisor
-   * configurado: el PDF sale sin membrete en vez de no salir.
+   * configurado: el PDF sale igual, con el membrete de Oxígeno Sarita por
+   * defecto (EMPRESA_POR_DEFECTO) en vez de quedar sin membrete.
    */
   async generarA4(
     doc: DocumentoSalidaCompletoResult,
@@ -93,9 +107,13 @@ export class DocSalidaPdfGenerator {
     const serieNumero = esGre
       ? `${cabecera.serie}-${cabecera.numero_sunat}`
       : cabecera.numero;
+    // Sin empresa emisora el membrete usa los datos de Oxígeno Sarita: el PDF
+    // local siempre representa al negocio, aunque la orden aún no tenga un
+    // emisor SUNAT vinculado.
+    const empresaEfectiva = empresa ?? EMPRESA_POR_DEFECTO;
     const empresaNombre =
-      empresa?.razon_social?.trim() ||
-      empresa?.nombre_comercial?.trim() ||
+      empresaEfectiva.razon_social?.trim() ||
+      empresaEfectiva.nombre_comercial?.trim() ||
       'EMPRESA';
     const logo = await this.cargarLogo();
 
@@ -134,10 +152,10 @@ export class DocSalidaPdfGenerator {
       text('GASES MEDICINALES\nE INDUSTRIALES', left + 106, y + 12, headerWidth - 110, 9, true, muted);
       const companyY = y + Math.max(68, logo ? logo.alto * 94 / LOGO_ANCHO_PT + 8 : 68);
       const companyEnd = text(empresaNombre, left, companyY, headerWidth, 11, true);
-      const addressEnd = text([empresa?.ruc ? `RUC: ${empresa.ruc}` : '', empresa?.direccion].filter(Boolean).join(' · '), left, companyEnd + 5, headerWidth, 8, false, muted);
+      const addressEnd = text([empresaEfectiva.ruc ? `RUC: ${empresaEfectiva.ruc}` : '', empresaEfectiva.direccion].filter(Boolean).join(' · '), left, companyEnd + 5, headerWidth, 8, false, muted);
       const bx = right - 190;
       pdf.roundedRect(bx, y, 190, 96, 5).lineWidth(1.3).strokeColor(ink).stroke();
-      text(empresa?.ruc ? `R.U.C. ${empresa.ruc}` : empresaNombre, bx + 12, y + 12, 166, 10, true);
+      text(empresaEfectiva.ruc ? `R.U.C. ${empresaEfectiva.ruc}` : empresaNombre, bx + 12, y + 12, 166, 10, true);
       line(bx + 12, y + 31, 166);
       text(tituloDoc, bx + 12, y + 42, 166, 12, true);
       line(bx + 12, y + 62, 166);

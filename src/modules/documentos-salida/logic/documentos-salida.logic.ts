@@ -355,6 +355,20 @@ export class DocumentosSalidaLogic {
       });
     }
 
+    // Con ticket PENDIENTE, SUNAT suele resolverlo en segundos: se consulta de
+    // una vez para no dejar al usuario esperando el próximo tick del cron (que
+    // recién revisa tickets nuevos a partir de los 2 minutos). Si la consulta
+    // inmediata falla, la emisión ya quedó guardada y el cron la retoma.
+    if (estadoSunatNombre === 'PENDIENTE') {
+      try {
+        return await this.consultarEstadoParaEmpresa(id, dto);
+      } catch (error) {
+        this.logger.warn(
+          `No se pudo consultar el estado inmediato del ticket recién emitido (doc ${id}): ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
     return {
       documento: actualizado.registro,
       sunat: {
