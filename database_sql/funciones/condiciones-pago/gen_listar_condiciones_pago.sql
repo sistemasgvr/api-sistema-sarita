@@ -53,7 +53,16 @@ BEGIN
               OR gen_texto_coincide(cp.codigo, p_busqueda)
               OR gen_texto_coincide(cp.nombre, p_busqueda)
           )
-        ORDER BY cp.nombre ASC
+        -- Contado primero, luego crédito por días, luego cuotas
+        ORDER BY
+          CASE
+            WHEN COALESCE(cp.numero_cuotas, 0) > 1 THEN 3
+            WHEN COALESCE(cp.dias_credito, 0) > 0 THEN 2
+            ELSE 1
+          END,
+          COALESCE(cp.dias_credito, 0),
+          COALESCE(cp.numero_cuotas, 0),
+          cp.nombre ASC
         LIMIT p_limite
         OFFSET p_offset
     ) t;
