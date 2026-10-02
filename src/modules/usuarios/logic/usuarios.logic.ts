@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   mapActivateResult,
   mapDeleteResult,
@@ -52,6 +52,12 @@ export class UsuariosLogic {
   }
 
   async actualizar(id: number, dto: UpdateUsuarioDto) {
+    if (dto.idTrabajador != null) {
+      const actual = await this.obtenerPorId(id) as { id_trabajador?: number | null };
+      if (actual.id_trabajador && actual.id_trabajador !== dto.idTrabajador) {
+        throw new BadRequestException('El trabajador vinculado no se puede cambiar');
+      }
+    }
     const hash = dto.contrasena
       ? await UsuariosModel.hashPassword(dto.contrasena)
       : null;

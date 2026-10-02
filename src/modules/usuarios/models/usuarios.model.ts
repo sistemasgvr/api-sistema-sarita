@@ -19,17 +19,34 @@ export class UsuariosModel {
     return true;
   }
 
-  listar(filtros: FiltroUsuarioDto) {
-    return this.db.callFunctionJson<AuthListResult>('auth_listar_usuarios', [
+  async listar(filtros: FiltroUsuarioDto) {
+    const result = await this.db.callFunctionJson<AuthListResult>('auth_listar_usuarios', [
       filtros.buscar ?? '',
       filtros.limite ?? 10,
       filtros.offset,
       this.resolveEstadoFiltro(filtros.estado),
     ]);
+    if (result.registros?.length) result.registros = await this.conTrabajador(result.registros);
+    return result;
   }
 
-  obtenerPorId(id: number) {
-    return this.db.callFunctionJson<AuthSingleResult>('auth_obtener_usuario', [id]);
+  async obtenerPorId(id: number) {
+    const result = await this.db.callFunctionJson<AuthSingleResult>('auth_obtener_usuario', [id]);
+    if (result.registro) [result.registro] = await this.conTrabajador([result.registro]);
+    return result;
+  }
+
+  private async conTrabajador<T>(usuarios: T[]): Promise<T[]> {
+    const ids = usuarios.map(usuario => (usuario as { id: number }).id);
+    const { rows } = await this.db.query<{
+      id: number; id_trabajador: number | null; nombre_trabajador: string | null;
+    }>(`SELECT u.id, u.id_trabajador,
+        NULLIF(TRIM(CONCAT_WS(' ', t.nombres, t.apellido_paterno, t.apellido_materno)), '') AS nombre_trabajador
+      FROM auth_usuarios u
+      LEFT JOIN tra_trabajadores t ON t.id = u.id_trabajador
+      WHERE u.id = ANY($1::integer[])`, [ids]);
+    const vinculos = new Map(rows.map(row => [row.id, row]));
+    return usuarios.map(usuario => ({ ...usuario, ...vinculos.get((usuario as { id: number }).id) }));
   }
 
   crear(

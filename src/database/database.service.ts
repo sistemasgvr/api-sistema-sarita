@@ -4,12 +4,14 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { Pool, PoolClient, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
   private readonly logger = new Logger(DatabaseService.name);
   private readonly pool: Pool;
+  private readonly transactionClient = new AsyncLocalStorage<PoolClient>();
 
   constructor(private readonly configService: ConfigService) {
     this.pool = this.createPool();
@@ -102,7 +104,24 @@ export class DatabaseService implements OnModuleDestroy {
     sql: string,
     params?: unknown[],
   ): Promise<QueryResult<T>> {
-    return this.pool.query<T>(sql, params);
+    return (this.transactionClient.getStore() ?? this.pool).query<T>(sql, params);
+  }
+
+  /** Comparte la conexión entre los modelos de una operación compuesta. */
+  async withTransaction<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.transactionClient.getStore()) return operation();
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await this.transactionClient.run(client, operation);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async callFunction<T extends QueryResultRow = QueryResultRow>(

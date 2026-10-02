@@ -48,7 +48,7 @@ export class TrabajadoresController {
   @ApiOperation({ summary: 'Crear trabajador' })
   crear(@Body() dto: CreateTrabajadorDto, @Req() req: AuthRequest) {
     dto.idUsuarioAuditoria = req.user.id;
-    return this.trabajadoresLogic.crear(dto);
+    return this.trabajadoresLogic.crear(dto, req.user.permisos);
   }
 
   @Patch(':id')
@@ -61,7 +61,7 @@ export class TrabajadoresController {
     @Req() req: AuthRequest,
   ) {
     dto.idUsuarioAuditoria = req.user.id;
-    return this.trabajadoresLogic.actualizar(id, dto);
+    return this.trabajadoresLogic.actualizar(id, dto, req.user.permisos);
   }
 
   @Delete(':id')

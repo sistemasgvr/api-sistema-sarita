@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { DatabaseService } from '../../../database/database.service';
+import { PermisoBanderas } from '../../../common/constants/permiso-banderas';
 import {
   mapDeleteResult,
   mapListResult,
@@ -15,6 +17,7 @@ import { CreateUsuarioDto } from '../../usuarios/dto/usuarios.dto';
 import { ChoferesLogic } from '../../choferes/logic/choferes.logic';
 import { CreateChoferDto } from '../../choferes/dto/choferes.dto';
 import { TrabajadoresModel } from '../models/trabajadores.model';
+import { sugerirNombreUsuario } from './nombre-usuario';
 
 type TrabajadorIdentidad = {
   nombres?: string | null;
@@ -34,6 +37,7 @@ export class TrabajadoresLogic {
     private readonly trabajadoresModel: TrabajadoresModel,
     private readonly usuariosLogic: UsuariosLogic,
     private readonly choferesLogic: ChoferesLogic,
+    private readonly db: DatabaseService,
   ) {}
 
   async listar(filtros: FiltroTrabajadorDto) {
@@ -46,7 +50,12 @@ export class TrabajadoresLogic {
     return mapSingleResult(result, `Trabajador ${id} no encontrado`);
   }
 
-  async crear(dto: CreateTrabajadorDto) {
+  async crear(dto: CreateTrabajadorDto, permisosCaller: string[] = []) {
+    this.validarAcceso(dto, permisosCaller);
+    return this.db.withTransaction(() => this.crearConAcceso(dto, permisosCaller));
+  }
+
+  private async crearConAcceso(dto: CreateTrabajadorDto, permisosCaller: string[]) {
     const result = await this.trabajadoresModel.crear(dto);
     const trabajador = mapSingleResult(result, 'No se pudo crear el trabajador');
     const idTrabajador = (trabajador as { id: number }).id;
@@ -57,19 +66,15 @@ export class TrabajadoresLogic {
           'Para crear el usuario de acceso se requiere el correo y el número de documento del trabajador',
         );
       }
-      const nombre = [dto.nombres, dto.apellidoPaterno, dto.apellidoMaterno]
-        .filter((v): v is string => Boolean(v))
-        .join(' ')
-        .trim();
       const usuarioDto: CreateUsuarioDto = {
-        nombre: nombre || dto.nombres || 'Trabajador',
+        nombre: sugerirNombreUsuario(dto.nombres ?? '', dto.apellidoPaterno),
         correo: dto.correo,
         contrasena: dto.numeroDocumento,
         idTrabajador,
         idRol: dto.idRol,
         idUsuarioAuditoria: dto.idUsuarioAuditoria,
       };
-      await this.usuariosLogic.crear(usuarioDto);
+      await this.usuariosLogic.crear(usuarioDto, permisosCaller);
     }
 
     if (dto.esChofer && dto.datosChofer) {
@@ -81,13 +86,33 @@ export class TrabajadoresLogic {
       );
     }
 
-    return trabajador;
+    return this.obtenerPorId(idTrabajador);
   }
 
-  async actualizar(id: number, dto: UpdateTrabajadorDto) {
+  async actualizar(id: number, dto: UpdateTrabajadorDto, permisosCaller: string[] = []) {
+    this.validarAcceso(dto, permisosCaller);
+    return this.db.withTransaction(() => this.actualizarConAcceso(id, dto, permisosCaller));
+  }
+
+  private async actualizarConAcceso(id: number, dto: UpdateTrabajadorDto, permisosCaller: string[]) {
     const result = await this.trabajadoresModel.actualizar(id, dto);
     const trabajador = mapSingleResult(result, `Trabajador ${id} no encontrado`);
     const idTrabajador = (trabajador as { id: number }).id;
+
+    if (dto.crearUsuario) {
+      const actual = await this.obtenerPorId(id);
+      if (actual.id_usuario || actual.es_usuario) {
+        throw new BadRequestException('Este trabajador ya tiene un usuario vinculado');
+      }
+      await this.usuariosLogic.crear({
+        nombre: sugerirNombreUsuario(actual.nombres ?? '', actual.apellido_paterno),
+        correo: dto.correo!,
+        contrasena: dto.numeroDocumento!,
+        idTrabajador,
+        idRol: dto.idRol,
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      }, permisosCaller);
+    }
 
     if (dto.esChofer && dto.datosChofer) {
       // SQL devuelve snake_case (id_chofer); no asumir camelCase del mapSingleResult.
@@ -124,7 +149,17 @@ export class TrabajadoresLogic {
       }
     }
 
-    return trabajador;
+    return this.obtenerPorId(idTrabajador);
+  }
+
+  private validarAcceso(dto: UpdateTrabajadorDto, permisos: string[]) {
+    if (!dto.crearUsuario) return;
+    if (!permisos.includes(PermisoBanderas.AUTH_TODO) && !permisos.includes(PermisoBanderas.USUARIOS_CREAR)) {
+      throw new ForbiddenException('Necesitas permiso para crear usuarios de acceso');
+    }
+    if (!dto.correo?.trim() || !dto.numeroDocumento?.trim() || !dto.idRol) {
+      throw new BadRequestException('Para crear el usuario indica correo, número de documento y rol de acceso');
+    }
   }
 
   async eliminar(id: number, idUsuarioAuditoria?: number) {
