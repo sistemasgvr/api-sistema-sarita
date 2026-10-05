@@ -43,8 +43,14 @@ export class FinanzasLogic {
     return mapListResult(result, filtros);
   }
 
-  async listarSaldosPorTercero(tipo: TipoCuenta, filtros: FiltroSaldosPorTerceroDto) {
-    const result = await this.finanzasModel.listarSaldosPorTercero(tipo, filtros);
+  async listarSaldosPorTercero(
+    tipo: TipoCuenta,
+    filtros: FiltroSaldosPorTerceroDto,
+  ) {
+    const result = await this.finanzasModel.listarSaldosPorTercero(
+      tipo,
+      filtros,
+    );
     const pagina = filtros.pagina ?? 1;
     const limite = filtros.limite ?? 50;
     return ResponseHelper.paginated(result.registros ?? [], {
@@ -64,19 +70,37 @@ export class FinanzasLogic {
 
   async crearCuentaCuotas(tipo: TipoCuenta, dto: CrearCuentaCuotasDto) {
     const result = await this.finanzasModel.crearCuentaCuotas(tipo, dto);
-    const cuenta = mapSingleResult(result, 'No se pudo crear el plan de cuotas');
+    const cuenta = mapSingleResult(
+      result,
+      'No se pudo crear el plan de cuotas',
+    );
     await this.notificarCuentaCreada(tipo, cuenta, dto.idUsuarioAuditoria);
     return cuenta;
   }
 
-  async actualizarCuenta(id: number, tipo: TipoCuenta, dto: ActualizarCuentaDto) {
+  async actualizarCuenta(
+    id: number,
+    tipo: TipoCuenta,
+    dto: ActualizarCuentaDto,
+  ) {
     const result = await this.finanzasModel.actualizarCuenta(id, tipo, dto);
     return mapSingleResult(result, `Cuenta ${id} no encontrada`);
   }
 
-  async eliminarCuenta(id: number, tipo: TipoCuenta, idUsuarioAuditoria?: number) {
-    const result = await this.finanzasModel.eliminarCuenta(id, tipo, idUsuarioAuditoria);
-    const deleted = mapDeleteResult(result, `Cuenta ${id} no encontrada o ya está inactiva`);
+  async eliminarCuenta(
+    id: number,
+    tipo: TipoCuenta,
+    idUsuarioAuditoria?: number,
+  ) {
+    const result = await this.finanzasModel.eliminarCuenta(
+      id,
+      tipo,
+      idUsuarioAuditoria,
+    );
+    const deleted = mapDeleteResult(
+      result,
+      `Cuenta ${id} no encontrada o ya está inactiva`,
+    );
     await this.notificarCuentaEliminada(tipo, id, idUsuarioAuditoria);
     return deleted;
   }
@@ -129,13 +153,29 @@ export class FinanzasLogic {
     const result = await this.finanzasModel.registrarPago(tipo, dto);
     const pago = mapSingleResult(result, 'No se pudo registrar el pago');
 
-    await this.notificarPagoRegistrado(tipo, pago, !!dto.forzarDuplicado, dto.idUsuarioAuditoria);
+    await this.notificarPagoRegistrado(
+      tipo,
+      pago,
+      !!dto.forzarDuplicado,
+      dto.idUsuarioAuditoria,
+    );
     return pago;
   }
 
-  async anularPago(idPago: number, tipo: TipoCuenta, idUsuarioAuditoria?: number) {
-    const result = await this.finanzasModel.anularPago(idPago, tipo, idUsuarioAuditoria);
-    const deleted = mapDeleteResult(result, `Pago ${idPago} no encontrado o ya anulado`);
+  async anularPago(
+    idPago: number,
+    tipo: TipoCuenta,
+    idUsuarioAuditoria?: number,
+  ) {
+    const result = await this.finanzasModel.anularPago(
+      idPago,
+      tipo,
+      idUsuarioAuditoria,
+    );
+    const deleted = mapDeleteResult(
+      result,
+      `Pago ${idPago} no encontrado o ya anulado`,
+    );
     await this.notificarPagoAnulado(tipo, idPago, idUsuarioAuditoria);
     return deleted;
   }
@@ -162,7 +202,10 @@ export class FinanzasLogic {
 
   async crearGarantia(dto: CrearGarantiaDto) {
     const result = await this.finanzasModel.crearGarantia(dto);
-    const garantia = mapSingleResult(result, 'No se pudo registrar la garantía');
+    const garantia = mapSingleResult(
+      result,
+      'No se pudo registrar la garantía',
+    );
     await this.notificarGarantiaCreada(garantia, dto.idUsuarioAuditoria);
     return garantia;
   }
@@ -173,7 +216,10 @@ export class FinanzasLogic {
   }
 
   async eliminarGarantia(id: number, idUsuarioAuditoria?: number) {
-    const result = await this.finanzasModel.eliminarGarantia(id, idUsuarioAuditoria);
+    const result = await this.finanzasModel.eliminarGarantia(
+      id,
+      idUsuarioAuditoria,
+    );
     const deleted = mapDeleteResult(result, `Garantía ${id} no encontrada`);
     await this.notificarGarantiaEliminada(id, idUsuarioAuditoria);
     return deleted;
@@ -264,7 +310,12 @@ export class FinanzasLogic {
         codigoTipo,
         titulo,
         mensaje: `Monto: ${this.formatCurrency(pago?.monto)} · Saldo restante: ${this.formatCurrency(pago?.saldoRestante)}`,
-        payload: { idPago: pago?.id, idCuenta: pago?.idCuenta, tipo, forzadoDuplicado },
+        payload: {
+          idPago: pago?.id,
+          idCuenta: pago?.idCuenta,
+          tipo,
+          forzadoDuplicado,
+        },
         idReferencia: pago?.id,
         tipoReferencia: TipoReferenciaNotificacion.PAGO_FIN,
         claveDedupePrefix: `FIN_PAGO:${pago?.id}`,
@@ -299,7 +350,10 @@ export class FinanzasLogic {
     }
   }
 
-  private async notificarGarantiaCreada(garantia: any, idUsuarioAuditoria?: number) {
+  private async notificarGarantiaCreada(
+    garantia: any,
+    idUsuarioAuditoria?: number,
+  ) {
     try {
       await this.notificacionesLogic.notificarPorPermiso({
         permiso: PermisoBanderas.FINANZAS_GARANTIAS_VER,
@@ -318,7 +372,10 @@ export class FinanzasLogic {
     }
   }
 
-  private async notificarGarantiaReembolsada(garantia: any, idUsuarioAuditoria?: number) {
+  private async notificarGarantiaReembolsada(
+    garantia: any,
+    idUsuarioAuditoria?: number,
+  ) {
     try {
       await this.notificacionesLogic.notificarPorPermiso({
         permiso: PermisoBanderas.FINANZAS_GARANTIAS_VER,
@@ -342,7 +399,10 @@ export class FinanzasLogic {
     }
   }
 
-  private async notificarGarantiaEliminada(idGarantia: number, idUsuarioAuditoria?: number) {
+  private async notificarGarantiaEliminada(
+    idGarantia: number,
+    idUsuarioAuditoria?: number,
+  ) {
     try {
       await this.notificacionesLogic.notificarPorPermiso({
         permiso: PermisoBanderas.FINANZAS_GARANTIAS_VER,
@@ -374,4 +434,3 @@ export class FinanzasLogic {
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
 }
-

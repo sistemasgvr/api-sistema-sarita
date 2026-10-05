@@ -14,7 +14,10 @@ import { MONEY_NUMBER_OPTIONS } from '../../../common/constants/money';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 
 export class RegistrarPagoDto extends AuditoriaDto {
-  @ApiProperty({ example: 12, description: 'ID de la cuenta financiera a abonar' })
+  @ApiProperty({
+    example: 12,
+    description: 'ID de la cuenta financiera a abonar',
+  })
   @Type(() => Number)
   @IsInt()
   idCuenta: number;
@@ -25,33 +28,48 @@ export class RegistrarPagoDto extends AuditoriaDto {
   @IsPositive()
   monto: number;
 
-  @ApiPropertyOptional({ example: '2026-07-24', description: 'Fecha del pago (YYYY-MM-DD)' })
+  @ApiPropertyOptional({
+    example: '2026-07-24',
+    description: 'Fecha del pago (YYYY-MM-DD)',
+  })
   @IsOptional()
   @IsString()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'fechaPago debe tener formato YYYY-MM-DD' })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'fechaPago debe tener formato YYYY-MM-DD',
+  })
   fechaPago?: string;
 
-  @ApiProperty({ example: 1, description: 'ID del medio de pago (obligatorio)' })
+  @ApiProperty({
+    example: 1,
+    description: 'ID del medio de pago (obligatorio)',
+  })
   @Type(() => Number)
   @IsInt()
   idMedioPago!: number;
 
   @ApiPropertyOptional({
     example: 7,
-    description: 'ID de la cuenta bancaria de la empresa afectada (gen_cuenta_bancaria.id)',
+    description:
+      'ID de la cuenta bancaria de la empresa afectada (gen_cuenta_bancaria.id)',
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   idCuentaBancaria?: number;
 
-  @ApiPropertyOptional({ example: 'OP-000123', description: 'N° de operación / N° cheque' })
+  @ApiPropertyOptional({
+    example: 'OP-000123',
+    description: 'N° de operación / N° cheque',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(50)
   numeroOperacion?: string;
 
-  @ApiPropertyOptional({ example: 'Depósito ventanilla', description: 'Referencia adicional' })
+  @ApiPropertyOptional({
+    example: 'Depósito ventanilla',
+    description: 'Referencia adicional',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)

@@ -70,7 +70,10 @@ export class FinanzasModel {
     this.logger.debug(
       `fin_crear_cuenta ← tipo=${JSON.stringify(tipo)} params=${JSON.stringify(params)}`,
     );
-    return this.db.callFunctionJson<AuthSingleResult>('fin_crear_cuenta', params);
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'fin_crear_cuenta',
+      params,
+    );
   }
 
   actualizarCuenta(id: number, tipo: TipoCuenta, dto: ActualizarCuentaDto) {
@@ -98,22 +101,25 @@ export class FinanzasModel {
   }
 
   crearCuentaCuotas(tipo: TipoCuenta, dto: CrearCuentaCuotasDto) {
-    return this.db.callFunctionJson<AuthSingleResult>('fin_crear_cuenta_cuotas', [
-      tipo,
-      dto.idTercero ?? null,
-      dto.terceroNombre ?? null,
-      dto.fechaEmision,
-      dto.montoTotal,
-      dto.numeroCuotas,
-      dto.fechaPrimeraCuota,
-      dto.diaMesPago,
-      dto.descripcion ?? null,
-      dto.observacion ?? null,
-      dto.idBanco ?? null,
-      dto.tasaInteres ?? null,
-      dto.numeroComprobante ?? null,
-      dto.idUsuarioAuditoria ?? null,
-    ]);
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'fin_crear_cuenta_cuotas',
+      [
+        tipo,
+        dto.idTercero ?? null,
+        dto.terceroNombre ?? null,
+        dto.fechaEmision,
+        dto.montoTotal,
+        dto.numeroCuotas,
+        dto.fechaPrimeraCuota,
+        dto.diaMesPago,
+        dto.descripcion ?? null,
+        dto.observacion ?? null,
+        dto.idBanco ?? null,
+        dto.tasaInteres ?? null,
+        dto.numeroComprobante ?? null,
+        dto.idUsuarioAuditoria ?? null,
+      ],
+    );
   }
 
   obtenerCuenta(id: number, tipo: TipoCuenta) {
@@ -178,16 +184,19 @@ export class FinanzasModel {
   }
 
   actualizarGarantia(id: number, dto: ActualizarGarantiaDto) {
-    return this.db.callFunctionJson<AuthSingleResult>('ven_actualizar_garantia_manual', [
-      id,
-      dto.fecha ?? null,
-      dto.idCliente ?? null,
-      dto.idMedioPago ?? null,
-      dto.importe ?? null,
-      dto.observacion ?? null,
-      dto.idUsuarioAuditoria ?? null,
-      dto.idCuentaBancaria ?? null,
-    ]);
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'ven_actualizar_garantia_manual',
+      [
+        id,
+        dto.fecha ?? null,
+        dto.idCliente ?? null,
+        dto.idMedioPago ?? null,
+        dto.importe ?? null,
+        dto.observacion ?? null,
+        dto.idUsuarioAuditoria ?? null,
+        dto.idCuentaBancaria ?? null,
+      ],
+    );
   }
 
   listarGarantias(filtros: FiltroGarantiaDto) {
@@ -206,7 +215,9 @@ export class FinanzasModel {
   }
 
   obtenerGarantia(id: number) {
-    return this.db.callFunctionJson<AuthSingleResult>('ven_obtener_garantia', [id]);
+    return this.db.callFunctionJson<AuthSingleResult>('ven_obtener_garantia', [
+      id,
+    ]);
   }
 
   eliminarGarantia(id: number, idUsuarioAuditoria?: number) {

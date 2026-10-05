@@ -45,7 +45,8 @@ export class FinanzasController {
 
   @Post('verificar-duplicado-pago')
   @ApiOperation({
-    summary: 'Verifica si un pago propuesto podría ser duplicado antes de registrar',
+    summary:
+      'Verifica si un pago propuesto podría ser duplicado antes de registrar',
   })
   verificarDuplicadoPago(@Body() dto: VerificarDuplicadoPagoDto) {
     return this.finanzasLogic.verificarDuplicadoPago(dto);
@@ -56,7 +57,8 @@ export class FinanzasController {
   @Get('garantias')
   @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_VER)
   @ApiOperation({
-    summary: 'Listar garantías operativas (préstamos, alquileres, POS y manuales)',
+    summary:
+      'Listar garantías operativas (préstamos, alquileres, POS y manuales)',
   })
   listarGarantias(@Query() filtros: FiltroGarantiaDto) {
     return this.finanzasLogic.listarGarantias(filtros);
@@ -71,7 +73,9 @@ export class FinanzasController {
 
   @Post('garantias')
   @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_CREAR)
-  @ApiOperation({ summary: 'Registrar una garantía manual (sin préstamo/alquiler/POS)' })
+  @ApiOperation({
+    summary: 'Registrar una garantía manual (sin préstamo/alquiler/POS)',
+  })
   crearGarantia(@Body() dto: CrearGarantiaDto, @Req() req: AuthRequest) {
     dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.crearGarantia(dto);
@@ -80,7 +84,8 @@ export class FinanzasController {
   @Patch('garantias/:id')
   @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_EDITAR)
   @ApiOperation({
-    summary: 'Editar una garantía manual (sin devoluciones ni vínculo operativo)',
+    summary:
+      'Editar una garantía manual (sin devoluciones ni vínculo operativo)',
   })
   actualizarGarantia(
     @Param('id', ParseIntPipe) id: number,
@@ -151,7 +156,9 @@ export class FinanzasController {
 
   @Post('cuentas-por-cobrar')
   @Permisos(PermisoBanderas.FINANZAS_CXC_CREAR)
-  @ApiOperation({ summary: 'Crear una cuenta por cobrar manual (externa a ventas)' })
+  @ApiOperation({
+    summary: 'Crear una cuenta por cobrar manual (externa a ventas)',
+  })
   crearCobrar(@Body() dto: CrearCuentaDto, @Req() req: AuthRequest) {
     dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.crearCuenta('COBRAR', dto);
@@ -163,14 +170,19 @@ export class FinanzasController {
     summary:
       'Crear una cuenta por cobrar con plan de cuotas (venta a plazos, financiamiento, etc.)',
   })
-  crearCobrarCuotas(@Body() dto: CrearCuentaCuotasDto, @Req() req: AuthRequest) {
+  crearCobrarCuotas(
+    @Body() dto: CrearCuentaCuotasDto,
+    @Req() req: AuthRequest,
+  ) {
     dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.crearCuentaCuotas('COBRAR', dto);
   }
 
   @Post('cuentas-por-cobrar/pagos')
   @Permisos(PermisoBanderas.FINANZAS_CXC_REGISTRAR_PAGO)
-  @ApiOperation({ summary: 'Registrar una cobranza sobre una cuenta por cobrar' })
+  @ApiOperation({
+    summary: 'Registrar una cobranza sobre una cuenta por cobrar',
+  })
   registrarCobranza(@Body() dto: RegistrarPagoDto, @Req() req: AuthRequest) {
     dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.registrarPago('COBRAR', dto, req.user.permisos);
@@ -209,7 +221,11 @@ export class FinanzasController {
     @Req() req: AuthRequest,
   ) {
     dto.idUsuarioAuditoria = req.user.id;
-    return this.finanzasLogic.eliminarCuenta(id, 'COBRAR', dto.idUsuarioAuditoria);
+    return this.finanzasLogic.eliminarCuenta(
+      id,
+      'COBRAR',
+      dto.idUsuarioAuditoria,
+    );
   }
 
   // ---------------- Cuentas por Pagar ----------------
@@ -246,7 +262,9 @@ export class FinanzasController {
 
   @Post('cuentas-por-pagar')
   @Permisos(PermisoBanderas.FINANZAS_CXP_CREAR)
-  @ApiOperation({ summary: 'Crear una cuenta por pagar manual (externa a compras)' })
+  @ApiOperation({
+    summary: 'Crear una cuenta por pagar manual (externa a compras)',
+  })
   crearPagar(@Body() dto: CrearCuentaDto, @Req() req: AuthRequest) {
     dto.idUsuarioAuditoria = req.user.id;
     return this.finanzasLogic.crearCuenta('PAGAR', dto);
@@ -304,6 +322,10 @@ export class FinanzasController {
     @Req() req: AuthRequest,
   ) {
     dto.idUsuarioAuditoria = req.user.id;
-    return this.finanzasLogic.eliminarCuenta(id, 'PAGAR', dto.idUsuarioAuditoria);
+    return this.finanzasLogic.eliminarCuenta(
+      id,
+      'PAGAR',
+      dto.idUsuarioAuditoria,
+    );
   }
 }
