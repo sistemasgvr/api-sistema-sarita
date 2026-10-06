@@ -1,4 +1,7 @@
-﻿-- Function: doc_listar_salidas
+-- Listado de documentos de salida: agrega ticket_sunat y gre_estado_envio para que
+-- el menú de la fila ofrezca «Consultar estado SUNAT» y no «Emitir» con un envío abierto.
+BEGIN;
+-- Function: doc_listar_salidas
 -- Source: migraciones/20260908_age_id_doc_salida_y_ordenes_disponibles.sql
 --
 -- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
@@ -216,3 +219,5 @@ BEGIN
 END;
 $function$;
 
+
+COMMIT;

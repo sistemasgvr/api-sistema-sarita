@@ -560,12 +560,16 @@ export class DocumentosSalidaLogic {
 
     const ticket = (doc.registro.ticket_sunat ?? '').trim();
     if (!ticket) {
-      // Sin ticket no hay nada que preguntarle a SUNAT. Si el último envío fue
-      // uno que SUNAT se negó a recibir (4xx) y quedó como pendiente, se
-      // concilia aquí: el intento se cierra y la guía queda lista para reemitir.
+      // Sin ticket no hay nada que preguntarle a SUNAT. Si el último envío
+      // quedó abierto (PENDIENTE / POR_CONFIRMAR) sin ticket, se concilia aquí:
+      // el intento se cierra y la guía queda lista para reemitir. Es seguro
+      // porque el reenvío lleva la misma serie y número, y SUNAT no admite dos
+      // guías con el mismo número: no puede salir un duplicado.
       const motivo =
-        intento && !['ACEPTADO', 'RECHAZADO'].includes(intento.estado)
-          ? motivoEnvioNoRecibido(intento.respuesta)
+        intento && ['PENDIENTE', 'POR_CONFIRMAR', 'ENVIANDO'].includes(intento.estado)
+          ? (motivoEnvioNoRecibido(intento.respuesta) ??
+            `SUNAT no entregó ticket para la guía ${doc.registro.serie}-${doc.registro.numero_sunat} (el PSE no confirmó el envío). ` +
+              'Se libera para reintentar con el mismo número; si el error persiste, revisa las credenciales GRE (client_id/secret y usuario SOL).')
           : null;
       if (!motivo || !intento) {
         throw new BadRequestException(

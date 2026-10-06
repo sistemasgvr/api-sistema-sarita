@@ -145,9 +145,20 @@ describe('Consulta de estado GRE', () => {
     expect(client.consultarEstadoGuiaRemision).not.toHaveBeenCalled();
   });
 
-  it('sin ticket y con un error ambiguo (timeout) no inventa rechazo', async () => {
-    const { logic, model } = build({ nombre_estado_sunat: 'PENDIENTE' });
-    model.obtenerUltimoIntentoGre.mockResolvedValue({ id: 1, id_doc_salida: 39, id_empresa: 18, entorno: 'produccion', estado: 'POR_CONFIRMAR', ticket: null, consultas: 0, respuesta: { error: 'No se pudo confirmar la respuesta del proveedor' } });
+  it('sin ticket y por confirmar (el PSE falló) libera la guía para reintentar con el mismo número', async () => {
+    const { logic, model, client } = build();
+    const respuesta = { error: 'No se pudo confirmar la respuesta del proveedor' };
+    model.obtenerUltimoIntentoGre.mockResolvedValue({ id: 2, id_doc_salida: 39, id_empresa: 18, entorno: 'produccion', estado: 'POR_CONFIRMAR', ticket: null, consultas: 0, respuesta });
+    const r = await logic.consultarEstado(39, {});
+    expect(r.sunat.estado).toBe('RECHAZADO');
+    expect(r.sunat.mensaje).toContain('T001-00000001');
+    expect(model.guardarResultadoIntentoGre).toHaveBeenCalledWith(2, 'RECHAZADO', respuesta);
+    expect(client.consultarEstadoGuiaRemision).not.toHaveBeenCalled();
+  });
+
+  it('sin ticket y con el último intento ya cerrado no hay nada que conciliar', async () => {
+    const { logic, model } = build();
+    model.obtenerUltimoIntentoGre.mockResolvedValue({ id: 1, id_doc_salida: 39, id_empresa: 18, entorno: 'produccion', estado: 'RECHAZADO', ticket: null, consultas: 0, respuesta: {} });
     await expect(logic.consultarEstado(39, {})).rejects.toThrow('no tiene ticket');
     expect(model.guardarResultadoIntentoGre).not.toHaveBeenCalled();
   });
