@@ -87,6 +87,20 @@ describe('Emisión GRE', () => {
     expect(model.guardarResultadoIntentoGre).toHaveBeenCalledWith(1, 'POR_CONFIRMAR', expect.anything());
     expect(client.enviarGuiaRemision).toHaveBeenCalledTimes(1);
   });
+
+  it('un 401 de SUNAT sin ticket cierra el intento como rechazado para poder reemitir', async () => {
+    const { logic, model, client } = build();
+    client.enviarGuiaRemision.mockResolvedValueOnce({
+      hash: 'h',
+      sunatResponse: { success: false, error: { code: 'API', message: '[401] Client error: resulted in a `401 Unauthorized` response:\n{"status":401,"message":"Unauthorized"}' } },
+    } as never);
+    const r = await logic.emitirSunat(39, {});
+    expect(r.sunat.estado).toBe('RECHAZADO');
+    expect(r.sunat.mensaje).toContain('HTTP 401');
+    expect(model.guardarResultadoIntentoGre).toHaveBeenLastCalledWith(1, 'RECHAZADO', expect.anything(), null);
+    expect(model.registrarRespuestaSunat).toHaveBeenCalledWith(39, expect.objectContaining({ codigoEstadoSunat: 'RECHAZADO' }));
+    expect(client.consultarEstadoGuiaRemision).not.toHaveBeenCalled();
+  });
 });
 
 describe('Consulta de estado GRE', () => {
@@ -118,6 +132,24 @@ describe('Consulta de estado GRE', () => {
   it('sin ticket no consulta', async () => {
     const { logic } = build();
     await expect(logic.consultarEstado(39, {})).rejects.toThrow(BadRequestException);
+  });
+
+  it('sin ticket concilia un envío que SUNAT no recibió (quedó pendiente con 401)', async () => {
+    const { logic, model, client } = build({ nombre_estado_sunat: 'PENDIENTE' });
+    const respuesta = { sunatResponse: { success: false, error: { code: 'API', message: '[401] Client error: {"status":401,"message":"Unauthorized"}' } } };
+    model.obtenerUltimoIntentoGre.mockResolvedValue({ id: 1, id_doc_salida: 39, id_empresa: 18, entorno: 'produccion', estado: 'PENDIENTE', ticket: null, consultas: 0, respuesta });
+    const r = await logic.consultarEstado(39, {});
+    expect(r.sunat.estado).toBe('RECHAZADO');
+    expect(r.sunat.mensaje).toContain('HTTP 401 Unauthorized');
+    expect(model.guardarResultadoIntentoGre).toHaveBeenCalledWith(1, 'RECHAZADO', respuesta);
+    expect(client.consultarEstadoGuiaRemision).not.toHaveBeenCalled();
+  });
+
+  it('sin ticket y con un error ambiguo (timeout) no inventa rechazo', async () => {
+    const { logic, model } = build({ nombre_estado_sunat: 'PENDIENTE' });
+    model.obtenerUltimoIntentoGre.mockResolvedValue({ id: 1, id_doc_salida: 39, id_empresa: 18, entorno: 'produccion', estado: 'POR_CONFIRMAR', ticket: null, consultas: 0, respuesta: { error: 'No se pudo confirmar la respuesta del proveedor' } });
+    await expect(logic.consultarEstado(39, {})).rejects.toThrow('no tiene ticket');
+    expect(model.guardarResultadoIntentoGre).not.toHaveBeenCalled();
   });
 
   it('la consulta automática reprograma los errores técnicos sin inventar rechazo', async () => {

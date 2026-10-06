@@ -1,5 +1,5 @@
 import { pdfGreBuffer, xmlGreBuffer } from '../helpers/gre-archivos';
-import { resolverEstadoGre, type GreEstado } from '../helpers/gre-estado';
+import { motivoEnvioNoRecibido, resolverEstadoGre, type GreEstado } from '../helpers/gre-estado';
 import { hoyLima, normalizarPlaca, validarGre } from '../helpers/gre-validacion';
 import {
   BadRequestException,
@@ -53,6 +53,12 @@ interface SunatResponsePayload {
  */
 const ESPERA_CONSULTA_MIN = [2, 5, 15, 30, 60, 120, 240, 480];
 const ESPERA_CONSULTA_MAX_MIN = 24 * 60;
+/**
+ * Pausas (ms) entre las consultas que se hacen justo después de emitir. SUNAT
+ * suele resolver el ticket en pocos segundos; si no, lo retoma el cron.
+ */
+const ESPERA_CONSULTA_INMEDIATA_MS = [1500, 3000, 5000];
+const esperar = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export function proximaConsultaGre(consultasRealizadas: number, desde = new Date()): Date {
   const minutos = ESPERA_CONSULTA_MIN[consultasRealizadas] ?? ESPERA_CONSULTA_MAX_MIN;
@@ -318,7 +324,10 @@ export class DocumentosSalidaLogic {
     }
 
     const sunatResponse = (respuesta.sunatResponse ?? {}) as SunatResponsePayload;
-    const estadoSunatNombre = resolverEstadoGre(sunatResponse);
+    // Un 4xx sin ticket es SUNAT negándose a recibirla (credenciales, permisos):
+    // no queda nada que consultar, así que se cierra el intento y se puede reemitir.
+    const motivoNoRecibido = motivoEnvioNoRecibido(respuesta);
+    const estadoSunatNombre: GreEstado = motivoNoRecibido ? 'RECHAZADO' : resolverEstadoGre(sunatResponse);
     // El intento se cierra antes de tocar el documento: así lo que devuelve
     // doc_registrar_respuesta_sunat (gre_estado_envio) ya es el estado final.
     await this.model.guardarResultadoIntentoGre(
@@ -346,7 +355,7 @@ export class DocumentosSalidaLogic {
         idDoc: id,
         numero: doc.registro.numero,
         estado: 'RECHAZADO',
-        detalle: 'SUNAT rechazó el documento',
+        detalle: motivoNoRecibido ?? 'SUNAT rechazó el documento',
         idUsuarioAuditoria: dto.idUsuarioAuditoria,
       }).catch((notifyError: unknown) => {
         this.logger.warn(
@@ -355,18 +364,26 @@ export class DocumentosSalidaLogic {
       });
     }
 
-    // Con ticket PENDIENTE, SUNAT suele resolverlo en segundos: se consulta de
-    // una vez para no dejar al usuario esperando el próximo tick del cron (que
-    // recién revisa tickets nuevos a partir de los 2 minutos). Si la consulta
-    // inmediata falla, la emisión ya quedó guardada y el cron la retoma.
-    if (estadoSunatNombre === 'PENDIENTE') {
-      try {
-        return await this.consultarEstadoParaEmpresa(id, dto);
-      } catch (error) {
-        this.logger.warn(
-          `No se pudo consultar el estado inmediato del ticket recién emitido (doc ${id}): ${error instanceof Error ? error.message : String(error)}`,
-        );
+    // Con ticket PENDIENTE, SUNAT suele resolverlo en segundos: se consulta
+    // unas veces con pausas cortas para no dejar al usuario esperando el
+    // próximo tick del cron (que recién revisa tickets nuevos a los 2 minutos).
+    // Si sigue en proceso o la consulta falla, la emisión ya quedó guardada y
+    // el cron la retoma.
+    if (estadoSunatNombre === 'PENDIENTE' && sunatResponse.ticket) {
+      let ultimo: Awaited<ReturnType<typeof this.consultarEstadoParaEmpresa>> | null = null;
+      for (const pausa of ESPERA_CONSULTA_INMEDIATA_MS) {
+        await esperar(pausa);
+        try {
+          ultimo = await this.consultarEstadoParaEmpresa(id, dto);
+        } catch (error) {
+          this.logger.warn(
+            `No se pudo consultar el estado inmediato del ticket recién emitido (doc ${id}): ${error instanceof Error ? error.message : String(error)}`,
+          );
+          break;
+        }
+        if (ultimo.sunat.estado !== 'PENDIENTE') break;
       }
+      if (ultimo) return ultimo;
     }
 
     return {
@@ -377,6 +394,7 @@ export class DocumentosSalidaLogic {
         hash: respuesta.hash ?? null,
         ticket: sunatResponse.ticket ?? null,
         respuesta: respuesta.sunatResponse ?? null,
+        mensaje: motivoNoRecibido,
       },
     };
   }
@@ -538,16 +556,38 @@ export class DocumentosSalidaLogic {
       );
     }
 
+    const intento = await this.model.obtenerUltimoIntentoGre(id);
+
     const ticket = (doc.registro.ticket_sunat ?? '').trim();
     if (!ticket) {
-      throw new BadRequestException(
-        'El documento no tiene ticket SUNAT. Emite primero para obtener el ticket y luego consulta el estado.',
-      );
+      // Sin ticket no hay nada que preguntarle a SUNAT. Si el último envío fue
+      // uno que SUNAT se negó a recibir (4xx) y quedó como pendiente, se
+      // concilia aquí: el intento se cierra y la guía queda lista para reemitir.
+      const motivo =
+        intento && !['ACEPTADO', 'RECHAZADO'].includes(intento.estado)
+          ? motivoEnvioNoRecibido(intento.respuesta)
+          : null;
+      if (!motivo || !intento) {
+        throw new BadRequestException(
+          'El documento no tiene ticket SUNAT. Emite primero para obtener el ticket y luego consulta el estado.',
+        );
+      }
+      await this.model.guardarResultadoIntentoGre(intento.id, 'RECHAZADO', intento.respuesta);
+      const conciliado = await this.model.registrarRespuestaSunat(id, {
+        codigoEstadoSunat: 'RECHAZADO',
+        idUsuarioAuditoria: dto.idUsuarioAuditoria,
+      });
+      if (conciliado.error) {
+        throw new BadRequestException(conciliado.error);
+      }
+      return {
+        documento: conciliado.registro,
+        sunat: { estado: 'RECHAZADO' as GreEstado, entorno: intento.entorno, respuesta: intento.respuesta, mensaje: motivo },
+      };
     }
 
     // Un ticket se consulta en el entorno donde se emitió. Si la empresa
     // cambió de entorno en el PSE, el resultado no sería el de esa guía.
-    const intento = await this.model.obtenerUltimoIntentoGre(id);
     if (intento?.entorno) {
       const empresa = await this.obtenerEmpresaEmisoraResuelta(doc.registro.id_empresa);
       const verificacion = await this.facturacionClient.verificarEmpresaGre(empresa.ruc);
@@ -599,7 +639,7 @@ export class DocumentosSalidaLogic {
 
     return {
       documento: actualizado.registro,
-      sunat: { estado: estadoSunatNombre, entorno: intento?.entorno ?? null, respuesta },
+      sunat: { estado: estadoSunatNombre, entorno: intento?.entorno ?? null, respuesta, mensaje: null as string | null },
     };
   }
 

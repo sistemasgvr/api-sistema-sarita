@@ -1,4 +1,4 @@
-import { resolverEstadoGre } from './gre-estado';
+import { motivoEnvioNoRecibido, resolverEstadoGre } from './gre-estado';
 
 describe('estado GRE basado en evidencia de SUNAT', () => {
   it.each([
@@ -26,5 +26,36 @@ describe('estado GRE basado en evidencia de SUNAT', () => {
     ['texto', 'PENDIENTE'],
   ])('clasifica %j como %s', (response, expected) => {
     expect(resolverEstadoGre(response)).toBe(expected);
+  });
+});
+
+describe('envío que SUNAT no recibió', () => {
+  // Respuesta real de producción (2026-10-06): credenciales OAuth/SOL rechazadas.
+  const sin401 = {
+    sunatResponse: {
+      success: false,
+      error: {
+        code: 'API',
+        message:
+          '[401] Client error: `POST https://api-cpe.sunat.gob.pe/v1/contribuyente/gem/comprobantes/10175332796-31-V001-1` ' +
+          'resulted in a `401 Unauthorized` response:\n{"status":401,"message":"Unauthorized"}\n\n',
+      },
+    },
+  };
+
+  it('un 4xx sin ticket no fue recibido y explica qué revisar', () => {
+    const motivo = motivoEnvioNoRecibido(sin401);
+    expect(motivo).toContain('HTTP 401 Unauthorized');
+    expect(motivo).toContain('usuario SOL');
+  });
+
+  it.each([
+    [{ sunatResponse: { success: false, error: { message: 'timeout' } } }],
+    [{ sunatResponse: { success: false, error: { message: '[500] Server error' } } }],
+    [{ sunatResponse: { success: true, ticket: 'abc', error: { message: '[401] x' } } }],
+    [{ sunatResponse: { success: true } }],
+    [null],
+  ])('no lo da por no recibido si es ambiguo o hay ticket: %j', (response) => {
+    expect(motivoEnvioNoRecibido(response)).toBeNull();
   });
 });

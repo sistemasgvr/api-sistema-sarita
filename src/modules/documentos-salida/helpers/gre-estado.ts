@@ -27,3 +27,27 @@ export function resolverEstadoGre(response: unknown): GreEstado {
   // ni rechazo: conservar pendiente y consultar, nunca reenviar automáticamente.
   return 'PENDIENTE';
 }
+
+/**
+ * Motivo por el que SUNAT no recibió el envío, o null si pudo recibirlo.
+ *
+ * Solo cuenta un envío sin ticket cuyo error es una respuesta HTTP 4xx del API
+ * de SUNAT (p. ej. «[401] … Unauthorized» por credenciales OAuth/SOL): SUNAT
+ * contestó y rechazó la petición, así que no hay guía que consultar ni riesgo de
+ * duplicarla al reenviar. Timeouts, 5xx o respuestas vacías siguen siendo
+ * ambiguos y quedan PENDIENTE.
+ */
+export function motivoEnvioNoRecibido(response: unknown): string | null {
+  const root = object(response);
+  const result = root.sunatResponse ? object(root.sunatResponse) : root;
+  if (code(result.ticket) || code(root.ticket)) return null;
+  const mensaje = object(result.error).message;
+  if (typeof mensaje !== 'string') return null;
+  const http = /\[(4\d\d)\]/.exec(mensaje);
+  if (!http) return null;
+  const detalle = /"message"\s*:\s*"([^"]+)"/.exec(mensaje)?.[1];
+  return `SUNAT no recibió la guía (HTTP ${http[1]}${detalle ? ` ${detalle}` : ''}). ` +
+    (http[1] === '401' || http[1] === '403'
+      ? 'Revisa el client_id/secret GRE y que el usuario SOL tenga permiso de guías; luego vuelve a emitir.'
+      : 'Corrige el problema y vuelve a emitir.');
+}

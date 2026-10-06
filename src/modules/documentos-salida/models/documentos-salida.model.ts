@@ -40,6 +40,8 @@ export interface IntentoGrePendiente {
   estado: string;
   ticket: string | null;
   consultas: number;
+  /** Respuesta del envío (o de la última consulta); solo la trae obtenerUltimoIntentoGre. */
+  respuesta?: unknown;
 }
 
 @Injectable()
@@ -157,7 +159,7 @@ export class DocumentosSalidaModel {
   async obtenerUltimoIntentoGre(id: number): Promise<IntentoGrePendiente | null> {
     const result = await this.db.query<IntentoGrePendiente>(
       `SELECT i.id, i.id_doc_salida, i.id_empresa, i.entorno, i.estado, i.consultas,
-              NULLIF(TRIM(d.ticket_sunat), '') AS ticket
+              NULLIF(TRIM(d.ticket_sunat), '') AS ticket, i.respuesta - 'xml' AS respuesta
        FROM doc_gre_intento i JOIN doc_salida d ON d.id = i.id_doc_salida
        WHERE i.id_doc_salida = $1 ORDER BY i.id DESC LIMIT 1`,
       [id],
