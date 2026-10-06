@@ -48,6 +48,14 @@ export class ProductosModel {
     );
   }
 
+  /** Siguiente código de barras interno; con idProducto lo asigna si el producto no tiene. */
+  generarCodigoBarra(idProducto?: number | null) {
+    return this.db.callFunctionJson<AuthSingleResult<{ codigo_barra: string }>>(
+      'pro_generar_codigo_barra',
+      [idProducto ?? null],
+    );
+  }
+
   generarCodigoProducto(prefijo?: string | null) {
     return this.db.callFunctionJson<AuthSingleResult<{ codigo: string }>>(
       'pro_generar_codigo_producto',

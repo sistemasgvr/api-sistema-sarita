@@ -111,12 +111,23 @@ export class ProductosLogic {
     return mapSingleResult(result, `Producto ${id} no encontrado`);
   }
 
-  /** Etiqueta 50 × 25 mm del producto (logo, código de barras, nombre, categoría y código). */
+  /**
+   * Etiqueta 50 × 25 mm del producto (logo, código de barras, nombre y categoría).
+   * Si el producto aún no tiene código de barras se le genera y guarda uno, para
+   * que lo impreso sea lo mismo que el POS encuentra al escanear.
+   */
   async generarEtiquetaPdf(id: number) {
     const producto = mapSingleResult(
       await this.productosModel.obtenerEtiqueta(id),
       `Producto ${id} no encontrado`,
     );
+    if (!producto.codigo_barra?.trim()) {
+      const generado = mapSingleResult(
+        await this.productosModel.generarCodigoBarra(id),
+        'No se pudo generar el código de barras del producto',
+      );
+      producto.codigo_barra = generado.codigo_barra;
+    }
     const buffer = await this.etiquetaPdfGenerator.generar(producto);
     return { buffer, filename: `ETIQUETA-${producto.codigo.trim() || id}.pdf` };
   }
@@ -128,6 +139,11 @@ export class ProductosLogic {
       dto.idProducto ?? null,
     );
     return mapSingleResult(result, 'No se pudo generar el código de ubicación');
+  }
+
+  async generarCodigoBarra() {
+    const result = await this.productosModel.generarCodigoBarra();
+    return mapSingleResult(result, 'No se pudo generar el código de barras');
   }
 
   async generarCodigoProducto(dto: GenerarCodigoProductoDto) {

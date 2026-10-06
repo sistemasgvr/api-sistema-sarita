@@ -54,6 +54,16 @@ export class ProductosController {
     return this.productosLogic.generarCodigoProducto(dto);
   }
 
+  @Post('codigo-barra/generar')
+  @Permisos(PermisoBanderas.PRODUCTOS_LISTAR)
+  @ApiOperation({
+    summary:
+      'Generar siguiente código de barras interno (EAN-13 «20…», solo dígitos). No lo asigna.',
+  })
+  generarCodigoBarra() {
+    return this.productosLogic.generarCodigoBarra();
+  }
+
   @Post('codigo-ubicacion/generar')
   @Permisos(PermisoBanderas.PRODUCTOS_LISTAR)
   @ApiOperation({

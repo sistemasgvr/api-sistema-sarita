@@ -5,7 +5,6 @@ import {
   dibujarCabeceraEtiqueta,
   escribirDato,
   ETIQUETA_ANCHO_UTIL_PT,
-  ETIQUETA_FILA_DATOS_PT,
   ETIQUETA_MARGEN_PT,
   MM,
 } from '../../../common/helpers/etiqueta-pdf.helper';
@@ -19,9 +18,10 @@ export interface ProductoEtiquetaDatos {
 }
 
 /**
- * Etiqueta 50 × 25 mm del producto: logo, código de barras y debajo nombre,
- * categoría/subcategoría y código. Las barras llevan el `codigo_barra` del
- * producto (el que lee el POS); si no tiene, el código interno.
+ * Etiqueta 50 × 25 mm del producto: logo, código de barras con su número debajo,
+ * y luego nombre y categoría/subcategoría. Las barras y el número impreso son el
+ * `codigo_barra` (lo que busca el POS al escanear), no el código interno
+ * PRO-001; la lógica le asigna uno al producto antes de imprimir si no tiene.
  */
 @Injectable()
 export class ProductoEtiquetaPdfGenerator {
@@ -52,8 +52,6 @@ export class ProductoEtiquetaPdfGenerator {
       .filter(Boolean)
       .join(' / ');
     escribirDato(doc, 'Cat.:', categoria || '—', x0, y, ancho, 5.5 * MM);
-    y += ETIQUETA_FILA_DATOS_PT;
-    escribirDato(doc, 'Cód.:', codigo || '—', x0, y, ancho, 5.5 * MM);
 
     doc.end();
     return terminado;
