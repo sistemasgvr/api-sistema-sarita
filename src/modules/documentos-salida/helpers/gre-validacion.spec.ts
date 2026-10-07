@@ -1,4 +1,4 @@
-import { hoyLima, nombresChofer, normalizarPlaca, soloErrores, validarGre } from './gre-validacion';
+import { hoyLima, nombresChofer, normalizarPlaca, normalizarLicencia, soloErrores, validarGre } from './gre-validacion';
 import type { DocumentoSalidaRegistro, EmpresaEmisora } from '../interfaces/documento-salida.interface';
 
 const HOY = '2026-09-16';
@@ -68,6 +68,15 @@ describe('Prevalidación GRE', () => {
     expect(normalizarPlaca('ANC-123')).toBe('ANC123');
     expect(codigos(cabecera({ placa_vehiculo: 'A-1' }))).toEqual(['error:PLACA_FORMATO']);
     expect(codigos(cabecera({ placa_vehiculo: null }))).toEqual(['error:PLACA']);
+  });
+
+  it('licencia: acepta separadores de presentación, conserva ceros y no inventa datos', () => {
+    expect(normalizarLicencia(' q - 00123456 ')).toBe('Q00123456');
+    expect(normalizarLicencia(normalizarLicencia(' c–95824269 '))).toBe('C95824269');
+    expect(codigos(cabecera({ licencia_chofer: ' c-95824269 ' }))).toEqual([]);
+    expect(codigos(cabecera({ licencia_chofer: ' - – ' }))).toEqual(['error:CHOFER_LICENCIA']);
+    expect(codigos(cabecera({ licencia_chofer: 'C/95824269' }))).toEqual(['error:CHOFER_LICENCIA_FORMATO']);
+    expect(codigos(cabecera({ licencia_chofer: 'C95824269123' }))).toEqual(['error:CHOFER_LICENCIA_FORMATO']);
   });
 
   it('transporte público exige RUC del transportista y no chofer', () => {

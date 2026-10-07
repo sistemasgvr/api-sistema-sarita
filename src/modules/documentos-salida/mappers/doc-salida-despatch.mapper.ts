@@ -4,6 +4,7 @@ import {
   esFlotaPropia,
   nombresChofer,
   normalizarPlaca,
+  normalizarLicencia,
   soloErrores,
   validarGre,
   type ContextoValidacionGre,
@@ -74,7 +75,7 @@ export class DocSalidaDespatchMapper {
       // La placa impresa puede incluir guion; GRE recibe su identificador sin separadores.
       const placa = normalizarPlaca(cabecera.placa_vehiculo);
       const docChofer = (cabecera.documento_chofer ?? '').trim();
-      const licencia = (cabecera.licencia_chofer ?? '').trim();
+      const licencia = normalizarLicencia(cabecera.licencia_chofer);
       const nombres = nombresChofer(cabecera);
 
       envio.vehiculo = { placa };

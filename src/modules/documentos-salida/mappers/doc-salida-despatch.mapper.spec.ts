@@ -58,6 +58,17 @@ describe('GRE con chofer y vehículo', () => {
     expect(() => mapper.mapToDespatchPayload(doc, EMPRESA, { hoy: HOY })).toThrow('licencia');
   });
 
+  it.each(['C-95824269', ' c 95824269 ', 'c–95824269', 'C95824269'])('envía la licencia %s normalizada y mantiene el dato original', licencia => {
+    const doc = fixture({ licencia_chofer: licencia });
+    const result = mapper.mapToDespatchPayload(doc, EMPRESA, { hoy: HOY });
+    expect(result.envio).toMatchObject({ choferes: [{ licencia: 'C95824269' }] });
+    expect(doc.registro?.licencia_chofer).toBe(licencia);
+  });
+
+  it.each(['C/95824269', 'C.95824269', 'C95824269123'])('bloquea la licencia inválida %s antes de enviar', licencia => {
+    expect(() => mapper.mapToDespatchPayload(fixture({ licencia_chofer: licencia }), EMPRESA, { hoy: HOY })).toThrow('solo letras y números');
+  });
+
   it('envía nombres y apellidos estructurados (nombres compuestos intactos)', () => {
     const result = mapper.mapToDespatchPayload(fixture(), EMPRESA, { hoy: HOY });
     expect((result.envio as { choferes: unknown[] }).choferes[0]).toEqual(

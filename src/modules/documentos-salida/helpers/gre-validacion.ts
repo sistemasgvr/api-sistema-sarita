@@ -18,6 +18,7 @@ const RE_FECHA = /^\d{4}-\d{2}-\d{2}/;
 const RE_UBIGEO = /^\d{6}$/;
 const RE_RUC = /^\d{11}$/;
 const RE_PLACA = /^[A-Z0-9]{6,7}$/;
+const RE_LICENCIA = /^[A-Z0-9]{1,10}$/;
 
 export interface ContextoValidacionGre {
   /** Fecha de hoy en Lima (YYYY-MM-DD); inyectable para pruebas. */
@@ -31,6 +32,11 @@ export function hoyLima(now = new Date()): string {
 
 export function normalizarPlaca(placa?: string | null): string {
   return (placa ?? '').replace(/[\s-]/g, '').toUpperCase();
+}
+
+/** Quita solo separadores de presentación; conserva letras, números y ceros iniciales. */
+export function normalizarLicencia(licencia?: string | null): string {
+  return (licencia ?? '').replace(/[\s\-\u2010-\u2015\u2212]/g, '').toUpperCase();
 }
 
 function texto(value?: string | null): string {
@@ -206,10 +212,13 @@ export function validarGre(
       if (!texto(cabecera.documento_chofer)) {
         error('CHOFER_DOC', 'idChofer', 'El chofer no tiene número de documento');
       }
-      const licencia = texto(cabecera.licencia_chofer);
+      const licencia = normalizarLicencia(cabecera.licencia_chofer);
       if (!licencia) {
         error('CHOFER_LICENCIA', 'idChofer', 'El chofer seleccionado no tiene licencia activa registrada');
       } else {
+        if (!RE_LICENCIA.test(licencia)) {
+          error('CHOFER_LICENCIA_FORMATO', 'idChofer', 'La licencia del conductor debe contener solo letras y números, con un máximo de 10 caracteres. Revisa el número en Configuración → Choferes → Licencias. Los espacios y guiones se eliminan automáticamente al enviar.');
+        }
         const vence = fecha(cabecera.licencia_chofer_vencimiento);
         if (vence && vence < hoy) {
           error('CHOFER_LICENCIA_VENCIDA', 'idChofer', `La licencia ${licencia} del chofer venció el ${vence}`);

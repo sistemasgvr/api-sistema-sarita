@@ -1,7 +1,7 @@
 import { pdfGreBuffer, xmlGreBuffer } from '../helpers/gre-archivos';
 import { interpretarGre, mensajeGre } from '../../../common/helpers/gre-mensaje.helper';
 import { motivoEnvioNoRecibido, resolverEstadoGre, type GreEstado } from '../helpers/gre-estado';
-import { hoyLima, normalizarPlaca, validarGre } from '../helpers/gre-validacion';
+import { hoyLima, normalizarPlaca, normalizarLicencia, validarGre } from '../helpers/gre-validacion';
 import {
   BadRequestException,
   Injectable,
@@ -481,7 +481,7 @@ export class DocumentosSalidaLogic {
       fechaEmisionGre: cabecera.fecha_emision_gre?.slice(0, 10) ?? null,
       fechaTraslado: cabecera.fecha_traslado?.slice(0, 10) ?? null,
       chofer: flotaPropia ? cabecera.nombre_chofer : null,
-      licencia: flotaPropia ? cabecera.licencia_chofer : null,
+      licencia: flotaPropia ? normalizarLicencia(cabecera.licencia_chofer) : null,
       placa: flotaPropia ? normalizarPlaca(cabecera.placa_vehiculo) || null : null,
       transportista: flotaPropia ? null : cabecera.nombre_transportista,
       destinatario: cabecera.nombre_destinatario ?? cabecera.nombre_cliente ?? cabecera.nombre_proveedor ?? null,
