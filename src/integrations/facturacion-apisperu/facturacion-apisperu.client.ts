@@ -1,4 +1,5 @@
 import { HttpService } from '@nestjs/axios';
+import { mensajeGre } from '../../common/helpers/gre-mensaje.helper';
 import {
   BadGatewayException,
   BadRequestException,
@@ -282,24 +283,7 @@ export class FacturacionApisperuClient {
       );
     }
 
-    try {
-      return await this.request<FacturacionApisperuDocumentResponse>(
-        'POST',
-        '/despatch/send',
-        payload,
-      );
-    } catch (error: unknown) {
-      // APIsPERU responde 500 "Error al comunicarse con el servidor interno"
-      // cuando su llamada a SUNAT (OAuth GRE) falla: el mensaje no dice nada
-      // y el usuario revisa el payload en vano. Se le agrega el motivo más
-      // probable a partir de cómo está configurada la empresa en el PSE.
-      if (error instanceof BadGatewayException) {
-        throw new BadGatewayException(
-          `${error.message}${this.diagnosticoEntornoGre(estado)}`,
-        );
-      }
-      throw error;
-    }
+    return this.request<FacturacionApisperuDocumentResponse>('POST', '/despatch/send', payload);
   }
 
   /**
@@ -358,25 +342,6 @@ export class FacturacionApisperuClient {
 
   retencionXml(payload: FacturacionApisperuPayload) {
     return this.documentoXmlBase64('/retention/xml', payload);
-  }
-
-  private diagnosticoEntornoGre(estado: GreEmpresaVerificacion): string {
-    if (estado.entorno === 'beta' && !estado.esCredencialPrueba) {
-      return (
-        ` — La empresa está en entorno BETA del PSE (GRE contra ${estado.apiCpeUrl || 'gre-test.nubefact.com'}), ` +
-        'que solo acepta las credenciales OAuth de prueba de SUNAT. Usa «Sincronizar configuración GRE» en Configuración → SUNAT ' +
-        'o cambia la empresa a PRODUCCIÓN en APIsPERU para usar el client_id generado en SOL.'
-      );
-    }
-    if (estado.entorno === 'produccion' && estado.esCredencialPrueba) {
-      return (
-        ' — La empresa está en PRODUCCIÓN pero el client_id GRE es el de prueba (test-…). ' +
-        'Genera las credenciales reales en SUNAT SOL (Empresas → Comprobantes de pago → Credenciales API) y regístralas en Configuración → SUNAT.'
-      );
-    }
-    return estado.entornoNombre
-      ? ` — Revisa en APIsPERU las credenciales OAuth GRE de la empresa (entorno ${estado.entornoNombre}).`
-      : '';
   }
 
   private normalizarEntorno(nombre: string | null | undefined): GreEntorno | null {
@@ -814,7 +779,9 @@ export class FacturacionApisperuClient {
 
       if (response.status === 401) {
         throw new UnauthorizedException(
-          'Credenciales inválidas en el servicio de facturación electrónica',
+          path.startsWith('/despatch/')
+            ? 'El PSE no aceptó sus credenciales de acceso. Revisa el token o usuario y clave del proveedor en Configuración → SUNAT.'
+            : 'Credenciales inválidas en el servicio de facturación electrónica',
         );
       }
 
@@ -823,7 +790,7 @@ export class FacturacionApisperuClient {
           `APIsPERU 400 ${method} ${path}: ${this.safeJson(response.data)}`,
         );
         throw new BadRequestException(
-          this.formatValidationErrors(response.data),
+          path.startsWith('/despatch/') ? mensajeGre(response.data, 'RECHAZADO') : this.formatValidationErrors(response.data),
         );
       }
 
@@ -832,7 +799,9 @@ export class FacturacionApisperuClient {
           `APIsPERU ${response.status} ${method} ${path}: ${this.safeJson(response.data)}`,
         );
         throw new BadGatewayException(
-          `APIsPERU Facturación respondió con estado ${response.status}`,
+          path.startsWith('/despatch/')
+            ? mensajeGre({ error: { message: `[${response.status}] ${this.extractProviderErrorMessage(response.data) ?? (response.status === 403 ? 'Forbidden' : 'Error del servicio')}` } }, 'POR_CONFIRMAR')
+            : `APIsPERU Facturación respondió con estado ${response.status}`,
         );
       }
 
@@ -860,7 +829,9 @@ export class FacturacionApisperuClient {
         axiosError.response?.data,
       );
       throw new BadGatewayException(
-        providerMessage
+        path.startsWith('/despatch/')
+          ? mensajeGre({ error: providerMessage || 'No se pudo comunicar con el servicio de facturación electrónica' }, 'POR_CONFIRMAR')
+          : providerMessage
           ? `APIsPERU Facturación: ${providerMessage}`
           : 'No se pudo comunicar con el servicio de facturación electrónica',
       );

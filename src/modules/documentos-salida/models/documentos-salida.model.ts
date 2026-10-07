@@ -211,12 +211,13 @@ export class DocumentosSalidaModel {
     const result = await this.db.query<GreIntentoRegistro>(
       `SELECT i.id, i.estado, i.entorno, i.id_empresa, i.ruc_emisor, i.consultas,
               i.proxima_consulta, i.creado, i.actualizado, i.respuesta,
-              NULLIF(TRIM(d.ticket_sunat), '') AS ticket,
+              COALESCE(NULLIF(TRIM(i.respuesta #>> '{sunatResponse,ticket}'), ''),
+                       NULLIF(TRIM(i.respuesta ->> 'ticket'), '')) AS ticket,
               COALESCE((
                 SELECT json_agg(json_build_object('id', c.id, 'creado', c.creado, 'respuesta', c.respuesta) ORDER BY c.id)
                 FROM doc_gre_consulta c WHERE c.id_intento = i.id
               ), '[]'::json) AS consultas_detalle
-       FROM doc_gre_intento i JOIN doc_salida d ON d.id = i.id_doc_salida
+       FROM doc_gre_intento i
        WHERE i.id_doc_salida = $1 ORDER BY i.id DESC`,
       [id],
     );

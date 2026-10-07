@@ -1,4 +1,5 @@
 import { pdfGreBuffer, xmlGreBuffer } from '../helpers/gre-archivos';
+import { interpretarGre, mensajeGre } from '../../../common/helpers/gre-mensaje.helper';
 import { motivoEnvioNoRecibido, resolverEstadoGre, type GreEstado } from '../helpers/gre-estado';
 import { hoyLima, normalizarPlaca, validarGre } from '../helpers/gre-validacion';
 import {
@@ -355,7 +356,7 @@ export class DocumentosSalidaLogic {
         idDoc: id,
         numero: doc.registro.numero,
         estado: 'RECHAZADO',
-        detalle: motivoNoRecibido ?? 'SUNAT rechazó el documento',
+        detalle: mensajeGre(respuesta, estadoSunatNombre),
         idUsuarioAuditoria: dto.idUsuarioAuditoria,
       }).catch((notifyError: unknown) => {
         this.logger.warn(
@@ -394,7 +395,8 @@ export class DocumentosSalidaLogic {
         hash: respuesta.hash ?? null,
         ticket: sunatResponse.ticket ?? null,
         respuesta: respuesta.sunatResponse ?? null,
-        mensaje: motivoNoRecibido,
+        mensaje: mensajeGre(respuesta, estadoSunatNombre),
+        diagnostico: interpretarGre(respuesta, estadoSunatNombre),
       },
     };
   }
@@ -490,7 +492,12 @@ export class DocumentosSalidaLogic {
   async historialGre(id: number) {
     const doc = await this.model.obtener(id);
     if (!doc.registro) throw new NotFoundException('Documento de salida no encontrado');
-    return { intentos: await this.model.listarHistorialGre(id) };
+    const intentos = await this.model.listarHistorialGre(id);
+    return { intentos: intentos.map(intento => {
+      const consultas = intento.consultas_detalle ?? [];
+      const ultima = consultas[consultas.length - 1];
+      return { ...intento, diagnostico: interpretarGre(ultima?.respuesta ?? intento.respuesta, intento.estado) };
+    }) };
   }
 
   async consultarEstado(id: number, dto: AuditoriaDto) {
@@ -632,7 +639,7 @@ export class DocumentosSalidaLogic {
         idDoc: id,
         numero: doc.registro.numero,
         estado: 'RECHAZADO',
-        detalle: 'SUNAT rechazó el documento (consulta de estado)',
+        detalle: mensajeGre(respuesta, estadoSunatNombre),
         idUsuarioAuditoria: dto.idUsuarioAuditoria,
       }).catch((notifyError: unknown) => {
         this.logger.warn(
@@ -643,7 +650,8 @@ export class DocumentosSalidaLogic {
 
     return {
       documento: actualizado.registro,
-      sunat: { estado: estadoSunatNombre, entorno: intento?.entorno ?? null, respuesta, mensaje: null as string | null },
+      sunat: { estado: estadoSunatNombre, entorno: intento?.entorno ?? null, respuesta,
+        mensaje: mensajeGre(respuesta, estadoSunatNombre), diagnostico: interpretarGre(respuesta, estadoSunatNombre) },
     };
   }
 
