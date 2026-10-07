@@ -20,6 +20,7 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   AnularComprobanteDto,
+  ConvertirTipoComprobanteDto,
   CreateComprobantesDto,
   EnviarResumenDiarioDto,
   EstadoResumenDiarioQueryDto,
@@ -174,6 +175,22 @@ export class ComprobantesController {
   ) {
     dto.idUsuarioAuditoria = req.user.id;
     return this.logic.actualizar(id, dto);
+  }
+
+  @Post(':id/convertir-tipo')
+  @Permisos(PermisoBanderas.COMPROBANTES_EDITAR)
+  @ApiOperation({
+    summary:
+      'Convertir boleta ↔ factura (mismo comprobante, siguiente correlativo de la serie destino). Solo si SUNAT no lo tiene.',
+  })
+  @ApiNotFoundResponse({ type: () => ApiErrorResponseDto })
+  convertirTipo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ConvertirTipoComprobanteDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
+    return this.logic.convertirTipo(id, dto);
   }
 
   @Patch(':id/cobro')

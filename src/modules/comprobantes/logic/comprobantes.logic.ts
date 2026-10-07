@@ -22,6 +22,7 @@ import { NotificacionesLogic } from '../../notificaciones/logic/notificaciones.l
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   AnularComprobanteDto,
+  ConvertirTipoComprobanteDto,
   CreateComprobantesDto,
   EnviarResumenDiarioDto,
   FiltroComprobantesDto,
@@ -455,6 +456,17 @@ export class ComprobantesLogic {
 
   async actualizar(id: number, dto: UpdateComprobantesDto) {
     const result = await this.model.actualizar(id, dto);
+    return mapSingleResult(result, `Comprobante ${id} no encontrado`);
+  }
+
+  /**
+   * Boleta ↔ factura en el mismo comprobante (no elimina ni recrea): stock,
+   * cilindros, CxC, cobros y orden de salida siguen ligados al mismo id. La
+   * función SQL valida que SUNAT no tenga el documento y asigna el siguiente
+   * correlativo de la serie destino.
+   */
+  async convertirTipo(id: number, dto: ConvertirTipoComprobanteDto) {
+    const result = await this.model.convertirTipo(id, dto);
     return mapSingleResult(result, `Comprobante ${id} no encontrado`);
   }
 

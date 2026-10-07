@@ -1070,6 +1070,26 @@ export class AnularComprobanteDto extends AuditoriaDto {
   motivo!: string;
 }
 
+export class ConvertirTipoComprobanteDto extends AuditoriaDto {
+  @ApiProperty({
+    example: '01',
+    enum: ['01', '03'],
+    description: 'Tipo destino: 01 factura, 03 boleta',
+  })
+  @IsIn(['01', '03'])
+  codigoTipoDestino!: '01' | '03';
+
+  @ApiPropertyOptional({
+    example: 'F001',
+    description:
+      'Serie destino (F### para factura, B### para boleta). Si se omite, se usa la misma numeración de serie (B001 → F001).',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4)
+  serie?: string;
+}
+
 export class PreviewResumenDiarioQueryDto {
   @ApiProperty({ example: '2026-07-13' })
   @IsDateString()

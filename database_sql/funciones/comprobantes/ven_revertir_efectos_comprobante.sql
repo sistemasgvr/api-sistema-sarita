@@ -58,12 +58,10 @@ BEGIN
         PERFORM fin_bajar_cuentas_documento(p_id_usuario_auditoria, p_id, NULL);
     END IF;
 
-    BEGIN
-        PERFORM ven_cerrar_custodia_comprobante(p_id, p_id_usuario_auditoria);
-    EXCEPTION WHEN OTHERS THEN
-        RETURN json_build_object('ok', FALSE, 'error', SQLERRM);
-    END;
+    PERFORM ven_cerrar_custodia_comprobante(p_id, p_id_usuario_auditoria);
 
     RETURN json_build_object('ok', TRUE, 'error', NULL);
+EXCEPTION WHEN OTHERS THEN
+    RETURN json_build_object('ok', FALSE, 'error', SQLERRM);
 END;
 $function$;

@@ -16,6 +16,7 @@ import type {
 import {
   ComprobanteCuotaDto,
   ComprobanteDetalleDto,
+  ConvertirTipoComprobanteDto,
   CreateComprobantesDto,
   EfectosPosDto,
   FiltroComprobantesDto,
@@ -334,6 +335,16 @@ export class ComprobantesModel {
     return this.db.callFunctionJson<AuthDeleteResult>('ven_eliminar_comprobante', [
       id,
       idUsuarioAuditoria ?? null,
+    ]);
+  }
+
+  /** Boleta ↔ factura sobre el mismo comprobante, con el siguiente correlativo de la serie destino. */
+  convertirTipo(id: number, dto: ConvertirTipoComprobanteDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('ven_convertir_tipo_comprobante', [
+      id,
+      dto.codigoTipoDestino,
+      dto.serie?.trim() || null,
+      dto.idUsuarioAuditoria ?? null,
     ]);
   }
 
