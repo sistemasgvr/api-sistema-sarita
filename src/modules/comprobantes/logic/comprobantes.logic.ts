@@ -867,7 +867,7 @@ export class ComprobantesLogic {
         ? await this.model.obtenerCodigoUbigeoDistrito(
             clienteResult.registro.id_distrito,
           )
-        : '150101';
+        : '';
 
       const payload = this.invoiceMapper.mapComprobanteToInvoicePayload(
         comprobante,
@@ -1137,7 +1137,7 @@ export class ComprobantesLogic {
         ? await this.model.obtenerCodigoUbigeoDistrito(
             clienteResult.registro.id_distrito,
           )
-        : '150101';
+        : '';
 
       if (formato === 'ticket') {
         pdfBuffer = await this.ticketPdfGenerator.generar(

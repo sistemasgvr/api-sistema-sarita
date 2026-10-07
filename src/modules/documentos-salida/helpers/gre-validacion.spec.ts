@@ -29,6 +29,14 @@ const codigos = (c: DocumentoSalidaRegistro, e: EmpresaEmisora | null = EMPRESA)
   validarGre(c, e, { hoy: HOY }).map((p) => `${p.severidad}:${p.codigo}`);
 
 describe('Prevalidación GRE', () => {
+  it('bloquea fechas inexistentes, correlativos cero, cantidades infinitas y bultos fraccionarios', () => {
+    expect(codigos(cabecera({ fecha_emision_gre: '2026-02-30', numero_sunat: '0', peso_bruto: Infinity, numero_bultos: 1.5, detalle: [{ cantidad: Infinity, descripcion: 'Cilindro' }] }))).toEqual(expect.arrayContaining(['error:FECHA_EMISION', 'error:CORRELATIVO', 'error:PESO', 'error:BULTOS', 'error:ITEM_CANTIDAD']));
+  });
+
+  it('un documento de ocho caracteres con puntuación no pasa solo por su longitud', () => {
+    expect(codigos(cabecera({ documento_cliente: '12/34567', nombre_tipo_doc_cliente: 'DNI' }))).toContain('error:DESTINATARIO_DOC');
+  });
+
   it('una guía completa queda lista para emitir', () => {
     expect(validarGre(cabecera(), EMPRESA, { hoy: HOY })).toEqual([]);
   });

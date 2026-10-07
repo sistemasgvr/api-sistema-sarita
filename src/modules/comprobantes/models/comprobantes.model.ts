@@ -82,6 +82,10 @@ function mapCuotasToJson(cuotas?: ComprobanteCuotaDto[]) {
 }
 
 interface EmpresaEmisoraRow {
+  codigo_ubigeo: string | null;
+  nombre_distrito: string | null;
+  nombre_provincia: string | null;
+  nombre_departamento: string | null;
   id: number;
   ruc: string;
   razon_social: string | null;
@@ -231,7 +235,7 @@ export class ComprobantesModel {
       [idDistrito],
     );
 
-    return result.rows[0]?.codigo_ubigeo ?? '150101';
+    return result.rows[0]?.codigo_ubigeo ?? '';
   }
 
   async obtenerEmpresaEmisora(): Promise<EmpresaEmisoraRow | null> {
@@ -240,9 +244,14 @@ export class ComprobantesModel {
 
     if (defaultRuc) {
       const byRuc = await this.db.query<EmpresaEmisoraRow>(
-        `SELECT id, ruc, razon_social, nombre_comercial, direccion
-         FROM gen_empresa
-         WHERE estado = 1 AND ruc = $1
+        `SELECT e.id, e.ruc, e.razon_social, e.nombre_comercial, e.direccion,
+              dist.codigo_ubigeo, dist.nombre AS nombre_distrito,
+              prov.nombre AS nombre_provincia, dep.nombre AS nombre_departamento
+         FROM gen_empresa e
+         LEFT JOIN gen_distrito dist ON dist.id = e.id_distrito
+         LEFT JOIN gen_provincia prov ON prov.id = dist.id_provincia
+         LEFT JOIN gen_departamento dep ON dep.id = prov.id_departamento
+         WHERE e.estado = 1 AND e.ruc = $1
          LIMIT 1`,
         [defaultRuc],
       );
@@ -251,10 +260,15 @@ export class ComprobantesModel {
     }
 
     const result = await this.db.query<EmpresaEmisoraRow>(
-      `SELECT id, ruc, razon_social, nombre_comercial, direccion
-       FROM gen_empresa
-       WHERE estado = 1
-       ORDER BY id
+      `SELECT e.id, e.ruc, e.razon_social, e.nombre_comercial, e.direccion,
+              dist.codigo_ubigeo, dist.nombre AS nombre_distrito,
+              prov.nombre AS nombre_provincia, dep.nombre AS nombre_departamento
+         FROM gen_empresa e
+         LEFT JOIN gen_distrito dist ON dist.id = e.id_distrito
+         LEFT JOIN gen_provincia prov ON prov.id = dist.id_provincia
+         LEFT JOIN gen_departamento dep ON dep.id = prov.id_departamento
+         WHERE e.estado = 1
+         ORDER BY e.id
        LIMIT 1`,
     );
 

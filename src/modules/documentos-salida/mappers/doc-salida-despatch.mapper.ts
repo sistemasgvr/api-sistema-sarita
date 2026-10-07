@@ -1,6 +1,8 @@
+import { normalizarCodigoSunat, normalizarDocumentoSunat, tipoDocumentoSunat, correlativoSunat, fechaHoraSunat } from '../../../common/helpers/sunat-datos.helper';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { FacturacionApisperuPayload } from '../../../integrations/facturacion-apisperu/interfaces/facturacion-apisperu.interface';
 import {
+  destinatarioGre,
   esFlotaPropia,
   nombresChofer,
   normalizarPlaca,
@@ -39,11 +41,11 @@ export class DocSalidaDespatchMapper {
     }
 
     const detalles = cabecera.detalle ?? [];
-    const tipoDoc = cabecera.codigo_tipo_guia as string;
+    const tipoDoc = normalizarCodigoSunat(cabecera.codigo_tipo_guia);
     const flotaPropia = esFlotaPropia(cabecera);
 
     const envio: Record<string, unknown> = {
-      codTraslado: cabecera.codigo_motivo_traslado,
+      codTraslado: normalizarCodigoSunat(cabecera.codigo_motivo_traslado),
       desTraslado: this.mapDesTraslado(
         cabecera.nombre_motivo_traslado,
         cabecera.codigo_motivo_traslado,
@@ -74,7 +76,7 @@ export class DocSalidaDespatchMapper {
     if (flotaPropia) {
       // La placa impresa puede incluir guion; GRE recibe su identificador sin separadores.
       const placa = normalizarPlaca(cabecera.placa_vehiculo);
-      const docChofer = (cabecera.documento_chofer ?? '').trim();
+      const docChofer = normalizarDocumentoSunat(cabecera.documento_chofer);
       const licencia = normalizarLicencia(cabecera.licencia_chofer);
       const nombres = nombresChofer(cabecera);
 
@@ -95,7 +97,7 @@ export class DocSalidaDespatchMapper {
     } else {
       envio.transportista = {
         tipoDoc: '6',
-        numDoc: (cabecera.documento_transportista as string).trim(),
+        numDoc: normalizarDocumentoSunat(cabecera.documento_transportista),
         rznSocial: (cabecera.nombre_transportista as string).trim(),
       };
     }
@@ -103,7 +105,7 @@ export class DocSalidaDespatchMapper {
     const payload: FacturacionApisperuPayload = {
       version: '2022',
       tipoDoc,
-      serie: cabecera.serie ?? '',
+      serie: normalizarCodigoSunat(cabecera.serie),
       correlativo: this.parseCorrelativo(cabecera.numero_sunat as string),
       fechaEmision: this.formatFecha(cabecera.fecha_emision_gre as string),
       company: this.mapEmpresa(empresa),
@@ -113,7 +115,7 @@ export class DocSalidaDespatchMapper {
     };
 
     if (tipoDoc === '31') {
-      const remitenteDoc = (cabecera.documento_cliente as string).trim();
+      const remitenteDoc = normalizarDocumentoSunat(cabecera.documento_cliente);
       payload.remitente = {
         tipoDoc: this.mapTipoDocCliente(
           cabecera.nombre_tipo_doc_cliente,
@@ -132,8 +134,8 @@ export class DocSalidaDespatchMapper {
     const mappedRefs = refs
       .filter((r) => r.serie && r.numero && r.codigo_tipo_comprobante)
       .map((r) => ({
-        tipoDoc: r.codigo_tipo_comprobante as string,
-        nroDoc: `${r.serie}-${this.parseCorrelativo(String(r.numero))}`,
+        tipoDoc: normalizarCodigoSunat(r.codigo_tipo_comprobante),
+        nroDoc: `${normalizarCodigoSunat(r.serie)}-${this.parseCorrelativo(String(r.numero))}`,
       }));
 
     if (mappedRefs.length > 0) {
@@ -161,36 +163,8 @@ export class DocSalidaDespatchMapper {
    * entrar además como destinatario.
    */
   private resolverDestinatario(cabecera: DocumentoSalidaRegistro) {
-    // doc_obtener_salida no trae el tipo de documento del proveedor; sin él
-    // mapTipoDocCliente lo deduce del largo (11 = RUC, 8 = DNI), que es lo que
-    // ya hace de fallback para cliente y destinatario.
-    const proveedor = {
-      doc: (cabecera.documento_proveedor ?? '').trim(),
-      nombre: (cabecera.nombre_proveedor ?? '').trim(),
-      tipoDocumento: null as string | null,
-    };
-    const destinatario = {
-      doc: (cabecera.documento_destinatario ?? '').trim(),
-      nombre: (cabecera.nombre_destinatario ?? '').trim(),
-      tipoDocumento: cabecera.nombre_tipo_doc_destinatario,
-    };
-    const cliente = {
-      doc: (cabecera.documento_cliente ?? '').trim(),
-      nombre: (cabecera.nombre_cliente ?? '').trim(),
-      tipoDocumento: cabecera.nombre_tipo_doc_cliente,
-    };
-
-    const esPlantaExterna =
-      cabecera.nombre_tipo_orden === 'RECARGA_PLANTA_EXTERNA';
-    const orden = esPlantaExterna
-      ? [proveedor, destinatario, cliente]
-      : [destinatario, cliente, proveedor];
-    const candidatos =
-      cabecera.codigo_tipo_guia === '31'
-        ? orden.filter((candidato) => candidato !== cliente)
-        : orden;
-
-    const elegido = candidatos.find((candidato) => candidato.doc);
+    const esPlantaExterna = cabecera.nombre_tipo_orden === 'RECARGA_PLANTA_EXTERNA';
+    const elegido = destinatarioGre(cabecera);
 
     if (!elegido) {
       throw new BadRequestException(
@@ -233,7 +207,7 @@ export class DocSalidaDespatchMapper {
     const razonSocial =
       empresa.razon_social?.trim() || empresa.nombre_comercial?.trim() || '';
     return {
-      ruc: empresa.ruc,
+      ruc: normalizarDocumentoSunat(empresa.ruc),
       razonSocial,
       nombreComercial: empresa.nombre_comercial?.trim() || razonSocial,
       address: {
@@ -246,20 +220,12 @@ export class DocSalidaDespatchMapper {
     };
   }
 
-  private mapTipoDocCliente(tipoDocumento?: string | null, numDoc?: string) {
-    const tipo = (tipoDocumento ?? '').toUpperCase();
-    if (tipo.includes('RUC') || (numDoc?.length ?? 0) === 11) return '6';
-    if (tipo.includes('DNI') || (numDoc?.length ?? 0) === 8) return '1';
-    if (tipo.includes('CE')) return '4';
-    if (tipo.includes('PAS')) return '7';
-    return '6';
+  private mapTipoDocCliente(tipoDocumento?: string | null, numDoc?: string): string {
+    return tipoDocumentoSunat(tipoDocumento, numDoc);
   }
 
   private mapTipoDocChofer(codigo?: string | null, numDoc?: string) {
-    const c = (codigo ?? '').trim();
-    if (['1', '4', '7'].includes(c)) return c;
-    if ((numDoc?.length ?? 0) === 8) return '1';
-    return '1';
+    return tipoDocumentoSunat(codigo, numDoc);
   }
 
   private mapDesTraslado(nombre?: string | null, codigo?: string | null) {
@@ -332,17 +298,11 @@ export class DocSalidaDespatchMapper {
     return this.resolverUnidadSunat([nombre, codigo], 'NIU');
   }
 
-  private parseCorrelativo(numero: string) {
-    const limpio = numero.replace(/^0+/, '') || '0';
-    const parsed = Number.parseInt(limpio, 10);
-    if (Number.isNaN(parsed)) {
-      throw new BadRequestException(`Número SUNAT inválido: ${numero}`);
-    }
-    return String(parsed);
+  private parseCorrelativo(numero: string): string {
+    return correlativoSunat(numero);
   }
 
-  private formatFecha(fecha: string) {
-    const base = fecha.includes('T') ? fecha.slice(0, 10) : fecha.slice(0, 10);
-    return `${base}T00:00:00-05:00`;
+  private formatFecha(fecha: string | null | undefined): string {
+    return fechaHoraSunat(fecha);
   }
 }
