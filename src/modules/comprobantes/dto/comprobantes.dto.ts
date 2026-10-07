@@ -110,7 +110,7 @@ export class ComprobanteDetalleDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @IsNumber({ maxDecimalPlaces: 6 })
   @Min(0)
   @IsNotEmpty()
   precioUnitario!: number;

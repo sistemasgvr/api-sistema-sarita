@@ -205,7 +205,7 @@ BEGIN
               )
           )
           AND (
-              COALESCE(p_busqueda, '') = ''
+              COALESCE(p_busqueda, '') = '' 
               OR gen_texto_coincide(COALESCE(d.numero, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(d.serie, '') || '-' || COALESCE(d.numero_sunat, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(cli.razon_social, ''), p_busqueda)

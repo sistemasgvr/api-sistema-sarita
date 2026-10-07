@@ -114,6 +114,18 @@ export class ComprobantesController {
     return this.logic.consultarEstadoResumenPorId(id, dto);
   }
 
+  @Get(':id/xml')
+  @Permisos(PermisoBanderas.COMPROBANTES_VER)
+  @ApiOperation({ summary: 'Descargar el XML firmado almacenado del comprobante' })
+  @ApiProduces('application/xml')
+  async descargarXml(@Param('id', ParseIntPipe) id: number) {
+    const { buffer, filename } = await this.logic.obtenerXml(id);
+    return new StreamableFile(buffer, {
+      type: 'application/xml; charset=utf-8',
+      disposition: `attachment; filename="${filename}"`,
+    });
+  }
+
   @Get(':id/pdf')
   @Permisos(PermisoBanderas.COMPROBANTES_VER)
   @ApiOperation({

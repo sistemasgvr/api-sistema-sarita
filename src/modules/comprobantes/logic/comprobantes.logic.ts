@@ -100,6 +100,22 @@ export class ComprobantesLogic {
     return mapListResult(result, filtros);
   }
 
+  async obtenerXml(id: number) {
+    const comprobante = await this.obtenerPorId(id);
+    const original = comprobante.xml_firmado;
+    if (!original?.trim()) {
+      throw new NotFoundException('Este comprobante no tiene XML firmado guardado');
+    }
+    const buffer = original.trimStart().startsWith('<')
+      ? Buffer.from(original, 'utf8')
+      : Buffer.from(original.trim(), 'base64');
+    if (!buffer.toString('utf8').replace(/^\uFEFF/, '').trimStart().startsWith('<')) {
+      throw new BadRequestException('El XML guardado del comprobante no es válido');
+    }
+    const filename = `${comprobante.serie}-${comprobante.numero}.xml`.replace(/[^a-zA-Z0-9_.-]/g, '_');
+    return { buffer, filename };
+  }
+
   async obtenerPorId(id: number) {
     // Incluye las percepciones vinculadas (solo lectura).
     const result = await this.model.obtenerPorId(id);
@@ -481,6 +497,13 @@ export class ComprobantesLogic {
 
     if (!comprobante.registro) {
       throw new NotFoundException(`Comprobante ${id} no encontrado`);
+    }
+
+    if (
+      ['01', '03'].includes(comprobante.registro.codigo_tipo_comprobante ?? '') &&
+      comprobante.registro.nombre_estado_sunat !== 'ACEPTADO'
+    ) {
+      throw new BadRequestException('Solo se puede consultar el CDR de una boleta o factura aceptada');
     }
 
     const cdrMeta = this.parseCdrMeta(comprobante.registro.cdr_respuesta);
