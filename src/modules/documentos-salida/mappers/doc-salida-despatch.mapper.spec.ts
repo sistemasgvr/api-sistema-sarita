@@ -41,6 +41,18 @@ function fixture(overrides: Partial<DocumentoSalidaRegistro> = {}): DocumentoSal
 describe('GRE con chofer y vehículo', () => {
   const mapper = new DocSalidaDespatchMapper();
 
+  it('envía el mismo formato que acepta la prevalidación, sin modificar los datos guardados', () => {
+    const doc = fixture({ codigo_tipo_guia: ' 09 ', serie: ' t001 ', numero_sunat: ' 000001 ', codigo_modalidad_traslado: ' 02 ', codigo_motivo_traslado: ' 01 ', documento_chofer: '00 123456', codigo_tipo_doc_chofer: '4', documento_cliente: ' 20 111111111 ' });
+    const result = mapper.mapToDespatchPayload(doc, { ...EMPRESA, ruc: ' 20 222222222 ' }, { hoy: HOY });
+    expect(result).toMatchObject({ tipoDoc: '09', serie: 'T001', correlativo: '1', company: { ruc: '20222222222' }, destinatario: { tipoDoc: '6', numDoc: '20111111111' }, envio: { codTraslado: '01', modTraslado: '02', choferes: [{ tipoDoc: '4', nroDoc: '00123456' }] } });
+    expect(doc.registro?.serie).toBe(' t001 ');
+  });
+
+  it('valida el proveedor de planta externa que realmente se enviará', () => {
+    const doc = fixture({ nombre_tipo_orden: 'RECARGA_PLANTA_EXTERNA', documento_proveedor: '123', documento_destinatario: '20444444444' });
+    expect(() => mapper.mapToDespatchPayload(doc, EMPRESA, { hoy: HOY })).toThrow('destinatario');
+  });
+
   it.each(['ANC-123', ' anc 123 ', 'ANC123'])('envía la placa %s sin separadores y conserva la licencia', (placa) => {
     const doc = fixture({ placa_vehiculo: placa });
     const result = mapper.mapToDespatchPayload(doc, EMPRESA, { hoy: HOY });
@@ -56,6 +68,17 @@ describe('GRE con chofer y vehículo', () => {
   it('continúa rechazando choferes sin licencia', () => {
     const doc = fixture({ licencia_chofer: null });
     expect(() => mapper.mapToDespatchPayload(doc, EMPRESA, { hoy: HOY })).toThrow('licencia');
+  });
+
+  it.each(['C-95824269', ' c 95824269 ', 'c–95824269', 'C95824269'])('envía la licencia %s normalizada y mantiene el dato original', licencia => {
+    const doc = fixture({ licencia_chofer: licencia });
+    const result = mapper.mapToDespatchPayload(doc, EMPRESA, { hoy: HOY });
+    expect(result.envio).toMatchObject({ choferes: [{ licencia: 'C95824269' }] });
+    expect(doc.registro?.licencia_chofer).toBe(licencia);
+  });
+
+  it.each(['C/95824269', 'C.95824269', 'C95824269123'])('bloquea la licencia inválida %s antes de enviar', licencia => {
+    expect(() => mapper.mapToDespatchPayload(fixture({ licencia_chofer: licencia }), EMPRESA, { hoy: HOY })).toThrow('solo letras y números');
   });
 
   it('envía nombres y apellidos estructurados (nombres compuestos intactos)', () => {

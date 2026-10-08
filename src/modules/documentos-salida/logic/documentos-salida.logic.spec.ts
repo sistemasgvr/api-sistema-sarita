@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { IntentoGrePendiente } from '../models/documentos-salida.model';
+import type { GreIntentoRegistro } from '../interfaces/documento-salida.interface';
 import { DocumentosSalidaLogic, proximaConsultaGre } from './documentos-salida.logic';
 
 /**
@@ -22,6 +23,7 @@ function build(overrides: Record<string, unknown> = {}) {
     obtenerUltimoIntentoGre: jest.fn<Promise<IntentoGrePendiente | null>, []>(() => Promise.resolve(null)),
     listarIntentosGrePendientesConsulta: jest.fn<Promise<IntentoGrePendiente[]>, []>(() => Promise.resolve([])),
     programarConsultaGre: jest.fn(() => Promise.resolve(undefined)),
+    listarHistorialGre: jest.fn<Promise<GreIntentoRegistro[]>, [number]>(() => Promise.resolve([])),
   };
   const verificacion = { listo: true, entorno: 'beta', companyId: 5, problemas: [] as string[] };
   const client = {
@@ -127,6 +129,30 @@ describe('Consulta de estado GRE', () => {
     const r = await logic.consultarEstado(39, {});
     expect(r.sunat.estado).toBe('ACEPTADO');
     expect(model.registrarConsultaGre).toHaveBeenCalledWith(39, 'ACEPTADO', expect.anything(), null);
+  });
+
+  it('devuelve la explicación del CDR rechazado para mostrarla al usuario', async () => {
+    const { logic, client } = build({ ticket_sunat: 't-1', nombre_estado_sunat: 'PENDIENTE' });
+    client.consultarEstadoGuiaRemision.mockResolvedValueOnce({ cdrResponse: { code: '2573', description: 'Numero de licencia del conductor - formato inválido (nodo: "ID" valor: "C-95824269")' } });
+    const r = await logic.consultarEstado(39, {});
+    expect(r.sunat.estado).toBe('RECHAZADO');
+    expect(r.sunat.mensaje).toContain('Choferes → Licencias');
+    expect(r.sunat.mensaje).toContain('C-95824269');
+    expect(r.sunat).toMatchObject({ diagnostico: { codigo: '2573' } });
+  });
+
+  it('el historial interpreta la última consulta y conserva la respuesta original', async () => {
+    const { logic, model } = build();
+    const respuesta = { sunatResponse: { success: true, ticket: 't-1' } };
+    model.listarHistorialGre.mockResolvedValueOnce([{
+      id: 4, estado: 'RECHAZADO', entorno: 'produccion', id_empresa: 18, ruc_emisor: '20222222222',
+      ticket: 't-1', consultas: 1, proxima_consulta: null, creado: '2026-10-07', actualizado: '2026-10-07', respuesta,
+      consultas_detalle: [{ id: 1, creado: '2026-10-07', respuesta: { error: { code: '2573', message: 'Numero de licencia del conductor - formato incorrecto' } } }],
+    }]);
+    const r = await logic.historialGre(39);
+    expect(r.intentos[0].diagnostico.codigo).toBe('2573');
+    expect(r.intentos[0].diagnostico.accion).toContain('Licencias');
+    expect(r.intentos[0].respuesta).toEqual(respuesta);
   });
 
   it('sin ticket no consulta', async () => {

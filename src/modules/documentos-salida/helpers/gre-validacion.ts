@@ -1,3 +1,4 @@
+import { documentoSunatValido, fechaCivilSunat, normalizarCodigoSunat, normalizarDocumentoSunat, tipoDocumentoSunat } from '../../../common/helpers/sunat-datos.helper';
 import type {
   DocumentoSalidaRegistro,
   EmpresaEmisora,
@@ -14,10 +15,10 @@ import type {
  * proveedor (entorno, credenciales) se valida aparte en la lógica de emisión.
  */
 
-const RE_FECHA = /^\d{4}-\d{2}-\d{2}/;
 const RE_UBIGEO = /^\d{6}$/;
 const RE_RUC = /^\d{11}$/;
 const RE_PLACA = /^[A-Z0-9]{6,7}$/;
+const RE_LICENCIA = /^[A-Z0-9]{1,10}$/;
 
 export interface ContextoValidacionGre {
   /** Fecha de hoy en Lima (YYYY-MM-DD); inyectable para pruebas. */
@@ -30,7 +31,12 @@ export function hoyLima(now = new Date()): string {
 }
 
 export function normalizarPlaca(placa?: string | null): string {
-  return (placa ?? '').replace(/[\s-]/g, '').toUpperCase();
+  return normalizarLicencia(placa);
+}
+
+/** Quita solo separadores de presentación; conserva letras, números y ceros iniciales. */
+export function normalizarLicencia(licencia?: string | null): string {
+  return (licencia ?? '').replace(/[\s\-\u2010-\u2015\u2212]/g, '').toUpperCase();
 }
 
 function texto(value?: string | null): string {
@@ -38,8 +44,17 @@ function texto(value?: string | null): string {
 }
 
 function fecha(value?: string | null): string | null {
-  const v = texto(value);
-  return RE_FECHA.test(v) ? v.slice(0, 10) : null;
+  return fechaCivilSunat(value);
+}
+
+/** Comparte el destinatario real entre la prevalidación y el envío. */
+export function destinatarioGre(cabecera: DocumentoSalidaRegistro) {
+  const proveedor = { doc: normalizarDocumentoSunat(cabecera.documento_proveedor), nombre: texto(cabecera.nombre_proveedor), tipoDocumento: null as string | null | undefined };
+  const destinatario = { doc: normalizarDocumentoSunat(cabecera.documento_destinatario), nombre: texto(cabecera.nombre_destinatario), tipoDocumento: cabecera.nombre_tipo_doc_destinatario };
+  const cliente = { doc: normalizarDocumentoSunat(cabecera.documento_cliente), nombre: texto(cabecera.nombre_cliente), tipoDocumento: cabecera.nombre_tipo_doc_cliente };
+  const orden = cabecera.nombre_tipo_orden === 'RECARGA_PLANTA_EXTERNA'
+    ? [proveedor, destinatario, cliente] : [destinatario, cliente, proveedor];
+  return orden.find((c) => c.doc && (normalizarCodigoSunat(cabecera.codigo_tipo_guia) !== '31' || c !== cliente));
 }
 
 /** Nombres y apellidos del chofer, ya estructurados o partidos como último recurso. */
@@ -63,8 +78,8 @@ export function nombresChofer(cabecera: Pick<
 export function esFlotaPropia(cabecera: Pick<DocumentoSalidaRegistro, 'codigo_tipo_guia' | 'codigo_modalidad_traslado'>): boolean {
   // La GRE transportista (31) la emite quien transporta: siempre lleva su
   // vehículo y su chofer, sin importar la modalidad guardada.
-  if (cabecera.codigo_tipo_guia === '31') return true;
-  return (cabecera.codigo_modalidad_traslado ?? '02') === '02';
+  if (normalizarCodigoSunat(cabecera.codigo_tipo_guia) === '31') return true;
+  return normalizarCodigoSunat(cabecera.codigo_modalidad_traslado ?? '02') === '02';
 }
 
 export function validarGre(
@@ -83,7 +98,7 @@ export function validarGre(
   if (!empresa) {
     error('EMPRESA_AUSENTE', 'empresa', 'La guía no tiene empresa emisora vinculada');
   } else {
-    if (!RE_RUC.test(texto(empresa.ruc))) {
+    if (!RE_RUC.test(normalizarDocumentoSunat(empresa.ruc))) {
       error('EMPRESA_RUC', 'empresa.ruc', 'El RUC de la empresa emisora debe tener 11 dígitos');
     }
     if (!texto(empresa.razon_social) && !texto(empresa.nombre_comercial)) {
@@ -116,7 +131,7 @@ export function validarGre(
   }
   if (!texto(cabecera.numero_sunat)) {
     error('CORRELATIVO', 'numero_sunat', 'La guía no tiene correlativo SUNAT; conviértela a guía de remisión primero');
-  } else if (!/^\d+$/.test(texto(cabecera.numero_sunat))) {
+  } else if (!/^\d+$/.test(texto(cabecera.numero_sunat)) || !Number.isSafeInteger(Number(cabecera.numero_sunat)) || Number(cabecera.numero_sunat) < 1) {
     error('CORRELATIVO', 'numero_sunat', `Número SUNAT inválido: ${cabecera.numero_sunat}`);
   }
 
@@ -163,32 +178,41 @@ export function validarGre(
     error('SIN_ITEMS', 'detalle', 'El documento no tiene ítems');
   }
   detalles.forEach((detalle, index) => {
-    if (!(Number(detalle.cantidad) > 0)) {
+    if (!Number.isFinite(Number(detalle.cantidad)) || !(Number(detalle.cantidad) > 0)) {
       error('ITEM_CANTIDAD', `detalle.${index}.cantidad`, `La línea ${index + 1} debe tener cantidad mayor a 0`);
     }
     if (!texto(detalle.glosa) && !texto(detalle.descripcion) && !texto(detalle.nombre_producto)) {
       error('ITEM_DESCRIPCION', `detalle.${index}.descripcion`, `La línea ${index + 1} no tiene descripción`);
     }
   });
-  if (!(Number(cabecera.peso_bruto) > 0)) {
+  if (!Number.isFinite(Number(cabecera.peso_bruto)) || !(Number(cabecera.peso_bruto) > 0)) {
     error('PESO', 'pesoBruto', 'Indica el peso bruto total (mayor a 0)');
   }
-  if (cabecera.numero_bultos != null && !(Number(cabecera.numero_bultos) >= 1)) {
-    error('BULTOS', 'numeroBultos', 'El número de bultos debe ser 1 o más');
+  if (cabecera.numero_bultos != null && (!Number.isSafeInteger(Number(cabecera.numero_bultos)) || !(Number(cabecera.numero_bultos) >= 1))) {
+    error('BULTOS', 'numeroBultos', 'El número de bultos debe ser un entero de 1 o más');
   }
 
   // --- Destinatario / remitente ---
-  const destinatarioDoc =
-    tipo === '31'
-      ? texto(cabecera.documento_destinatario) || texto(cabecera.documento_proveedor)
-      : texto(cabecera.documento_destinatario) || texto(cabecera.documento_cliente) || texto(cabecera.documento_proveedor);
+  const validarDocumento = (doc: string, tipoRegistrado: string | null | undefined, codigo: string, campo: string, etiqueta: string) => {
+    try {
+      if (!documentoSunatValido(doc, tipoDocumentoSunat(tipoRegistrado, doc))) {
+        error(codigo, campo, `El documento del ${etiqueta} no corresponde al tipo registrado. Revisa el número y el tipo de documento.`);
+      }
+    } catch {
+      error(codigo, campo, `Selecciona el tipo de documento del ${etiqueta}; no se puede deducir del número registrado.`);
+    }
+  };
+  const destinatario = destinatarioGre(cabecera);
+  const destinatarioDoc = destinatario?.doc;
   if (!destinatarioDoc) {
     error('DESTINATARIO_DOC', 'idDestinatario', 'El destinatario no tiene número de documento');
-  } else if (![8, 11].includes(destinatarioDoc.length) && !/^[A-Z0-9]{4,15}$/i.test(destinatarioDoc)) {
-    error('DESTINATARIO_DOC', 'idDestinatario', `Documento del destinatario inválido: ${destinatarioDoc}`);
+  } else {
+    validarDocumento(destinatarioDoc, destinatario?.tipoDocumento, 'DESTINATARIO_DOC', 'idDestinatario', 'destinatario');
   }
   if (tipo === '31' && !texto(cabecera.documento_cliente)) {
     error('REMITENTE_DOC', 'idCliente', 'La GRE transportista (31) requiere remitente con documento');
+  } else if (tipo === '31') {
+    validarDocumento(normalizarDocumentoSunat(cabecera.documento_cliente), cabecera.nombre_tipo_doc_cliente, 'REMITENTE_DOC', 'idCliente', 'remitente');
   }
 
   // --- Transporte ---
@@ -205,13 +229,20 @@ export function validarGre(
     } else {
       if (!texto(cabecera.documento_chofer)) {
         error('CHOFER_DOC', 'idChofer', 'El chofer no tiene número de documento');
+      } else {
+        validarDocumento(normalizarDocumentoSunat(cabecera.documento_chofer), cabecera.codigo_tipo_doc_chofer, 'CHOFER_DOC', 'idChofer', 'chofer');
       }
-      const licencia = texto(cabecera.licencia_chofer);
+      const licencia = normalizarLicencia(cabecera.licencia_chofer);
       if (!licencia) {
         error('CHOFER_LICENCIA', 'idChofer', 'El chofer seleccionado no tiene licencia activa registrada');
       } else {
+        if (!RE_LICENCIA.test(licencia)) {
+          error('CHOFER_LICENCIA_FORMATO', 'idChofer', 'La licencia del conductor debe contener solo letras y números, con un máximo de 10 caracteres. Revisa el número en Configuración → Choferes → Licencias. Los espacios y guiones se eliminan automáticamente al enviar.');
+        }
         const vence = fecha(cabecera.licencia_chofer_vencimiento);
-        if (vence && vence < hoy) {
+        if (texto(cabecera.licencia_chofer_vencimiento) && !vence) {
+          error('CHOFER_LICENCIA_FECHA', 'idChofer', 'La fecha de vencimiento de la licencia no es válida. Revísala en Configuración → Choferes → Licencias.');
+        } else if (vence && vence < hoy) {
           error('CHOFER_LICENCIA_VENCIDA', 'idChofer', `La licencia ${licencia} del chofer venció el ${vence}`);
         }
       }
@@ -227,7 +258,7 @@ export function validarGre(
       }
     }
   } else {
-    const rucTrans = texto(cabecera.documento_transportista);
+    const rucTrans = normalizarDocumentoSunat(cabecera.documento_transportista);
     if (!RE_RUC.test(rucTrans)) {
       error('TRANSPORTISTA_RUC', 'idTransportista', 'El transporte público requiere transportista con RUC de 11 dígitos');
     }

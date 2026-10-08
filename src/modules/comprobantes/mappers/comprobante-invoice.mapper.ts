@@ -1,3 +1,4 @@
+import { receptorSunat, rucSunat, normalizarCodigoSunat, normalizarDocumentoSunat, correlativoSunat, fechaCivilSunat, fechaHoraSunat } from '../../../common/helpers/sunat-datos.helper';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { FacturacionApisperuPayload } from '../../../integrations/facturacion-apisperu/interfaces/facturacion-apisperu.interface';
 import type {
@@ -7,6 +8,10 @@ import type {
 import { lineasDeVenta } from '../utils/comprobante-lineas.util';
 
 interface EmpresaEmisora {
+  codigo_ubigeo?: string | null;
+  nombre_distrito?: string | null;
+  nombre_provincia?: string | null;
+  nombre_departamento?: string | null;
   ruc: string;
   razon_social?: string | null;
   nombre_comercial?: string | null;
@@ -32,7 +37,7 @@ export class ComprobanteInvoiceMapper {
     comprobante: ComprobanteCompletoResult,
     empresa: EmpresaEmisora,
     cliente: ClienteReceptor,
-    ubigeoCliente = '150101',
+    ubigeoCliente = '',
   ): FacturacionApisperuPayload {
     const cabecera = comprobante.registro;
 
@@ -58,7 +63,7 @@ export class ComprobanteInvoiceMapper {
       );
     }
 
-    const tipoDoc = cabecera.codigo_tipo_comprobante;
+    const tipoDoc = normalizarCodigoSunat(cabecera.codigo_tipo_comprobante);
 
     if (!tipoDoc || !['01', '03', '07', '08'].includes(tipoDoc)) {
       throw new BadRequestException(
@@ -68,7 +73,7 @@ export class ComprobanteInvoiceMapper {
 
     const correlativo = this.parseCorrelativo(cabecera.numero);
     const fechaEmision = this.formatFechaEmision(cabecera.fecha);
-    const tipoMoneda = cabecera.codigo_moneda ?? 'PEN';
+    const tipoMoneda = normalizarCodigoSunat(cabecera.codigo_moneda ?? 'PEN');
     // Si se descartó alguna línea, los totales de la cabecera ya no
     // corresponden a lo que se declara (los de un comprobante antiguo incluyen
     // la garantía), así que se recalculan desde las líneas que sí van.
@@ -89,7 +94,7 @@ export class ComprobanteInvoiceMapper {
       ublVersion: '2.1',
       tipoOperacion: cabecera.codigo_tipo_operacion_sunat ?? '0101',
       tipoDoc,
-      serie: cabecera.serie,
+      serie: normalizarCodigoSunat(cabecera.serie),
       correlativo,
       fechaEmision,
       formaPago,
@@ -118,10 +123,10 @@ export class ComprobanteInvoiceMapper {
 
       const tipDocAfectado =
         cabecera.codigo_tipo_comprobante_origen ??
-        (cabecera.serie_comprobante_origen.toUpperCase().startsWith('F')
+        (normalizarCodigoSunat(cabecera.serie_comprobante_origen).startsWith('F')
           ? '01'
           : '03');
-      const numDocfectado = `${cabecera.serie_comprobante_origen}-${this.parseCorrelativo(cabecera.numero_comprobante_origen)}`;
+      const numDocfectado = `${normalizarCodigoSunat(cabecera.serie_comprobante_origen)}-${this.parseCorrelativo(cabecera.numero_comprobante_origen)}`;
       const codMotivo = cabecera.codigo_motivo_nota ?? '01';
 
       payload.tipDocAfectado = tipDocAfectado;
@@ -169,13 +174,13 @@ export class ComprobanteInvoiceMapper {
       );
     }
 
-    const moneda = items[0]?.codigo_moneda ?? 'PEN';
+    const moneda = normalizarCodigoSunat(items[0]?.codigo_moneda ?? 'PEN');
     const fechaFmt = this.formatFechaEmision(fecha);
 
     return {
       fecGeneracion: fechaFmt,
       fecResumen: fechaFmt,
-      correlativo: correlativo.replace(/\D/g, '').padStart(3, '0') || '001',
+      correlativo: correlativoSunat(correlativo).padStart(3, '0'),
       moneda,
       company: this.mapEmpresa(empresa),
       details: items.map((item) => this.mapSummaryDetail(item)),
@@ -197,7 +202,7 @@ export class ComprobanteInvoiceMapper {
       throw new BadRequestException('Comprobante inválido');
     }
 
-    const tipoDoc = cabecera.codigo_tipo_comprobante;
+    const tipoDoc = normalizarCodigoSunat(cabecera.codigo_tipo_comprobante);
 
     if (!tipoDoc || !['01', '07', '08'].includes(tipoDoc)) {
       throw new BadRequestException(
@@ -216,7 +221,7 @@ export class ComprobanteInvoiceMapper {
       details: [
         {
           tipoDoc,
-          serie: cabecera.serie,
+          serie: normalizarCodigoSunat(cabecera.serie),
           correlativo: this.parseCorrelativo(cabecera.numero),
           desMotivoBaja: motivoBaja.trim(),
         },
@@ -238,7 +243,7 @@ export class ComprobanteInvoiceMapper {
     serie_comprobante_origen?: string | null;
     numero_comprobante_origen?: string | null;
   }): Record<string, unknown> {
-    const tipoDoc = item.codigo_tipo_comprobante ?? '03';
+    const tipoDoc = normalizarCodigoSunat(item.codigo_tipo_comprobante ?? '03');
     const correlativo = this.parseCorrelativo(item.numero);
     const igv = this.round(Number(item.igv ?? 0), 2);
     const valorVenta = this.round(Number(item.valor_venta ?? 0), 2);
@@ -246,11 +251,11 @@ export class ComprobanteInvoiceMapper {
     const mtoOperGravadas = igv > 0 ? valorVenta : 0;
     const mtoOperExoneradas =
       exonerado > 0 ? exonerado : igv === 0 ? valorVenta : 0;
-    const clienteNro = (item.documento_cliente ?? '').trim() || '00000000';
+    const clienteNro = normalizarDocumentoSunat(item.documento_cliente) || '00000000';
 
     const detail: Record<string, unknown> = {
       tipoDoc,
-      serieNro: `${item.serie}-${correlativo}`,
+      serieNro: `${normalizarCodigoSunat(item.serie)}-${correlativo}`,
       estado: '1',
       clienteTipo: this.mapTipoDocumentoCliente(
         item.nombre_tipo_documento_cliente,
@@ -272,10 +277,10 @@ export class ComprobanteInvoiceMapper {
       detail.docReferencia = {
         tipoDoc:
           item.codigo_tipo_comprobante_origen ??
-          (item.serie_comprobante_origen.toUpperCase().startsWith('F')
+          (normalizarCodigoSunat(item.serie_comprobante_origen).startsWith('F')
             ? '01'
             : '03'),
-        nroDoc: `${item.serie_comprobante_origen}-${this.parseCorrelativo(item.numero_comprobante_origen)}`,
+        nroDoc: `${normalizarCodigoSunat(item.serie_comprobante_origen)}-${this.parseCorrelativo(item.numero_comprobante_origen)}`,
       };
     }
 
@@ -328,7 +333,9 @@ export class ComprobanteInvoiceMapper {
     if (!fecha) {
       return new Date().toISOString().slice(0, 10);
     }
-    return fecha.includes('T') ? fecha.slice(0, 10) : fecha.slice(0, 10);
+    const civil = fechaCivilSunat(fecha);
+    if (!civil) throw new BadRequestException('Revisa la fecha de vencimiento de la cuota: no es una fecha válida.');
+    return civil;
   }
 
   private formatDesMotivo(nombre?: string | null, codigo?: string | null) {
@@ -346,6 +353,7 @@ export class ComprobanteInvoiceMapper {
     const afectacion = detalle.codigo_afectacion_igv ?? '10';
     const tipAfeIgv = Number.parseInt(afectacion, 10);
     const cantidad = Number(detalle.cantidad);
+    if (!Number.isFinite(cantidad) || cantidad <= 0) throw new BadRequestException(`La línea ${item} debe tener una cantidad válida mayor a cero.`);
     const valorVenta = Number(detalle.valor_venta);
     const igv = Number(detalle.impuesto ?? 0);
     const importe = Number(detalle.importe);
@@ -434,7 +442,7 @@ export class ComprobanteInvoiceMapper {
   }
 
   private mapCliente(cliente: ClienteReceptor, ubigeo: string) {
-    const numDoc = (cliente.numero_documento ?? '').trim();
+    const numDoc = normalizarDocumentoSunat(cliente.numero_documento);
 
     if (!numDoc) {
       throw new BadRequestException('El cliente no tiene número de documento');
@@ -449,43 +457,38 @@ export class ComprobanteInvoiceMapper {
       'Cliente';
 
     return {
-      tipoDoc: this.mapTipoDocumentoCliente(cliente.nombre_tipo_documento, numDoc),
-      numDoc,
+      ...receptorSunat(cliente.nombre_tipo_documento, numDoc),
       rznSocial,
       address: {
-        direccion: cliente.direccion?.trim() || 'S/N',
-        provincia: (cliente.nombre_provincia ?? 'LIMA').toUpperCase(),
-        departamento: (cliente.nombre_departamento ?? 'LIMA').toUpperCase(),
-        distrito: (cliente.nombre_distrito ?? 'LIMA').toUpperCase(),
-        ubigueo: ubigeo,
+        direccion: cliente.direccion?.trim() || undefined,
+        provincia: normalizarCodigoSunat(cliente.nombre_provincia) || undefined,
+        departamento: normalizarCodigoSunat(cliente.nombre_departamento) || undefined,
+        distrito: normalizarCodigoSunat(cliente.nombre_distrito) || undefined,
+        ubigueo: ubigeo.trim() || undefined,
       },
     };
   }
 
   private mapEmpresa(empresa: EmpresaEmisora) {
+    if (!/^\d{6}$/.test(empresa.codigo_ubigeo?.trim() ?? '') || !empresa.direccion?.trim()) {
+      throw new BadRequestException('Registra la dirección y el distrito fiscal de la empresa en Configuración → Empresa antes de emitir.');
+    }
     return {
-      ruc: empresa.ruc,
-      razonSocial: empresa.razon_social ?? empresa.nombre_comercial ?? 'Empresa',
-      nombreComercial: empresa.nombre_comercial ?? empresa.razon_social ?? 'Empresa',
+      ruc: rucSunat(empresa.ruc),
+      razonSocial: empresa.razon_social?.trim() || empresa.nombre_comercial?.trim() || '',
+      nombreComercial: empresa.nombre_comercial?.trim() || empresa.razon_social?.trim() || '',
       address: {
         direccion: empresa.direccion?.trim() || 'S/N',
-        provincia: 'LIMA',
-        departamento: 'LIMA',
-        distrito: 'LIMA',
-        ubigueo: '150101',
+        provincia: normalizarCodigoSunat(empresa.nombre_provincia),
+        departamento: normalizarCodigoSunat(empresa.nombre_departamento),
+        distrito: normalizarCodigoSunat(empresa.nombre_distrito),
+        ubigueo: empresa.codigo_ubigeo!.trim(),
       },
     };
   }
 
-  private mapTipoDocumentoCliente(tipoDocumento?: string | null, numDoc?: string) {
-    const tipo = (tipoDocumento ?? '').toUpperCase();
-
-    if (tipo.includes('RUC') || (numDoc?.length ?? 0) === 11) return '6';
-    if (tipo.includes('DNI') || (numDoc?.length ?? 0) === 8) return '1';
-    if (tipo.includes('CE')) return '4';
-    if (tipo.includes('PAS')) return '7';
-
-    return '6';
+  private mapTipoDocumentoCliente(tipoDocumento?: string | null, numDoc?: string): string {
+    return receptorSunat(tipoDocumento, numDoc).tipoDoc;
   }
 
   private mapUnidad(nombreUnidad?: string | null) {
@@ -493,23 +496,16 @@ export class ComprobanteInvoiceMapper {
     return unidad.length >= 2 && unidad.length <= 4 ? unidad : 'NIU';
   }
 
-  private parseCorrelativo(numero: string) {
-    const limpio = numero.replace(/^0+/, '') || '0';
-    const parsed = Number.parseInt(limpio, 10);
-
-    if (Number.isNaN(parsed)) {
-      throw new BadRequestException(`Número de comprobante inválido: ${numero}`);
-    }
-
-    return String(parsed);
+  private parseCorrelativo(numero: string): string {
+    return correlativoSunat(numero);
   }
 
-  private formatFechaEmision(fecha: string) {
-    const base = fecha.includes('T') ? fecha.slice(0, 10) : fecha;
-    return `${base}T00:00:00-05:00`;
+  private formatFechaEmision(fecha: string | null | undefined): string {
+    return fechaHoraSunat(fecha);
   }
 
   private round(value: number, decimals: number) {
+    if (!Number.isFinite(value)) throw new BadRequestException('El comprobante contiene un importe inválido. Revisa los montos antes de enviar.');
     const factor = 10 ** decimals;
     return Math.round(value * factor) / factor;
   }

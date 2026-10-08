@@ -1,8 +1,10 @@
+-- Carga los datos del chofer y su licencia activa al editar un trabajador.
+BEGIN;
+SET LOCAL lock_timeout = '10s';
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: tra_obtener_trabajador
 -- Overloads: 1
 -- Generated: 2026-09-03T16:50:38.965Z
-DROP FUNCTION IF EXISTS tra_obtener_trabajador(p_id integer);
 
 CREATE OR REPLACE FUNCTION tra_obtener_trabajador(p_id integer)
  RETURNS json
@@ -91,3 +93,6 @@ BEGIN
     RETURN json_build_object('registro', v_registro);
 END;
 $function$;
+
+COMMIT;
+

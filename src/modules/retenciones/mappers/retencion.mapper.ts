@@ -1,3 +1,4 @@
+import { receptorSunat, rucSunat, normalizarCodigoSunat, correlativoSunat, fechaHoraSunat } from '../../../common/helpers/sunat-datos.helper';
 import { Injectable } from '@nestjs/common';
 import type { FacturacionApisperuPayload } from '../../../integrations/facturacion-apisperu/interfaces/facturacion-apisperu.interface';
 import type { RetencionCompletoResult, RetencionDetalleRegistro, RetencionRegistro } from '../interfaces/retencion.interface';
@@ -28,11 +29,11 @@ export class RetencionMapper {
     const razonSocial = empresa.razon_social?.trim() || empresa.nombre_comercial?.trim() || '';
 
     return {
-      serie: cabecera.serie,
+      serie: normalizarCodigoSunat(cabecera.serie),
       correlativo: this.parseCorrelativo(cabecera.numero),
       fechaEmision: this.formatFecha(cabecera.fecha_emision),
       company: {
-        ruc: empresa.ruc,
+        ruc: rucSunat(empresa.ruc),
         razonSocial,
         nombreComercial: empresa.nombre_comercial?.trim() || razonSocial,
         address: {
@@ -44,9 +45,8 @@ export class RetencionMapper {
         },
       },
       proveedor: {
-        tipoDoc: this.mapTipoDoc(proveedor.tipo_documento, proveedor.documento),
-        numDoc: proveedor.documento,
-        rznSocial: proveedor.nombre || 'PROVEEDOR',
+        ...receptorSunat(proveedor.tipo_documento, proveedor.documento),
+        rznSocial: proveedor.nombre?.trim() || 'PROVEEDOR',
       },
       regimen: cabecera.regimen,
       tasa: cabecera.tasa,
@@ -55,17 +55,17 @@ export class RetencionMapper {
       observacion: cabecera.observacion ?? '',
       details: (doc.registro as RetencionRegistro & { detalles?: RetencionDetalleRegistro[] }).detalles?.map(
         (d) => ({
-          tipoDoc: d.tipo_doc,
-          numDoc: d.num_doc,
+          tipoDoc: normalizarCodigoSunat(d.tipo_doc),
+          numDoc: normalizarCodigoSunat(d.num_doc),
           fechaEmision: this.formatFecha(d.fecha_emision),
           fechaRetencion: this.formatFecha(d.fecha_retencion),
-          moneda: d.moneda,
+          moneda: normalizarCodigoSunat(d.moneda),
           impTotal: d.imp_total,
           impRetenido: d.imp_retenido,
           impPagar: d.imp_pagar,
           pagos: [
             {
-              moneda: d.moneda,
+              moneda: normalizarCodigoSunat(d.moneda),
               importe: d.imp_retenido,
               fecha: this.formatFecha(d.fecha_retencion),
             },
@@ -81,22 +81,11 @@ export class RetencionMapper {
     };
   }
 
-  private mapTipoDoc(tipoDocumento?: string | null, numDoc?: string): string {
-    const tipo = (tipoDocumento ?? '').toUpperCase();
-    if (tipo.includes('RUC') || (numDoc?.length ?? 0) === 11) return '6';
-    if (tipo.includes('DNI') || (numDoc?.length ?? 0) === 8) return '1';
-    if (tipo.includes('CE')) return '4';
-    return '6';
-  }
-
   private parseCorrelativo(numero: string): string {
-    const limpio = numero.replace(/^0+/, '') || '0';
-    return String(Number.parseInt(limpio, 10));
+    return correlativoSunat(numero);
   }
 
   private formatFecha(fecha: string | null | undefined): string {
-    if (!fecha) return '';
-    const base = fecha.includes('T') ? fecha.slice(0, 10) : fecha.slice(0, 10);
-    return `${base}T00:00:00-05:00`;
+    return fechaHoraSunat(fecha);
   }
 }

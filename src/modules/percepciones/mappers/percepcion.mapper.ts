@@ -1,3 +1,4 @@
+import { receptorSunat, rucSunat, normalizarCodigoSunat, correlativoSunat, fechaHoraSunat } from '../../../common/helpers/sunat-datos.helper';
 import { Injectable } from '@nestjs/common';
 import type { FacturacionApisperuPayload } from '../../../integrations/facturacion-apisperu/interfaces/facturacion-apisperu.interface';
 import type { PercepcionCompletoResult, PercepcionDetalleRegistro, PercepcionRegistro } from '../interfaces/percepcion.interface';
@@ -28,11 +29,11 @@ export class PercepcionMapper {
     const razonSocial = empresa.razon_social?.trim() || empresa.nombre_comercial?.trim() || '';
 
     return {
-      serie: cabecera.serie,
+      serie: normalizarCodigoSunat(cabecera.serie),
       correlativo: this.parseCorrelativo(cabecera.numero),
       fechaEmision: this.formatFecha(cabecera.fecha_emision),
       company: {
-        ruc: empresa.ruc,
+        ruc: rucSunat(empresa.ruc),
         razonSocial,
         nombreComercial: empresa.nombre_comercial?.trim() || razonSocial,
         address: {
@@ -44,9 +45,8 @@ export class PercepcionMapper {
         },
       },
       proveedor: {
-        tipoDoc: this.mapTipoDoc(cliente.tipo_documento, cliente.documento),
-        numDoc: cliente.documento,
-        rznSocial: cliente.nombre || 'CLIENTE',
+        ...receptorSunat(cliente.tipo_documento, cliente.documento),
+        rznSocial: cliente.nombre?.trim() || 'CLIENTE',
       },
       regimen: cabecera.regimen,
       tasa: cabecera.tasa,
@@ -55,17 +55,17 @@ export class PercepcionMapper {
       observacion: cabecera.observacion ?? '',
       details: (doc.registro as PercepcionRegistro & { detalles?: PercepcionDetalleRegistro[] }).detalles?.map(
         (d) => ({
-          tipoDoc: d.tipo_doc,
-          numDoc: d.num_doc,
+          tipoDoc: normalizarCodigoSunat(d.tipo_doc),
+          numDoc: normalizarCodigoSunat(d.num_doc),
           fechaEmision: this.formatFecha(d.fecha_emision),
           fechaPercepcion: this.formatFecha(d.fecha_percepcion),
-          moneda: d.moneda,
+          moneda: normalizarCodigoSunat(d.moneda),
           impTotal: d.imp_total,
           impPercibido: d.imp_percibido,
           impCobrar: d.imp_cobrar,
           cobros: [
             {
-              moneda: d.moneda,
+              moneda: normalizarCodigoSunat(d.moneda),
               fecha: this.formatFecha(d.fecha_percepcion),
               importe: d.imp_percibido,
             },
@@ -81,22 +81,11 @@ export class PercepcionMapper {
     };
   }
 
-  private mapTipoDoc(tipoDocumento?: string | null, numDoc?: string): string {
-    const tipo = (tipoDocumento ?? '').toUpperCase();
-    if (tipo.includes('RUC') || (numDoc?.length ?? 0) === 11) return '6';
-    if (tipo.includes('DNI') || (numDoc?.length ?? 0) === 8) return '1';
-    if (tipo.includes('CE')) return '4';
-    return '6';
-  }
-
   private parseCorrelativo(numero: string): string {
-    const limpio = numero.replace(/^0+/, '') || '0';
-    return String(Number.parseInt(limpio, 10));
+    return correlativoSunat(numero);
   }
 
   private formatFecha(fecha: string | null | undefined): string {
-    if (!fecha) return '';
-    const base = fecha.includes('T') ? fecha.slice(0, 10) : fecha.slice(0, 10);
-    return `${base}T00:00:00-05:00`;
+    return fechaHoraSunat(fecha);
   }
 }
