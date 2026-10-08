@@ -43,21 +43,14 @@ BEGIN
     END IF;
 
     v_totales := fin_caja_calcular_totales(v_sesion.fecha, v_sesion.id_sucursal);
+    -- 20261007: p_monto_efectivo_contado son billetes, así que se compara contra el
+    -- efectivo esperado (fondo + neto de la fila EFECTIVO de porMedio). Antes el
+    -- esperado sumaba todo medio con AFECTA_CAJA, Yape y Plin incluidos, y el arqueo
+    -- daba un faltante igual a lo cobrado por Yape/Plin menos lo gastado por ellos.
+    -- efectivoNeto ya descuenta gastos, pagos a proveedor (P0 20260910), devoluciones
+    -- de garantía y depósitos pagados en efectivo.
     v_esperado := COALESCE(v_sesion.monto_inicial, 0)
-        + COALESCE((v_totales->>'ventasMediosCaja')::NUMERIC, 0)
-        + COALESCE((v_totales->>'cobranzasMediosCaja')::NUMERIC, 0)
-        + COALESCE((v_totales->>'garantiasCobroMediosCaja')::NUMERIC, 0)
-        - COALESCE((v_totales->>'depositos')::NUMERIC, 0)
-        -- Fase 3: solo los gastos pagados con medios que afectan caja. Antes se
-        -- restaba `gastosCaja` completo y un gasto pagado por transferencia
-        -- generaba una diferencia de arqueo inexistente.
-        - COALESCE((v_totales->>'gastosCajaMediosCaja')::NUMERIC,
-                   (v_totales->>'gastosCaja')::NUMERIC, 0)
-        -- P0 (20260910): pagos de CxP de compra. fin_registrar_pago exige caja
-        -- abierta para registrarlos, así que ese efectivo ya salió del cajón;
-        -- sin restarlo aquí el arqueo cerraba con un faltante inexistente.
-        - COALESCE((v_totales->>'pagosProveedorMediosCaja')::NUMERIC, 0)
-        - COALESCE((v_totales->>'garantiasDevolucionMediosCaja')::NUMERIC, 0);
+        + COALESCE((v_totales->>'efectivoNeto')::NUMERIC, 0);
     v_diferencia := COALESCE(p_monto_efectivo_contado, 0) - v_esperado;
 
     -- Congela el desglose de totales_cierre tal como está en el instante del cierre:

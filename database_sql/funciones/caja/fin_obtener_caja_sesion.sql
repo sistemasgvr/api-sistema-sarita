@@ -15,6 +15,7 @@ DECLARE
     v_id_sucursal INT;
     v_fecha_cierre TIMESTAMP;
     v_totales_congelados JSON;
+    v_totales_vivo JSON;
     v_gastos JSON;
     v_depositos JSON;
 BEGIN
@@ -36,6 +37,17 @@ BEGIN
         v_totales := v_totales_congelados;
     ELSE
         v_totales := fin_caja_calcular_totales(v_fecha, v_id_sucursal);
+    END IF;
+
+    -- 20261007: las fotos congeladas antes del resumen por medio de pago no traen
+    -- porMedio ni efectivoNeto. Se completan con el recálculo en vivo para poder
+    -- revisar esos días; el resto de la foto (y monto_esperado) queda como se cerró.
+    IF v_totales::JSONB->'porMedio' IS NULL THEN
+        v_totales_vivo := fin_caja_calcular_totales(v_fecha, v_id_sucursal);
+        v_totales := (v_totales::JSONB || jsonb_build_object(
+            'porMedio', v_totales_vivo->'porMedio',
+            'efectivoNeto', v_totales_vivo->'efectivoNeto'
+        ))::JSON;
     END IF;
 
     SELECT COALESCE(json_agg(row_to_json(g) ORDER BY g.id), '[]'::JSON) INTO v_gastos
@@ -99,25 +111,13 @@ BEGIN
             v_totales AS totales,
             v_gastos AS gastos,
             v_depositos AS depositos,
-            (
-                COALESCE(s.monto_inicial, 0)
-                + COALESCE((v_totales->>'ventasMediosCaja')::NUMERIC, 0)
-                + COALESCE((v_totales->>'cobranzasMediosCaja')::NUMERIC, 0)
-                + COALESCE((v_totales->>'garantiasCobroMediosCaja')::NUMERIC, 0)
-                - COALESCE((v_totales->>'depositos')::NUMERIC, 0)
-                -- Fase 3: solo los gastos pagados con medios que afectan caja.
-                -- Antes se restaba `gastosCaja` completo, así que un gasto pagado
-                -- por transferencia bajaba el efectivo esperado sin haber salido
-                -- del cajón y el arqueo salía con diferencia.
-                - COALESCE((v_totales->>'gastosCajaMediosCaja')::NUMERIC,
-                           (v_totales->>'gastosCaja')::NUMERIC, 0)
-                -- P0 (20260910): el pago de una CxP de compra sale del cajón y no
-                -- se restaba, así que el efectivo esperado salía inflado. Las
-                -- sesiones cerradas antes de esta migración tienen totales_cierre
-                -- congelado sin la clave: el COALESCE las deja como estaban.
-                - COALESCE((v_totales->>'pagosProveedorMediosCaja')::NUMERIC, 0)
-                - COALESCE((v_totales->>'garantiasDevolucionMediosCaja')::NUMERIC, 0)
-            ) AS "cajaEsperada"
+            -- 20261007: el arqueo compara solo billetes: fondo + neto de la fila
+            -- EFECTIVO de totales.porMedio (ventas, cobranzas y garantías cobradas en
+            -- efectivo, menos gastos, pagos a proveedor, devoluciones y depósitos).
+            -- Antes sumaba todo medio con AFECTA_CAJA, Yape y Plin incluidos, y el
+            -- esperado nunca cuadraba con el conteo físico del cajón.
+            COALESCE(s.monto_inicial, 0)
+                + COALESCE((v_totales->>'efectivoNeto')::NUMERIC, 0) AS "efectivoEsperado"
         FROM fin_caja_sesion s
         LEFT JOIN gen_sucursal suc ON suc.id = s.id_sucursal
         LEFT JOIN gen_lista_opciones est ON est.id = s.id_estado

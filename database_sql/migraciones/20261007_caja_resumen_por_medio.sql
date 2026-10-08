@@ -1,33 +1,3 @@
--- Function: fin_caja_calcular_totales
--- Fase 3. Dos cambios de fondo:
---
---   1. La clasificación por medio de pago sale de fin_medio_pago_config, no de
---      `UPPER(mp.nombre) IN ('EFECTIVO','YAPE','PLIN')`. Ese literal estaba
---      repetido en cinco bloques de esta función: añadir un medio nuevo al
---      catálogo lo dejaba fuera del arqueo en silencio. Mismo criterio que
---      inv_signo_tipo_movimiento en F1.
---
---   2. Las ventas se miden por sus líneas de cobro (ven_pagos_de_comprobante),
---      no por el medio único de la cabecera, de modo que una venta cobrada
---      mitad en efectivo y mitad por transferencia aporta a los dos resúmenes.
---
--- Claves nuevas del JSON (las anteriores se conservan):
---   ventasEfectivo, ventasOtrosMedios, cobranzasEfectivo, gastosCajaMediosCaja.
---
--- P0 (20260910): los pagos de cuentas por pagar (CxP de compras) entran al JSON
--- como pagosProveedor / pagosProveedorMediosCaja. Ver el bloque correspondiente.
---
--- 20261007: resumen por medio de pago. Todos los movimientos del día se arman una
--- sola vez en `mov` (tipo, medio, monto) y de ahí salen tanto las claves de siempre
--- como dos nuevas:
---   porMedio     — una fila por medio de pago con movimiento (Efectivo, Yape, Plin,
---                  Transferencia...): ventas, cobranzas, garantías, gastos, pagos a
---                  proveedor, depósitos, ingresos, egresos y neto. Los medios de
---                  crédito no entran: una venta al crédito no mueve dinero.
---   efectivoNeto — el neto de la fila EFECTIVO. Es lo único que se cuenta en el
---                  arqueo: Yape y Plin tienen AFECTA_CAJA pero no son billetes en
---                  el cajón, y sumarlos al "efectivo esperado" hacía que el arqueo
---                  no cuadrara nunca contra el conteo físico.
 
 DROP FUNCTION IF EXISTS fin_caja_calcular_totales(p_fecha date, p_id_sucursal integer);
 
@@ -59,9 +29,6 @@ DECLARE
     v_efectivo_neto NUMERIC(14,4) := 0;
 BEGIN
     SET TIME ZONE 'America/Lima';
-
-    -- Un movimiento sin medio de pago se sigue tratando como efectivo, que es
-    -- lo que hacía el COALESCE(mp.nombre, 'EFECTIVO') anterior.
     SELECT o.id INTO v_efectivo_id
     FROM gen_lista_opciones o
     JOIN gen_lista l ON l.id = o.id_lista AND l.nombre = 'MedioPago'
@@ -69,19 +36,6 @@ BEGIN
     LIMIT 1;
 
     WITH mov AS (
-        -- Ventas, medidas por línea de cobro. Una Nota de Crédito referida a una venta
-        -- anterior RESTA, en vez de excluirse: su propia c.fecha es el día en que se
-        -- emite (hoy), no el día de la venta original, así que una devolución de una
-        -- venta de hace días reduce la caja de HOY, no reabre ni altera la caja (ya
-        -- cerrada) de aquel día. Nota de débito suma, igual que una venta normal.
-        -- Antes ambas quedaban excluidas del todo, así que una NC no reducía la caja
-        -- en ningún día — la venta original se quedaba contada para siempre.
-        --
-        -- Un comprobante dado de baja ante SUNAT (comunicación de baja, ven_estado_sunat
-        -- = 'BAJA') también se excluye de su propio día: es la otra forma real de anular
-        -- una factura/nota ya aceptada (no genera NC), y no existía ningún campo que lo
-        -- reflejara aquí — c.id_estado nunca se setea a ANULADO en ese flujo, solo
-        -- c.id_estado_sunat pasa a BAJA.
         SELECT
             'VENTA'::TEXT AS tipo,
             COALESCE(pg.id_medio_pago, v_efectivo_id) AS id_medio_pago,
@@ -109,20 +63,6 @@ BEGIN
           )
 
         UNION ALL
-
-        -- Cobranzas de cuentas por cobrar (COBRAR) y pagos de cuentas por pagar
-        -- (PAGAR, la CxP que genera una compra a crédito). Excluye abonos contables
-        -- AJUSTE_NC: no son cobros ni pagos reales, abonan la cuenta sin mover dinero.
-        --
-        -- fin_registrar_pago exige caja abierta para registrar un PAGAR, pero hasta el
-        -- P0 (20260910) aquí solo se sumaban los COBRAR, así que el dinero entregado al
-        -- proveedor salía del cajón sin restarse del arqueo.
-        --
-        -- Deliberadamente los PAGAR NO se suman a `gastos` ni a `gastosCompra`:
-        -- gastosCompra mide el devengo de las compras tipo GASTO por su fecha de
-        -- emisión, esté pagada o no, así que sumar aquí el pago de una de esas compras
-        -- a crédito contaría el mismo importe dos veces. gastosCompra tampoco entra en
-        -- el arqueo, de modo que restar el pago del efectivo no duplica ninguna salida.
         SELECT
             CASE WHEN UPPER(tc.nombre) = 'COBRAR' THEN 'COBRANZA' ELSE 'PAGO_PROVEEDOR' END,
             COALESCE(p.id_medio_pago, v_efectivo_id),
@@ -141,35 +81,18 @@ BEGIN
           )
 
         UNION ALL
-
-        -- Gastos de caja. Solo los pagados con un medio que afecta caja salen del
-        -- arqueo: un gasto pagado por transferencia no vacía el cajón.
         SELECT 'GASTO', COALESCE(g.id_medio_pago, v_efectivo_id), g.monto
         FROM fin_caja_gasto g
         LEFT JOIN fin_caja_sesion s ON s.id = g.id_sesion AND s.estado = 1
         WHERE g.estado = 1 AND g.fecha = p_fecha
           AND (p_id_sucursal IS NULL OR s.id_sucursal = p_id_sucursal)
-
         UNION ALL
-
-        -- Depósitos al banco: billetes que salen del cajón. d.id_medio_pago dice cómo
-        -- llegaron al banco (depósito, transferencia), no de dónde salieron, así que
-        -- el depósito siempre se descuenta del efectivo.
         SELECT 'DEPOSITO', v_efectivo_id, d.monto
         FROM fin_caja_deposito d
         LEFT JOIN fin_caja_sesion s ON s.id = d.id_sesion AND s.estado = 1
         WHERE d.estado = 1 AND d.fecha = p_fecha
           AND (p_id_sucursal IS NULL OR s.id_sucursal = p_id_sucursal)
-
         UNION ALL
-
-        -- Cobros de garantía. El monto de una garantía (ven_garantia/ven_garantia_movimiento)
-        -- nunca viaja dentro de c.total_importe del comprobante al que queda ligada — el POS
-        -- la registra como efecto aparte de ven_aplicar_efectos_pos, nunca como línea de venta
-        -- (ver PosVentaPanel.vue/PosAlquilerPanel.vue: "totales" solo suma líneas de producto,
-        -- la garantía es un campo separado) — así que excluirla cuando gm.id_comprobante
-        -- apuntaba a una boleta/factura/NV dejaba esas garantías (el caso normal: casi toda
-        -- garantía se cobra junto a una venta) fuera del arqueo de caja por completo.
         SELECT 'GARANTIA_COBRO', COALESCE(gm.id_medio_pago, g.id_medio_pago, v_efectivo_id), gm.monto
         FROM ven_garantia_movimiento gm
         INNER JOIN gen_lista_opciones tm ON tm.id = gm.id_tipo_movimiento
@@ -321,3 +244,287 @@ BEGIN
     );
 END;
 $function$;
+
+-- ============================================================================
+
+DROP FUNCTION IF EXISTS fin_obtener_caja_sesion(p_id integer);
+
+CREATE OR REPLACE FUNCTION fin_obtener_caja_sesion(p_id integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_registro JSON;
+    v_totales JSON;
+    v_fecha DATE;
+    v_id_sucursal INT;
+    v_fecha_cierre TIMESTAMP;
+    v_totales_congelados JSON;
+    v_totales_vivo JSON;
+    v_gastos JSON;
+    v_depositos JSON;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT s.fecha, s.id_sucursal, s.fecha_cierre, s.totales_cierre
+    INTO v_fecha, v_id_sucursal, v_fecha_cierre, v_totales_congelados
+    FROM fin_caja_sesion s WHERE s.id = p_id AND s.estado = 1;
+
+    IF v_fecha IS NULL THEN
+        RETURN json_build_object('error', 'Sesión no encontrada', 'registro', NULL);
+    END IF;
+
+    -- Sesión cerrada: sirve la foto congelada al cierre, no un recálculo en vivo — así
+    -- una venta anulada días después no cambia lo que esta caja ya cerrada muestra.
+    -- Sesiones cerradas antes de esta migración no tienen totales_cierre guardado; para
+    -- esas se recalcula en vivo como antes (mejor esfuerzo, no hay foto que servir).
+    IF v_fecha_cierre IS NOT NULL AND v_totales_congelados IS NOT NULL THEN
+        v_totales := v_totales_congelados;
+    ELSE
+        v_totales := fin_caja_calcular_totales(v_fecha, v_id_sucursal);
+    END IF;
+
+    -- 20261007: las fotos congeladas antes del resumen por medio de pago no traen
+    -- porMedio ni efectivoNeto. Se completan con el recálculo en vivo para poder
+    -- revisar esos días; el resto de la foto (y monto_esperado) queda como se cerró.
+    IF v_totales::JSONB->'porMedio' IS NULL THEN
+        v_totales_vivo := fin_caja_calcular_totales(v_fecha, v_id_sucursal);
+        v_totales := (v_totales::JSONB || jsonb_build_object(
+            'porMedio', v_totales_vivo->'porMedio',
+            'efectivoNeto', v_totales_vivo->'efectivoNeto'
+        ))::JSON;
+    END IF;
+
+    SELECT COALESCE(json_agg(row_to_json(g) ORDER BY g.id), '[]'::JSON) INTO v_gastos
+    FROM (
+        SELECT
+            cg.id,
+            cg.fecha,
+            cg.concepto,
+            cg.monto,
+            cg.id_medio_pago AS "idMedioPago",
+            mp.nombre AS "medioPago",
+            cg.id_cuenta_bancaria AS "idCuentaBancaria",
+            COALESCE(cbg.alias, cbg.titular, cbg.numero_cuenta) AS "cuentaBancaria",
+            cg.numero_operacion AS "numeroOperacion",
+            cg.observacion
+        FROM fin_caja_gasto cg
+        LEFT JOIN gen_lista_opciones mp ON mp.id = cg.id_medio_pago
+        LEFT JOIN gen_cuenta_bancaria cbg ON cbg.id = cg.id_cuenta_bancaria
+        WHERE cg.estado = 1 AND cg.id_sesion = p_id
+    ) g;
+
+    SELECT COALESCE(json_agg(row_to_json(d) ORDER BY d.id), '[]'::JSON) INTO v_depositos
+    FROM (
+        SELECT
+            cd.id,
+            cd.fecha,
+            cd.monto,
+            cd.id_cuenta_bancaria AS "idCuentaBancaria",
+            COALESCE(cb.titular, cb.numero_cuenta) AS "cuentaBancaria",
+            cd.id_medio_pago AS "idMedioPago",
+            mp.nombre AS "medioPago",
+            cd.numero_operacion AS "numeroOperacion",
+            cd.observacion
+        FROM fin_caja_deposito cd
+        LEFT JOIN gen_cuenta_bancaria cb ON cb.id = cd.id_cuenta_bancaria
+        LEFT JOIN gen_lista_opciones mp ON mp.id = cd.id_medio_pago
+        WHERE cd.estado = 1 AND cd.id_sesion = p_id
+    ) d;
+
+    SELECT row_to_json(t) INTO v_registro
+    FROM (
+        SELECT
+            s.id,
+            s.fecha,
+            s.id_sucursal AS "idSucursal",
+            suc.nombre AS "nombreSucursal",
+            s.id_estado AS "idEstado",
+            est.nombre AS "estadoCaja",
+            s.monto_inicial AS "montoInicial",
+            s.monto_efectivo_contado AS "montoEfectivoContado",
+            s.monto_esperado AS "montoEsperado",
+            s.diferencia,
+            s.observacion_apertura AS "observacionApertura",
+            s.observacion_cierre AS "observacionCierre",
+            s.fecha_apertura AS "fechaApertura",
+            s.fecha_cierre AS "fechaCierre",
+            s.id_usuario_apertura AS "idUsuarioApertura",
+            ua.nombre AS "usuarioApertura",
+            s.id_usuario_cierre AS "idUsuarioCierre",
+            uc.nombre AS "usuarioCierre",
+            v_totales AS totales,
+            v_gastos AS gastos,
+            v_depositos AS depositos,
+            -- 20261007: el arqueo compara solo billetes: fondo + neto de la fila
+            -- EFECTIVO de totales.porMedio (ventas, cobranzas y garantías cobradas en
+            -- efectivo, menos gastos, pagos a proveedor, devoluciones y depósitos).
+            -- Antes sumaba todo medio con AFECTA_CAJA, Yape y Plin incluidos, y el
+            -- esperado nunca cuadraba con el conteo físico del cajón.
+            COALESCE(s.monto_inicial, 0)
+                + COALESCE((v_totales->>'efectivoNeto')::NUMERIC, 0) AS "efectivoEsperado"
+        FROM fin_caja_sesion s
+        LEFT JOIN gen_sucursal suc ON suc.id = s.id_sucursal
+        LEFT JOIN gen_lista_opciones est ON est.id = s.id_estado
+        LEFT JOIN auth_usuarios ua ON ua.id = s.id_usuario_apertura
+        LEFT JOIN auth_usuarios uc ON uc.id = s.id_usuario_cierre
+        WHERE s.id = p_id
+    ) t;
+
+    RETURN json_build_object('registro', v_registro);
+END;
+$function$;
+
+-- ============================================================================
+
+DROP FUNCTION IF EXISTS fin_obtener_caja_dia(p_fecha date, p_id_sucursal integer);
+
+CREATE OR REPLACE FUNCTION fin_obtener_caja_dia(p_fecha date, p_id_sucursal integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_sesion_id INT;
+    v_totales JSON;
+    v_registro JSON;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    IF p_fecha IS NULL THEN
+        RETURN json_build_object('error', 'La fecha es obligatoria', 'registro', NULL);
+    END IF;
+
+    SELECT s.id INTO v_sesion_id
+    FROM fin_caja_sesion s
+    WHERE s.estado = 1
+      AND s.fecha = p_fecha
+      AND COALESCE(s.id_sucursal, 0) = COALESCE(p_id_sucursal, 0)
+    LIMIT 1;
+
+    v_totales := fin_caja_calcular_totales(p_fecha, p_id_sucursal);
+
+    IF v_sesion_id IS NOT NULL THEN
+        RETURN fin_obtener_caja_sesion(v_sesion_id);
+    END IF;
+
+    SELECT json_build_object(
+        'id', NULL,
+        'fecha', p_fecha,
+        'idSucursal', p_id_sucursal,
+        'estadoCaja', NULL,
+        'montoInicial', 0,
+        'totales', v_totales,
+        -- Rama sin sesión: previsualización del arqueo con la misma fórmula que
+        -- fin_obtener_caja_sesion / fin_cerrar_caja_sesion, para que abrir la caja
+        -- no cambie de golpe el esperado que se venía mostrando. Solo efectivo
+        -- (20261007): Yape/Plin van aparte en totales.porMedio.
+        'efectivoEsperado', COALESCE((v_totales->>'efectivoNeto')::NUMERIC, 0)
+    ) INTO v_registro;
+
+    RETURN json_build_object('registro', v_registro);
+END;
+$function$;
+
+-- ============================================================================
+
+DROP FUNCTION IF EXISTS fin_cerrar_caja_sesion(p_id integer, p_monto_efectivo_contado numeric, p_observacion character varying, p_id_usuario integer);
+
+CREATE OR REPLACE FUNCTION fin_cerrar_caja_sesion(p_id integer, p_monto_efectivo_contado numeric, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_sesion RECORD;
+    v_estado_cerrada INT;
+    v_totales JSON;
+    v_esperado NUMERIC(14,4);
+    v_diferencia NUMERIC(14,4);
+    v_registro JSON;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT lo.id INTO v_estado_cerrada
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoCaja' AND lo.nombre = 'CERRADA'
+    LIMIT 1;
+
+    SELECT s.*, est.nombre AS estado_nombre
+    INTO v_sesion
+    FROM fin_caja_sesion s
+    LEFT JOIN gen_lista_opciones est ON est.id = s.id_estado
+    WHERE s.id = p_id AND s.estado = 1;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('error', 'Sesión de caja no encontrada', 'registro', NULL);
+    END IF;
+
+    IF UPPER(COALESCE(v_sesion.estado_nombre, '')) = 'CERRADA' THEN
+        RETURN json_build_object('error', 'La caja ya está cerrada', 'registro', NULL);
+    END IF;
+
+    IF p_monto_efectivo_contado IS NULL OR p_monto_efectivo_contado < 0 THEN
+        RETURN json_build_object('error', 'Indique el efectivo contado (arqueo)', 'registro', NULL);
+    END IF;
+
+    v_totales := fin_caja_calcular_totales(v_sesion.fecha, v_sesion.id_sucursal);
+    -- 20261007: p_monto_efectivo_contado son billetes, así que se compara contra el
+    -- efectivo esperado (fondo + neto de la fila EFECTIVO de porMedio). Antes el
+    -- esperado sumaba todo medio con AFECTA_CAJA, Yape y Plin incluidos, y el arqueo
+    -- daba un faltante igual a lo cobrado por Yape/Plin menos lo gastado por ellos.
+    -- efectivoNeto ya descuenta gastos, pagos a proveedor (P0 20260910), devoluciones
+    -- de garantía y depósitos pagados en efectivo.
+    v_esperado := COALESCE(v_sesion.monto_inicial, 0)
+        + COALESCE((v_totales->>'efectivoNeto')::NUMERIC, 0);
+    v_diferencia := COALESCE(p_monto_efectivo_contado, 0) - v_esperado;
+
+    -- Congela el desglose de totales_cierre tal como está en el instante del cierre:
+    -- fin_obtener_caja_sesion lo sirve tal cual para una sesión cerrada, en vez de
+    -- recalcular en vivo, así que una venta anulada días después no altera lo que
+    -- esta caja ya cerrada muestra.
+    UPDATE fin_caja_sesion
+    SET id_estado = v_estado_cerrada,
+        monto_efectivo_contado = p_monto_efectivo_contado,
+        monto_esperado = v_esperado,
+        diferencia = v_diferencia,
+        totales_cierre = v_totales,
+        observacion_cierre = NULLIF(TRIM(p_observacion), ''),
+        fecha_cierre = NOW(),
+        id_usuario_cierre = p_id_usuario,
+        id_usuario_modificacion = p_id_usuario,
+        fecha_modificacion = NOW()
+    WHERE id = p_id;
+
+    SELECT row_to_json(t) INTO v_registro
+    FROM (
+        SELECT
+            s.id,
+            s.fecha,
+            s.id_sucursal AS "idSucursal",
+            suc.nombre AS "nombreSucursal",
+            s.id_estado AS "idEstado",
+            est.nombre AS "estadoCaja",
+            s.monto_inicial AS "montoInicial",
+            s.monto_efectivo_contado AS "montoEfectivoContado",
+            s.monto_esperado AS "montoEsperado",
+            s.diferencia,
+            s.observacion_apertura AS "observacionApertura",
+            s.observacion_cierre AS "observacionCierre",
+            s.fecha_apertura AS "fechaApertura",
+            s.fecha_cierre AS "fechaCierre",
+            s.id_usuario_apertura AS "idUsuarioApertura",
+            s.id_usuario_cierre AS "idUsuarioCierre",
+            v_totales AS totales
+        FROM fin_caja_sesion s
+        LEFT JOIN gen_sucursal suc ON suc.id = s.id_sucursal
+        LEFT JOIN gen_lista_opciones est ON est.id = s.id_estado
+        WHERE s.id = p_id
+    ) t;
+
+    -- Fase 3 (apunte 1.a.iii): avisar a los ADMIN del cierre y su diferencia.
+    PERFORM fin_notificar_caja_admins(p_id, 'CIERRE', p_id_usuario);
+
+    RETURN json_build_object('registro', v_registro);
+END;
+$function$;
+
