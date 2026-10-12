@@ -1,4 +1,5 @@
 import { adjuntarTributos } from '../../../common/helpers/tributos-vinculados.helper';
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -96,6 +97,52 @@ interface EmpresaEmisoraRow {
 
 @Injectable()
 export class ComprobantesModel {
+  async pendientesDeVerificacion() {
+    const { rows } = await this.db.query<{ id: number }>(
+      `SELECT c.id FROM ven_comprobante c
+       JOIN gen_lista_opciones t ON t.id=c.id_tipo_comprobante
+       JOIN gen_lista_opciones s ON s.id=c.id_estado_sunat
+       WHERE c.estado=1 AND t.descripcion IN ('01','03') AND s.nombre='PENDIENTE'
+         AND c.cdr_respuesta LIKE '%emision_por_confirmar%'
+         AND (c.cpe_verificacion IS NULL OR (c.cpe_verificacion->>'verificadoEn')::timestamptz < NOW()-INTERVAL '60 seconds')
+       ORDER BY c.cpe_verificacion->>'verificadoEn' NULLS FIRST, c.id LIMIT 3`,
+    );
+    return rows;
+  }
+
+  async reclamarVerificacionGlobal(): Promise<string | null> {
+    const token = randomUUID();
+    const { rows } = await this.db.query<{ token: string }>(
+      `INSERT INTO ven_cpe_verificacion_control(id,token,vencimiento) VALUES(1,$1,NOW()+INTERVAL '10 minutes')
+       ON CONFLICT(id) DO UPDATE SET token=EXCLUDED.token,vencimiento=EXCLUDED.vencimiento
+       WHERE ven_cpe_verificacion_control.vencimiento <= NOW() RETURNING token`, [token],
+    );
+    return rows[0]?.token ?? null;
+  }
+
+  async liberarVerificacionGlobal(token: string) {
+    await this.db.query('UPDATE ven_cpe_verificacion_control SET vencimiento=NOW() WHERE id=1 AND token=$1',[token]);
+  }
+
+  async guardarVerificacion(id: number, doc: ComprobanteRegistro, evidencia: unknown, rechazo: string | null, usuario?: number) {
+    const idRechazado = rechazo ? await this.resolverIdEstadoSunat('RECHAZADO') : null;
+    const { rowCount } = await this.db.query(
+      `UPDATE ven_comprobante c SET cpe_verificacion=$2::jsonb,
+         id_estado_sunat=CASE WHEN $7::int IS NOT NULL AND s.nombre NOT IN ('ACEPTADO','BAJA') THEN $7 ELSE c.id_estado_sunat END,
+         cdr_respuesta=CASE WHEN $7::int IS NOT NULL AND s.nombre NOT IN ('ACEPTADO','BAJA') THEN $8 ELSE c.cdr_respuesta END,
+         id_usuario_modificacion=CASE WHEN $7::int IS NOT NULL AND s.nombre NOT IN ('ACEPTADO','BAJA') THEN $9 ELSE c.id_usuario_modificacion END,
+         fecha_modificacion=CASE WHEN $7::int IS NOT NULL AND s.nombre NOT IN ('ACEPTADO','BAJA') THEN NOW() ELSE c.fecha_modificacion END
+       FROM gen_lista_opciones s
+       WHERE c.id=$1 AND c.estado=1 AND s.id=c.id_estado_sunat
+         AND c.serie=$3 AND c.numero=$4 AND c.total_importe=$5
+         AND (SELECT descripcion FROM gen_lista_opciones WHERE id=c.id_tipo_comprobante)=$10
+         AND COALESCE(c.fecha_emision_cpe,c.fecha::date)=$6::date
+         AND (c.cpe_verificacion IS NULL OR c.cpe_verificacion->>'verificadoEn' <= ($2::jsonb)->>'verificadoEn')`,
+      [id,JSON.stringify(evidencia),doc.serie,doc.numero,Number(doc.total_importe),doc.fecha_emision_cpe??doc.fecha,idRechazado,rechazo,usuario??null,doc.codigo_tipo_comprobante],
+    );
+    return rowCount === 1;
+  }
+
   async evidenciasCdr(ids: number[]) {
     if (!ids.length) return [];
     const { rows } = await this.db.query<{ id: number; cdr_respuesta: string | null; fecha_emision_cpe: string | null; emision_en_curso: boolean; validez_aceptada: boolean }>(
@@ -103,7 +150,12 @@ export class ComprobantesModel {
               EXISTS (SELECT 1 FROM pg_locks l
                       WHERE l.locktype='advisory' AND l.granted
                         AND l.classid=872016 AND l.objid=c.id::oid AND l.objsubid=2
-                        AND l.database=(SELECT oid FROM pg_database WHERE datname=current_database())) AS emision_en_curso
+                        AND l.database=(SELECT oid FROM pg_database WHERE datname=current_database()))
+                AND COALESCE(c.cdr_respuesta,'') NOT LIKE '%"fase":"SIN_RESPUESTA"%'
+                AND COALESCE(c.cdr_respuesta,'') NOT LIKE '%"motivo":"El proveedor no confirmó%'
+                AND c.fecha_modificacion > NOW() - MAKE_INTERVAL(secs =>
+                  COALESCE((SELECT MAX(timeout_ms)/1000 FROM gen_configuracion_sunat WHERE estado=1),60)+60)
+              AS emision_en_curso
        FROM ven_comprobante c WHERE c.id = ANY($1::int[])`, [ids],
     );
     return rows;
@@ -153,7 +205,7 @@ export class ComprobantesModel {
     return this.db.query('SELECT * FROM ven_comprobante_historial_cpe WHERE id_comprobante=$1 ORDER BY id DESC', [id]);
   }
 
-  async sincronizarValidez(id: number, validez: { codigo: string; consulta: unknown }, usuario: number) {
+  async sincronizarValidez(id: number, validez: { codigo: string; consulta: unknown }, usuario: number | null) {
     if (validez.codigo !== '1') return false;
     const aceptado = await this.resolverIdEstadoSunat('ACEPTADO');
     if (!aceptado) throw new Error('Estado SUNAT ACEPTADO no configurado');

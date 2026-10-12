@@ -254,6 +254,13 @@ export class ComprobantesController {
     return this.logic.sincronizarValidez(id, req.user.id);
   }
 
+  @Post(':id/verificar-envio')
+  @Permisos(PermisoBanderas.COMPROBANTES_CONSULTAR_CDR)
+  @ApiOperation({ summary: 'Verificar envío con validez SUNAT y CDR del proveedor, sin reenviar' })
+  verificarEnvio(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.logic.verificarEnvio(id, req.user.id);
+  }
+
   @Post(':id/consultar-cdr')
   @Permisos(PermisoBanderas.COMPROBANTES_CONSULTAR_CDR)
   @ApiOperation({

@@ -152,6 +152,50 @@ export class ComprobantesLogic {
     return { ...validez, soloLectura: !actualizado, estadoActualizado: actualizado };
   }
 
+  /** Comprueba el envío; nunca emite, renumera ni cambia los pagos de la venta. */
+  async verificarEnvio(id: number, usuario?: number) {
+    const { registro: doc } = await this.model.obtenerCompleto(id);
+    if (!doc) throw new NotFoundException('Comprobante no encontrado');
+    if (!['01','03'].includes(doc.codigo_tipo_comprobante ?? '')) throw new BadRequestException('Verificación disponible para facturas y boletas');
+    const activo = (await this.model.evidenciasCdr([id]))[0]?.emision_en_curso ?? false;
+    let estado = activo ? 'EN_CURSO' : 'SIN_CONFIRMACION';
+    const verificadoEn = new Date().toISOString();
+    let codigoValidez: string | null = null;
+    let codigoCdr: string | null = null;
+    let rechazo: string | null = null;
+    try {
+      const validez = await this.consultarValidez(id);
+      codigoValidez = validez.codigo;
+      if (validez.codigo === '1' && await this.model.sincronizarValidez(id,validez,usuario ?? null)) estado='ACEPTADO';
+    } catch { /* Ausencia de respuesta no equivale a rechazo. */ }
+    if (estado !== 'ACEPTADO' && !activo) {
+      try {
+        const emisor = await this.model.obtenerEmpresaEmisora();
+        if (!emisor) throw new Error('Emisor no configurado');
+        const respuesta = await this.facturacionClient.consultarEstadoFacturaBoleta({
+          ruc:emisor.ruc, tipo:doc.codigo_tipo_comprobante!, serie:doc.serie, numero:String(Number(doc.numero)),
+        });
+        const sunat = respuesta.sunatResponse ?? respuesta as SunatResponsePayload;
+        codigoCdr = String((sunat as SunatResponsePayload).cdrResponse?.code ?? '') || null;
+        if (codigoCdr && estadoDesdeCdr(respuesta)==='RECHAZADO' && cdrCorrespondeAlDocumento(respuesta,doc.serie,doc.numero,doc.fecha_emision_cpe??doc.fecha,codigoCdr)) {
+          estado='RECHAZADO';
+          rechazo=JSON.stringify(respuesta);
+        }
+      } catch { /* Se seguirá verificando; ninguna respuesta incierta autoriza reenvío. */ }
+    }
+    const evidencia = { estado, verificadoEn, codigoValidez, codigoCdr, serie:doc.serie, numero:doc.numero };
+    if (!await this.model.guardarVerificacion(id,doc,evidencia,rechazo,usuario)) {
+      throw new BadRequestException('El comprobante cambió durante la verificación. Consulta nuevamente su referencia actual.');
+    }
+    // Respeta una aceptación o baja guardada concurrentemente.
+    const actual = (await this.model.obtenerCompleto(id)).registro;
+    if (['ACEPTADO','BAJA'].includes(actual?.nombre_estado_sunat ?? '')) estado=actual!.nombre_estado_sunat!;
+    return { ...evidencia, estado, mensaje: estado==='ACEPTADO' ? (codigoValidez==='1' ? 'SUNAT confirmó la aceptación del comprobante.' : 'El estado guardado es Aceptado; esta verificación no obtuvo una nueva confirmación.')
+      : estado==='RECHAZADO' ? 'El CDR de este comprobante confirma rechazo. Revisa el motivo antes de reintentar.'
+      : estado==='EN_CURSO' ? 'La solicitud de emisión sigue activa.'
+      : 'El envío aún no tiene un resultado definitivo. Se seguirá verificando automáticamente; no se ha reenviado.' };
+  }
+
   async obtenerXml(id: number) {
     const comprobante = await this.obtenerPorId(id);
     const original = comprobante.xml_firmado;
@@ -898,9 +942,10 @@ export class ComprobantesLogic {
 
       if (this.parseCdrMeta(comprobante.registro.cdr_respuesta)?.tipo === 'emision_por_confirmar') {
         const validez = await this.consultarValidez(id);
-        if (validez.codigo !== '0') {
-          throw new BadRequestException('El envío anterior aún requiere revisión: SUNAT respondió ' + validez.estado + '. No se volvió a emitir.');
+        if (validez.codigo === '1') {
+          await this.model.sincronizarValidez(id,validez,dto.idUsuarioAuditoria ?? null);
         }
+        throw new BadRequestException('El envío anterior aún requiere revisión: SUNAT respondió ' + validez.estado + '. Usa Verificar envío para obtener una respuesta definitiva antes de reintentar. No se volvió a emitir.');
       }
 
       const plazoDias = diasPlazoEmisionSunat(
@@ -986,6 +1031,18 @@ export class ComprobantesLogic {
         if (tipoDoc === '07' || tipoDoc === '08') {
           respuesta = await this.facturacionClient.enviarNota(payload);
         } else {
+          // Deja constancia antes de salir al proveedor: un reinicio del API
+          // tampoco debe perder la verificación de una emisión incierta.
+          const pendiente = await this.model.resolverIdEstadoSunat('PENDIENTE');
+          const inicio = await this.model.registrarRespuestaSunat(id, {
+            idEstadoSunat: pendiente ?? undefined,
+            cdrRespuesta: JSON.stringify({ tipo:'emision_por_confirmar', fase:'ENVIANDO', fecha:new Date().toISOString() }),
+            idUsuarioAuditoria:dto.idUsuarioAuditoria,
+          });
+          if (inicio.error) throw new BadRequestException(inicio.error);
+          if (inicio.registro?.nombre_estado_sunat === 'ACEPTADO') return {
+            comprobante:inicio.registro, sunat:{estado:'ACEPTADO',hash:null,ticket:null,respuesta:null},
+          };
           respuesta = await this.facturacionClient.enviarFacturaBoleta(payload);
         }
       } catch (error) {
@@ -993,7 +1050,7 @@ export class ComprobantesLogic {
           const pendiente = await this.model.resolverIdEstadoSunat('PENDIENTE');
           const guardado = await this.model.registrarRespuestaSunat(id, {
             idEstadoSunat: pendiente ?? undefined,
-            cdrRespuesta: JSON.stringify({ tipo: 'emision_por_confirmar', motivo: 'El proveedor no confirmó el resultado del envío', fecha: new Date().toISOString() }),
+            cdrRespuesta: JSON.stringify({ tipo: 'emision_por_confirmar', fase:'SIN_RESPUESTA', motivo: 'El proveedor no confirmó el resultado del envío', fecha: new Date().toISOString() }),
             idUsuarioAuditoria: dto.idUsuarioAuditoria,
           });
           if (guardado.error) this.logger.warn('No se pudo registrar el envío por confirmar del comprobante ' + id);
@@ -1038,7 +1095,7 @@ export class ComprobantesLogic {
           hashDocumento: respuesta.hash ?? undefined,
           xmlFirmado: respuesta.xml ?? undefined,
           cdrRespuesta: JSON.stringify(estadoSunatNombre === 'PENDIENTE'
-            ? { tipo: 'emision_por_confirmar', sunatResponse: respuesta.sunatResponse ?? respuesta }
+            ? { tipo: 'emision_por_confirmar', fase:'SIN_RESPUESTA', sunatResponse: respuesta.sunatResponse ?? respuesta }
             : respuesta.sunatResponse ?? respuesta),
           idUsuarioAuditoria: dto.idUsuarioAuditoria,
         },

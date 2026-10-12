@@ -16,10 +16,54 @@ const sunat = new SunatValidezClient(db);
 const reportPath = path.join(__dirname, '../../diagnosticos/sincronizacion-validez-cpe-20261012.json');
 const report = { ejecutadoEn: new Date().toISOString(), envios: 0, pruebas: [], comprobantes: [] };
 
-const fingerprintSql = `SELECT to_jsonb(c) - ARRAY['id_estado_sunat','validez_sunat','id_usuario_modificacion','fecha_modificacion'] AS datos
+const fingerprintSql = `SELECT to_jsonb(c) - ARRAY['id_estado_sunat','validez_sunat','cpe_verificacion','id_usuario_modificacion','fecha_modificacion'] AS datos
   FROM ven_comprobante c WHERE id=$1`;
 
 async function main() {
+  if (process.argv.includes('--estado-verificador')) {
+    const estados=(await db.query("SELECT id,serie,numero,cpe_verificacion->>'verificadoEn' AS ultima_verificacion,cpe_verificacion->>'estado' AS resultado FROM ven_comprobante WHERE id IN (68,67) ORDER BY id DESC")).rows;
+    console.log(JSON.stringify({estados,pendientes:await model.pendientesDeVerificacion(),envios:0}));
+    return;
+  }
+  if (process.argv.includes('--activar-verificacion-envio')) {
+    await db.query(fs.readFileSync(path.join(__dirname,'../database_sql/migraciones/20261012_verificacion_envio_cpe.sql'),'utf8'));
+    const { HttpService } = require('@nestjs/axios');
+    const { FacturacionCredentialsService } = require('../src/integrations/facturacion-electronica/facturacion-credentials.service');
+    const { FacturacionApisperuClient } = require('../src/integrations/facturacion-apisperu/facturacion-apisperu.client');
+    const { ComprobantesLogic } = require('../src/modules/comprobantes/logic/comprobantes.logic');
+    const provider = new FacturacionApisperuClient(new HttpService(),new FacturacionCredentialsService(db,config));
+    const logic = Object.create(ComprobantesLogic.prototype);
+    Object.assign(logic,{model,validezClient:sunat,facturacionClient:provider});
+    const resultados=[];
+    for (const id of [68,67]) {
+      const before=(await db.query(fingerprintSql,[id])).rows[0].datos;
+      const result=await logic.verificarEnvio(id);
+      assert.deepEqual((await db.query(fingerprintSql,[id])).rows[0].datos,before);
+      resultados.push({id,...result});
+      console.log(JSON.stringify({id,...result,envios:0}));
+    }
+    const lock=await model.reclamarVerificacionGlobal();
+    if (lock) {
+      try { assert.equal(await model.reclamarVerificacionGlobal(),null); }
+      finally { await model.liberarVerificacionGlobal(lock); }
+    }
+    fs.writeFileSync(path.join(__dirname,'../../diagnosticos/verificacion-envio-cpe-20261012.json'),JSON.stringify({envios:0,migracionAplicada:true,resultados,pruebas:['Bloqueo global evita verificadores simultáneos','Datos de la venta y XML/CDR intactos durante consultas inciertas']},null,2));
+    return;
+  }
+  if (process.argv.includes('--consultar-pendientes')) {
+    const { ComprobantesLogic } = require('../src/modules/comprobantes/logic/comprobantes.logic');
+    const logic = Object.create(ComprobantesLogic.prototype);
+    Object.assign(logic, {model, validezClient: sunat});
+    const pendientes = (await db.query("SELECT id,serie,numero FROM ven_comprobante WHERE estado=1 AND serie='F002' AND numero::numeric IN (2,3) ORDER BY numero")).rows;
+    const resultados = [];
+    for (const doc of pendientes) {
+      const validez = await logic.sincronizarValidez(doc.id, null);
+      resultados.push({ referencia: `${doc.serie}-${Number(doc.numero)}`, ...validez });
+      console.log(JSON.stringify({referencia:`${doc.serie}-${Number(doc.numero)}`,codigo:validez.codigo,estado:validez.estado,actualizado:validez.estadoActualizado,envios:0}));
+    }
+    fs.writeFileSync(path.join(__dirname,'../../diagnosticos/consulta-pendientes-20261012.json'),JSON.stringify({consultadoEn:new Date().toISOString(),envios:0,resultados},null,2));
+    return;
+  }
   if (process.argv.includes('--verificar-lista')) {
     const { ComprobantesLogic } = require('../src/modules/comprobantes/logic/comprobantes.logic');
     const { FiltroComprobantesDto } = require('../src/modules/comprobantes/dto/comprobantes.dto');

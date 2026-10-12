@@ -18,6 +18,7 @@ describe('Protección del flujo de emisión y consulta CPE', () => {
       evidenciasCdr: jest.fn().mockResolvedValue([{ id: 68, emision_en_curso: false, cdr_respuesta: JSON.stringify({ success: true, cdrResponse: { code: '2325' } }) }]),
       regularizar: jest.fn(),
       sincronizarValidez: jest.fn().mockResolvedValue(true),
+      guardarVerificacion: jest.fn().mockResolvedValue(true),
     };
     const provider = {
       getConfigStatus: jest.fn().mockResolvedValue({ enabled: true, configured: true }),
@@ -146,5 +147,62 @@ describe('Protección del flujo de emisión y consulta CPE', () => {
     provider.enviarFacturaBoleta.mockResolvedValue({ sunatResponse: { success: true } });
     expect((await logic.emitir(69, { idUsuarioAuditoria: 1 })).sunat.estado).toBe('PENDIENTE');
     expect(JSON.parse(model.registrarRespuestaSunat.mock.calls[0][1].cdrRespuesta).tipo).toBe('emision_por_confirmar');
+  });
+
+  it('no convierte NO INFORMADO ni un error del proveedor en rechazo y no reenvía', async () => {
+    const {logic,model,provider}=setup();
+    model.evidenciasCdr.mockResolvedValue([{emision_en_curso:false}]);
+    expect((await logic.verificarEnvio(69)).estado).toBe('SIN_CONFIRMACION');
+    expect(model.guardarVerificacion.mock.calls[0][3]).toBeNull();
+    expect(provider.consultarEstadoFacturaBoleta).toHaveBeenCalledTimes(1);
+    expect(provider.enviarFacturaBoleta).not.toHaveBeenCalled();
+  });
+
+  it('no reenvía un resultado incierto aunque SUNAT responda NO INFORMADO', async()=>{
+    const {logic,model,provider}=setup();
+    const original=await model.obtenerCompleto(69);
+    original.registro.cdr_respuesta=JSON.stringify({tipo:'emision_por_confirmar'});
+    model.obtenerCompleto.mockResolvedValue(original);
+    await expect(logic.emitir(69,{idUsuarioAuditoria:1})).rejects.toThrow('Verificar envío');
+    expect(provider.enviarFacturaBoleta).not.toHaveBeenCalled();
+    expect(model.liberarEmisionLock).toHaveBeenCalled();
+  });
+
+  it('respeta una aceptación exacta de SUNAT y no consulta al proveedor después', async () => {
+    const {logic,model,provider,validez}=setup();
+    validez.consultar.mockResolvedValue({codigo:'1',estado:'ACEPTADO'});
+    expect((await logic.verificarEnvio(69)).estado).toBe('ACEPTADO');
+    expect(model.sincronizarValidez).toHaveBeenCalled();
+    expect(provider.consultarEstadoFacturaBoleta).not.toHaveBeenCalled();
+    expect(provider.enviarFacturaBoleta).not.toHaveBeenCalled();
+  });
+
+  it('conserva en curso mientras la petición sigue activa, sin consultar el CDR ni reenviar', async () => {
+    const {logic,model,provider}=setup();
+    model.evidenciasCdr.mockResolvedValue([{emision_en_curso:true}]);
+    expect((await logic.verificarEnvio(69)).estado).toBe('EN_CURSO');
+    expect(provider.consultarEstadoFacturaBoleta).not.toHaveBeenCalled();
+    expect(provider.enviarFacturaBoleta).not.toHaveBeenCalled();
+  });
+
+  it('ignora un rechazo cuya constancia no se puede vincular al comprobante actual', async () => {
+    const {logic,model,provider}=setup();
+    model.evidenciasCdr.mockResolvedValue([{emision_en_curso:false}]);
+    provider.consultarEstadoFacturaBoleta.mockResolvedValue({sunatResponse:{cdrResponse:{code:'2325'}}});
+    expect((await logic.verificarEnvio(69)).estado).toBe('SIN_CONFIRMACION');
+    expect(model.guardarVerificacion.mock.calls[0][3]).toBeNull();
+  });
+
+  it.each([['2325','RECHAZADO'],['0','SIN_CONFIRMACION']])('verifica también el código dentro del XML CDR: %s',async(codigoXml,expected)=>{
+    const {logic,model,provider}=setup();
+    model.evidenciasCdr.mockResolvedValue([{emision_en_curso:false}]);
+    const name=Buffer.from('cdr.xml');
+    const xml=Buffer.from('<cbc:ReferenceID>F001-23</cbc:ReferenceID><cbc:ResponseDate>2026-10-12</cbc:ResponseDate><cbc:ResponseCode>'+codigoXml+'</cbc:ResponseCode>');
+    const local=Buffer.alloc(30); local.writeUInt32LE(0x04034b50,0); local.writeUInt16LE(name.length,26);
+    const central=Buffer.alloc(46); central.writeUInt32LE(0x02014b50,0); central.writeUInt32LE(xml.length,20); central.writeUInt16LE(name.length,28);
+    provider.consultarEstadoFacturaBoleta.mockResolvedValue({sunatResponse:{cdrResponse:{code:'2325'},cdrZip:Buffer.concat([local,name,xml,central,name]).toString('base64')}});
+    expect((await logic.verificarEnvio(69)).estado).toBe(expected);
+    expect(Boolean(model.guardarVerificacion.mock.calls[0][3])).toBe(expected==='RECHAZADO');
+    expect(provider.enviarFacturaBoleta).not.toHaveBeenCalled();
   });
 });

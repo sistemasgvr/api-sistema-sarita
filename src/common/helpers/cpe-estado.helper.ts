@@ -22,7 +22,7 @@ export function estadoDesdeCdr(payload: unknown): EstadoCpe {
 }
 
 /** Una consulta por serie/número puede devolver una constancia histórica. */
-export function cdrCorrespondeAlDocumento(payload: unknown, serie: string, numero: string, fecha: string): boolean {
+export function cdrCorrespondeAlDocumento(payload: unknown, serie: string, numero: string, fecha: string, codigoEsperado?: string): boolean {
   const root = (payload ?? {}) as Record<string, any>;
   const data = root.sunatResponse ?? root;
   if (typeof data.cdrZip !== 'string' || data.cdrZip.length > 2_000_000) return false;
@@ -40,9 +40,10 @@ export function cdrCorrespondeAlDocumento(payload: unknown, serie: string, numer
       const xml = zip.readUInt16LE(offset + 8) === 0 ? bytes.toString() : inflateRawSync(bytes, { maxOutputLength: 1_000_000 }).toString();
       const reference = xml.match(/<cbc:ReferenceID[^>]*>([^<]+)<\/cbc:ReferenceID>/)?.[1];
       const date = xml.match(/<cbc:ResponseDate[^>]*>(\d{4}-\d{2}-\d{2})/)?.[1];
+      const code = xml.match(/<cbc:ResponseCode[^>]*>([^<]+)<\/cbc:ResponseCode>/)?.[1]?.trim();
       const expected = `${serie}-${numero.replace(/^0+/, '') || '0'}`;
       const normalized = reference?.replace(/-(0+)(\d+)$/, '-$2');
-      return normalized === expected && !!date && date >= fecha.slice(0, 10);
+      return normalized === expected && !!date && date >= fecha.slice(0, 10) && (codigoEsperado == null || code === codigoEsperado);
     }
   } catch { return false; }
   return false;

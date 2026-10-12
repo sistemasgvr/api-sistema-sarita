@@ -7,6 +7,7 @@ import { ComprobanteInvoiceMapper } from './mappers/comprobante-invoice.mapper';
 import { ComprobantesModel } from './models/comprobantes.model';
 import { ComprobanteNotaVentaPdfGenerator } from './services/comprobante-nota-venta-pdf.generator';
 import { ComprobanteTicketPdfGenerator } from './services/comprobante-ticket-pdf.generator';
+import { CpeVerificacionScheduler } from './services/cpe-verificacion.scheduler';
 
 @Module({
   imports: [ClientesModule, NotificacionesModule],
@@ -14,6 +15,7 @@ import { ComprobanteTicketPdfGenerator } from './services/comprobante-ticket-pdf
   providers: [
     ComprobantesLogic,
     ComprobantesModel,
+    CpeVerificacionScheduler,
     ComprobanteInvoiceMapper,
     ComprobanteTicketPdfGenerator,
     ComprobanteNotaVentaPdfGenerator,
