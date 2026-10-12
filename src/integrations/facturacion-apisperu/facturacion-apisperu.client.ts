@@ -1,3 +1,4 @@
+import { mensajeErrorCpe } from '../../common/helpers/cpe-estado.helper';
 import { HttpService } from '@nestjs/axios';
 import { mensajeGre } from '../../common/helpers/gre-mensaje.helper';
 import {
@@ -790,7 +791,13 @@ export class FacturacionApisperuClient {
           `APIsPERU 400 ${method} ${path}: ${this.safeJson(response.data)}`,
         );
         throw new BadRequestException(
-          path.startsWith('/despatch/') ? mensajeGre(response.data, 'RECHAZADO') : this.formatValidationErrors(response.data),
+          path.startsWith('/despatch/') ? mensajeGre(response.data, 'RECHAZADO') : mensajeErrorCpe(this.formatValidationErrors(response.data)),
+        );
+      }
+
+      if (response.status === 429) {
+        throw new BadGatewayException(
+          'APIs Perú está procesando otra solicitud para esta empresa. Espera a que finalice antes de volver a solicitar la emisión. No se reintentó automáticamente.',
         );
       }
 
@@ -805,6 +812,12 @@ export class FacturacionApisperuClient {
         );
       }
 
+      const body = response.data as Record<string, any>;
+      const detail = body?.sunatResponse ?? body;
+      const providerError = detail?.error?.message ?? (typeof detail?.error === 'string' ? detail.error : this.extractProviderErrorMessage(body));
+      if (!detail?.cdrResponse && typeof providerError === 'string' && /timeout|timed out|curl error 28/i.test(providerError)) {
+        throw new BadGatewayException(mensajeErrorCpe(providerError));
+      }
       return response.data;
     } catch (error: unknown) {
       if (
@@ -822,7 +835,7 @@ export class FacturacionApisperuClient {
       // justo el detalle que dice por qué el PSE rechazó el documento.
       this.logger.error(
         `Error APIsPERU ${method} ${path} (HTTP ${axiosError.response?.status ?? '—'}): ` +
-          `${axiosError.message} | respuesta=${this.safeJson(axiosError.response?.data)}`,
+          mensajeErrorCpe(`${axiosError.message} | respuesta=${this.safeJson(axiosError.response?.data)}`),
       );
 
       const providerMessage = this.extractProviderErrorMessage(
@@ -832,8 +845,8 @@ export class FacturacionApisperuClient {
         path.startsWith('/despatch/')
           ? mensajeGre({ error: providerMessage || 'No se pudo comunicar con el servicio de facturación electrónica' }, 'POR_CONFIRMAR')
           : providerMessage
-          ? `APIsPERU Facturación: ${providerMessage}`
-          : 'No se pudo comunicar con el servicio de facturación electrónica',
+          ? mensajeErrorCpe(`APIsPERU Facturación: ${providerMessage}`)
+          : mensajeErrorCpe(axiosError.message || 'No se pudo comunicar con el servicio de facturación electrónica'),
       );
     }
   }
@@ -948,7 +961,9 @@ export class FacturacionApisperuClient {
 
   private safeJson(value: unknown): string {
     try {
-      return JSON.stringify(value);
+      return mensajeErrorCpe(JSON.stringify(value, (key, item) =>
+        /^(token|access_token|client_?secret|sol_?pass|password|certificado)$/i.test(key) ? '[OCULTO]' : item,
+      ) ?? '');
     } catch {
       return String(value);
     }

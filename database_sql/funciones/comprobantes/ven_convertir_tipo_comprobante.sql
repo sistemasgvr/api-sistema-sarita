@@ -146,8 +146,7 @@ BEGIN
     -- ---- Serie y correlativo destino ----
     v_serie := UPPER(TRIM(COALESCE(p_serie, '')));
     IF v_serie = '' THEN
-        v_serie := CASE WHEN v_destino = '01' THEN 'F' ELSE 'B' END
-            || CASE WHEN UPPER(TRIM(v_doc.serie)) ~ '^[FB][0-9]{3}$' THEN substr(UPPER(TRIM(v_doc.serie)), 2) ELSE '001' END;
+        v_serie := CASE WHEN v_destino = '01' THEN 'F002' ELSE 'B002' END;
     END IF;
 
     IF char_length(v_serie) <> 4 THEN

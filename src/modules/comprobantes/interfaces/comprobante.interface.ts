@@ -18,6 +18,7 @@ export interface ComprobanteRegistro {
   codigo_motivo_nota?: string | null;
   nombre_motivo_nota?: string | null;
   fecha: string;
+  fecha_emision_cpe?: string | null;
   fecha_vencimiento?: string | null;
   tipo_cambio?: number | null;
   id_cliente: number;

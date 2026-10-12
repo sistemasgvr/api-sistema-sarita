@@ -1,4 +1,5 @@
 import { HttpModule } from '@nestjs/axios';
+import { SunatValidezClient } from '../facturacion-electronica/sunat-validez.client';
 import { Global, Module } from '@nestjs/common';
 import { FacturacionCredentialsService } from '../facturacion-electronica/facturacion-credentials.service';
 import { FacturacionApisperuClient } from './facturacion-apisperu.client';
@@ -10,7 +11,7 @@ import { FacturacionApisperuClient } from './facturacion-apisperu.client';
       maxRedirects: 3,
     }),
   ],
-  providers: [FacturacionCredentialsService, FacturacionApisperuClient],
-  exports: [FacturacionCredentialsService, FacturacionApisperuClient],
+  providers: [FacturacionCredentialsService, FacturacionApisperuClient, SunatValidezClient],
+  exports: [FacturacionCredentialsService, FacturacionApisperuClient, SunatValidezClient],
 })
 export class FacturacionApisperuModule {}

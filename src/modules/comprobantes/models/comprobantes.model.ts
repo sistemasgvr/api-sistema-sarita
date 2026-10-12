@@ -9,6 +9,7 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import type {
   ComprobanteCompletoResult,
+  ComprobanteRegistro,
   ComprobanteResumenDiarioItem,
   ResumenDiarioCompletoResult,
   SiguienteCorrelativoResumenResult,
@@ -95,6 +96,18 @@ interface EmpresaEmisoraRow {
 
 @Injectable()
 export class ComprobantesModel {
+  async evidenciasCdr(ids: number[]) {
+    if (!ids.length) return [];
+    const { rows } = await this.db.query<{ id: number; cdr_respuesta: string | null; fecha_emision_cpe: string | null; emision_en_curso: boolean; validez_aceptada: boolean }>(
+      `SELECT c.id, c.cdr_respuesta, c.fecha_emision_cpe::text, ven_cpe_validez_aceptada(c) AS validez_aceptada,
+              EXISTS (SELECT 1 FROM pg_locks l
+                      WHERE l.locktype='advisory' AND l.granted
+                        AND l.classid=872016 AND l.objid=c.id::oid AND l.objsubid=2
+                        AND l.database=(SELECT oid FROM pg_database WHERE datname=current_database())) AS emision_en_curso
+       FROM ven_comprobante c WHERE c.id = ANY($1::int[])`, [ids],
+    );
+    return rows;
+  }
   constructor(
     private readonly db: DatabaseService,
     private readonly configService: ConfigService,
@@ -116,11 +129,50 @@ export class ComprobantesModel {
     ]);
   }
 
-  obtenerCompleto(id: number) {
-    return this.db.callFunctionJson<ComprobanteCompletoResult>(
+  async obtenerCompleto(id: number) {
+    const result = await this.db.callFunctionJson<ComprobanteCompletoResult>(
       'ven_obtener_comprobante',
       [id],
     );
+    if (result.registro) {
+      const { rows } = await this.db.query<{ fecha_emision_cpe: string | null }>(
+        'SELECT fecha_emision_cpe::text FROM ven_comprobante WHERE id=$1', [id],
+      );
+      result.registro.fecha_emision_cpe = rows[0]?.fecha_emision_cpe ?? null;
+    }
+    return result;
+  }
+
+  regularizar(id: number, serie: string, fecha: string, verificacion: unknown, cdrEsperado: string | null, numeroEsperado: string, usuario: number) {
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'ven_regularizar_comprobante', [id, serie, fecha, JSON.stringify(verificacion), cdrEsperado, numeroEsperado, usuario],
+    );
+  }
+
+  historialCpe(id: number) {
+    return this.db.query('SELECT * FROM ven_comprobante_historial_cpe WHERE id_comprobante=$1 ORDER BY id DESC', [id]);
+  }
+
+  async sincronizarValidez(id: number, validez: { codigo: string; consulta: unknown }, usuario: number) {
+    if (validez.codigo !== '1') return false;
+    const aceptado = await this.resolverIdEstadoSunat('ACEPTADO');
+    if (!aceptado) throw new Error('Estado SUNAT ACEPTADO no configurado');
+    const { rowCount } = await this.db.query(
+      `UPDATE ven_comprobante c SET id_estado_sunat=$3, validez_sunat=$2::jsonb,
+         id_usuario_modificacion=$4, fecha_modificacion=NOW()
+       FROM gen_lista_opciones tipo
+       WHERE c.id=$1 AND c.estado=1 AND tipo.id=c.id_tipo_comprobante
+         AND tipo.descripcion IN ('01','03')
+         AND NOT EXISTS (SELECT 1 FROM gen_lista_opciones s WHERE s.id=c.id_estado_sunat AND s.nombre='BAJA')
+         AND ($2::jsonb)->>'codigo'='1'
+         AND ($2::jsonb)->'consulta'->>'codComp'=tipo.descripcion
+         AND ($2::jsonb)->'consulta'->>'numeroSerie'=c.serie
+         AND ($2::jsonb)->'consulta'->'numero'=to_jsonb(c.numero::numeric)
+         AND ($2::jsonb)->'consulta'->'monto'=to_jsonb(c.total_importe)
+         AND ($2::jsonb)->'consulta'->>'fechaEmision'=to_char(COALESCE(c.fecha_emision_cpe,c.fecha::date),'DD/MM/YYYY')`,
+      [id, JSON.stringify(validez), aceptado, usuario],
+    );
+    return rowCount === 1;
   }
 
   async obtenerPorId(id: number) {
@@ -496,7 +548,7 @@ export class ComprobantesModel {
   }
 
   registrarRespuestaSunat(id: number, dto: RegistrarRespuestaSunatDto) {
-    return this.db.callFunctionJson<AuthSingleResult>('ven_registrar_respuesta_sunat', [
+    return this.db.callFunctionJson<AuthSingleResult<ComprobanteRegistro>>('ven_registrar_respuesta_sunat', [
       id,
       dto.idEstadoSunat ?? null,
       dto.ticketSunat ?? null,
