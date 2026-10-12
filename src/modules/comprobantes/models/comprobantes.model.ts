@@ -97,6 +97,17 @@ interface EmpresaEmisoraRow {
 
 @Injectable()
 export class ComprobantesModel {
+  async reclamarOperacionCpe(idEmpresa: number): Promise<string | null> {
+    const token=randomUUID();
+    const {rows}=await this.db.query<{token:string}>(
+      `INSERT INTO ven_cpe_operacion_control(id_empresa,token,vencimiento) VALUES($1,$2,NOW()+INTERVAL '10 minutes')
+       ON CONFLICT(id_empresa) DO UPDATE SET token=EXCLUDED.token,vencimiento=EXCLUDED.vencimiento
+       WHERE ven_cpe_operacion_control.vencimiento <= NOW() RETURNING token`,[idEmpresa,token]);
+    return rows[0]?.token ?? null;
+  }
+  async liberarOperacionCpe(idEmpresa: number, token: string) {
+    await this.db.query('UPDATE ven_cpe_operacion_control SET vencimiento=NOW() WHERE id_empresa=$1 AND token=$2',[idEmpresa,token]);
+  }
   async pendientesDeVerificacion() {
     const { rows } = await this.db.query<{ id: number }>(
       `SELECT c.id FROM ven_comprobante c
@@ -145,8 +156,8 @@ export class ComprobantesModel {
 
   async evidenciasCdr(ids: number[]) {
     if (!ids.length) return [];
-    const { rows } = await this.db.query<{ id: number; cdr_respuesta: string | null; fecha_emision_cpe: string | null; emision_en_curso: boolean; validez_aceptada: boolean }>(
-      `SELECT c.id, c.cdr_respuesta, c.fecha_emision_cpe::text, ven_cpe_validez_aceptada(c) AS validez_aceptada,
+    const { rows } = await this.db.query<{ id: number; cdr_respuesta: string | null; cpe_verificacion: Record<string, any> | null; fecha_emision_cpe: string | null; emision_en_curso: boolean; validez_aceptada: boolean }>(
+      `SELECT c.id, c.cdr_respuesta, c.cpe_verificacion, c.fecha_emision_cpe::text, ven_cpe_validez_aceptada(c) AS validez_aceptada,
               EXISTS (SELECT 1 FROM pg_locks l
                       WHERE l.locktype='advisory' AND l.granted
                         AND l.classid=872016 AND l.objid=c.id::oid AND l.objsubid=2
@@ -599,7 +610,24 @@ export class ComprobantesModel {
     }
   }
 
-  registrarRespuestaSunat(id: number, dto: RegistrarRespuestaSunatDto) {
+  registrarRespuestaSunat(id: number, dto: RegistrarRespuestaSunatDto, conservarEstadoVenta = false) {
+    // Solo el reintento autorizado actualiza evidencia fiscal sin ejecutar la
+    // transición financiera del flujo de emisión existente.
+    if (conservarEstadoVenta) return this.db.withTransaction(async()=>{
+      await this.db.query(
+        `UPDATE ven_comprobante c SET
+           id_estado_sunat=COALESCE($2::int,c.id_estado_sunat),
+           ticket_sunat=COALESCE(NULLIF(TRIM($3::varchar),''),c.ticket_sunat),
+           hash_documento=COALESCE(NULLIF(TRIM($4::varchar),''),c.hash_documento),
+           xml_firmado=COALESCE($5::text,c.xml_firmado), cdr_respuesta=COALESCE($6::text,c.cdr_respuesta),
+           id_usuario_modificacion=$7,fecha_modificacion=NOW()
+         WHERE c.id=$1 AND c.estado=1
+           AND NOT (ven_cpe_validez_aceptada(c) AND EXISTS (
+             SELECT 1 FROM gen_lista_opciones WHERE id=$2 AND nombre IN ('PENDIENTE','RECHAZADO')))
+           AND ($2::int IS NULL OR EXISTS (SELECT 1 FROM gen_lista_opciones WHERE id=$2 AND estado=1))`,
+        [id,dto.idEstadoSunat??null,dto.ticketSunat??null,dto.hashDocumento??null,dto.xmlFirmado??null,dto.cdrRespuesta??null,dto.idUsuarioAuditoria??null]);
+      return this.obtenerCompleto(id);
+    });
     return this.db.callFunctionJson<AuthSingleResult<ComprobanteRegistro>>('ven_registrar_respuesta_sunat', [
       id,
       dto.idEstadoSunat ?? null,

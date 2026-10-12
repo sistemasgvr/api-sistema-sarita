@@ -19,6 +19,8 @@ describe('Protección del flujo de emisión y consulta CPE', () => {
       regularizar: jest.fn(),
       sincronizarValidez: jest.fn().mockResolvedValue(true),
       guardarVerificacion: jest.fn().mockResolvedValue(true),
+      reclamarOperacionCpe: jest.fn().mockResolvedValue('token-operacion'),
+      liberarOperacionCpe: jest.fn().mockResolvedValue(undefined),
     };
     const provider = {
       getConfigStatus: jest.fn().mockResolvedValue({ enabled: true, configured: true }),
@@ -166,6 +168,49 @@ describe('Protección del flujo de emisión y consulta CPE', () => {
     await expect(logic.emitir(69,{idUsuarioAuditoria:1})).rejects.toThrow('Verificar envío');
     expect(provider.enviarFacturaBoleta).not.toHaveBeenCalled();
     expect(model.liberarEmisionLock).toHaveBeenCalled();
+  });
+
+  it('reintenta un error HTTP solo después de comprobar SUNAT y ausencia de CDR, con la misma referencia',async()=>{
+    const {logic,model,provider}=setup();
+    const original=await model.obtenerCompleto(69);
+    original.registro.cdr_respuesta=JSON.stringify({tipo:'emision_por_confirmar',sunatResponse:{success:false,error:{code:'HTTP',message:'Bad Request'}}});
+    model.obtenerCompleto.mockResolvedValue(original);
+    provider.enviarFacturaBoleta.mockResolvedValue({sunatResponse:{success:false,error:{code:'HTTP',message:'Bad Request'}}});
+    const result=await logic.emitir(69,{idUsuarioAuditoria:1},true);
+    expect(result.sunat.estado).toBe('ERROR_ENVIO');
+    expect(provider.consultarEstadoFacturaBoleta).toHaveBeenCalledWith({ruc:'10175332796',tipo:'01',serie:'F001',numero:'23'});
+    expect(provider.enviarFacturaBoleta).toHaveBeenCalledTimes(1);
+    expect(model.regularizar).not.toHaveBeenCalled();
+    expect(model.liberarOperacionCpe).toHaveBeenCalledWith(1,'token-operacion');
+  });
+
+  it('bloquea un reintento si el proveedor no confirma ausencia de CDR',async()=>{
+    const {logic,model,provider}=setup();
+    const original=await model.obtenerCompleto(69);
+    original.registro.cdr_respuesta=JSON.stringify({tipo:'emision_por_confirmar',sunatResponse:{success:false,error:{code:'HTTP'}}});
+    model.obtenerCompleto.mockResolvedValue(original);
+    provider.consultarEstadoFacturaBoleta.mockResolvedValue({success:true});
+    await expect(logic.emitir(69,{idUsuarioAuditoria:1},true)).rejects.toThrow('No se reintentó');
+    expect(provider.enviarFacturaBoleta).not.toHaveBeenCalled();
+  });
+
+  it('no emite si otra operación de la empresa sigue activa',async()=>{
+    const {logic,model,provider}=setup();
+    model.reclamarOperacionCpe.mockResolvedValue(null);
+    await expect(logic.emitir(69,{idUsuarioAuditoria:1})).rejects.toThrow('otra operación');
+    expect(provider.enviarFacturaBoleta).not.toHaveBeenCalled();
+    expect(model.liberarEmisionLock).toHaveBeenCalled();
+  });
+
+  it('habilita la acción manual únicamente para un error explícito con ambas consultas negativas',async()=>{
+    const {logic,model}=setup();
+    const original=await model.obtenerCompleto(69);
+    original.registro.cdr_respuesta=JSON.stringify({tipo:'emision_por_confirmar',sunatResponse:{success:false,error:{code:'HTTP'}}});
+    model.obtenerCompleto.mockResolvedValue(original);
+    model.evidenciasCdr.mockResolvedValue([{emision_en_curso:false}]);
+    const result=await logic.verificarEnvio(69);
+    expect(result.estado).toBe('ERROR_ENVIO');
+    expect(result.reintentoPermitido).toBe(true);
   });
 
   it('respeta una aceptación exacta de SUNAT y no consulta al proveedor después', async () => {

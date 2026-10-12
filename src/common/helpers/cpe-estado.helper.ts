@@ -2,6 +2,13 @@ import { inflateRawSync } from 'node:zlib';
 
 export type EstadoCpe = 'ACEPTADO' | 'RECHAZADO' | 'PENDIENTE';
 
+/** Error explícito de la petición al proveedor; un timeout sigue siendo incierto. */
+export function esErrorEnvioCpe(payload: unknown): boolean {
+  const root = (payload ?? {}) as Record<string, any>;
+  const data = root.sunatResponse ?? root;
+  return data.success === false && data.error?.code === 'HTTP' && !data.cdrResponse && !data.ticket;
+}
+
 /** success indica éxito de la operación; el CDR determina la aceptación. */
 export function estadoDesdeCdr(payload: unknown): EstadoCpe {
   const root = (payload ?? {}) as Record<string, any>;

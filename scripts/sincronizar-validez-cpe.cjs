@@ -25,7 +25,20 @@ async function main() {
     console.log(JSON.stringify({estados,pendientes:await model.pendientesDeVerificacion(),envios:0}));
     return;
   }
-  if (process.argv.includes('--activar-verificacion-envio')) {
+  if (process.argv.includes('--activar-verificacion-envio') || process.argv.includes('--activar-control-envios')) {
+    await db.query(fs.readFileSync(path.join(__dirname,'../database_sql/migraciones/20261012_control_operaciones_cpe.sql'),'utf8'));
+    const rollbackTest=new Error('rollback prueba de aceptación sin cobro');
+    try {
+      await db.withTransaction(async()=>{
+        await db.query('SELECT id FROM ven_comprobante WHERE id=69 FOR UPDATE');
+        const estadoVenta=(await db.query("SELECT lo.id FROM gen_lista_opciones lo JOIN gen_lista l ON l.id=lo.id_lista WHERE l.nombre='EstadoDocumento' AND lo.nombre<>'PAGADO' AND lo.estado=1 ORDER BY lo.id LIMIT 1")).rows[0].id;
+        const accepted=await model.resolverIdEstadoSunat('ACEPTADO');
+        await db.query('UPDATE ven_comprobante SET id_estado=$2 WHERE id=$1',[69,estadoVenta]);
+        await model.registrarRespuestaSunat(69,{idEstadoSunat:accepted},true);
+        assert.equal((await db.query('SELECT id_estado FROM ven_comprobante WHERE id=69')).rows[0].id_estado,estadoVenta);
+        throw rollbackTest;
+      });
+    } catch(error) { if(error!==rollbackTest) throw error; }
     await db.query(fs.readFileSync(path.join(__dirname,'../database_sql/migraciones/20261012_verificacion_envio_cpe.sql'),'utf8'));
     const { HttpService } = require('@nestjs/axios');
     const { FacturacionCredentialsService } = require('../src/integrations/facturacion-electronica/facturacion-credentials.service');
@@ -47,7 +60,13 @@ async function main() {
       try { assert.equal(await model.reclamarVerificacionGlobal(),null); }
       finally { await model.liberarVerificacionGlobal(lock); }
     }
-    fs.writeFileSync(path.join(__dirname,'../../diagnosticos/verificacion-envio-cpe-20261012.json'),JSON.stringify({envios:0,migracionAplicada:true,resultados,pruebas:['Bloqueo global evita verificadores simultáneos','Datos de la venta y XML/CDR intactos durante consultas inciertas']},null,2));
+    const company=(await model.obtenerEmpresaEmisora()).id;
+    const operation=await model.reclamarOperacionCpe(company);
+    if (operation) {
+      try { assert.equal(await model.reclamarOperacionCpe(company),null); }
+      finally { await model.liberarOperacionCpe(company,operation); }
+    }
+    fs.writeFileSync(path.join(__dirname,'../../diagnosticos/verificacion-envio-cpe-20261012.json'),JSON.stringify({envios:0,migracionAplicada:true,resultados,pruebas:['Control global evita verificadores simultáneos','Control por empresa serializa consultas CDR y emisiones','Datos de la venta y XML/CDR intactos durante consultas inciertas']},null,2));
     return;
   }
   if (process.argv.includes('--consultar-pendientes')) {
@@ -76,6 +95,10 @@ async function main() {
     assert.equal(row.nombre_estado_sunat,'ACEPTADO');
     assert.equal(row.estado_envio,undefined);
     console.log(JSON.stringify({referencia:'F002-1',estado:row.nombre_estado_sunat,enCurso:false,envios:0}));
+    for (const id of [68,67]) {
+      const error=result.data.find(item=>item.id===id);
+      console.log(JSON.stringify({referencia:`${error.serie}-${Number(error.numero)}`,estado:error.estado_envio,reintentoPermitido:error.reintento_permitido,envios:0}));
+    }
     return;
   }
   if (process.argv.includes('--inspeccionar')) {

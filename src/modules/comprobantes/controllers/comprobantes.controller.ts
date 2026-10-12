@@ -261,6 +261,13 @@ export class ComprobantesController {
     return this.logic.verificarEnvio(id, req.user.id);
   }
 
+  @Post(':id/reintentar-envio')
+  @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
+  @ApiOperation({ summary: 'Reintentar un envío con error explícito tras verificar SUNAT y CDR, conservando la referencia' })
+  reintentarEnvio(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.logic.emitir(id, {idUsuarioAuditoria:req.user.id}, true);
+  }
+
   @Post(':id/consultar-cdr')
   @Permisos(PermisoBanderas.COMPROBANTES_CONSULTAR_CDR)
   @ApiOperation({
