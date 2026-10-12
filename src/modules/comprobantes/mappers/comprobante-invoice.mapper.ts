@@ -83,7 +83,7 @@ export class ComprobanteInvoiceMapper {
       detallesVenta.length === detalles.length,
     );
 
-    const formaPago = this.mapFormaPago(
+    const pago = this.mapFormaPago(
       cabecera,
       comprobante.cuotas ?? [],
       tipoMoneda,
@@ -97,7 +97,8 @@ export class ComprobanteInvoiceMapper {
       serie: normalizarCodigoSunat(cabecera.serie),
       correlativo,
       fechaEmision,
-      formaPago,
+      formaPago: pago.formaPago,
+      ...(pago.cuotas?.length ? { cuotas: pago.cuotas } : {}),
       tipoMoneda,
       client: this.mapCliente(cliente, ubigeoCliente),
       company: this.mapEmpresa(empresa),
@@ -292,7 +293,7 @@ export class ComprobanteInvoiceMapper {
     cuotas: NonNullable<ComprobanteCompletoResult['cuotas']>,
     tipoMoneda: string,
     totalVenta: number,
-  ): Record<string, unknown> {
+  ): { formaPago: Record<string, unknown>; cuotas?: Array<{ moneda: string; monto: number; fechaPago: string }> } {
     const diasCredito = Number(cabecera.dias_credito ?? 0);
     const numeroCuotasCondicion = Number(cabecera.numero_cuotas ?? 0);
     const esCredito =
@@ -300,8 +301,7 @@ export class ComprobanteInvoiceMapper {
 
     if (!esCredito) {
       return {
-        moneda: tipoMoneda,
-        tipo: 'Contado',
+        formaPago: { moneda: tipoMoneda, tipo: 'Contado' },
       };
     }
 
@@ -322,11 +322,15 @@ export class ComprobanteInvoiceMapper {
             },
           ];
 
-    return {
-      moneda: tipoMoneda,
-      tipo: 'Credito',
-      cuotas: cuotasPayload,
-    };
+    const montoCredito=this.round(cuotasPayload.reduce((sum,cuota)=>sum+cuota.monto,0),2);
+    const fechaEmision=fechaCivilSunat(cabecera.fecha_emision_cpe??cabecera.fecha);
+    if (cuotasPayload.some(cuota=>cuota.monto<=0 || !fechaEmision || cuota.fechaPago.slice(0,10)<fechaEmision)
+      || montoCredito>this.round(totalVenta,2)) {
+      throw new BadRequestException('Revisa las cuotas: los importes deben ser positivos, no superar el total y vencer desde la fecha de emisión del CPE.');
+    }
+    // APIs Perú / Greenter requiere cuotas en la raíz; formaPago contiene el
+    // importe neto al crédito. Anidarlas en formaPago produce el rechazo 3249.
+    return { formaPago: { moneda: tipoMoneda, tipo: 'Credito', monto: montoCredito }, cuotas: cuotasPayload };
   }
 
   private formatFechaPago(fecha?: string | null) {
@@ -335,7 +339,7 @@ export class ComprobanteInvoiceMapper {
     }
     const civil = fechaCivilSunat(fecha);
     if (!civil) throw new BadRequestException('Revisa la fecha de vencimiento de la cuota: no es una fecha válida.');
-    return civil;
+    return fechaHoraSunat(civil);
   }
 
   private formatDesMotivo(nombre?: string | null, codigo?: string | null) {

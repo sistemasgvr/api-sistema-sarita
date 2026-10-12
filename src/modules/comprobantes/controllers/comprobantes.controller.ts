@@ -240,6 +240,23 @@ export class ComprobantesController {
     return this.logic.historialCpe(id);
   }
 
+  @Get(':id/notas-fiscales')
+  @Permisos(PermisoBanderas.COMPROBANTES_VER)
+  @ApiOperation({ summary: 'Consultar notas fiscales de corrección y sus referencias originales' })
+  notasFiscalesCorreccion(@Param('id', ParseIntPipe) id: number) {
+    return this.logic.notasFiscalesCorreccion(id);
+  }
+
+  @Get(':id/notas-fiscales/:idNota/pdf')
+  @Permisos(PermisoBanderas.COMPROBANTES_VER)
+  @ApiProduces('application/pdf')
+  @ApiOperation({ summary: 'Descargar una nota fiscal de corrección aceptada' })
+  async pdfNotaFiscalCorreccion(@Param('id', ParseIntPipe) id: number,@Param('idNota', ParseIntPipe) idNota: number) {
+    return new StreamableFile(await this.logic.pdfNotaFiscalCorreccion(id,idNota),{
+      type:'application/pdf',disposition:`attachment; filename="nota-fiscal-${idNota}.pdf"`,
+    });
+  }
+
   @Get(':id/validez')
   @Permisos(PermisoBanderas.COMPROBANTES_CONSULTAR_CDR)
   @ApiOperation({ summary: 'Consultar validez SUNAT por fecha e importe, sin actualizar ni emitir' })

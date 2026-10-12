@@ -216,6 +216,18 @@ export class ComprobantesModel {
     return this.db.query('SELECT * FROM ven_comprobante_historial_cpe WHERE id_comprobante=$1 ORDER BY id DESC', [id]);
   }
 
+  notasFiscalesCorreccion(id: number) {
+    return this.db.query(`SELECT id,serie,numero,serie_original,numero_original,importe,estado,
+      payload->>'desMotivo' AS motivo,actualizado_en,
+      estado='ACEPTADO' AS pdf_disponible
+      FROM ven_cpe_correccion_nota WHERE id_comprobante_original=$1
+        AND estado IN ('EN_CURSO','POR_CONFIRMAR','ACEPTADO','RECHAZADO') ORDER BY id`, [id]);
+  }
+
+  notaFiscalCorreccion(id: number, idNota: number) {
+    return this.db.query('SELECT * FROM ven_cpe_correccion_nota WHERE id_comprobante_original=$1 AND id=$2', [id,idNota]);
+  }
+
   async sincronizarValidez(id: number, validez: { codigo: string; consulta: unknown }, usuario: number | null) {
     if (validez.codigo !== '1') return false;
     const aceptado = await this.resolverIdEstadoSunat('ACEPTADO');

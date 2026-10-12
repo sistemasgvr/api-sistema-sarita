@@ -605,6 +605,18 @@ export class ComprobantesLogic {
     return (await this.model.historialCpe(id)).rows;
   }
 
+  async notasFiscalesCorreccion(id: number) {
+    mapSingleResult(await this.model.obtenerCompleto(id),'Comprobante no encontrado');
+    return (await this.model.notasFiscalesCorreccion(id)).rows;
+  }
+
+  async pdfNotaFiscalCorreccion(id: number, idNota: number) {
+    const nota=(await this.model.notaFiscalCorreccion(id,idNota)).rows[0];
+    if (!nota) throw new NotFoundException('Nota fiscal no encontrada para este comprobante');
+    if (nota.estado!=='ACEPTADO') throw new BadRequestException('La nota aún no tiene aceptación confirmada');
+    return this.facturacionClient.generarPdfNota(nota.payload);
+  }
+
   async convertirTipo(id: number, dto: ConvertirTipoComprobanteDto) {
     const result = await this.model.convertirTipo(id, dto);
     return mapSingleResult(result, `Comprobante ${id} no encontrado`);

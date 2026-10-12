@@ -43,6 +43,14 @@ BEGIN
     ) referencias
     WHERE UPPER(TRIM(serie)) = v_serie AND numero ~ '^[0-9]+$';
 
+    IF v_serie IN ('FC02','BC02') AND to_regclass('public.ven_cpe_correccion_nota') IS NOT NULL THEN
+        SELECT GREATEST(v_ultimo,COALESCE(MAX(numero),0)) INTO v_ultimo
+        FROM ven_cpe_correccion_nota WHERE serie=v_serie;
+    END IF;
+    IF v_serie IN ('F002','B002') AND to_regclass('public.ven_cpe_correccion_reserva') IS NOT NULL THEN
+        SELECT GREATEST(v_ultimo,COALESCE(MAX(numero),0)) INTO v_ultimo
+        FROM ven_cpe_correccion_reserva WHERE serie=v_serie;
+    END IF;
     v_siguiente := LPAD((v_ultimo + 1)::TEXT, 8, '0');
 
     RETURN json_build_object(
