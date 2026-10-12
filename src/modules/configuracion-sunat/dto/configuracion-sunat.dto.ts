@@ -30,8 +30,9 @@ const pseFieldsDocs = {
   apiUsuario: 'Usuario del PSE (si usa login en lugar de token).',
   apiClave: 'Clave del PSE. Vacío en actualización = no cambiar.',
   rucEmisor: 'RUC emisor. Si se omite, se usa el RUC de la empresa.',
-  clientId: 'OAuth client_id (ej. GRE portal SUNAT CPE).',
-  clientSecret: 'OAuth client_secret. Vacío en actualización = no cambiar.',
+  clientId: 'OAuth client_id exclusivo de guías de remisión (GRE).',
+  clientSecret:
+    'OAuth client_secret de GRE. Vacío en actualización = no cambiar.',
   timeoutMs: 'Timeout HTTP en milisegundos.',
 };
 
@@ -71,13 +72,19 @@ export class CreateConfiguracionSunatDto extends AuditoriaDto {
   @IsInt()
   idAmbiente?: number;
 
-  @ApiPropertyOptional({ description: pseFieldsDocs.proveedorPse, example: 'APISPERU' })
+  @ApiPropertyOptional({
+    description: pseFieldsDocs.proveedorPse,
+    example: 'APISPERU',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(50)
   proveedorPse?: string;
 
-  @ApiPropertyOptional({ description: pseFieldsDocs.pseHabilitado, default: true })
+  @ApiPropertyOptional({
+    description: pseFieldsDocs.pseHabilitado,
+    default: true,
+  })
   @IsOptional()
   @IsBoolean()
   pseHabilitado?: boolean;
@@ -105,7 +112,10 @@ export class CreateConfiguracionSunatDto extends AuditoriaDto {
   @MaxLength(255)
   apiClave?: string;
 
-  @ApiPropertyOptional({ description: pseFieldsDocs.rucEmisor, example: '20100000000' })
+  @ApiPropertyOptional({
+    description: pseFieldsDocs.rucEmisor,
+    example: '20100000000',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(11)
@@ -130,6 +140,24 @@ export class CreateConfiguracionSunatDto extends AuditoriaDto {
   @Min(1000)
   @Max(300000)
   timeoutMs?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Client ID de la API SUNAT de consulta de validez CPE, independiente de GRE.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  validezClientId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Client Secret de consulta de validez CPE. Vacío en actualización = conservar.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  validezClientSecret?: string;
 }
 
 export class UpdateConfiguracionSunatDto extends AuditoriaDto {
@@ -228,4 +256,22 @@ export class UpdateConfiguracionSunatDto extends AuditoriaDto {
   @Min(1000)
   @Max(300000)
   timeoutMs?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Client ID de la API SUNAT de consulta de validez CPE, independiente de GRE.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  validezClientId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Client Secret de consulta de validez CPE. Vacío en actualización = conservar.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  validezClientSecret?: string;
 }

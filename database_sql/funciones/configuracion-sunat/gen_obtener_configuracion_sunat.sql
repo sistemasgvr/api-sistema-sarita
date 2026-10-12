@@ -37,6 +37,8 @@ BEGIN
             cs.api_clave,
             (cs.api_clave IS NOT NULL AND TRIM(cs.api_clave) <> '') AS tiene_api_clave,
             COALESCE(NULLIF(TRIM(cs.ruc_emisor), ''), e.ruc) AS ruc_emisor,
+            cs.validez_client_id,
+            (NULLIF(TRIM(cs.validez_client_secret), '') IS NOT NULL) AS tiene_validez_client_secret,
             cs.client_id,
             cs.client_secret,
             (cs.client_secret IS NOT NULL AND TRIM(cs.client_secret) <> '') AS tiene_client_secret,
