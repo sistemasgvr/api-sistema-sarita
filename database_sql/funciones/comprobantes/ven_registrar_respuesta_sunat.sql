@@ -29,6 +29,10 @@ BEGIN
     FROM gen_lista_opciones
     WHERE id = p_id_estado_sunat;
 
+    PERFORM 1 FROM ven_comprobante WHERE id=p_id FOR UPDATE;
+    IF v_estado_sunat_nombre IN ('PENDIENTE', 'RECHAZADO') AND EXISTS (
+        SELECT 1 FROM ven_comprobante c WHERE c.id=p_id AND ven_cpe_validez_aceptada(c)
+    ) THEN RETURN ven_obtener_comprobante(p_id); END IF;
     UPDATE ven_comprobante
     SET
         id_estado_sunat = COALESCE(p_id_estado_sunat, id_estado_sunat),

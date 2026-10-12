@@ -36,9 +36,12 @@ BEGIN
 
     -- UNIQUE(serie, numero) incluye anulados: el siguiente debe considerar todos los estados.
     SELECT COALESCE(MAX(numero::BIGINT), 0) INTO v_ultimo
-    FROM ven_comprobante
-    WHERE UPPER(TRIM(serie)) = v_serie
-      AND numero ~ '^[0-9]+$';
+    FROM (
+        SELECT serie, numero FROM ven_comprobante
+        UNION ALL
+        SELECT serie, numero FROM ven_comprobante_historial_cpe
+    ) referencias
+    WHERE UPPER(TRIM(serie)) = v_serie AND numero ~ '^[0-9]+$';
 
     v_siguiente := LPAD((v_ultimo + 1)::TEXT, 8, '0');
 

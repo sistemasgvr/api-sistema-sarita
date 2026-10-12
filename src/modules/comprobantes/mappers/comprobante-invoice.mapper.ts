@@ -72,7 +72,7 @@ export class ComprobanteInvoiceMapper {
     }
 
     const correlativo = this.parseCorrelativo(cabecera.numero);
-    const fechaEmision = this.formatFechaEmision(cabecera.fecha);
+    const fechaEmision = this.formatFechaEmision(cabecera.fecha_emision_cpe ?? cabecera.fecha);
     const tipoMoneda = normalizarCodigoSunat(cabecera.codigo_moneda ?? 'PEN');
     // Si se descartó alguna línea, los totales de la cabecera ya no
     // corresponden a lo que se declara (los de un comprobante antiguo incluyen

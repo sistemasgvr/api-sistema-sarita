@@ -226,6 +226,34 @@ export class ComprobantesController {
     return this.logic.emitir(id, dto);
   }
 
+  @Post(':id/regularizar-cpe')
+  @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
+  @ApiOperation({ summary: 'Preparar una referencia nueva F002/B002 conservando la venta y archivando el CPE original; no emite' })
+  regularizarCpe(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.logic.regularizar(id, req.user.id);
+  }
+
+  @Get(':id/historial-cpe')
+  @Permisos(PermisoBanderas.COMPROBANTES_VER)
+  @ApiOperation({ summary: 'Consultar referencias, XML y CDR anteriores conservados al regularizar' })
+  historialCpe(@Param('id', ParseIntPipe) id: number) {
+    return this.logic.historialCpe(id);
+  }
+
+  @Get(':id/validez')
+  @Permisos(PermisoBanderas.COMPROBANTES_CONSULTAR_CDR)
+  @ApiOperation({ summary: 'Consultar validez SUNAT por fecha e importe, sin actualizar ni emitir' })
+  consultarValidez(@Param('id', ParseIntPipe) id: number) {
+    return this.logic.consultarValidez(id);
+  }
+
+  @Post(':id/sincronizar-validez')
+  @Permisos(PermisoBanderas.COMPROBANTES_CONSULTAR_CDR)
+  @ApiOperation({ summary: 'Consultar validez y guardar aceptación confirmada, sin emitir' })
+  sincronizarValidez(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.logic.sincronizarValidez(id, req.user.id);
+  }
+
   @Post(':id/consultar-cdr')
   @Permisos(PermisoBanderas.COMPROBANTES_CONSULTAR_CDR)
   @ApiOperation({
