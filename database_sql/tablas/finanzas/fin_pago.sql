@@ -9,7 +9,7 @@ CREATE TABLE fin_pago (
     monto numeric(12,4) NOT NULL,
     id_medio_pago integer,
     referencia character varying(100),
-    observacion character varying(255),
+    observacion character varying(500),
     estado integer DEFAULT 1 NOT NULL,
     id_usuario_creacion integer,
     id_usuario_modificacion integer,

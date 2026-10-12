@@ -78,6 +78,7 @@ export class RegistrarPagoDto extends AuditoriaDto {
   @ApiPropertyOptional({ example: 'Pago parcial acordado' })
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   observacion?: string;
 
   @ApiPropertyOptional({
