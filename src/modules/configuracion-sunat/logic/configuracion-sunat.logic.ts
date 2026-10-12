@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   mapDeleteResult,
   mapListResult,
@@ -45,8 +49,9 @@ export class ConfiguracionSunatLogic {
   async sincronizarGre(idEmpresa: number, idUsuarioAuditoria?: number) {
     const ruc = await this.rucDeEmpresa(idEmpresa);
     this.facturacionCredentials.invalidate();
-    const resultado = await this.facturacionCredentials.withEmpresa(idEmpresa, () =>
-      this.facturacionClient.sincronizarCredencialesGre(ruc),
+    const resultado = await this.facturacionCredentials.withEmpresa(
+      idEmpresa,
+      () => this.facturacionClient.sincronizarCredencialesGre(ruc),
     );
     await this.db.query(
       `UPDATE gen_configuracion_sunat SET id_usuario_modificacion = $2, fecha_modificacion = now()
@@ -63,7 +68,10 @@ export class ConfiguracionSunatLogic {
     );
     const ruc = result.rows[0]?.ruc?.trim();
     if (!ruc) throw new NotFoundException(`Empresa ${idEmpresa} no encontrada`);
-    if (!/^\d{11}$/.test(ruc)) throw new BadRequestException('El RUC de la empresa debe tener 11 dígitos');
+    if (!/^\d{11}$/.test(ruc))
+      throw new BadRequestException(
+        'El RUC de la empresa debe tener 11 dígitos',
+      );
     return ruc;
   }
 
@@ -74,10 +82,7 @@ export class ConfiguracionSunatLogic {
 
   async obtenerPorId(id: number) {
     const result = await this.configuracionSunatModel.obtenerPorId(id);
-    return mapSingleResult(
-      result,
-      `Configuración SUNAT ${id} no encontrada`,
-    );
+    return mapSingleResult(result, `Configuración SUNAT ${id} no encontrada`);
   }
 
   async crear(dto: CreateConfiguracionSunatDto) {
@@ -94,10 +99,7 @@ export class ConfiguracionSunatLogic {
       this.toWriteParams(dto, true),
     );
     this.facturacionCredentials.invalidate();
-    return mapSingleResult(
-      result,
-      `Configuración SUNAT ${id} no encontrada`,
-    );
+    return mapSingleResult(result, `Configuración SUNAT ${id} no encontrada`);
   }
 
   async eliminar(id: number, idUsuarioAuditoria?: number) {
@@ -106,10 +108,7 @@ export class ConfiguracionSunatLogic {
       idUsuarioAuditoria,
     );
     this.facturacionCredentials.invalidate();
-    return mapDeleteResult(
-      result,
-      `Configuración SUNAT ${id} no encontrada`,
-    );
+    return mapDeleteResult(result, `Configuración SUNAT ${id} no encontrada`);
   }
 
   private toWriteParams(
@@ -127,8 +126,7 @@ export class ConfiguracionSunatLogic {
       claveCertificado: dto.claveCertificado ?? null,
       idAmbiente: dto.idAmbiente ?? null,
       proveedorPse: dto.proveedorPse ?? null,
-      pseHabilitado:
-        dto.pseHabilitado === undefined ? null : dto.pseHabilitado,
+      pseHabilitado: dto.pseHabilitado === undefined ? null : dto.pseHabilitado,
       apiBaseUrl: dto.apiBaseUrl ?? null,
       apiToken: dto.apiToken ?? null,
       apiUsuario: dto.apiUsuario ?? null,
@@ -136,6 +134,8 @@ export class ConfiguracionSunatLogic {
       rucEmisor: dto.rucEmisor ?? null,
       clientId: dto.clientId ?? null,
       clientSecret: dto.clientSecret ?? null,
+      validezClientId: dto.validezClientId ?? null,
+      validezClientSecret: dto.validezClientSecret ?? null,
       timeoutMs: dto.timeoutMs ?? null,
       idUsuarioAuditoria: dto.idUsuarioAuditoria,
     };

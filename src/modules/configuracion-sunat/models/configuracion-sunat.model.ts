@@ -40,6 +40,8 @@ export interface ConfiguracionSunatWriteParams {
   clientId: string | null;
   clientSecret: string | null;
   timeoutMs: number | null;
+  validezClientId: string | null;
+  validezClientSecret: string | null;
   idUsuarioAuditoria?: number;
 }
 
@@ -68,16 +70,16 @@ export class ConfiguracionSunatModel {
 
   /** Interno: incluye secretos. No exponer por HTTP. */
   obtenerCredencialesFacturacion() {
-    return this.db.callFunctionJson<AuthSingleResult<CredencialesFacturacionDb>>(
-      'gen_obtener_credenciales_facturacion',
-      [],
-    );
+    return this.db.callFunctionJson<
+      AuthSingleResult<CredencialesFacturacionDb>
+    >('gen_obtener_credenciales_facturacion', []);
   }
 
   crear(params: ConfiguracionSunatWriteParams) {
-    return this.db.callFunctionJson<AuthSingleResult>(
-      'gen_crear_configuracion_sunat',
-      [
+    return this.db.withTransaction(async () => {
+      const result = await this.db.callFunctionJson<
+        AuthSingleResult<{ id: number }>
+      >('gen_crear_configuracion_sunat', [
         params.idEmpresa,
         params.usuarioSol,
         params.claveSol,
@@ -95,14 +97,16 @@ export class ConfiguracionSunatModel {
         params.clientSecret,
         params.timeoutMs,
         params.idUsuarioAuditoria ?? null,
-      ],
-    );
+      ]);
+      return this.guardarValidez(result, params);
+    });
   }
 
   actualizar(id: number, params: ConfiguracionSunatWriteParams) {
-    return this.db.callFunctionJson<AuthSingleResult>(
-      'gen_actualizar_configuracion_sunat',
-      [
+    return this.db.withTransaction(async () => {
+      const result = await this.db.callFunctionJson<
+        AuthSingleResult<{ id: number }>
+      >('gen_actualizar_configuracion_sunat', [
         id,
         params.idEmpresa,
         params.usuarioSol,
@@ -121,8 +125,26 @@ export class ConfiguracionSunatModel {
         params.clientSecret,
         params.timeoutMs,
         params.idUsuarioAuditoria ?? null,
-      ],
+      ]);
+      return this.guardarValidez(result, params);
+    });
+  }
+
+  private async guardarValidez(
+    result: AuthSingleResult<{ id: number }>,
+    params: ConfiguracionSunatWriteParams,
+  ): Promise<AuthSingleResult> {
+    if (result.error || !result.registro) return result;
+    if (params.validezClientId == null && params.validezClientSecret == null)
+      return result;
+    await this.db.query(
+      `UPDATE gen_configuracion_sunat
+       SET validez_client_id = COALESCE(NULLIF(TRIM($2::text), ''), validez_client_id),
+           validez_client_secret = COALESCE(NULLIF(TRIM($3::text), ''), validez_client_secret)
+       WHERE id = $1 AND estado = 1`,
+      [result.registro.id, params.validezClientId, params.validezClientSecret],
     );
+    return this.obtenerPorId(result.registro.id);
   }
 
   eliminar(id: number, idUsuarioAuditoria?: number) {

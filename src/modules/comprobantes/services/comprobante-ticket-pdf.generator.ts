@@ -98,7 +98,9 @@ export class ComprobanteTicketPdfGenerator {
       cabecera.nombre_tipo_comprobante ?? 'COMPROBANTE ELECTRÓNICO'
     ).toUpperCase();
     const tipoCodigo = cabecera.codigo_tipo_comprobante ?? '';
-    const serieNumero = `${cabecera.serie}-${cabecera.numero}`;
+    const serieNumero = `${cabecera.serie}-${
+      documentoInterno ? cabecera.numero : this.stripLeadingZeros(cabecera.numero)
+    }`;
     const fecha = this.formatFecha(cabecera.fecha);
     const moneda =
       (cabecera.codigo_moneda ?? 'PEN') === 'PEN' ? 'SOLES' : cabecera.codigo_moneda;

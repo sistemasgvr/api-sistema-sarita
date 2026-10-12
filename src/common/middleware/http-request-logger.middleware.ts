@@ -15,6 +15,10 @@ const SENSITIVE_KEYS = new Set([
   'clave_sol',
   'claveCertificado',
   'clave_certificado',
+  'clientSecret',
+  'client_secret',
+  'validezClientSecret',
+  'validez_client_secret',
 ]);
 
 interface LoggedResponseLocals {
