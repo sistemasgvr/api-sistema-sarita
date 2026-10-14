@@ -14,7 +14,10 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { MONEY_NUMBER_OPTIONS } from '../../../common/constants/money';
+import {
+  MONEY_NUMBER_OPTIONS,
+  PRECIO_UNITARIO_NUMBER_OPTIONS,
+} from '../../../common/constants/money';
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 
@@ -131,10 +134,14 @@ export class CreateCompraDetalleDto {
   @IsNumber()
   cantidad!: number;
 
-  @ApiPropertyOptional({ example: 45.5 })
+  @ApiPropertyOptional({
+    example: 45.5,
+    description:
+      'Precio unitario con IGV. Admite hasta 6 decimales: el frontend puede enviarlo derivado del importe total de la línea (importe / cantidad).',
+  })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @IsNumber(PRECIO_UNITARIO_NUMBER_OPTIONS)
   @Min(0)
   precioUnitario?: number;
 
@@ -392,10 +399,14 @@ export class ActualizarCompraDetalleDto extends AuditoriaDto {
   @IsNumber()
   cantidad?: number;
 
-  @ApiPropertyOptional({ example: 45.5 })
+  @ApiPropertyOptional({
+    example: 45.5,
+    description:
+      'Precio unitario con IGV. Admite hasta 6 decimales: el frontend puede enviarlo derivado del importe total de la línea (importe / cantidad).',
+  })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @IsNumber(PRECIO_UNITARIO_NUMBER_OPTIONS)
   @Min(0)
   precioUnitario?: number;
 }
@@ -412,10 +423,14 @@ export class CreateCompraDetalleLineaDto extends AuditoriaDto {
   @IsNumber()
   cantidad!: number;
 
-  @ApiPropertyOptional({ example: 45.5 })
+  @ApiPropertyOptional({
+    example: 45.5,
+    description:
+      'Precio unitario con IGV. Admite hasta 6 decimales: el frontend puede enviarlo derivado del importe total de la línea (importe / cantidad).',
+  })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber(MONEY_NUMBER_OPTIONS)
+  @IsNumber(PRECIO_UNITARIO_NUMBER_OPTIONS)
   @Min(0)
   precioUnitario?: number;
 
