@@ -1,3 +1,5 @@
+import { estadoDesdeCdr, cdrCorrespondeAlDocumento, esErrorEnvioCpe } from '../../../common/helpers/cpe-estado.helper';
+import { SunatValidezClient } from '../../../integrations/facturacion-electronica/sunat-validez.client';
 import {
   BadRequestException,
   Injectable,
@@ -94,11 +96,120 @@ export class ComprobantesLogic {
     private readonly ticketPdfGenerator: ComprobanteTicketPdfGenerator,
     private readonly notaVentaPdfGenerator: ComprobanteNotaVentaPdfGenerator,
     private readonly notificacionesLogic: NotificacionesLogic,
+    private readonly validezClient: SunatValidezClient,
   ) {}
+
+  async consultarValidez(id: number) {
+    const comprobante = await this.model.obtenerCompleto(id);
+    if (comprobante.error) throw new BadRequestException(comprobante.error);
+    const doc = comprobante.registro;
+    if (!doc) throw new NotFoundException('Comprobante no encontrado');
+    if (!['01', '03'].includes(doc.codigo_tipo_comprobante ?? '')) {
+      throw new BadRequestException('La consulta de validez está disponible para facturas y boletas.');
+    }
+    const empresa = await this.model.obtenerEmpresaEmisora();
+    if (!empresa) throw new BadRequestException('Empresa emisora no configurada');
+    return this.validezClient.consultar(empresa.id, {
+      tipo: doc.codigo_tipo_comprobante!, serie: doc.serie, numero: doc.numero,
+      fecha: doc.fecha_emision_cpe ?? doc.fecha, total: Number(doc.total_importe),
+    });
+  }
 
   async listar(filtros: FiltroComprobantesDto) {
     const result = await this.model.listar(filtros);
+    const rows = (result.registros ?? []) as Array<{ id: number; serie?: string; numero?: string; nombre_estado_sunat?: string; estado_cdr_registrado?: string; advertencia_cdr?: string; reintento_permitido?: boolean; fecha_emision_cpe?: string | null; estado_envio?: 'EN_CURSO' | 'POR_CONFIRMAR' | 'ERROR_ENVIO' }>;
+    const evidencias = await this.model.evidenciasCdr(rows.map(row => row.id));
+    for (const row of rows) {
+      const evidencia = evidencias.find(item => item.id === row.id);
+      row.fecha_emision_cpe = evidencia?.fecha_emision_cpe ?? null;
+      // La confirmación exacta de SUNAT prevalece sobre el envío aún esperando al PSE.
+      if (evidencia?.validez_aceptada && row.nombre_estado_sunat === 'ACEPTADO') continue;
+      if (evidencia?.emision_en_curso) row.estado_envio = 'EN_CURSO';
+      const raw = evidencia?.cdr_respuesta;
+      if (!raw) continue;
+      try {
+        const payload = JSON.parse(raw);
+        if (!evidencia?.emision_en_curso && row.nombre_estado_sunat === 'PENDIENTE' && esErrorEnvioCpe(payload)) {
+          row.estado_envio='ERROR_ENVIO';
+          const v=evidencia?.cpe_verificacion;
+          row.reintento_permitido=v?.reintentoPermitido===true && v.serie===row.serie && v.numero===row.numero &&
+            Date.now()-Date.parse(v.verificadoEn)<300000;
+        }
+        if (!evidencia?.emision_en_curso && row.estado_envio!=='ERROR_ENVIO' && payload.tipo === 'emision_por_confirmar') row.estado_envio = 'POR_CONFIRMAR';
+        const cdr = (payload.sunatResponse ?? payload).cdrResponse;
+        if (!evidencia?.emision_en_curso && row.nombre_estado_sunat === 'PENDIENTE' && estadoDesdeCdr(payload) === 'ACEPTADO') {
+          row.estado_envio = 'POR_CONFIRMAR';
+        }
+        if (cdr && estadoDesdeCdr(payload) === 'RECHAZADO') {
+          row.estado_cdr_registrado = 'RECHAZADO';
+          row.advertencia_cdr = 'Respuesta guardada del envío anterior (' + cdr.code + '). ' + (String(cdr.code) === '2325'
+            ? 'SUNAT indicó que el certificado no estaba comunicado al procesar ese envío. Su registro posterior no modifica este CDR. Consulta la validez para comprobar la situación actual.'
+            : 'El CDR de ese envío indicó rechazo. Consulta la validez y el detalle del comprobante.');
+        }
+      } catch { /* No inferir estados a partir de respuestas ilegibles. */ }
+    }
     return mapListResult(result, filtros);
+  }
+
+  async sincronizarValidez(id: number, usuario: number) {
+    const validez = await this.consultarValidez(id);
+    const actualizado = validez.codigo === '1'
+      ? await this.model.sincronizarValidez(id, validez, usuario) : false;
+    return { ...validez, soloLectura: !actualizado, estadoActualizado: actualizado };
+  }
+
+  /** Comprueba el envío; nunca emite, renumera ni cambia los pagos de la venta. */
+  async verificarEnvio(id: number, usuario?: number) {
+    const { registro: doc } = await this.model.obtenerCompleto(id);
+    if (!doc) throw new NotFoundException('Comprobante no encontrado');
+    if (!['01','03'].includes(doc.codigo_tipo_comprobante ?? '')) throw new BadRequestException('Verificación disponible para facturas y boletas');
+    const activo = (await this.model.evidenciasCdr([id]))[0]?.emision_en_curso ?? false;
+    let estado = activo ? 'EN_CURSO' : 'SIN_CONFIRMACION';
+    const verificadoEn = new Date().toISOString();
+    let codigoValidez: string | null = null;
+    let codigoCdr: string | null = null;
+    let codigoProveedor: string | null = null;
+    let rechazo: string | null = null;
+    try {
+      const validez = await this.consultarValidez(id);
+      codigoValidez = validez.codigo;
+      if (validez.codigo === '1' && await this.model.sincronizarValidez(id,validez,usuario ?? null)) estado='ACEPTADO';
+    } catch { /* Ausencia de respuesta no equivale a rechazo. */ }
+    if (estado !== 'ACEPTADO' && !activo) {
+      try {
+        const emisor = await this.model.obtenerEmpresaEmisora();
+        if (!emisor) throw new Error('Emisor no configurado');
+        const lock=await this.model.reclamarOperacionCpe(emisor.id);
+        if (!lock) throw new Error('Otra operación del proveedor está activa');
+        let respuesta: Record<string, any>;
+        try { respuesta = await this.facturacionClient.consultarEstadoFacturaBoleta({
+          ruc:emisor.ruc, tipo:doc.codigo_tipo_comprobante!, serie:doc.serie, numero:String(Number(doc.numero)),
+        }); } finally { await this.model.liberarOperacionCpe(emisor.id,lock); }
+        const sunat = respuesta.sunatResponse ?? respuesta as SunatResponsePayload;
+        codigoCdr = String((sunat as SunatResponsePayload).cdrResponse?.code ?? '') || null;
+        codigoProveedor=String((sunat as SunatResponsePayload).error?.code ?? '') || null;
+        if (codigoCdr && estadoDesdeCdr(respuesta)==='RECHAZADO' && cdrCorrespondeAlDocumento(respuesta,doc.serie,doc.numero,doc.fecha_emision_cpe??doc.fecha,codigoCdr)) {
+          estado='RECHAZADO';
+          rechazo=JSON.stringify(respuesta);
+        }
+      } catch { /* Se seguirá verificando; ninguna respuesta incierta autoriza reenvío. */ }
+    }
+    let errorExplicito=false;
+    try { errorExplicito=esErrorEnvioCpe(JSON.parse(doc.cdr_respuesta ?? '{}')); } catch {}
+    const reintentoPermitido=!activo && estado==='SIN_CONFIRMACION' && errorExplicito && codigoValidez==='0' && codigoProveedor==='0127' && !doc.ticket_sunat;
+    if (estado==='SIN_CONFIRMACION' && errorExplicito) estado='ERROR_ENVIO';
+    const evidencia = { estado, verificadoEn, codigoValidez, codigoCdr, codigoProveedor, reintentoPermitido, serie:doc.serie, numero:doc.numero };
+    if (!await this.model.guardarVerificacion(id,doc,evidencia,rechazo,usuario)) {
+      throw new BadRequestException('El comprobante cambió durante la verificación. Consulta nuevamente su referencia actual.');
+    }
+    // Respeta una aceptación o baja guardada concurrentemente.
+    const actual = (await this.model.obtenerCompleto(id)).registro;
+    if (['ACEPTADO','BAJA'].includes(actual?.nombre_estado_sunat ?? '')) estado=actual!.nombre_estado_sunat!;
+    return { ...evidencia, estado, mensaje: estado==='ACEPTADO' ? (codigoValidez==='1' ? 'SUNAT confirmó la aceptación del comprobante.' : 'El estado guardado es Aceptado; esta verificación no obtuvo una nueva confirmación.')
+      : estado==='RECHAZADO' ? 'El CDR de este comprobante confirma rechazo. Revisa el motivo antes de reintentar.'
+      : estado==='ERROR_ENVIO' ? (reintentoPermitido ? 'El proveedor devolvió un error de envío. SUNAT y la consulta de CDR no encuentran el comprobante; puedes reintentar con la misma serie y número.' : 'El proveedor devolvió un error de envío. Verifica nuevamente antes de reintentar.')
+      : estado==='EN_CURSO' ? 'La solicitud de emisión sigue activa.'
+      : 'El envío aún no tiene un resultado definitivo. Se seguirá verificando automáticamente; no se ha reenviado.' };
   }
 
   async obtenerXml(id: number) {
@@ -455,6 +566,10 @@ export class ComprobantesLogic {
   }
 
   async actualizar(id: number, dto: UpdateComprobantesDto) {
+    const doc=(await this.model.obtenerCompleto(id)).registro;
+    if (this.parseCdrMeta(doc?.cdr_respuesta)?.tipo==='emision_por_confirmar') {
+      throw new BadRequestException('El comprobante tiene un envío en revisión. Conserva sus datos y utiliza Verificar envío o Reintentar envío.');
+    }
     const result = await this.model.actualizar(id, dto);
     return mapSingleResult(result, `Comprobante ${id} no encontrado`);
   }
@@ -465,6 +580,43 @@ export class ComprobantesLogic {
    * función SQL valida que SUNAT no tenga el documento y asigna el siguiente
    * correlativo de la serie destino.
    */
+  async regularizar(id: number, usuario: number) {
+    const doc = (await this.model.obtenerCompleto(id)).registro;
+    if (!doc || !['01','03'].includes(doc.codigo_tipo_comprobante ?? '')) throw new BadRequestException('Solo se regularizan facturas o boletas existentes.');
+    const serie = doc.codigo_tipo_comprobante === '01' ? 'F002' : 'B002';
+    if (doc.serie === serie) throw new BadRequestException('Este comprobante ya usa la serie nueva; consulta su validez o intenta su emisión cuando corresponda.');
+    const activo = (await this.model.evidenciasCdr([id]))[0]?.emision_en_curso;
+    if (activo) throw new BadRequestException('La emisión está en curso; espera su resultado antes de regularizar.');
+    const validez = await this.consultarValidez(id);
+    if (validez.codigo !== '0') throw new BadRequestException('SUNAT respondió ' + validez.estado + '. No se cambió el comprobante.');
+    const empresa = await this.model.obtenerEmpresaEmisora();
+    const siguiente = await this.model.obtenerSiguienteNumero({ idTipoComprobante: doc.id_tipo_comprobante, serie });
+    if (!siguiente.numero) throw new BadRequestException('No se pudo obtener la numeración de la serie nueva.');
+    const existente = await this.facturacionClient.consultarEstadoFacturaBoleta({ ruc: empresa!.ruc, tipo: doc.codigo_tipo_comprobante!, serie, numero: String(Number(siguiente.numero)) });
+    const consultaSerie = (existente.sunatResponse ?? existente) as Record<string, any>;
+    if (String(consultaSerie.code ?? consultaSerie.error?.code) !== '0127') throw new BadRequestException('No se confirmó que la referencia fiscal nueva esté disponible en SUNAT. No se regularizó.');
+    const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+    const part = (key: string) => parts.find(p => p.type === key)!.value;
+    const fecha = part('year') + '-' + part('month') + '-' + part('day');
+    return mapSingleResult(await this.model.regularizar(id, serie, fecha, validez, doc.cdr_respuesta ?? null, siguiente.numero, usuario), 'Comprobante no encontrado');
+  }
+
+  async historialCpe(id: number) {
+    return (await this.model.historialCpe(id)).rows;
+  }
+
+  async notasFiscalesCorreccion(id: number) {
+    mapSingleResult(await this.model.obtenerCompleto(id),'Comprobante no encontrado');
+    return (await this.model.notasFiscalesCorreccion(id)).rows;
+  }
+
+  async pdfNotaFiscalCorreccion(id: number, idNota: number) {
+    const nota=(await this.model.notaFiscalCorreccion(id,idNota)).rows[0];
+    if (!nota) throw new NotFoundException('Nota fiscal no encontrada para este comprobante');
+    if (nota.estado!=='ACEPTADO') throw new BadRequestException('La nota aún no tiene aceptación confirmada');
+    return this.facturacionClient.generarPdfNota(nota.payload);
+  }
+
   async convertirTipo(id: number, dto: ConvertirTipoComprobanteDto) {
     const result = await this.model.convertirTipo(id, dto);
     return mapSingleResult(result, `Comprobante ${id} no encontrado`);
@@ -511,12 +663,7 @@ export class ComprobantesLogic {
       throw new NotFoundException(`Comprobante ${id} no encontrado`);
     }
 
-    if (
-      ['01', '03'].includes(comprobante.registro.codigo_tipo_comprobante ?? '') &&
-      comprobante.registro.nombre_estado_sunat !== 'ACEPTADO'
-    ) {
-      throw new BadRequestException('Solo se puede consultar el CDR de una boleta o factura aceptada');
-    }
+
 
     const cdrMeta = this.parseCdrMeta(comprobante.registro.cdr_respuesta);
     const ticketBaja = (comprobante.registro.ticket_sunat ?? '').trim();
@@ -537,6 +684,13 @@ export class ComprobantesLogic {
       );
     }
 
+    if (['01', '03'].includes(tipo)) {
+      const validez = await this.consultarValidez(id);
+      if (validez.codigo !== '1') {
+        throw new BadRequestException('SUNAT no confirma la aceptación para la fecha e importe de este comprobante. Usa Consultar validez; no se actualizó el CDR ni el estado.');
+      }
+    }
+
     const respuesta = await this.facturacionClient.consultarEstadoFacturaBoleta(
       {
         tipo,
@@ -544,6 +698,10 @@ export class ComprobantesLogic {
         numero: numero.replace(/^0+/, '') || '0',
       },
     );
+
+    if (['01', '03'].includes(tipo) && !cdrCorrespondeAlDocumento(respuesta, serie, numero, (comprobante.registro.fecha_emision_cpe ?? comprobante.registro.fecha))) {
+      throw new BadRequestException('El CDR consultado no corresponde a la referencia y fecha del comprobante actual. No se actualizó el documento.');
+    }
 
     const sunatResponse = (respuesta.sunatResponse ??
       respuesta) as SunatResponsePayload;
@@ -785,7 +943,7 @@ export class ComprobantesLogic {
     };
   }
 
-  async emitir(id: number, dto: AuditoriaDto) {
+  async emitir(id: number, dto: AuditoriaDto, reintento = false) {
     const claim = await this.model.reclamarEmision(id);
     if (!claim.ok) {
       throw new BadRequestException(
@@ -793,6 +951,7 @@ export class ComprobantesLogic {
       );
     }
 
+    let operacion: {idEmpresa:number;token:string} | null=null;
     try {
       const comprobante = await this.model.obtenerCompleto(id);
 
@@ -805,6 +964,11 @@ export class ComprobantesLogic {
       }
 
       await this.assertFacturacionConfigurada();
+      const empresa = await this.model.obtenerEmpresaEmisora();
+      if (!empresa) throw new BadRequestException('No hay empresa emisora configurada');
+      const token=await this.model.reclamarOperacionCpe(empresa.id);
+      if (!token) throw new BadRequestException('Hay otra operación de emisión activa para esta empresa. Espera a que termine; este comprobante no se ha enviado.');
+      operacion={idEmpresa:empresa.id,token};
 
       if (comprobante.registro.nombre_estado_sunat === 'ACEPTADO') {
         throw new BadRequestException('El comprobante ya fue aceptado por SUNAT');
@@ -813,13 +977,27 @@ export class ComprobantesLogic {
       if (comprobante.registro.nombre_estado_sunat === 'BAJA') {
         throw new BadRequestException('El comprobante está dado de baja');
       }
+      if (reintento && !esErrorEnvioCpe(this.parseCdrMeta(comprobante.registro.cdr_respuesta))) {
+        throw new BadRequestException('Este intento no tiene un fallo explícito de envío verificable. No se reenvió el comprobante.');
+      }
+
+      if (this.parseCdrMeta(comprobante.registro.cdr_respuesta)?.tipo === 'emision_por_confirmar') {
+        const validez = await this.consultarValidez(id);
+        if (validez.codigo === '1') {
+          await this.model.sincronizarValidez(id,validez,dto.idUsuarioAuditoria ?? null);
+        }
+        const errorExplicito=esErrorEnvioCpe(this.parseCdrMeta(comprobante.registro.cdr_respuesta));
+        if (!reintento || !errorExplicito || validez.codigo!=='0' || comprobante.registro.ticket_sunat) {
+          throw new BadRequestException('El envío anterior aún requiere revisión: SUNAT respondió ' + validez.estado + '. Usa Verificar envío para obtener una respuesta definitiva antes de reintentar. No se volvió a emitir.');
+        }
+      }
 
       const plazoDias = diasPlazoEmisionSunat(
         comprobante.registro.codigo_tipo_comprobante,
       );
       if (plazoDias != null && comprobante.registro.fecha) {
         const transcurridos = diasDesdeFechaComprobante(
-          comprobante.registro.fecha,
+          comprobante.registro.fecha_emision_cpe ?? comprobante.registro.fecha,
         );
         if (transcurridos > plazoDias) {
           const tipoLabel =
@@ -831,8 +1009,6 @@ export class ComprobantesLogic {
           );
         }
       }
-
-      const empresa = await this.model.obtenerEmpresaEmisora();
 
       if (!empresa) {
         throw new BadRequestException(
@@ -879,13 +1055,58 @@ export class ComprobantesLogic {
       const tipoDoc = comprobante.registro.codigo_tipo_comprobante;
       let respuesta: FacturacionApisperuDocumentResponse;
 
+      if (['01', '03'].includes(tipoDoc ?? '')) {
+        const existente = await this.facturacionClient.consultarEstadoFacturaBoleta({
+          ruc: empresa.ruc,
+          tipo: tipoDoc!,
+          serie: comprobante.registro.serie,
+          numero: comprobante.registro.numero.replace(/^0+/, '') || '0',
+        });
+        if (estadoDesdeCdr(existente) === 'ACEPTADO') {
+          throw new BadRequestException(
+            'SUNAT ya devuelve una constancia aceptada para esta serie y correlativo. Puede corresponder a un documento anterior: no se envió esta venta. Revisa el historial de numeración y usa una referencia fiscal nueva cuando corresponda.',
+          );
+        }
+        if (reintento) {
+          const status=(existente.sunatResponse ?? existente) as SunatResponsePayload;
+          if (String(status.error?.code ?? '')!=='0127' || status.cdrResponse || status.ticket) {
+            throw new BadRequestException('El proveedor no confirma que esta referencia carezca de CDR. No se reintentó el envío.');
+          }
+        }
+      }
+
       try {
         if (tipoDoc === '07' || tipoDoc === '08') {
           respuesta = await this.facturacionClient.enviarNota(payload);
         } else {
+          // Deja constancia antes de salir al proveedor: un reinicio del API
+          // tampoco debe perder la verificación de una emisión incierta.
+          const pendiente = await this.model.resolverIdEstadoSunat('PENDIENTE');
+          const inicio = await this.model.registrarRespuestaSunat(id, {
+            idEstadoSunat: pendiente ?? undefined,
+            cdrRespuesta: JSON.stringify({ tipo:'emision_por_confirmar', fase:'ENVIANDO', fecha:new Date().toISOString() }),
+            idUsuarioAuditoria:dto.idUsuarioAuditoria,
+          },reintento);
+          if (inicio.error) throw new BadRequestException(inicio.error);
+          if (inicio.registro?.nombre_estado_sunat === 'ACEPTADO') return {
+            comprobante:inicio.registro, sunat:{estado:'ACEPTADO',hash:null,ticket:null,respuesta:null},
+          };
           respuesta = await this.facturacionClient.enviarFacturaBoleta(payload);
         }
       } catch (error) {
+        if (/tiempo de espera|timeout|timed out|por confirmar|no se pudo comunicar/i.test(error instanceof Error ? error.message : '')) {
+          const pendiente = await this.model.resolverIdEstadoSunat('PENDIENTE');
+          const guardado = await this.model.registrarRespuestaSunat(id, {
+            idEstadoSunat: pendiente ?? undefined,
+            cdrRespuesta: JSON.stringify({ tipo: 'emision_por_confirmar', fase:'SIN_RESPUESTA', motivo: 'El proveedor no confirmó el resultado del envío', fecha: new Date().toISOString() }),
+            idUsuarioAuditoria: dto.idUsuarioAuditoria,
+          },reintento);
+          if (guardado.error) this.logger.warn('No se pudo registrar el envío por confirmar del comprobante ' + id);
+          if (guardado.registro?.nombre_estado_sunat === 'ACEPTADO') {
+            return { comprobante: guardado.registro,
+              sunat: { estado: 'ACEPTADO', hash: null, ticket: null, respuesta: null } };
+          }
+        }
         void this.notificarEmisionComprobante({
           idComprobante: id,
           serie: comprobante.registro.serie,
@@ -906,7 +1127,11 @@ export class ComprobantesLogic {
 
       const sunatResponse = (respuesta.sunatResponse ??
         {}) as SunatResponsePayload;
-      const estadoSunatNombre = this.resolverEstadoSunatNombre(sunatResponse);
+      let estadoSunatNombre = this.resolverEstadoSunatNombre(sunatResponse);
+      if (['01', '03'].includes(tipoDoc ?? '') && estadoSunatNombre === 'ACEPTADO' &&
+          !cdrCorrespondeAlDocumento(respuesta, comprobante.registro.serie, comprobante.registro.numero, comprobante.registro.fecha_emision_cpe ?? comprobante.registro.fecha)) {
+        estadoSunatNombre = 'PENDIENTE';
+      }
       const idEstadoSunat =
         await this.model.resolverIdEstadoSunat(estadoSunatNombre);
 
@@ -917,15 +1142,19 @@ export class ComprobantesLogic {
           ticketSunat: sunatResponse.ticket ?? undefined,
           hashDocumento: respuesta.hash ?? undefined,
           xmlFirmado: respuesta.xml ?? undefined,
-          cdrRespuesta: JSON.stringify(respuesta.sunatResponse ?? respuesta),
+          cdrRespuesta: JSON.stringify(estadoSunatNombre === 'PENDIENTE'
+            ? { tipo: 'emision_por_confirmar', fase:'SIN_RESPUESTA', sunatResponse: respuesta.sunatResponse ?? respuesta }
+            : respuesta.sunatResponse ?? respuesta),
           idUsuarioAuditoria: dto.idUsuarioAuditoria,
         },
+        reintento,
       );
 
       if (comprobanteActualizado.error) {
         throw new BadRequestException(comprobanteActualizado.error);
       }
 
+      if (comprobanteActualizado.registro?.nombre_estado_sunat === 'ACEPTADO') estadoSunatNombre = 'ACEPTADO';
       if (estadoSunatNombre === 'RECHAZADO') {
         // NC aplica stock/CxC al crear. Si SUNAT rechaza, revertir + soft-delete
         // para no inflar inventario y liberar el tope de cantidades.
@@ -961,14 +1190,15 @@ export class ComprobantesLogic {
       return {
         comprobante: comprobanteActualizado.registro,
         sunat: {
-          estado: estadoSunatNombre,
+          estado: estadoSunatNombre === 'PENDIENTE' && esErrorEnvioCpe(respuesta) ? 'ERROR_ENVIO' : estadoSunatNombre,
           hash: respuesta.hash ?? null,
           ticket: sunatResponse.ticket ?? null,
           respuesta: respuesta.sunatResponse ?? null,
         },
       };
     } finally {
-      await this.model.liberarEmisionLock(id, claim.client);
+      try { if (operacion) await this.model.liberarOperacionCpe(operacion.idEmpresa,operacion.token); }
+      finally { await this.model.liberarEmisionLock(id, claim.client); }
     }
   }
 
@@ -1192,61 +1422,11 @@ export class ComprobantesLogic {
   }
 
   private resolverEstadoSunatNombre(sunatResponse: SunatResponsePayload) {
-    if (sunatResponse.success === false) {
-      return 'RECHAZADO';
-    }
-
-    if (sunatResponse.cdrResponse?.accepted) {
-      return 'ACEPTADO';
-    }
-
-    if (sunatResponse.ticket && !sunatResponse.cdrResponse) {
-      return 'PENDIENTE';
-    }
-
-    if (sunatResponse.success === true) {
-      return 'ACEPTADO';
-    }
-
-    return 'RECHAZADO';
+    return estadoDesdeCdr(sunatResponse);
   }
 
   private resolverEstadoSunatDesdeConsulta(payload: unknown) {
-    const root =
-      payload && typeof payload === 'object'
-        ? (payload as Record<string, unknown>)
-        : {};
-    const nested =
-      root.sunatResponse && typeof root.sunatResponse === 'object'
-        ? (root.sunatResponse as Record<string, unknown>)
-        : root;
-    const cdr =
-      nested.cdrResponse && typeof nested.cdrResponse === 'object'
-        ? (nested.cdrResponse as Record<string, unknown>)
-        : null;
-    const errorObj =
-      (nested.error && typeof nested.error === 'object'
-        ? (nested.error as Record<string, unknown>)
-        : null) ??
-      (root.error && typeof root.error === 'object'
-        ? (root.error as Record<string, unknown>)
-        : null);
-
-    if (nested.success === false || errorObj) return 'RECHAZADO';
-    if (cdr?.accepted === true || nested.success === true) return 'ACEPTADO';
-
-    const codeRaw = cdr?.code ?? nested.code ?? root.code;
-    const code = Number(codeRaw);
-    if (code === 0) return 'ACEPTADO';
-    if (code === 98) return 'PENDIENTE';
-    if (
-      !Number.isNaN(code) &&
-      ((code >= 2000 && code <= 3999) || code === 99)
-    ) {
-      return 'RECHAZADO';
-    }
-
-    return this.resolverEstadoSunatNombre(nested as SunatResponsePayload);
+    return estadoDesdeCdr(payload);
   }
 
   /** Igual que emitir, pero un CDR aceptado de voided implica baja. */

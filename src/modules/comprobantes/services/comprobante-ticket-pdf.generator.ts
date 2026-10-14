@@ -98,8 +98,10 @@ export class ComprobanteTicketPdfGenerator {
       cabecera.nombre_tipo_comprobante ?? 'COMPROBANTE ELECTRÓNICO'
     ).toUpperCase();
     const tipoCodigo = cabecera.codigo_tipo_comprobante ?? '';
-    const serieNumero = `${cabecera.serie}-${cabecera.numero}`;
-    const fecha = this.formatFecha(cabecera.fecha);
+    const serieNumero = `${cabecera.serie}-${
+      documentoInterno ? cabecera.numero : this.stripLeadingZeros(cabecera.numero)
+    }`;
+    const fecha = this.formatFecha(cabecera.fecha_emision_cpe ?? cabecera.fecha);
     const moneda =
       (cabecera.codigo_moneda ?? 'PEN') === 'PEN' ? 'SOLES' : cabecera.codigo_moneda;
     const hash = documentoInterno ? '' : (cabecera.hash_documento ?? '').trim();
@@ -117,7 +119,7 @@ export class ComprobanteTicketPdfGenerator {
         this.stripLeadingZeros(cabecera.numero),
         this.moneyPlain(igv),
         this.moneyPlain(total),
-        this.formatFechaIso(cabecera.fecha),
+        this.formatFechaIso(cabecera.fecha_emision_cpe ?? cabecera.fecha),
         clienteTipoDoc,
         clienteDoc === '—' ? '' : clienteDoc,
         hash,

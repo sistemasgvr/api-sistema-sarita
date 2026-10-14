@@ -1,4 +1,5 @@
 import { adjuntarTributos } from '../../../common/helpers/tributos-vinculados.helper';
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -9,6 +10,7 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import type {
   ComprobanteCompletoResult,
+  ComprobanteRegistro,
   ComprobanteResumenDiarioItem,
   ResumenDiarioCompletoResult,
   SiguienteCorrelativoResumenResult,
@@ -95,6 +97,80 @@ interface EmpresaEmisoraRow {
 
 @Injectable()
 export class ComprobantesModel {
+  async reclamarOperacionCpe(idEmpresa: number): Promise<string | null> {
+    const token=randomUUID();
+    const {rows}=await this.db.query<{token:string}>(
+      `INSERT INTO ven_cpe_operacion_control(id_empresa,token,vencimiento) VALUES($1,$2,NOW()+INTERVAL '10 minutes')
+       ON CONFLICT(id_empresa) DO UPDATE SET token=EXCLUDED.token,vencimiento=EXCLUDED.vencimiento
+       WHERE ven_cpe_operacion_control.vencimiento <= NOW() RETURNING token`,[idEmpresa,token]);
+    return rows[0]?.token ?? null;
+  }
+  async liberarOperacionCpe(idEmpresa: number, token: string) {
+    await this.db.query('UPDATE ven_cpe_operacion_control SET vencimiento=NOW() WHERE id_empresa=$1 AND token=$2',[idEmpresa,token]);
+  }
+  async pendientesDeVerificacion() {
+    const { rows } = await this.db.query<{ id: number }>(
+      `SELECT c.id FROM ven_comprobante c
+       JOIN gen_lista_opciones t ON t.id=c.id_tipo_comprobante
+       JOIN gen_lista_opciones s ON s.id=c.id_estado_sunat
+       WHERE c.estado=1 AND t.descripcion IN ('01','03') AND s.nombre='PENDIENTE'
+         AND c.cdr_respuesta LIKE '%emision_por_confirmar%'
+         AND (c.cpe_verificacion IS NULL OR (c.cpe_verificacion->>'verificadoEn')::timestamptz < NOW()-INTERVAL '60 seconds')
+       ORDER BY c.cpe_verificacion->>'verificadoEn' NULLS FIRST, c.id LIMIT 3`,
+    );
+    return rows;
+  }
+
+  async reclamarVerificacionGlobal(): Promise<string | null> {
+    const token = randomUUID();
+    const { rows } = await this.db.query<{ token: string }>(
+      `INSERT INTO ven_cpe_verificacion_control(id,token,vencimiento) VALUES(1,$1,NOW()+INTERVAL '10 minutes')
+       ON CONFLICT(id) DO UPDATE SET token=EXCLUDED.token,vencimiento=EXCLUDED.vencimiento
+       WHERE ven_cpe_verificacion_control.vencimiento <= NOW() RETURNING token`, [token],
+    );
+    return rows[0]?.token ?? null;
+  }
+
+  async liberarVerificacionGlobal(token: string) {
+    await this.db.query('UPDATE ven_cpe_verificacion_control SET vencimiento=NOW() WHERE id=1 AND token=$1',[token]);
+  }
+
+  async guardarVerificacion(id: number, doc: ComprobanteRegistro, evidencia: unknown, rechazo: string | null, usuario?: number) {
+    const idRechazado = rechazo ? await this.resolverIdEstadoSunat('RECHAZADO') : null;
+    const { rowCount } = await this.db.query(
+      `UPDATE ven_comprobante c SET cpe_verificacion=$2::jsonb,
+         id_estado_sunat=CASE WHEN $7::int IS NOT NULL AND s.nombre NOT IN ('ACEPTADO','BAJA') THEN $7 ELSE c.id_estado_sunat END,
+         cdr_respuesta=CASE WHEN $7::int IS NOT NULL AND s.nombre NOT IN ('ACEPTADO','BAJA') THEN $8 ELSE c.cdr_respuesta END,
+         id_usuario_modificacion=CASE WHEN $7::int IS NOT NULL AND s.nombre NOT IN ('ACEPTADO','BAJA') THEN $9 ELSE c.id_usuario_modificacion END,
+         fecha_modificacion=CASE WHEN $7::int IS NOT NULL AND s.nombre NOT IN ('ACEPTADO','BAJA') THEN NOW() ELSE c.fecha_modificacion END
+       FROM gen_lista_opciones s
+       WHERE c.id=$1 AND c.estado=1 AND s.id=c.id_estado_sunat
+         AND c.serie=$3 AND c.numero=$4 AND c.total_importe=$5
+         AND (SELECT descripcion FROM gen_lista_opciones WHERE id=c.id_tipo_comprobante)=$10
+         AND COALESCE(c.fecha_emision_cpe,c.fecha::date)=$6::date
+         AND (c.cpe_verificacion IS NULL OR c.cpe_verificacion->>'verificadoEn' <= ($2::jsonb)->>'verificadoEn')`,
+      [id,JSON.stringify(evidencia),doc.serie,doc.numero,Number(doc.total_importe),doc.fecha_emision_cpe??doc.fecha,idRechazado,rechazo,usuario??null,doc.codigo_tipo_comprobante],
+    );
+    return rowCount === 1;
+  }
+
+  async evidenciasCdr(ids: number[]) {
+    if (!ids.length) return [];
+    const { rows } = await this.db.query<{ id: number; cdr_respuesta: string | null; cpe_verificacion: Record<string, any> | null; fecha_emision_cpe: string | null; emision_en_curso: boolean; validez_aceptada: boolean }>(
+      `SELECT c.id, c.cdr_respuesta, c.cpe_verificacion, c.fecha_emision_cpe::text, ven_cpe_validez_aceptada(c) AS validez_aceptada,
+              EXISTS (SELECT 1 FROM pg_locks l
+                      WHERE l.locktype='advisory' AND l.granted
+                        AND l.classid=872016 AND l.objid=c.id::oid AND l.objsubid=2
+                        AND l.database=(SELECT oid FROM pg_database WHERE datname=current_database()))
+                AND COALESCE(c.cdr_respuesta,'') NOT LIKE '%"fase":"SIN_RESPUESTA"%'
+                AND COALESCE(c.cdr_respuesta,'') NOT LIKE '%"motivo":"El proveedor no confirmó%'
+                AND c.fecha_modificacion > NOW() - MAKE_INTERVAL(secs =>
+                  COALESCE((SELECT MAX(timeout_ms)/1000 FROM gen_configuracion_sunat WHERE estado=1),60)+60)
+              AS emision_en_curso
+       FROM ven_comprobante c WHERE c.id = ANY($1::int[])`, [ids],
+    );
+    return rows;
+  }
   constructor(
     private readonly db: DatabaseService,
     private readonly configService: ConfigService,
@@ -116,11 +192,62 @@ export class ComprobantesModel {
     ]);
   }
 
-  obtenerCompleto(id: number) {
-    return this.db.callFunctionJson<ComprobanteCompletoResult>(
+  async obtenerCompleto(id: number) {
+    const result = await this.db.callFunctionJson<ComprobanteCompletoResult>(
       'ven_obtener_comprobante',
       [id],
     );
+    if (result.registro) {
+      const { rows } = await this.db.query<{ fecha_emision_cpe: string | null }>(
+        'SELECT fecha_emision_cpe::text FROM ven_comprobante WHERE id=$1', [id],
+      );
+      result.registro.fecha_emision_cpe = rows[0]?.fecha_emision_cpe ?? null;
+    }
+    return result;
+  }
+
+  regularizar(id: number, serie: string, fecha: string, verificacion: unknown, cdrEsperado: string | null, numeroEsperado: string, usuario: number) {
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'ven_regularizar_comprobante', [id, serie, fecha, JSON.stringify(verificacion), cdrEsperado, numeroEsperado, usuario],
+    );
+  }
+
+  historialCpe(id: number) {
+    return this.db.query('SELECT * FROM ven_comprobante_historial_cpe WHERE id_comprobante=$1 ORDER BY id DESC', [id]);
+  }
+
+  notasFiscalesCorreccion(id: number) {
+    return this.db.query(`SELECT id,serie,numero,serie_original,numero_original,importe,estado,
+      payload->>'desMotivo' AS motivo,actualizado_en,
+      estado='ACEPTADO' AS pdf_disponible
+      FROM ven_cpe_correccion_nota WHERE id_comprobante_original=$1
+        AND estado IN ('EN_CURSO','POR_CONFIRMAR','ACEPTADO','RECHAZADO') ORDER BY id`, [id]);
+  }
+
+  notaFiscalCorreccion(id: number, idNota: number) {
+    return this.db.query('SELECT * FROM ven_cpe_correccion_nota WHERE id_comprobante_original=$1 AND id=$2', [id,idNota]);
+  }
+
+  async sincronizarValidez(id: number, validez: { codigo: string; consulta: unknown }, usuario: number | null) {
+    if (validez.codigo !== '1') return false;
+    const aceptado = await this.resolverIdEstadoSunat('ACEPTADO');
+    if (!aceptado) throw new Error('Estado SUNAT ACEPTADO no configurado');
+    const { rowCount } = await this.db.query(
+      `UPDATE ven_comprobante c SET id_estado_sunat=$3, validez_sunat=$2::jsonb,
+         id_usuario_modificacion=$4, fecha_modificacion=NOW()
+       FROM gen_lista_opciones tipo
+       WHERE c.id=$1 AND c.estado=1 AND tipo.id=c.id_tipo_comprobante
+         AND tipo.descripcion IN ('01','03')
+         AND NOT EXISTS (SELECT 1 FROM gen_lista_opciones s WHERE s.id=c.id_estado_sunat AND s.nombre='BAJA')
+         AND ($2::jsonb)->>'codigo'='1'
+         AND ($2::jsonb)->'consulta'->>'codComp'=tipo.descripcion
+         AND ($2::jsonb)->'consulta'->>'numeroSerie'=c.serie
+         AND ($2::jsonb)->'consulta'->'numero'=to_jsonb(c.numero::numeric)
+         AND ($2::jsonb)->'consulta'->'monto'=to_jsonb(c.total_importe)
+         AND ($2::jsonb)->'consulta'->>'fechaEmision'=to_char(COALESCE(c.fecha_emision_cpe,c.fecha::date),'DD/MM/YYYY')`,
+      [id, JSON.stringify(validez), aceptado, usuario],
+    );
+    return rowCount === 1;
   }
 
   async obtenerPorId(id: number) {
@@ -495,8 +622,25 @@ export class ComprobantesModel {
     }
   }
 
-  registrarRespuestaSunat(id: number, dto: RegistrarRespuestaSunatDto) {
-    return this.db.callFunctionJson<AuthSingleResult>('ven_registrar_respuesta_sunat', [
+  registrarRespuestaSunat(id: number, dto: RegistrarRespuestaSunatDto, conservarEstadoVenta = false) {
+    // Solo el reintento autorizado actualiza evidencia fiscal sin ejecutar la
+    // transición financiera del flujo de emisión existente.
+    if (conservarEstadoVenta) return this.db.withTransaction(async()=>{
+      await this.db.query(
+        `UPDATE ven_comprobante c SET
+           id_estado_sunat=COALESCE($2::int,c.id_estado_sunat),
+           ticket_sunat=COALESCE(NULLIF(TRIM($3::varchar),''),c.ticket_sunat),
+           hash_documento=COALESCE(NULLIF(TRIM($4::varchar),''),c.hash_documento),
+           xml_firmado=COALESCE($5::text,c.xml_firmado), cdr_respuesta=COALESCE($6::text,c.cdr_respuesta),
+           id_usuario_modificacion=$7,fecha_modificacion=NOW()
+         WHERE c.id=$1 AND c.estado=1
+           AND NOT (ven_cpe_validez_aceptada(c) AND EXISTS (
+             SELECT 1 FROM gen_lista_opciones WHERE id=$2 AND nombre IN ('PENDIENTE','RECHAZADO')))
+           AND ($2::int IS NULL OR EXISTS (SELECT 1 FROM gen_lista_opciones WHERE id=$2 AND estado=1))`,
+        [id,dto.idEstadoSunat??null,dto.ticketSunat??null,dto.hashDocumento??null,dto.xmlFirmado??null,dto.cdrRespuesta??null,dto.idUsuarioAuditoria??null]);
+      return this.obtenerCompleto(id);
+    });
+    return this.db.callFunctionJson<AuthSingleResult<ComprobanteRegistro>>('ven_registrar_respuesta_sunat', [
       id,
       dto.idEstadoSunat ?? null,
       dto.ticketSunat ?? null,

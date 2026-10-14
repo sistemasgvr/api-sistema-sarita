@@ -20,4 +20,28 @@ describe('Invoice: normalización y domicilio real', () => {
   it('pide completar el distrito fiscal en lugar de reemplazarlo por Lima', () => {
     expect(() => mapper.mapComprobanteToInvoicePayload(documento(), { ...empresa, codigo_ubigeo: null }, cliente)).toThrow('distrito fiscal');
   });
+  it('envía las cuotas en la raíz y el importe neto en formaPago según el contrato de APIs Perú', () => {
+    const doc=documento('23','2026-10-05');
+    Object.assign(doc.registro!,{fecha_emision_cpe:'2026-10-12',dias_credito:30,fecha_vencimiento:'2026-11-05'});
+    const payload=mapper.mapComprobanteToInvoicePayload(doc,empresa,cliente);
+    expect(payload.formaPago).toEqual({moneda:'PEN',tipo:'Credito',monto:11.8});
+    expect(payload.cuotas).toEqual([{moneda:'PEN',monto:11.8,fechaPago:'2026-11-05T00:00:00-05:00'}]);
+    expect((payload.formaPago as Record<string,unknown>).cuotas).toBeUndefined();
+  });
+  it('conserva el importe y vencimiento de cada cuota almacenada', () => {
+    const doc=documento();
+    doc.cuotas=[{monto:5,fecha_vencimiento:'2026-11-01'},{monto:6.8,fecha_vencimiento:'2026-12-01'}] as never;
+    const payload=mapper.mapComprobanteToInvoicePayload(doc,empresa,cliente);
+    expect(payload.formaPago).toEqual({moneda:'PEN',tipo:'Credito',monto:11.8});
+    expect(payload.cuotas).toEqual([{moneda:'PEN',monto:5,fechaPago:'2026-11-01T00:00:00-05:00'},{moneda:'PEN',monto:6.8,fechaPago:'2026-12-01T00:00:00-05:00'}]);
+  });
+  it('no convierte una venta al contado en crédito', () => {
+    const payload=mapper.mapComprobanteToInvoicePayload(documento(),empresa,cliente);
+    expect(payload.formaPago).toEqual({moneda:'PEN',tipo:'Contado'});expect(payload.cuotas).toBeUndefined();
+  });
+  it('bloquea una cuota vencida antes de la fecha fiscal sin inventar otro vencimiento', () => {
+    const doc=documento('23','2026-10-05');
+    Object.assign(doc.registro!,{fecha_emision_cpe:'2026-10-12',dias_credito:30,fecha_vencimiento:'2026-10-06'});
+    expect(()=>mapper.mapComprobanteToInvoicePayload(doc,empresa,cliente)).toThrow('Revisa las cuotas');
+  });
 });

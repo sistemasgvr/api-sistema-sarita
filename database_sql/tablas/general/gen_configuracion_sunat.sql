@@ -28,6 +28,8 @@ CREATE TABLE gen_configuracion_sunat (
     api_usuario character varying(150) DEFAULT NULL::character varying,
     api_clave character varying(255) DEFAULT NULL::character varying,
     ruc_emisor character varying(11) DEFAULT NULL::character varying,
+    validez_client_id character varying(255),
+    validez_client_secret character varying(255),
     client_id character varying(255) DEFAULT NULL::character varying,
     client_secret character varying(255) DEFAULT NULL::character varying,
     timeout_ms integer

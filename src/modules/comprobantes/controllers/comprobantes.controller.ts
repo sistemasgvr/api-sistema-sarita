@@ -226,6 +226,65 @@ export class ComprobantesController {
     return this.logic.emitir(id, dto);
   }
 
+  @Post(':id/regularizar-cpe')
+  @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
+  @ApiOperation({ summary: 'Preparar una referencia nueva F002/B002 conservando la venta y archivando el CPE original; no emite' })
+  regularizarCpe(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.logic.regularizar(id, req.user.id);
+  }
+
+  @Get(':id/historial-cpe')
+  @Permisos(PermisoBanderas.COMPROBANTES_VER)
+  @ApiOperation({ summary: 'Consultar referencias, XML y CDR anteriores conservados al regularizar' })
+  historialCpe(@Param('id', ParseIntPipe) id: number) {
+    return this.logic.historialCpe(id);
+  }
+
+  @Get(':id/notas-fiscales')
+  @Permisos(PermisoBanderas.COMPROBANTES_VER)
+  @ApiOperation({ summary: 'Consultar notas fiscales de corrección y sus referencias originales' })
+  notasFiscalesCorreccion(@Param('id', ParseIntPipe) id: number) {
+    return this.logic.notasFiscalesCorreccion(id);
+  }
+
+  @Get(':id/notas-fiscales/:idNota/pdf')
+  @Permisos(PermisoBanderas.COMPROBANTES_VER)
+  @ApiProduces('application/pdf')
+  @ApiOperation({ summary: 'Descargar una nota fiscal de corrección aceptada' })
+  async pdfNotaFiscalCorreccion(@Param('id', ParseIntPipe) id: number,@Param('idNota', ParseIntPipe) idNota: number) {
+    return new StreamableFile(await this.logic.pdfNotaFiscalCorreccion(id,idNota),{
+      type:'application/pdf',disposition:`attachment; filename="nota-fiscal-${idNota}.pdf"`,
+    });
+  }
+
+  @Get(':id/validez')
+  @Permisos(PermisoBanderas.COMPROBANTES_CONSULTAR_CDR)
+  @ApiOperation({ summary: 'Consultar validez SUNAT por fecha e importe, sin actualizar ni emitir' })
+  consultarValidez(@Param('id', ParseIntPipe) id: number) {
+    return this.logic.consultarValidez(id);
+  }
+
+  @Post(':id/sincronizar-validez')
+  @Permisos(PermisoBanderas.COMPROBANTES_CONSULTAR_CDR)
+  @ApiOperation({ summary: 'Consultar validez y guardar aceptación confirmada, sin emitir' })
+  sincronizarValidez(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.logic.sincronizarValidez(id, req.user.id);
+  }
+
+  @Post(':id/verificar-envio')
+  @Permisos(PermisoBanderas.COMPROBANTES_CONSULTAR_CDR)
+  @ApiOperation({ summary: 'Verificar envío con validez SUNAT y CDR del proveedor, sin reenviar' })
+  verificarEnvio(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.logic.verificarEnvio(id, req.user.id);
+  }
+
+  @Post(':id/reintentar-envio')
+  @Permisos(PermisoBanderas.COMPROBANTES_EMITIR)
+  @ApiOperation({ summary: 'Reintentar un envío con error explícito tras verificar SUNAT y CDR, conservando la referencia' })
+  reintentarEnvio(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.logic.emitir(id, {idUsuarioAuditoria:req.user.id}, true);
+  }
+
   @Post(':id/consultar-cdr')
   @Permisos(PermisoBanderas.COMPROBANTES_CONSULTAR_CDR)
   @ApiOperation({
