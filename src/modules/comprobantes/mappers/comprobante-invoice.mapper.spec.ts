@@ -9,6 +9,22 @@ function documento(numero = ' 000012 ', fecha = '2026-10-07'): ComprobanteComple
 
 describe('Invoice: normalización y domicilio real', () => {
   const mapper = new ComprobanteInvoiceMapper();
+  it.each([
+    [' EL ENVASE Y5204092 SE DA EN CALIDAD DE PRESTAMO ', null, 'EL ENVASE Y5204092 SE DA EN CALIDAD DE PRESTAMO'],
+    ['Envase en préstamo', 'Nota interna confidencial', 'Envase en préstamo'],
+    [null, 'Nota interna confidencial', undefined],
+    [' Misma nota ', 'Misma nota', 'Misma nota'],
+    ['  ', 'Nota interna confidencial', undefined],
+  ])('envía solo la glosa y excluye observaciones internas: %s / %s', (glosa, observaciones, esperado) => {
+    const doc = documento();
+    Object.assign(doc.registro!, { glosa, observaciones });
+    const payload = mapper.mapComprobanteToInvoicePayload(doc, empresa, cliente);
+    expect(payload.observacion).toBe(esperado);
+    expect(payload).not.toHaveProperty('observaciones');
+    expect(JSON.stringify(payload)).not.toContain('Nota interna confidencial');
+    expect(payload.details).toEqual(expect.arrayContaining([expect.objectContaining({ descripcion: 'Oxígeno' })]));
+    expect(payload.mtoImpVenta).toBe(11.8);
+  });
   it('respeta el tipo del receptor y la dirección fiscal registrada', () => {
     const payload = mapper.mapComprobanteToInvoicePayload(documento(), empresa, cliente);
     expect(payload).toMatchObject({ tipoDoc: '03', serie: 'B001', correlativo: '12', tipoMoneda: 'PEN', client: { tipoDoc: '4', numDoc: '00123456' }, company: { ruc: '20222222222', razonSocial: 'Empresa', address: { ubigueo: '140106', distrito: 'LA VICTORIA', provincia: 'CHICLAYO', departamento: 'LAMBAYEQUE' } } });

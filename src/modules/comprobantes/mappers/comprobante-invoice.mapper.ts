@@ -139,8 +139,10 @@ export class ComprobanteInvoiceMapper {
       );
     }
 
-    if (cabecera.observaciones) {
-      payload.observacion = cabecera.observaciones;
+    // La glosa es pública; las observaciones son exclusivamente internas.
+    const glosa = cabecera.glosa?.trim();
+    if (glosa) {
+      payload.observacion = glosa;
     }
 
     return payload;
