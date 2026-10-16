@@ -54,6 +54,14 @@ export function interpretarGre(response: unknown, estado = 'POR_CONFIRMAR'): Gre
     const notas = Array.isArray(cdr.notes) ? cdr.notes.map(n => limpiar(texto(n))).filter(Boolean) : [];
     return { ...base, tipo: 'aceptacion', titulo: notas.length ? 'Guía aceptada con observaciones' : 'Guía aceptada por SUNAT', mensaje: 'La guía fue aceptada por SUNAT.', accion: notas.length ? 'Revisa las observaciones de SUNAT.' : 'Puedes consultar sus archivos oficiales.', problemas: notas };
   }
+  if (codigo === '1033') {
+    return {
+      ...base,
+      titulo: 'Numeración de guía ya registrada',
+      mensaje: 'SUNAT indica que esta guía ya fue registrada con la misma numeración y otros datos.',
+      accion: 'Revisa la guía original de esa serie y número en SUNAT o en el sistema donde se emitió. No repitas el envío ni cambies los datos para reintentar; primero verifica el documento registrado y la numeración de la serie con soporte.',
+    };
+  }
   const ambiguous = ['PENDIENTE', 'POR_CONFIRMAR', 'ENVIANDO'].includes(estado);
   const pendiente = 'Usa «Consultar estado SUNAT» para confirmar el resultado antes de volver a emitir.';
   // El HTTP describe el acceso, nunca es por sí mismo un rechazo fiscal del documento.

@@ -5,8 +5,9 @@
 -- pero devolviendo todas las series ya usadas para elegirlas en un select.
 --
 -- El tipo de guía define el prefijo SUNAT: 09 GRE Remitente → T###,
--- 31 GRE Transportista → V###. Si aún no hay ninguna serie con ese prefijo se
--- ofrece la serie por defecto (T001 / V001) con correlativo 00000001.
+-- 31 GRE Transportista → V###. Si la serie por defecto (T002 / V001) aún no
+-- se ha usado, se ofrece con correlativo 00000001.
+-- T002 se ofrece primero para nuevas guías; las existentes conservan su serie.
 DROP FUNCTION IF EXISTS doc_listar_series_gre(p_id_tipo_guia_remision integer);
 
 CREATE OR REPLACE FUNCTION doc_listar_series_gre(p_id_tipo_guia_remision integer DEFAULT NULL::integer)
@@ -16,6 +17,7 @@ AS $function$
 DECLARE
     v_codigo_tipo VARCHAR;
     v_prefijo VARCHAR;
+    v_serie_default VARCHAR;
     v_resultado JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -29,6 +31,7 @@ BEGIN
 
     -- Sin tipo (o tipo desconocido) se asume remitente, el caso habitual.
     v_prefijo := CASE WHEN v_codigo_tipo = '31' THEN 'V' ELSE 'T' END;
+    v_serie_default := CASE WHEN v_codigo_tipo = '31' THEN 'V001' ELSE 'T002' END;
 
     WITH usadas AS (
         SELECT
@@ -45,8 +48,8 @@ BEGIN
         FROM usadas u
         WHERE u.serie LIKE v_prefijo || '%'
         UNION ALL
-        SELECT v_prefijo || '001', NULL::INTEGER, 0
-        WHERE NOT EXISTS (SELECT 1 FROM usadas u WHERE u.serie = v_prefijo || '001')
+        SELECT v_serie_default, NULL::INTEGER, 0
+        WHERE NOT EXISTS (SELECT 1 FROM usadas u WHERE u.serie = v_serie_default)
     )
     SELECT json_agg(
         json_build_object(
@@ -55,7 +58,7 @@ BEGIN
             'siguiente_numero', LPAD((COALESCE(s.ultimo, 0) + 1)::TEXT, 8, '0'),
             'total', s.total
         )
-        ORDER BY s.serie
+        ORDER BY CASE WHEN s.serie = v_serie_default THEN 0 ELSE 1 END, s.serie
     )
     INTO v_resultado
     FROM series s;
