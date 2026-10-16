@@ -45,6 +45,7 @@ BEGIN
           OR LOWER(COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
           OR LOWER(COALESCE(co.serie, '') || '-' || COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
           OR gen_texto_coincide(COALESCE(cl.razon_social, ''), v_busqueda)
+          OR gen_texto_coincide(TRIM(CONCAT_WS(' ', cl.nombres, cl.apellido_paterno, cl.apellido_materno)), v_busqueda)
           OR gen_texto_coincide(COALESCE(cl.numero_documento, ''), v_busqueda)
           OR gen_texto_coincide(COALESCE(c.glosa, ''), v_busqueda)
       );
@@ -171,6 +172,7 @@ BEGIN
               OR LOWER(COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
               OR LOWER(COALESCE(co.serie, '') || '-' || COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
               OR gen_texto_coincide(COALESCE(cl.razon_social, ''), v_busqueda)
+              OR gen_texto_coincide(TRIM(CONCAT_WS(' ', cl.nombres, cl.apellido_paterno, cl.apellido_materno)), v_busqueda)
               OR gen_texto_coincide(COALESCE(cl.numero_documento, ''), v_busqueda)
               OR gen_texto_coincide(COALESCE(c.glosa, ''), v_busqueda)
           )
