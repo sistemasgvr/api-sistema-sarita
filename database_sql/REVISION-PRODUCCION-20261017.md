@@ -1,7 +1,9 @@
 # Revisión final para publicación — 17/10/2026
 
-Resultado: favorable para un despliegue coordinado de base de datos, API e
-interfaz. No se ha ejecutado ningún cambio en producción.
+Resultado de la revisión: favorable para un despliegue coordinado de base de
+datos, API e interfaz. Actualización posterior: la parte de base de datos se
+aplicó por autorización del usuario a las 11:27 de Lima; ver
+`DESPLIEGUE-PRODUCCION-20261017.md`. El código queda a cargo del usuario.
 
 ## Ensayo independiente desde el respaldo original
 
