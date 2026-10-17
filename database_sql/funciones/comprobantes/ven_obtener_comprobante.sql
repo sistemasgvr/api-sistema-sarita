@@ -24,6 +24,9 @@ BEGIN
     FROM (
         SELECT
             c.id,
+            c.xmin::text AS version,
+            ven_comprobante_permite_edicion(c) AS permite_edicion_segura,
+            EXISTS(SELECT 1 FROM ven_vsd_operacion o WHERE o.id_comprobante=c.id AND o.tipo='CAMBIO_BALON' AND o.datos->>'tipoOperacion'='CAMBIO') AS tiene_cambio_fisico,
             c.id_tipo_comprobante,
             tc.nombre AS nombre_tipo_comprobante,
             tc.descripcion AS codigo_tipo_comprobante,

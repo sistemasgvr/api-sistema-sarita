@@ -17,6 +17,7 @@ import type {
 } from '../interfaces/comprobante.interface';
 import {
   ComprobanteCuotaDto,
+  CambioBalonVsdDto,
   ComprobanteDetalleDto,
   ConvertirTipoComprobanteDto,
   CreateComprobantesDto,
@@ -156,8 +157,10 @@ export class ComprobantesModel {
 
   async evidenciasCdr(ids: number[]) {
     if (!ids.length) return [];
-    const { rows } = await this.db.query<{ id: number; cdr_respuesta: string | null; cpe_verificacion: Record<string, any> | null; fecha_emision_cpe: string | null; emision_en_curso: boolean; validez_aceptada: boolean }>(
+    const { rows } = await this.db.query<{ id: number; cdr_respuesta: string | null; cpe_verificacion: Record<string, any> | null; fecha_emision_cpe: string | null; emision_en_curso: boolean; validez_aceptada: boolean; permite_edicion_segura: boolean; tiene_cambio_fisico: boolean }>(
       `SELECT c.id, c.cdr_respuesta, c.cpe_verificacion, c.fecha_emision_cpe::text, ven_cpe_validez_aceptada(c) AS validez_aceptada,
+              ven_comprobante_permite_edicion(c) AS permite_edicion_segura,
+              EXISTS(SELECT 1 FROM ven_vsd_operacion o WHERE o.id_comprobante=c.id AND o.tipo='CAMBIO_BALON' AND o.datos->>'tipoOperacion'='CAMBIO') AS tiene_cambio_fisico,
               EXISTS (SELECT 1 FROM pg_locks l
                       WHERE l.locktype='advisory' AND l.granted
                         AND l.classid=872016 AND l.objid=c.id::oid AND l.objsubid=2
@@ -469,7 +472,34 @@ export class ComprobantesModel {
       dto.idUsuarioAuditoria ?? null,
       dto.origenPos ?? null,
       dto.pagos ? JSON.stringify(dto.pagos) : null,
+      dto.motivoCorreccion ?? null,
+      dto.versionEsperada ?? null,
     ]);
+  }
+
+  cambiarBalonVsd(id: number, dto: CambioBalonVsdDto, usuario: number) {
+    return this.db.callFunctionJson<AuthSingleResult>('ven_cambiar_balon_vsd', [id, JSON.stringify(dto), usuario]);
+  }
+
+  async operacionesVsd(id: number) {
+    const history = await this.db.query(`SELECT id,tipo,motivo,fecha,datos,posterior FROM ven_vsd_operacion WHERE id_comprobante=$1 ORDER BY id DESC`, [id]);
+    const balones = await this.db.query(`WITH origen AS (
+        SELECT id_balon AS id FROM ven_comprobante_detalle WHERE id_comprobante=$1 AND estado=1 AND id_balon IS NOT NULL
+        UNION SELECT pd.id_balon FROM bal_prestamo_detalle pd JOIN bal_prestamo p ON p.id=pd.id_prestamo
+          WHERE p.id_comprobante_venta=$1 AND p.estado=1 AND pd.estado=1 AND pd.fecha_devolucion IS NULL AND pd.rol='ENTREGADO'
+      ), raices AS (
+        SELECT DISTINCT COALESCE((o.datos->>'idBalonOriginal')::integer, origen.id) AS id FROM origen
+        LEFT JOIN LATERAL (SELECT datos FROM ven_vsd_operacion WHERE id_comprobante=$1 AND tipo='CAMBIO_BALON'
+          AND origen.id IN ((datos->>'idBalonOriginal')::integer,(datos->>'idBalonActual')::integer,(datos->>'idBalonNuevo')::integer)
+          ORDER BY id DESC LIMIT 1) o ON true
+      ), actuales AS (
+        SELECT DISTINCT COALESCE((o.datos->>'idBalonNuevo')::integer, origen.id) AS id
+        FROM raices origen LEFT JOIN LATERAL (SELECT datos FROM ven_vsd_operacion
+          WHERE id_comprobante=$1 AND tipo='CAMBIO_BALON' AND (datos->>'idBalonOriginal')::integer=origen.id ORDER BY id DESC LIMIT 1) o ON true
+      ) SELECT b.id,b.codigo_balon,b.id_tipo_balon,b.id_producto_gas,eb.nombre AS estado,
+        ven_cantidad_gas_balon_vsd($1,b.id) AS cantidad_salida
+      FROM actuales a JOIN bal_balon b ON b.id=a.id LEFT JOIN gen_lista_opciones eb ON eb.id=b.id_estado_balon ORDER BY b.codigo_balon`, [id]);
+    return { historial: history.rows, balones: balones.rows };
   }
 
     eliminar(id: number, idUsuarioAuditoria?: number) {

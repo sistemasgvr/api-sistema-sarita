@@ -24,6 +24,7 @@ import { NotificacionesLogic } from '../../notificaciones/logic/notificaciones.l
 import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import {
   AnularComprobanteDto,
+  CambioBalonVsdDto,
   ConvertirTipoComprobanteDto,
   CreateComprobantesDto,
   EnviarResumenDiarioDto,
@@ -122,6 +123,10 @@ export class ComprobantesLogic {
     for (const row of rows) {
       const evidencia = evidencias.find(item => item.id === row.id);
       row.fecha_emision_cpe = evidencia?.fecha_emision_cpe ?? null;
+      Object.assign(row, {
+        permite_edicion_segura: evidencia?.permite_edicion_segura === true && !evidencia?.emision_en_curso,
+        tiene_cambio_fisico: evidencia?.tiene_cambio_fisico === true,
+      });
       // La confirmación exacta de SUNAT prevalece sobre el envío aún esperando al PSE.
       if (evidencia?.validez_aceptada && row.nombre_estado_sunat === 'ACEPTADO') continue;
       if (evidencia?.emision_en_curso) row.estado_envio = 'EN_CURSO';
@@ -574,6 +579,16 @@ export class ComprobantesLogic {
     return mapSingleResult(result, `Comprobante ${id} no encontrado`);
   }
 
+  async operacionesVsd(id: number) {
+    const doc = await this.obtenerPorId(id);
+    if (!['VSD','NV','01','03'].includes(doc.codigo_tipo_comprobante ?? '')) throw new BadRequestException('Seleccione una venta sin documento, factura o boleta');
+    return this.model.operacionesVsd(id);
+  }
+
+  async cambiarBalonVsd(id: number, dto: CambioBalonVsdDto, usuario: number) {
+    return mapSingleResult(await this.model.cambiarBalonVsd(id, dto, usuario), 'No se pudo registrar el cambio');
+  }
+
   /**
    * Boleta ↔ factura en el mismo comprobante (no elimina ni recrea): stock,
    * cilindros, CxC, cobros y orden de salida siguen ligados al mismo id. La
@@ -854,6 +869,10 @@ export class ComprobantesLogic {
 
     if (!comprobante.registro) {
       throw new NotFoundException(`Comprobante ${id} no encontrado`);
+    }
+
+    if (comprobante.registro.tiene_cambio_fisico) {
+      throw new BadRequestException('El comprobante tiene cambios físicos registrados. Debe conciliarse su devolución antes de solicitar una baja; no se envió ninguna solicitud a SUNAT.');
     }
 
     if (comprobante.registro.nombre_estado_sunat === 'BAJA') {

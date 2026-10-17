@@ -41,6 +41,16 @@ describe('Protección del flujo de emisión y consulta CPE', () => {
   beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date('2026-10-12T16:00:00Z')); });
   afterEach(() => jest.useRealTimers());
 
+  it('bloquea la baja de un comprobante con cambios físicos antes de preparar una solicitud a SUNAT', async () => {
+    const { logic, model, provider } = setup();
+    const original = await model.obtenerCompleto();
+    Object.assign(original.registro, { nombre_estado_sunat: 'ACEPTADO', tiene_cambio_fisico: true });
+    model.obtenerCompleto.mockResolvedValue(original);
+    await expect(logic.anular(69, { motivo: 'Prueba de devolución pendiente', idUsuarioAuditoria: 1 })).rejects.toThrow('cambios físicos');
+    expect(model.obtenerEmpresaEmisora).not.toHaveBeenCalled();
+    expect(provider.enviarFacturaBoleta).not.toHaveBeenCalled();
+  });
+
   it('registra el timeout como pendiente, libera el bloqueo y no reintenta el envío', async () => {
     const { logic, model, provider } = setup();
     await expect(logic.emitir(69, { idUsuarioAuditoria: 1 })).rejects.toThrow('por confirmar');
