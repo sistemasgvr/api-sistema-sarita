@@ -174,6 +174,7 @@ export class ComprobanteTicketPdfGenerator {
       valorVenta,
       igv,
       total,
+      glosa: cabecera.glosa?.trim() || '',
       hash,
       qrPng,
       documentoInterno,
@@ -203,6 +204,7 @@ export class ComprobanteTicketPdfGenerator {
     valorVenta: number;
     igv: number;
     total: number;
+    glosa: string;
     hash: string;
     qrPng: Buffer | null;
     documentoInterno?: boolean;
@@ -211,7 +213,7 @@ export class ComprobanteTicketPdfGenerator {
       const doc = new PDFDocument({
         size: [ctx.width, ctx.height],
         margin: 0,
-        autoFirstPage: true,
+        autoFirstPage: false,
         info: {
           Title: `Ticket ${ctx.serieNumero}`,
           Author: ctx.empresaNombre,
@@ -222,6 +224,15 @@ export class ComprobanteTicketPdfGenerator {
       doc.on('data', (chunk: Buffer) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
+
+      // Reservar el alto real de la glosa, incluidos saltos de línea y ajuste
+      // al ancho de 80 mm, para mantener el pie y el QR dentro del ticket.
+      const glosaHeight = ctx.glosa
+        ? doc.font('Helvetica').fontSize(7.5).heightOfString(ctx.glosa, {
+            width: CONTENT_WIDTH,
+          }) + 24
+        : 0;
+      doc.addPage({ size: [ctx.width, ctx.height + glosaHeight], margin: 0 });
 
       let y = 10;
 
@@ -433,6 +444,12 @@ export class ComprobanteTicketPdfGenerator {
             true,
           );
         }
+      }
+
+      if (ctx.glosa) {
+        separator();
+        leftText('Glosa:', { bold: true });
+        leftText(ctx.glosa);
       }
 
       separator(false);
