@@ -57,7 +57,7 @@ BEGIN
           AND (v_id_estado_filtro IS NULL OR g.id_estado = v_id_estado_filtro)
           AND (
                 v_buscar IS NULL
-                OR c.razon_social ILIKE '%' || v_buscar || '%'
+                OR gen_texto_coincide(cli_texto_busqueda(c), v_buscar)
                 OR c.nombres ILIKE '%' || v_buscar || '%'
                 OR c.apellido_paterno ILIKE '%' || v_buscar || '%'
                 OR c.apellido_materno ILIKE '%' || v_buscar || '%'

@@ -13,6 +13,9 @@
 --   SALIDA_PLANTA_EXTERNA de ida— y escribía doc_salida.id_estado, columna
 --   que no existe (el ciclo real es id_estado_ciclo y no cambia al anular la
 --   factura). com_revertir_cilindros_recarga_compra queda eliminada.
+-- Actualizada por database_sql/migraciones/20261023_compras_medio_pago_caja.sql:
+--   anular una compra al contado devuelve su pago a la caja: si el medio afecta
+--   caja, exige la caja de la compra abierta (como fin_anular_pago).
 DROP FUNCTION IF EXISTS com_anular_compra(p_id_comprobante integer, p_id_usuario_auditoria integer);
 
 CREATE OR REPLACE FUNCTION com_anular_compra(p_id_comprobante integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
@@ -36,6 +39,7 @@ DECLARE
     v_id_tipo_entrada_compra INTEGER;
     v_ids_balones_compra  INTEGER[];
     v_balon_ocupado       RECORD;
+    v_err_caja            TEXT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -47,6 +51,11 @@ BEGIN
 
     IF NOT FOUND THEN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id_comprobante);
+    END IF;
+
+    v_err_caja := com_assert_caja_compra(com_pago_caja_compra(p_id_comprobante), NULL);
+    IF v_err_caja IS NOT NULL THEN
+        RETURN json_build_object('eliminado', FALSE, 'id', p_id_comprobante, 'error', v_err_caja);
     END IF;
 
     -- No anular si la CxP vinculada ya tiene pagos.

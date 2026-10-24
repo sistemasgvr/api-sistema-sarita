@@ -54,7 +54,7 @@ BEGIN
                 OR gen_texto_coincide(co.apellido_materno, v_buscar)
                 OR gen_texto_coincide(co.email, v_buscar)
                 OR gen_texto_coincide(co.telefono1, v_buscar)
-                OR gen_texto_coincide(c.razon_social, v_buscar)
+                OR gen_texto_coincide(cli_texto_busqueda(c), v_buscar)
                 OR gen_texto_coincide(c.numero_documento, v_buscar)
               )
     ),

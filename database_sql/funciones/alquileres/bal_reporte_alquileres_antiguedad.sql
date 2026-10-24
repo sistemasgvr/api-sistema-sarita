@@ -81,7 +81,7 @@ BEGIN
           AND (
               COALESCE(p_busqueda, '') = ''
               OR gen_texto_coincide(COALESCE(a.numero_alquiler, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(cli_texto_busqueda(c), p_busqueda)
               OR gen_texto_coincide(COALESCE(c.nombres, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(c.numero_documento, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(pr.nombre, ps.nombre, ''), p_busqueda)

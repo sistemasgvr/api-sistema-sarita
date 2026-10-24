@@ -20,6 +20,11 @@
 -- P0 (20260910): `pagosProveedor` — pagos de cuentas por pagar (CxP de compras),
 -- con su propio resumen de signo -1. Antes el libro heredaba el sesgo de
 -- fin_caja_calcular_totales y solo listaba los pagos de cuentas COBRAR.
+--
+-- 20261023: `pagosProveedor` también lista las compras al contado con medio de
+-- pago (origen CONTADO), que fin_caja_calcular_totales ya suma a pagosProveedor.
+-- Cada fila trae `clave` (P<id pago> / C<id compra>): los ids de fin_pago y de
+-- com_comprobante_compra pueden coincidir.
 
 DROP FUNCTION IF EXISTS fin_obtener_libro_diario(p_fecha_desde date, p_fecha_hasta date, p_id_cliente integer, p_id_sucursal integer);
 
@@ -218,10 +223,12 @@ BEGIN
     -- Va aparte de `gastos` a propósito: ahí conviven los gastos de caja con el
     -- devengo de las compras tipo GASTO, y el pago de una de esas compras a
     -- crédito aparecería dos veces si se mezclaran.
-    SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t."fechaPago", t.id), '[]'::json)
+    SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t."fechaPago", t.clave), '[]'::json)
     INTO v_pagos_proveedor
     FROM (
         SELECT
+            'P' || p.id AS clave,
+            'CXP' AS origen,
             p.id,
             p.fecha_pago AS "fechaPago",
             p.monto,
@@ -260,6 +267,44 @@ BEGIN
           AND (
               p_id_sucursal IS NULL
               OR COALESCE(p.id_sucursal, fin_sucursal_de_cuenta(cu.id)) = p_id_sucursal
+          )
+
+        UNION ALL
+
+        -- Compras al contado: mismo filtro que su bloque en fin_caja_calcular_totales.
+        SELECT
+            'C' || cc.id,
+            'CONTADO',
+            cc.id,
+            cc.fecha,
+            cc.total_importe,
+            cc.id_medio_pago,
+            mp.nombre,
+            cc.id_cuenta_bancaria,
+            COALESCE(cb.alias, cb.titular, cb.numero_cuenta),
+            cc.numero_operacion,
+            cc.glosa,
+            NULL::INTEGER,
+            cc.id_proveedor,
+            COALESCE(
+                NULLIF(TRIM(ter.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', ter.nombres, ter.apellido_paterno, ter.apellido_materno)), '')
+            ),
+            cc.id,
+            NULLIF(TRIM(CONCAT_WS('-', cc.serie, cc.numero)), '')
+        FROM com_comprobante_compra cc
+        LEFT JOIN gen_lista_opciones mp ON mp.id = cc.id_medio_pago
+        LEFT JOIN gen_cuenta_bancaria cb ON cb.id = cc.id_cuenta_bancaria
+        LEFT JOIN cli_clientes ter ON ter.id = cc.id_proveedor
+        WHERE cc.estado = 1
+          AND cc.fecha BETWEEN p_fecha_desde AND v_hasta
+          AND cc.id_medio_pago IS NOT NULL
+          AND COALESCE(cc.total_importe, 0) > 0
+          AND (p_id_cliente IS NULL OR cc.id_proveedor = p_id_cliente)
+          AND (p_id_sucursal IS NULL OR cc.id_sucursal = p_id_sucursal)
+          AND NOT EXISTS (
+              SELECT 1 FROM fin_cuenta fc
+              WHERE fc.id_comprobante_compra = cc.id AND fc.estado = 1
           )
     ) t;
 

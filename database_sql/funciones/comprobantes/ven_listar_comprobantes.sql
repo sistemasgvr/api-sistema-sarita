@@ -1,9 +1,4 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: ven_listar_comprobantes
--- Overloads: 1
---
--- Actualizada por database_sql/migraciones/20260905_reparto_desde_orden_salida.sql:
--- el reparto se alcanza tambien por la orden de salida de la venta.
+
 DROP FUNCTION IF EXISTS ven_listar_comprobantes(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_comprobante integer, p_id_cliente integer, p_id_estado integer, p_id_estado_sunat integer, p_fecha_desde date, p_fecha_hasta date, p_serie character varying);
 
 CREATE OR REPLACE FUNCTION ven_listar_comprobantes(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_tipo_comprobante integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer, p_id_estado_sunat integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_serie character varying DEFAULT NULL::character varying, p_solo_activos integer DEFAULT 1)
@@ -44,7 +39,7 @@ BEGIN
           OR LOWER(COALESCE(co.serie, '')) LIKE '%' || v_busqueda_norm || '%'
           OR LOWER(COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
           OR LOWER(COALESCE(co.serie, '') || '-' || COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
-          OR gen_texto_coincide(COALESCE(cl.razon_social, ''), v_busqueda)
+          OR gen_texto_coincide(cli_texto_busqueda(cl), v_busqueda)
           OR gen_texto_coincide(COALESCE(cl.numero_documento, ''), v_busqueda)
           OR gen_texto_coincide(COALESCE(c.glosa, ''), v_busqueda)
       );
@@ -170,7 +165,7 @@ BEGIN
               OR LOWER(COALESCE(co.serie, '')) LIKE '%' || v_busqueda_norm || '%'
               OR LOWER(COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
               OR LOWER(COALESCE(co.serie, '') || '-' || COALESCE(co.numero, '')) LIKE '%' || v_busqueda_norm || '%'
-              OR gen_texto_coincide(COALESCE(cl.razon_social, ''), v_busqueda)
+              OR gen_texto_coincide(cli_texto_busqueda(cl), v_busqueda)
               OR gen_texto_coincide(COALESCE(cl.numero_documento, ''), v_busqueda)
               OR gen_texto_coincide(COALESCE(c.glosa, ''), v_busqueda)
           )

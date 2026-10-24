@@ -1,8 +1,3 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: com_listar_compras
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.954Z
-DROP FUNCTION IF EXISTS com_listar_compras(p_busqueda character varying, p_limite integer, p_offset integer, p_id_proveedor integer, p_id_almacen integer, p_fecha_desde date, p_fecha_hasta date, p_estado integer, p_id_tipo_registro integer, p_id_categoria_gasto integer);
 DROP FUNCTION IF EXISTS com_listar_compras(p_busqueda character varying, p_limite integer, p_offset integer, p_id_proveedor integer, p_id_almacen integer, p_fecha_desde date, p_fecha_hasta date, p_estado integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_sin_comprobante boolean);
 
 CREATE OR REPLACE FUNCTION com_listar_compras(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_proveedor integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_estado integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_sin_comprobante boolean DEFAULT NULL::boolean)
@@ -44,7 +39,7 @@ BEGIN
           OR LOWER(COALESCE(c.serie, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(c.numero, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(pr.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(cli_texto_busqueda(pr), p_busqueda)
           OR LOWER(COALESCE(pr.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(pr.apellido_paterno, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(pr.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
@@ -101,7 +96,7 @@ BEGIN
               OR LOWER(COALESCE(c.serie, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(c.numero, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(pr.razon_social, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(cli_texto_busqueda(pr), p_busqueda)
               OR LOWER(COALESCE(pr.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(pr.apellido_paterno, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(pr.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')

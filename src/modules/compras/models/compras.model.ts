@@ -118,6 +118,9 @@ export class ComprasModel {
             })),
           )
         : null,
+      dto.idMedioPago ?? null,
+      dto.idCuentaBancaria ?? null,
+      dto.numeroOperacion ?? null,
     ]);
   }
 
@@ -140,6 +143,9 @@ export class ComprasModel {
               })),
             )
           : null,
+        dto.idMedioPago ?? null,
+        dto.idCuentaBancaria ?? null,
+        dto.numeroOperacion ?? null,
       ],
     );
   }

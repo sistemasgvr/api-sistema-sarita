@@ -1,10 +1,4 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: bal_listar_alquileres
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.946Z
--- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
--- sin total_detalles (bal_alquiler_detalle eliminada); puede_eliminar depende solo del
--- comprobante; expone fecha_devolucion_regulador / condición / mantenimiento del accesorio.
+
 DROP FUNCTION IF EXISTS bal_listar_alquileres(p_busqueda character varying, p_limite integer, p_offset integer, p_id_cliente integer, p_id_almacen integer, p_id_estado integer);
 
 CREATE OR REPLACE FUNCTION bal_listar_alquileres(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_cliente integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer)
@@ -21,6 +15,7 @@ BEGIN
     FROM bal_alquiler al
     LEFT JOIN pro_producto pr ON al.id_producto_regulador = pr.id
     LEFT JOIN pro_producto ps ON al.id_producto_stock = ps.id
+    LEFT JOIN cli_clientes c ON al.id_cliente = c.id
     WHERE al.estado = 1
       AND (p_id_cliente IS NULL OR al.id_cliente = p_id_cliente)
       AND (p_id_almacen IS NULL OR al.id_almacen = p_id_almacen)
@@ -33,6 +28,7 @@ BEGIN
           OR gen_texto_coincide(COALESCE(pr.codigo, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(ps.nombre, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(ps.codigo, ''), p_busqueda)
+          OR gen_texto_coincide(cli_texto_busqueda(c), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -93,6 +89,7 @@ BEGIN
               OR gen_texto_coincide(COALESCE(pr.codigo, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(ps.nombre, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(ps.codigo, ''), p_busqueda)
+              OR gen_texto_coincide(cli_texto_busqueda(c), p_busqueda)
           )
         ORDER BY al.fecha_inicio DESC, al.id DESC
         LIMIT p_limite

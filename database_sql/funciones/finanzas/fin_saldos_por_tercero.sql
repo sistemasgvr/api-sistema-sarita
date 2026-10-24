@@ -56,7 +56,7 @@ BEGIN
           AND (fc.fecha_emision IS NULL OR fc.fecha_emision <= v_corte)
           AND (
               v_buscar IS NULL
-              OR gen_texto_coincide(COALESCE(ter.razon_social, ''), v_buscar)
+              OR gen_texto_coincide(cli_texto_busqueda(ter), v_buscar)
               OR gen_texto_coincide(COALESCE(ter.nombres, ''), v_buscar)
               OR gen_texto_coincide(COALESCE(fc.tercero_nombre, ''), v_buscar)
               OR gen_texto_coincide(COALESCE(ter.numero_documento, ''), v_buscar)

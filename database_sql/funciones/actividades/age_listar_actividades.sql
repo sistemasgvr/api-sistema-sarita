@@ -38,7 +38,7 @@ BEGIN
           p_busqueda = ''
           OR gen_texto_coincide(act.titulo, p_busqueda)
           OR gen_texto_coincide(COALESCE(act.observaciones, ''), p_busqueda)
-          OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
+          OR gen_texto_coincide(cli_texto_busqueda(c), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -128,7 +128,7 @@ BEGIN
               p_busqueda = ''
               OR gen_texto_coincide(act.titulo, p_busqueda)
               OR gen_texto_coincide(COALESCE(act.observaciones, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(cli_texto_busqueda(c), p_busqueda)
           )
         ORDER BY
             CASE

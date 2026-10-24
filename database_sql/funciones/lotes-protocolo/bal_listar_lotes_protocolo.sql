@@ -31,7 +31,7 @@ BEGIN
           COALESCE(p_busqueda, '') = ''
           OR gen_texto_coincide(COALESCE(lp.numero_lote, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(lp.numero_protocolo, ''), p_busqueda)
-          OR gen_texto_coincide(COALESCE(pv.razon_social, ''), p_busqueda)
+          OR gen_texto_coincide(cli_texto_busqueda(pv), p_busqueda)
           OR gen_texto_coincide(COALESCE(CONCAT_WS(' ', pv.nombres, pv.apellido_paterno), ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(pg.nombre, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(lp.cilindro_muestreado_serie, ''), p_busqueda)
@@ -101,7 +101,7 @@ BEGIN
               COALESCE(p_busqueda, '') = ''
               OR gen_texto_coincide(COALESCE(lp.numero_lote, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(lp.numero_protocolo, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(pv.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(cli_texto_busqueda(pv), p_busqueda)
           OR gen_texto_coincide(COALESCE(CONCAT_WS(' ', pv.nombres, pv.apellido_paterno), ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(pg.nombre, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(lp.cilindro_muestreado_serie, ''), p_busqueda)

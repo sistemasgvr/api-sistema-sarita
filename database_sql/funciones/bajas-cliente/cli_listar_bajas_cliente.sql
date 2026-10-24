@@ -25,7 +25,7 @@ BEGIN
       AND (
           p_buscar = ''
           OR gen_texto_coincide(COALESCE(bc.motivo_detalle, ''), p_buscar)
-          OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_buscar)
+          OR gen_texto_coincide(cli_texto_busqueda(c), p_buscar)
           OR gen_texto_coincide(
               TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)),
               p_buscar
@@ -80,7 +80,7 @@ BEGIN
           AND (
               p_buscar = ''
               OR gen_texto_coincide(COALESCE(bc.motivo_detalle, ''), p_buscar)
-              OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_buscar)
+              OR gen_texto_coincide(cli_texto_busqueda(c), p_buscar)
               OR gen_texto_coincide(
                   TRIM(CONCAT_WS(' ', c.nombres, c.apellido_paterno, c.apellido_materno)),
                   p_buscar

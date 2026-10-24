@@ -28,6 +28,11 @@
 --                  arqueo: Yape y Plin tienen AFECTA_CAJA pero no son billetes en
 --                  el cajón, y sumarlos al "efectivo esperado" hacía que el arqueo
 --                  no cuadrara nunca contra el conteo físico.
+--
+-- 20261023: las compras AL CONTADO con medio de pago también son pagos a
+-- proveedor (tipo PAGO_PROVEEDOR): hasta ahora solo salía de la caja el pago de
+-- una CxP, así que una compra pagada en efectivo en el momento no restaba del
+-- arqueo. Mismo criterio que com_pago_caja_compra.
 
 DROP FUNCTION IF EXISTS fin_caja_calcular_totales(p_fecha date, p_id_sucursal integer);
 
@@ -138,6 +143,26 @@ BEGIN
           AND (
               p_id_sucursal IS NULL
               OR COALESCE(p.id_sucursal, fin_sucursal_de_cuenta(cu.id)) = p_id_sucursal
+          )
+
+        UNION ALL
+
+        -- Compras al contado: se pagan el día de la compra con el medio que
+        -- indica su cabecera. Sin CxP activa (una al crédito sale por fin_pago,
+        -- arriba) y con medio: las compras al contado anteriores al 20261023 no
+        -- lo tienen y no se reinterpretan como efectivo, porque cambiaría el
+        -- arqueo de cajas ya cerradas. Igual que los PAGAR, no se suman a
+        -- gastosCompra, que mide el devengo de las compras tipo GASTO.
+        SELECT 'PAGO_PROVEEDOR', cc.id_medio_pago, cc.total_importe
+        FROM com_comprobante_compra cc
+        WHERE cc.estado = 1
+          AND cc.fecha = p_fecha
+          AND cc.id_medio_pago IS NOT NULL
+          AND COALESCE(cc.total_importe, 0) > 0
+          AND (p_id_sucursal IS NULL OR cc.id_sucursal = p_id_sucursal)
+          AND NOT EXISTS (
+              SELECT 1 FROM fin_cuenta fc
+              WHERE fc.id_comprobante_compra = cc.id AND fc.estado = 1
           )
 
         UNION ALL

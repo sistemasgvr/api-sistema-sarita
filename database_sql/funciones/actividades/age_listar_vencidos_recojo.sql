@@ -1,29 +1,4 @@
--- Function: age_listar_vencidos_recojo
--- Synced from migracion 20260908_age_recojo_vencidos_fk.sql
---
--- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
--- el módulo Balones > Recojos (bal_recojo) se retiró; el único recojo vivo que
--- excluye un origen es la actividad RECOJO vigente.
--- Además deja de ser STABLE: hacía SET TIME ZONE, que Postgres rechaza en
--- funciones no volátiles ("SET is not allowed in a non-volatile function"), así
--- que el selector de vencidos del formulario de actividades fallaba siempre.
--- Y el total se calcula en la misma sentencia que la página: el CTE
--- "filtrado" no existía para el segundo SELECT.
---
--- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
--- el alquiler vencido entra solo por el regulador/accesorio pendiente
--- (bal_alquiler_detalle eliminada).
---
--- Actualizada por migraciones/20260922_listar_vencidos_recojo_todos_activos.sql:
--- el selector de origen del recojo ahora lista TODOS los préstamos y alquileres
--- ACTIVOS (estado ACTIVO, sin devolución real), aunque ya tengan una actividad
--- RECOJO vigente o hoy no tengan balones "disponibles": antes se ocultaban y,
--- al correr age_generar_recojos_por_vencer, el selector quedaba vacío.
--- Se agrega el campo recojo_abierto (id de la actividad RECOJO vigente, si
--- existe) para que el front lo muestre como badge y evite duplicar; la creación
--- sigue siendo idempotente en age_crear_recojo_origen.
 
-DROP FUNCTION IF EXISTS age_listar_vencidos_recojo(character varying, integer, integer);
 DROP FUNCTION IF EXISTS age_listar_vencidos_recojo(character varying, integer, integer, boolean);
 
 CREATE OR REPLACE FUNCTION age_listar_vencidos_recojo(
@@ -140,7 +115,7 @@ BEGIN
         FROM base
         WHERE v_busqueda = ''
            OR LOWER(COALESCE(numero, '')) LIKE '%' || v_busqueda || '%'
-           OR LOWER(COALESCE(nombre_cliente, '')) LIKE '%' || v_busqueda || '%'
+           OR gen_texto_coincide(nombre_cliente, v_busqueda)
            OR LOWER(origen) LIKE '%' || v_busqueda || '%'
     )
     -- Total y página en la MISMA sentencia: un CTE solo vive dentro de la

@@ -96,7 +96,7 @@ BEGIN
           COALESCE(p_busqueda, '') = ''
           OR gen_texto_coincide(COALESCE(d.numero, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(d.serie, '') || '-' || COALESCE(d.numero_sunat, ''), p_busqueda)
-          OR gen_texto_coincide(COALESCE(cli.razon_social, ''), p_busqueda)
+          OR gen_texto_coincide(cli_texto_busqueda(cli), p_busqueda)
           OR gen_texto_coincide(COALESCE(d.observaciones, ''), p_busqueda)
       );
 
@@ -205,7 +205,7 @@ BEGIN
               COALESCE(p_busqueda, '') = ''
               OR gen_texto_coincide(COALESCE(d.numero, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(d.serie, '') || '-' || COALESCE(d.numero_sunat, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(cli.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(cli_texto_busqueda(cli), p_busqueda)
               OR gen_texto_coincide(COALESCE(d.observaciones, ''), p_busqueda)
           )
         ORDER BY d.fecha DESC, d.id DESC

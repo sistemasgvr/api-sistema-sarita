@@ -1,9 +1,3 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: bal_listar_prestamos
--- Overloads: 1
---
--- Actualizada por database_sql/migraciones/20260905_prestamo_cadena_renovaciones.sql:
--- devuelve la cadena de renovaciones (id_prestamo_origen).
 DROP FUNCTION IF EXISTS bal_listar_prestamos(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_prestamo integer, p_id_cliente integer, p_id_estado integer);
 
 CREATE OR REPLACE FUNCTION bal_listar_prestamos(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_tipo_prestamo integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_id_estado integer DEFAULT NULL::integer)
@@ -19,6 +13,7 @@ BEGIN
     SELECT COUNT(*) INTO v_total
     FROM bal_prestamo pr
     LEFT JOIN gen_lista_opciones tp ON pr.id_tipo_prestamo = tp.id
+    LEFT JOIN cli_clientes c ON pr.id_cliente = c.id
     WHERE pr.estado = 1
       AND (p_id_tipo_prestamo IS NULL OR pr.id_tipo_prestamo = p_id_tipo_prestamo)
       AND (p_id_cliente IS NULL OR pr.id_cliente = p_id_cliente)
@@ -27,6 +22,7 @@ BEGIN
           p_busqueda = ''
           OR gen_texto_coincide(COALESCE(pr.numero_prestamo, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(pr.titulo, ''), p_busqueda)
+          OR gen_texto_coincide(cli_texto_busqueda(c), p_busqueda)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -99,6 +95,7 @@ BEGIN
               p_busqueda = ''
               OR gen_texto_coincide(COALESCE(pr.numero_prestamo, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(pr.titulo, ''), p_busqueda)
+              OR gen_texto_coincide(cli_texto_busqueda(c), p_busqueda)
           )
         ORDER BY pr.fecha_salida DESC NULLS LAST, pr.id DESC
         LIMIT p_limite

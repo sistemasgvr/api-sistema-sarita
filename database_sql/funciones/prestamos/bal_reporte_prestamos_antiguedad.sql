@@ -94,7 +94,7 @@ BEGIN
               OR gen_texto_coincide(COALESCE(p.numero_prestamo, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(b.codigo_balon, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(b.numero_serie, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(c.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(cli_texto_busqueda(c), p_busqueda)
               OR gen_texto_coincide(COALESCE(c.nombres, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(pg.nombre, ''), p_busqueda)
           )

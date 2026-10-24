@@ -336,9 +336,27 @@ export class CreateCompraDto extends AuditoriaDto {
   @Type(() => CompraCuotaDto)
   cuotas?: CompraCuotaDto[];
 
-  // Opcional a propósito: la compra puede registrarse solo con cabecera (p. ej.
-  // ligada a una orden de planta) y recibir sus líneas después por
-  // POST /compras/:id/detalle. La UI ya permitía 0 líneas.
+  @ApiPropertyOptional({ example: 1, description: 'Medio de pago (compra al contado)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idMedioPago?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Cuenta bancaria de la empresa de la que sale el dinero. Obligatoria cuando el medio de pago la exige.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCuentaBancaria?: number;
+
+  @ApiPropertyOptional({ maxLength: 80 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  numeroOperacion?: string;
+
   @ApiPropertyOptional({
     type: [CreateCompraDetalleDto],
     description:
@@ -386,6 +404,27 @@ export class ActualizarCompraCabeceraDto extends AuditoriaDto {
   @ValidateNested({ each: true })
   @Type(() => CompraCuotaDto)
   cuotas?: CompraCuotaDto[];
+
+  @ApiPropertyOptional({ example: 1, description: 'Medio de pago (compra al contado)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idMedioPago?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Cuenta bancaria de la empresa de la que sale el dinero. Obligatoria cuando el medio de pago la exige.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCuentaBancaria?: number;
+
+  @ApiPropertyOptional({ maxLength: 80 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  numeroOperacion?: string;
 }
 
 export class ActualizarCompraDetalleDto extends AuditoriaDto {

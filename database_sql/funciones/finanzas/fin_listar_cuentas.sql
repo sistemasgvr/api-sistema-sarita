@@ -91,7 +91,7 @@ BEGIN
           AND (p_solo_pendientes IS NULL OR p_solo_pendientes <> 1 OR c.saldo > 0)
           AND (
                 v_buscar IS NULL
-                OR c.tercero ILIKE '%' || v_buscar || '%'
+                OR gen_texto_coincide(c.tercero, v_buscar)
                 OR c.documento_tercero ILIKE '%' || v_buscar || '%'
                 OR c.comprobante ILIKE '%' || v_buscar || '%'
                 OR c.descripcion ILIKE '%' || v_buscar || '%'

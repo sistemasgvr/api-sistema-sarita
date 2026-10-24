@@ -30,7 +30,7 @@ BEGIN
       AND (
           p_busqueda = ''
           OR gen_texto_coincide(b.codigo_balon, p_busqueda)
-          OR gen_texto_coincide(COALESCE(cli.razon_social, ''), p_busqueda)
+          OR gen_texto_coincide(cli_texto_busqueda(cli), p_busqueda)
           OR gen_texto_coincide(COALESCE(mr.numero_guia_salida, rp.numero_guia_salida, grs.numero_sunat, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(mr.numero_factura, cc.numero, rp.numero_factura, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(tr.nombre, ''), p_busqueda)
@@ -90,7 +90,7 @@ BEGIN
           AND (
               p_busqueda = ''
               OR gen_texto_coincide(b.codigo_balon, p_busqueda)
-              OR gen_texto_coincide(COALESCE(cli.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(cli_texto_busqueda(cli), p_busqueda)
               OR gen_texto_coincide(COALESCE(mr.numero_guia_salida, rp.numero_guia_salida, grs.numero_sunat, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(mr.numero_factura, cc.numero, rp.numero_factura, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(tr.nombre, ''), p_busqueda)

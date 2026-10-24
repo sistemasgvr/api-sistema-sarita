@@ -28,7 +28,13 @@ CREATE TABLE com_comprobante_compra (
     fecha_creacion timestamp without time zone DEFAULT now(),
     fecha_modificacion timestamp without time zone DEFAULT now(),
     id_comprobante_referencia integer,
-    id_doc_salida integer
+    id_doc_salida integer,
+    -- 20261023: cómo se pagó una compra al contado (en una al crédito quedan en
+    -- NULL: el dinero sale al pagar la CxP). fin_caja_calcular_totales la cuenta
+    -- como pago a proveedor del día y la sucursal de la compra.
+    id_medio_pago integer,
+    id_cuenta_bancaria integer,
+    numero_operacion character varying(80)
 );
 
 CREATE SEQUENCE com_comprobante_compra_id_seq
@@ -75,6 +81,12 @@ ALTER TABLE com_comprobante_compra
 
 ALTER TABLE com_comprobante_compra
     ADD CONSTRAINT com_comprobante_compra_id_estado_fkey FOREIGN KEY (id_estado) REFERENCES public.gen_lista_opciones(id);
+
+ALTER TABLE com_comprobante_compra
+    ADD CONSTRAINT com_comprobante_compra_id_medio_pago_fkey FOREIGN KEY (id_medio_pago) REFERENCES public.gen_lista_opciones(id);
+
+ALTER TABLE com_comprobante_compra
+    ADD CONSTRAINT com_comprobante_compra_id_cuenta_bancaria_fkey FOREIGN KEY (id_cuenta_bancaria) REFERENCES public.gen_cuenta_bancaria(id);
 
 ALTER TABLE com_comprobante_compra
     ADD CONSTRAINT com_comprobante_compra_id_moneda_fkey FOREIGN KEY (id_moneda) REFERENCES public.gen_lista_opciones(id);

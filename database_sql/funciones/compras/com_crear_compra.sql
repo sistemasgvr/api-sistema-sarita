@@ -32,11 +32,16 @@
 --     EN_RECARGA_EXTERNA y el gas nunca ingresaba;
 --   · el almacén de llegada ya no pisa doc_salida.id_almacen (origen de la
 --     salida): va a id_almacen_retorno.
+-- Actualizada por database_sql/migraciones/20261023_compras_medio_pago_caja.sql:
+--   p_id_medio_pago / p_id_cuenta_bancaria / p_numero_operacion: cómo se pagó
+--   una compra al contado (obligatorio si tiene importe). Ese pago entra a la
+--   caja como pago a proveedor; si el medio afecta caja exige la caja abierta.
 DROP FUNCTION IF EXISTS com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer, p_id_recarga_planta integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_id_sucursal integer, p_id_moneda integer, p_id_condicion_pago integer, p_declarar_sunat boolean, p_glosa character varying, p_id_usuario_auditoria integer, p_registrar_retorno_balones boolean, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_id_guia_retorno integer, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb);
 DROP FUNCTION IF EXISTS com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer, p_id_doc_salida integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_id_sucursal integer, p_id_moneda integer, p_id_condicion_pago integer, p_declarar_sunat boolean, p_glosa character varying, p_id_usuario_auditoria integer, p_registrar_retorno_balones boolean, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_id_guia_retorno integer, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb);
 DROP FUNCTION IF EXISTS com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer, p_id_doc_salida integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_id_sucursal integer, p_id_moneda integer, p_id_condicion_pago integer, p_declarar_sunat boolean, p_glosa character varying, p_id_usuario_auditoria integer, p_registrar_retorno_balones boolean, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb);
+DROP FUNCTION IF EXISTS com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer, p_id_doc_salida integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_id_sucursal integer, p_id_moneda integer, p_id_condicion_pago integer, p_declarar_sunat boolean, p_glosa character varying, p_id_usuario_auditoria integer, p_registrar_retorno_balones boolean, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb, p_id_medio_pago integer, p_id_cuenta_bancaria integer, p_numero_operacion character varying);
 
-CREATE OR REPLACE FUNCTION com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer DEFAULT NULL::integer, p_id_doc_salida integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_declarar_sunat boolean DEFAULT false, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_registrar_retorno_balones boolean DEFAULT false, p_fecha_llegada_almacen date DEFAULT NULL::date, p_lote character varying DEFAULT NULL::character varying, p_fecha_vencimiento_lote date DEFAULT NULL::date, p_fecha_prueba_hidrostatica date DEFAULT NULL::date, p_serie_guia_ingreso character varying DEFAULT NULL::character varying, p_numero_guia_ingreso character varying DEFAULT NULL::character varying, p_fecha_vencimiento_cxp date DEFAULT NULL::date, p_cuotas_cxp jsonb DEFAULT NULL::jsonb)
+CREATE OR REPLACE FUNCTION com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer DEFAULT NULL::integer, p_id_doc_salida integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_declarar_sunat boolean DEFAULT false, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_registrar_retorno_balones boolean DEFAULT false, p_fecha_llegada_almacen date DEFAULT NULL::date, p_lote character varying DEFAULT NULL::character varying, p_fecha_vencimiento_lote date DEFAULT NULL::date, p_fecha_prueba_hidrostatica date DEFAULT NULL::date, p_serie_guia_ingreso character varying DEFAULT NULL::character varying, p_numero_guia_ingreso character varying DEFAULT NULL::character varying, p_fecha_vencimiento_cxp date DEFAULT NULL::date, p_cuotas_cxp jsonb DEFAULT NULL::jsonb, p_id_medio_pago integer DEFAULT NULL::integer, p_id_cuenta_bancaria integer DEFAULT NULL::integer, p_numero_operacion character varying DEFAULT NULL::character varying)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -74,11 +79,23 @@ DECLARE
     v_lote                VARCHAR;
     v_fecha_venc_lote     DATE;
     v_fecha_ph            DATE;
+    v_err_pago            TEXT;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
     IF p_fecha IS NULL THEN
         RETURN json_build_object('error', 'La fecha de la compra es obligatoria', 'registro', NULL);
+    END IF;
+
+    -- Pago al contado (20261023). Si la condición resulta ser crédito el medio
+    -- se descarta más abajo, así que aquí solo se valida que sea coherente.
+    IF fin_medio_pago_flag(p_id_medio_pago, 'ES_CREDITO') THEN
+        RETURN json_build_object('error', 'El medio de pago de la compra no puede ser crédito: para una compra al crédito elige la condición de pago.', 'registro', NULL);
+    END IF;
+
+    v_err_pago := fin_validar_cuenta_medio_pago(p_id_medio_pago, p_id_cuenta_bancaria);
+    IF v_err_pago IS NOT NULL THEN
+        RETURN json_build_object('error', v_err_pago, 'registro', NULL);
     END IF;
 
     IF NOT EXISTS (
@@ -210,12 +227,14 @@ BEGIN
         id_tipo_registro, id_categoria_gasto, id_sucursal, id_almacen,
         id_moneda, id_condicion_pago, sub_total, igv, total_importe,
         declarar_sunat, glosa, id_comprobante_referencia, id_doc_salida,
+        id_medio_pago, id_cuenta_bancaria, numero_operacion,
         id_usuario_creacion, id_usuario_modificacion
     ) VALUES (
         p_id_tipo_comprobante, p_serie, p_numero, p_fecha, p_id_proveedor,
         p_id_tipo_registro, p_id_categoria_gasto, p_id_sucursal, p_id_almacen,
         p_id_moneda, p_id_condicion_pago, 0, 0, 0,
         p_declarar_sunat, v_glosa_final, p_id_comprobante_referencia, p_id_doc_salida,
+        p_id_medio_pago, p_id_cuenta_bancaria, NULLIF(TRIM(p_numero_operacion), ''),
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id_compra;
@@ -445,6 +464,25 @@ BEGIN
         p_fecha_vencimiento_cxp,
         p_cuotas_cxp
     );
+
+    -- Al crédito el dinero sale al pagar la CxP: el medio no aplica. Al contado
+    -- con importe el medio es obligatorio, y si afecta caja el pago entra al
+    -- arqueo de hoy (com_pago_caja_compra), así que la caja debe estar abierta.
+    IF EXISTS (
+        SELECT 1 FROM fin_cuenta fc
+        WHERE fc.id_comprobante_compra = v_id_compra AND fc.estado = 1
+    ) THEN
+        UPDATE com_comprobante_compra
+        SET id_medio_pago = NULL, id_cuenta_bancaria = NULL, numero_operacion = NULL
+        WHERE id = v_id_compra;
+    ELSIF p_id_medio_pago IS NULL AND v_total_bruto > 0 THEN
+        RAISE EXCEPTION 'Indica el medio de pago: una compra al contado se paga en el momento (efectivo, Yape, transferencia...).';
+    END IF;
+
+    v_err_pago := com_assert_caja_compra(NULL, com_pago_caja_compra(v_id_compra));
+    IF v_err_pago IS NOT NULL THEN
+        RAISE EXCEPTION '%', v_err_pago;
+    END IF;
 
     RETURN com_obtener_compra(v_id_compra);
 END;

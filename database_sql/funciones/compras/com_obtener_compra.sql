@@ -5,6 +5,8 @@
 -- Actualizada por database_sql/migraciones/20260910_compras_detalle_es_gas.sql:
 --   el detalle expone es_gas del producto (el editor de la compra lo necesita
 --   para validar la cantidad: un gas admite decimales aunque su U.M. sea UNID).
+-- Actualizada por database_sql/migraciones/20261023_compras_medio_pago_caja.sql:
+--   la cabecera expone el medio de pago, la cuenta y el Nº de operación.
 DROP FUNCTION IF EXISTS com_obtener_compra(p_id integer);
 
 CREATE OR REPLACE FUNCTION com_obtener_compra(p_id integer)
@@ -42,6 +44,11 @@ BEGIN
         'moneda',                    mon.nombre,
         'id_condicion_pago',         c.id_condicion_pago,
         'condicion_pago',            cp.nombre,
+        'id_medio_pago',             c.id_medio_pago,
+        'medio_pago',                mp.nombre,
+        'id_cuenta_bancaria',        c.id_cuenta_bancaria,
+        'cuenta_bancaria',           COALESCE(cb.alias, cb.titular, cb.numero_cuenta),
+        'numero_operacion',          c.numero_operacion,
         'sub_total',                 c.sub_total,
         'igv',                       c.igv,
         'total_importe',             c.total_importe,
@@ -70,6 +77,8 @@ BEGIN
     LEFT JOIN gen_almacen alm             ON alm.id = c.id_almacen
     LEFT JOIN gen_lista_opciones mon      ON mon.id = c.id_moneda
     LEFT JOIN gen_condicion_pago cp       ON cp.id = c.id_condicion_pago
+    LEFT JOIN gen_lista_opciones mp       ON mp.id = c.id_medio_pago
+    LEFT JOIN gen_cuenta_bancaria cb      ON cb.id = c.id_cuenta_bancaria
     LEFT JOIN gen_lista_opciones est      ON est.id = c.id_estado
     LEFT JOIN doc_salida rp               ON rp.id = c.id_doc_salida
     WHERE c.id = p_id;

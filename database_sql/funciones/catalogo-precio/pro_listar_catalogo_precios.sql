@@ -31,7 +31,7 @@ BEGIN
           OR gen_texto_coincide(COALESCE(cp.clasificacion, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(cp.modelo, ''), p_busqueda)
           OR gen_texto_coincide(COALESCE(p.nombre, ''), p_busqueda)
-          OR gen_texto_coincide(COALESCE(prov.razon_social, ''), p_busqueda)
+          OR gen_texto_coincide(cli_texto_busqueda(prov), p_busqueda)
           OR gen_texto_coincide(COALESCE(tc.nombre, ''), p_busqueda)
       );
 
@@ -88,7 +88,7 @@ BEGIN
               OR gen_texto_coincide(COALESCE(cp.clasificacion, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(cp.modelo, ''), p_busqueda)
               OR gen_texto_coincide(COALESCE(p.nombre, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(prov.razon_social, ''), p_busqueda)
+              OR gen_texto_coincide(cli_texto_busqueda(prov), p_busqueda)
               OR gen_texto_coincide(COALESCE(tc.nombre, ''), p_busqueda)
           )
         ORDER BY cp.periodo DESC NULLS LAST, cp.nombre_item ASC

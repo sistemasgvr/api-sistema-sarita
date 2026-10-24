@@ -107,7 +107,7 @@ BEGIN
           AND (p_id_tipo_cliente IS NULL OR c.id_tipo_cliente = p_id_tipo_cliente)
           AND (
                 v_buscar IS NULL
-                OR gen_texto_coincide(c.razon_social, v_buscar)
+                OR gen_texto_coincide(cli_texto_busqueda(c), v_buscar)
                 OR gen_texto_coincide(c.nombres, v_buscar)
                 OR gen_texto_coincide(c.apellido_paterno, v_buscar)
                 OR gen_texto_coincide(c.apellido_materno, v_buscar)
