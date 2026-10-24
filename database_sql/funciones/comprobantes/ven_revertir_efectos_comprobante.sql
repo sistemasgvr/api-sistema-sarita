@@ -22,6 +22,10 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
+    IF EXISTS (SELECT 1 FROM ven_vsd_operacion WHERE id_comprobante=p_id AND tipo='CAMBIO_BALON' AND datos->>'tipoOperacion'='CAMBIO') THEN
+        RAISE EXCEPTION 'El comprobante tiene cambios físicos registrados. La devolución comercial debe conciliar esos movimientos antes de revertir inventario';
+    END IF;
+
     v_hay_pagos := fin_cuenta_documento_tiene_pagos(p_id, NULL);
 
     IF p_exigir_sin_pagos AND v_hay_pagos THEN

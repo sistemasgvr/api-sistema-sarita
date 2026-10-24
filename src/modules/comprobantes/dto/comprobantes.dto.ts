@@ -13,6 +13,7 @@ import {
   Min,
   IsPositive,
   IsString,
+  IsUUID,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
@@ -868,6 +869,17 @@ export class CreateComprobantesDto extends AuditoriaDto {
 export class UpdateComprobantesDto extends AuditoriaDto {
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  motivoCorreccion?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  versionEsperada?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsDateString()
   fecha?: string;
 
@@ -1014,6 +1026,21 @@ export class UpdateComprobantesDto extends AuditoriaDto {
   @ValidateNested({ each: true })
   @Type(() => ComprobanteCuotaDto)
   cuotas?: ComprobanteCuotaDto[];
+}
+
+export class CambioBalonVsdDto {
+  @ApiProperty({ enum: ['CAMBIO', 'CORRECCION_RESERVA'] })
+  @IsIn(['CAMBIO', 'CORRECCION_RESERVA']) tipoOperacion!: 'CAMBIO' | 'CORRECCION_RESERVA';
+  @ApiProperty() @IsUUID() solicitud!: string;
+  @ApiProperty() @IsString() @MaxLength(30) versionEsperada!: string;
+  @ApiProperty() @Type(() => Number) @IsInt() @Min(1) idBalonActual!: number;
+  @ApiProperty() @Type(() => Number) @IsInt() @Min(1) idBalonNuevo!: number;
+  @ApiProperty() @Type(() => Number) @IsInt() @Min(1) idAlmacen!: number;
+  @ApiProperty() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 4 }) @Min(0) cantidadGasDevuelta!: number;
+  @ApiProperty() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 4 }) @Min(0) cantidadGasSalida!: number;
+  @ApiProperty({ enum: ['DISPONIBLE', 'EN_MANTENIMIENTO'] })
+  @IsIn(['DISPONIBLE', 'EN_MANTENIMIENTO']) condicionDevolucion!: 'DISPONIBLE' | 'EN_MANTENIMIENTO';
+  @ApiProperty() @IsString() @IsNotEmpty() @MaxLength(500) motivo!: string;
 }
 
 /** Una línea de cobro a completar tras la venta (Fase 3). */

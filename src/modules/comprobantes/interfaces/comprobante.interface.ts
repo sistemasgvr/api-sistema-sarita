@@ -1,4 +1,7 @@
 export interface ComprobanteRegistro {
+  version?: string;
+  permite_edicion_segura?: boolean;
+  tiene_cambio_fisico?: boolean;
   id: number;
   id_tipo_comprobante: number;
   nombre_tipo_comprobante?: string | null;

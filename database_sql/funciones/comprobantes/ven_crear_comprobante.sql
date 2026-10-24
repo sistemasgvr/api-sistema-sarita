@@ -80,6 +80,16 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
+    IF p_id_comprobante_origen IS NOT NULL THEN
+        PERFORM 1 FROM ven_comprobante WHERE id=p_id_comprobante_origen FOR UPDATE;
+    END IF;
+
+    IF p_id_comprobante_origen IS NOT NULL AND EXISTS (
+        SELECT 1 FROM ven_vsd_operacion WHERE id_comprobante=p_id_comprobante_origen AND tipo='CAMBIO_BALON' AND datos->>'tipoOperacion'='CAMBIO'
+    ) THEN
+        RAISE EXCEPTION 'La venta tiene cambios físicos registrados. Debe conciliarse antes de generar un documento derivado';
+    END IF;
+
     v_serie := UPPER(TRIM(p_serie));
 
     IF p_id_tipo_comprobante IS NULL THEN
@@ -367,7 +377,8 @@ BEGIN
             INTO v_nombre_estado_balon
             FROM bal_balon b
             LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
-            WHERE b.id = v_id_balon AND b.estado = 1;
+            WHERE b.id = v_id_balon AND b.estado = 1
+            FOR UPDATE OF b;
 
             IF NOT FOUND THEN
                 RETURN json_build_object(

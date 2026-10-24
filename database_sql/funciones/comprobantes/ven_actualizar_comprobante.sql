@@ -1,3 +1,4 @@
+DROP FUNCTION IF EXISTS ven_actualizar_comprobante(integer, date, integer, json, integer, integer, integer, integer, integer, date, numeric, integer, integer, integer, integer, integer, character varying, character varying, character varying, character varying, integer, json, integer, character varying, json);
 -- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
 -- Function: ven_actualizar_comprobante
 -- Overloads: 1
@@ -5,12 +6,17 @@
 DROP FUNCTION IF EXISTS ven_actualizar_comprobante(p_id integer, p_fecha date, p_id_cliente integer, p_detalles json, p_id_tipo_operacion_sunat integer, p_id_comprobante_origen integer, p_id_motivo_nota integer, p_id_tipo_movimiento integer, p_id_tipo_venta integer, p_fecha_vencimiento date, p_tipo_cambio numeric, p_id_sucursal integer, p_id_almacen integer, p_id_condicion_pago integer, p_id_moneda integer, p_id_medio_pago integer, p_glosa character varying, p_observaciones character varying, p_periodo_contable character varying, p_operacion character varying, p_id_estado integer, p_cuotas json, p_id_usuario_auditoria integer, p_origen_pos character varying);
 DROP FUNCTION IF EXISTS ven_actualizar_comprobante(p_id integer, p_fecha date, p_id_cliente integer, p_detalles json, p_id_tipo_operacion_sunat integer, p_id_comprobante_origen integer, p_id_motivo_nota integer, p_id_tipo_movimiento integer, p_id_tipo_venta integer, p_fecha_vencimiento date, p_tipo_cambio numeric, p_id_sucursal integer, p_id_almacen integer, p_id_condicion_pago integer, p_id_moneda integer, p_id_medio_pago integer, p_glosa character varying, p_observaciones character varying, p_periodo_contable character varying, p_operacion character varying, p_id_estado integer, p_cuotas json, p_id_usuario_auditoria integer, p_origen_pos character varying, p_pagos json);
 
-CREATE OR REPLACE FUNCTION ven_actualizar_comprobante(p_id integer, p_fecha date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer, p_detalles json DEFAULT NULL::json, p_id_tipo_operacion_sunat integer DEFAULT NULL::integer, p_id_comprobante_origen integer DEFAULT NULL::integer, p_id_motivo_nota integer DEFAULT NULL::integer, p_id_tipo_movimiento integer DEFAULT NULL::integer, p_id_tipo_venta integer DEFAULT NULL::integer, p_fecha_vencimiento date DEFAULT NULL::date, p_tipo_cambio numeric DEFAULT NULL::numeric, p_id_sucursal integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_glosa character varying DEFAULT NULL::character varying, p_observaciones character varying DEFAULT NULL::character varying, p_periodo_contable character varying DEFAULT NULL::character varying, p_operacion character varying DEFAULT NULL::character varying, p_id_estado integer DEFAULT NULL::integer, p_cuotas json DEFAULT NULL::json, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_origen_pos character varying DEFAULT NULL::character varying, p_pagos json DEFAULT NULL::json)
+CREATE OR REPLACE FUNCTION ven_actualizar_comprobante(p_id integer, p_fecha date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer, p_detalles json DEFAULT NULL::json, p_id_tipo_operacion_sunat integer DEFAULT NULL::integer, p_id_comprobante_origen integer DEFAULT NULL::integer, p_id_motivo_nota integer DEFAULT NULL::integer, p_id_tipo_movimiento integer DEFAULT NULL::integer, p_id_tipo_venta integer DEFAULT NULL::integer, p_fecha_vencimiento date DEFAULT NULL::date, p_tipo_cambio numeric DEFAULT NULL::numeric, p_id_sucursal integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_glosa character varying DEFAULT NULL::character varying, p_observaciones character varying DEFAULT NULL::character varying, p_periodo_contable character varying DEFAULT NULL::character varying, p_operacion character varying DEFAULT NULL::character varying, p_id_estado integer DEFAULT NULL::integer, p_cuotas json DEFAULT NULL::json, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_origen_pos character varying DEFAULT NULL::character varying, p_pagos json DEFAULT NULL::json, p_motivo_correccion varchar DEFAULT NULL, p_version_esperada varchar DEFAULT NULL)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
 DECLARE
     v_err_pagos TEXT;
+    v_antes JSONB;
+    v_edicion_segura BOOLEAN;
+    v_dependencias BOOLEAN;
+    v_fisico BOOLEAN;
+    v_version TEXT;
     v_estado_sunat VARCHAR;
     v_detalle JSON;
     v_cuota JSON;
@@ -57,6 +63,9 @@ DECLARE
     v_es_gas BOOLEAN;
 BEGIN
     SET TIME ZONE 'America/Lima';
+    PERFORM ven_validar_edicion_pre_emision(p_id);
+    SELECT xmin::text INTO v_version FROM ven_comprobante WHERE id = p_id AND estado = 1 FOR UPDATE;
+    v_antes := ven_obtener_comprobante(p_id)::jsonb;
 
     SELECT
         es.nombre,
@@ -103,6 +112,83 @@ BEGIN
             'registro',
             NULL
         );
+    END IF;
+
+    v_edicion_segura := v_codigo_tipo IN ('NV', 'VSD', '01', '03');
+    v_dependencias := EXISTS (SELECT 1 FROM ven_comprobante_detalle WHERE id_comprobante = p_id AND estado = 1 AND (id_balon IS NOT NULL OR COALESCE(descripcion,'') ~* 'garant[ií]a'))
+        OR EXISTS (SELECT 1 FROM bal_prestamo WHERE id_comprobante_venta = p_id AND estado = 1)
+        OR EXISTS (SELECT 1 FROM bal_movimiento_recarga WHERE id_comprobante = p_id AND estado = 1)
+        OR EXISTS (SELECT 1 FROM bal_alquiler WHERE id_comprobante_venta = p_id AND estado = 1)
+        OR EXISTS (SELECT 1 FROM ven_vsd_operacion WHERE id_comprobante = p_id AND tipo = 'CAMBIO_BALON')
+        OR EXISTS (SELECT 1 FROM doc_salida WHERE id_venta = p_id AND estado = 1);
+    IF v_edicion_segura THEN
+        IF p_id_usuario_auditoria IS NULL OR length(btrim(COALESCE(p_motivo_correccion, ''))) < 5 THEN
+            RAISE EXCEPTION 'Indique el motivo de la corrección (mínimo 5 caracteres) y el usuario';
+        END IF;
+        IF p_version_esperada IS NULL OR p_version_esperada <> v_version THEN
+            RAISE EXCEPTION 'La venta cambió desde que se abrió. Recargue y revise los datos';
+        END IF;
+        IF p_id_comprobante_origen IS NOT NULL OR p_id_tipo_venta IS NOT NULL OR p_id_estado IS NOT NULL THEN
+            RAISE EXCEPTION 'No se puede cambiar el origen, tipo o estado de una venta mediante corrección';
+        END IF;
+    END IF;
+    -- Physical signature excludes prices: correcting a price must never touch custody/gas.
+    v_fisico := p_detalles IS NOT NULL AND (
+        (SELECT jsonb_agg(jsonb_build_array(d.item, d.id_producto, d.cantidad, d.id_balon,
+                 d.id_unidad_medida, d.capacidad_cilindro, d.id_estado_cilindro,
+                 COALESCE(d.descripcion, '')) ORDER BY d.item)
+         FROM ven_comprobante_detalle d WHERE d.id_comprobante = p_id AND d.estado = 1)
+        IS DISTINCT FROM
+        (SELECT jsonb_agg(jsonb_build_array(COALESCE(NULLIF((j.value->>'item')::integer, 0), j.ordinality::integer),
+                 (j.value->>'id_producto')::integer, (j.value->>'cantidad')::numeric,
+                 NULLIF((j.value->>'id_balon')::integer, 0), NULLIF((j.value->>'id_unidad_medida')::integer, 0),
+                 NULLIF((j.value->>'capacidad_cilindro')::numeric, 0), NULLIF((j.value->>'id_estado_cilindro')::integer, 0),
+                 COALESCE(j.value->>'descripcion', '')) ORDER BY j.ordinality)
+         FROM json_array_elements(p_detalles) WITH ORDINALITY j(value, ordinality))
+    );
+    IF v_dependencias AND (v_fisico
+        OR (p_id_cliente IS NOT NULL AND p_id_cliente IS DISTINCT FROM (v_antes->'registro'->>'id_cliente')::integer)
+        OR (p_id_almacen IS NOT NULL AND p_id_almacen IS DISTINCT FROM v_id_almacen_actual)) THEN
+        RAISE EXCEPTION 'La venta tiene balones, préstamos, recargas u órdenes vinculadas. Use Cambio de balón para el movimiento físico; la corrección conserva cliente, almacén y detalle físico';
+    END IF;
+    IF p_detalles IS NOT NULL THEN
+        IF json_typeof(p_detalles) <> 'array' OR json_array_length(p_detalles) = 0 THEN
+            RAISE EXCEPTION 'Debe registrar al menos un detalle';
+        END IF;
+        PERFORM id FROM pro_producto WHERE id IN (SELECT (value->>'id_producto')::integer FROM json_array_elements(p_detalles)) ORDER BY id FOR SHARE;
+        IF EXISTS (SELECT 1 FROM json_array_elements(p_detalles) WITH ORDINALITY j(value,ordinality)
+            GROUP BY COALESCE(NULLIF((j.value->>'item')::integer,0),j.ordinality::integer) HAVING count(*)>1) THEN
+            RAISE EXCEPTION 'Los ítems del detalle no pueden estar duplicados';
+        END IF;
+        IF EXISTS (SELECT 1 FROM json_array_elements(p_detalles) j
+            LEFT JOIN pro_producto p ON p.id = (j.value->>'id_producto')::integer AND p.estado = 1
+            WHERE p.id IS NULL OR (j.value->>'cantidad')::numeric <= 0
+                OR COALESCE((j.value->>'precio_unitario')::numeric, -1) < 0
+                OR COALESCE((j.value->>'descuento')::numeric, 0) < 0
+                OR COALESCE((j.value->>'porcentaje_igv')::numeric, 18) NOT BETWEEN 0 AND 100
+                OR COALESCE((j.value->>'descuento')::numeric, 0) > (j.value->>'cantidad')::numeric * (j.value->>'precio_unitario')::numeric) THEN
+            RAISE EXCEPTION 'Detalle inválido: producto inactivo, cantidad, precio o descuento incorrectos';
+        END IF;
+        IF NOT v_dependencias AND EXISTS (SELECT 1 FROM json_array_elements(p_detalles) j
+            WHERE NULLIF((j.value->>'id_balon')::integer, 0) IS NOT NULL
+               OR COALESCE((j.value->>'no_mueve_kardex')::boolean, false)) THEN
+            RAISE EXCEPTION 'La corrección de productos no puede crear una salida de balón ni omitir el kardex';
+        END IF;
+        IF EXISTS (SELECT 1 FROM json_array_elements(p_detalles) WITH ORDINALITY j(value,ordinality)
+            JOIN ven_comprobante_detalle d ON d.id_comprobante=p_id AND d.estado=1
+                AND d.item=COALESCE(NULLIF((j.value->>'item')::integer,0),j.ordinality::integer)
+            WHERE COALESCE(d.descripcion,'') ~* 'garant[ií]a' AND
+                jsonb_build_array(d.precio_unitario,COALESCE(d.descuento,0),d.porcentaje_igv,d.id_afectacion_igv)
+                IS DISTINCT FROM jsonb_build_array((j.value->>'precio_unitario')::numeric,
+                    COALESCE((j.value->>'descuento')::numeric,0),COALESCE((j.value->>'porcentaje_igv')::numeric,18),
+                    NULLIF((j.value->>'id_afectacion_igv')::integer,0))) THEN
+            RAISE EXCEPTION 'Los importes de garantía deben corregirse desde el módulo de garantías';
+        END IF;
+    END IF;
+    IF fin_cuenta_documento_tiene_pagos(p_id,NULL) AND (
+        p_cuotas IS NOT NULL OR p_id_condicion_pago IS NOT NULL OR p_id_moneda IS NOT NULL
+        OR (p_id_cliente IS NOT NULL AND p_id_cliente IS DISTINCT FROM (v_antes->'registro'->>'id_cliente')::integer)) THEN
+        RAISE EXCEPTION 'La cuenta por cobrar tiene pagos; no se pueden reasignar cliente, moneda, condición o cuotas desde la corrección';
     END IF;
 
     IF p_id_cliente IS NOT NULL AND NOT EXISTS (
@@ -279,7 +365,7 @@ BEGIN
                             TRUE
                         );
                         IF v_mov_result->>'error' IS NOT NULL THEN
-                            RETURN json_build_object('error', v_mov_result->>'error', 'registro', NULL);
+                            RAISE EXCEPTION '%', v_mov_result->>'error';
                         END IF;
 
                         IF v_es_nota_credito THEN
@@ -293,17 +379,12 @@ BEGIN
                               AND s.estado = 1;
 
                             IF COALESCE(v_stock_disponible, 0) < v_qty_antigua THEN
-                                RETURN json_build_object(
-                                    'error',
-                                    format(
+                                RAISE EXCEPTION '%', format(
                                         'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
                                         COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
                                         COALESCE(v_stock_disponible, 0),
                                         v_qty_antigua
-                                    ),
-                                    'registro',
-                                    NULL
-                                );
+                                    );
                             END IF;
                             v_id_tipo_mov_aplicar := v_id_tipo_mov_salida;
                         END IF;
@@ -327,7 +408,7 @@ BEGIN
                             TRUE
                         );
                         IF v_mov_result->>'error' IS NOT NULL THEN
-                            RETURN json_build_object('error', v_mov_result->>'error', 'registro', NULL);
+                            RAISE EXCEPTION '%', v_mov_result->>'error';
                         END IF;
                     END LOOP;
                 END IF;
@@ -367,7 +448,7 @@ BEGIN
                         TRUE
                     );
                     IF v_mov_result->>'error' IS NOT NULL THEN
-                        RETURN json_build_object('error', v_mov_result->>'error', 'registro', NULL);
+                        RAISE EXCEPTION '%', v_mov_result->>'error';
                     END IF;
                 END LOOP;
 
@@ -393,17 +474,12 @@ BEGIN
                           AND s.estado = 1;
 
                         IF COALESCE(v_stock_disponible, 0) < v_qty_nueva THEN
-                            RETURN json_build_object(
-                                'error',
-                                format(
+                            RAISE EXCEPTION '%', format(
                                     'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
                                     COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
                                     COALESCE(v_stock_disponible, 0),
                                     v_qty_nueva
-                                ),
-                                'registro',
-                                NULL
-                            );
+                                );
                         END IF;
                         v_id_tipo_mov_aplicar := v_id_tipo_mov_salida;
                     END IF;
@@ -427,7 +503,7 @@ BEGIN
                         TRUE
                     );
                     IF v_mov_result->>'error' IS NOT NULL THEN
-                        RETURN json_build_object('error', v_mov_result->>'error', 'registro', NULL);
+                        RAISE EXCEPTION '%', v_mov_result->>'error';
                     END IF;
                 END LOOP;
             ELSE
@@ -480,17 +556,12 @@ BEGIN
                               AND s.estado = 1;
 
                             IF COALESCE(v_stock_disponible, 0) < v_delta_stock THEN
-                                RETURN json_build_object(
-                                    'error',
-                                    format(
+                                RAISE EXCEPTION '%', format(
                                         'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
                                         COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
                                         COALESCE(v_stock_disponible, 0),
                                         v_delta_stock
-                                    ),
-                                    'registro',
-                                    NULL
-                                );
+                                    );
                             END IF;
                             v_id_tipo_mov_aplicar := v_id_tipo_mov_salida;
                             v_cantidad_aplicar := v_delta_stock;
@@ -519,7 +590,7 @@ BEGIN
                         TRUE
                     );
                     IF v_mov_result->>'error' IS NOT NULL THEN
-                        RETURN json_build_object('error', v_mov_result->>'error', 'registro', NULL);
+                        RAISE EXCEPTION '%', v_mov_result->>'error';
                     END IF;
                 END LOOP;
             END IF;
@@ -559,12 +630,14 @@ BEGIN
     WHERE id = p_id AND estado = 1;
 
     IF p_detalles IS NOT NULL THEN
+      IF NOT v_dependencias THEN
         UPDATE ven_comprobante_detalle
         SET estado = 0,
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
         WHERE id_comprobante = p_id AND estado = 1;
 
+      END IF;
         v_item := 0;
         FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
         LOOP
@@ -589,6 +662,17 @@ BEGIN
                 v_impuesto_linea := 0;
             END IF;
 
+            IF v_dependencias THEN
+                UPDATE ven_comprobante_detalle SET
+                    precio_unitario = v_precio_unitario, descuento = v_descuento_linea,
+                    valor_venta = v_valor_linea, porcentaje_igv = v_porcentaje_igv,
+                    id_afectacion_igv = NULLIF((v_detalle->>'id_afectacion_igv')::integer, 0),
+                    impuesto = v_impuesto_linea, importe = v_importe_linea,
+                    id_usuario_modificacion = p_id_usuario_auditoria, fecha_modificacion = now()
+                WHERE id_comprobante = p_id AND estado = 1
+                  AND item = COALESCE(NULLIF((v_detalle->>'item')::integer, 0), v_item);
+                CONTINUE;
+            END IF;
             INSERT INTO ven_comprobante_detalle (
                 id_comprobante, item, id_producto, descripcion, id_unidad_medida,
                 cantidad, precio_unitario, descuento, valor_venta, porcentaje_igv,
@@ -670,6 +754,12 @@ BEGIN
         RAISE EXCEPTION '%', v_err_pagos USING ERRCODE = '22023';
     END IF;
 
+    IF v_edicion_segura THEN
+        INSERT INTO ven_vsd_operacion(id_comprobante, tipo, motivo, datos, anterior, posterior, id_usuario)
+        VALUES (p_id, 'CORRECCION', btrim(p_motivo_correccion),
+            jsonb_build_object('version', p_version_esperada), v_antes,
+            ven_obtener_comprobante(p_id)::jsonb, p_id_usuario_auditoria);
+    END IF;
     RETURN ven_obtener_comprobante(p_id);
 END;
 $function$;

@@ -1,6 +1,15 @@
 import { interpretarGre, mensajeGre } from './gre-mensaje.helper';
 
 describe('Mensajes GRE para usuarios', () => {
+  it.each(['RECHAZADO', 'PENDIENTE'])('explica la colisión 1033 sin recomendar corregir datos y reenviar (%s)', estado => {
+    const respuesta = { code: '99', error: { code: '1033', message: 'El comprobante fue registrado previamente con otros datos' } };
+    const d = interpretarGre(respuesta, estado);
+    expect(d.codigo).toBe('1033');
+    expect(d.titulo).toBe('Numeración de guía ya registrada');
+    expect(d.accion).toContain('guía original');
+    expect(d.accion).toContain('No repitas el envío');
+    expect(d.accion).not.toContain('corrige los datos');
+  });
   const licencia = { code: '99', error: { code: '2573', message: 'Numero de licencia del conductor - El dato ingresado no cumple con el formato establecido. : error: Tipo de conductor Principal: errorCode 2573 (nodo: "cac:IdentityDocumentReference/cbc:ID" valor: "C-95824269")' } };
   it('explica el rechazo real, el dato enviado y dónde corregirlo, sin nodos XML', () => {
     const d = interpretarGre(licencia, 'RECHAZADO');

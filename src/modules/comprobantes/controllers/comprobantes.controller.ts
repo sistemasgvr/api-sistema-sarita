@@ -20,6 +20,7 @@ import { AuditoriaDto } from '../../../common/dto/auditoria.dto';
 import type { AuthenticatedUser } from '../../../common/interfaces/authenticated-user.interface';
 import {
   AnularComprobanteDto,
+  CambioBalonVsdDto,
   ConvertirTipoComprobanteDto,
   CreateComprobantesDto,
   EnviarResumenDiarioDto,
@@ -191,6 +192,20 @@ export class ComprobantesController {
   ) {
     dto.idUsuarioAuditoria = req.user.id;
     return this.logic.convertirTipo(id, dto);
+  }
+
+  @Get(':id/operaciones-vsd')
+  @Permisos(PermisoBanderas.COMPROBANTES_VER)
+  @ApiOperation({ summary: 'Historial y balones actuales de una venta, factura o boleta' })
+  operacionesVsd(@Param('id', ParseIntPipe) id: number) {
+    return this.logic.operacionesVsd(id);
+  }
+
+  @Post(':id/cambio-balon')
+  @Permisos(PermisoBanderas.COMPROBANTES_EDITAR)
+  @ApiOperation({ summary: 'Corregir o reemplazar un balón de venta; factura o boleta solo antes de emitir' })
+  cambiarBalonVsd(@Param('id', ParseIntPipe) id: number, @Body() dto: CambioBalonVsdDto, @Req() req: AuthRequest) {
+    return this.logic.cambiarBalonVsd(id, dto, req.user.id);
   }
 
   @Patch(':id/cobro')

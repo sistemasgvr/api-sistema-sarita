@@ -40,7 +40,21 @@ BEGIN
         JOIN pro_producto p ON p.id = vcd.id_producto
         WHERE vcd.estado = 1
           AND vc.estado = 1
-          AND vc.id_tipo_comprobante IN (102, 104, 192)
+          AND EXISTS (
+              SELECT 1
+              FROM gen_lista_opciones tipo
+              JOIN gen_lista lista ON lista.id = tipo.id_lista AND lista.nombre = 'TipoComprobante'
+              JOIN gen_lista_opciones interno ON interno.id = vc.id_estado
+              JOIN gen_lista lista_interno ON lista_interno.id = interno.id_lista AND lista_interno.nombre = 'EstadoDocumento'
+              JOIN gen_lista_opciones sunat ON sunat.id = vc.id_estado_sunat
+              JOIN gen_lista lista_sunat ON lista_sunat.id = sunat.id_lista AND lista_sunat.nombre = 'EstadoSunat'
+              WHERE tipo.id = vc.id_tipo_comprobante
+                AND interno.nombre IN ('PENDIENTE', 'PAGADO')
+                AND (
+                    (tipo.descripcion IN ('01', '03') AND sunat.nombre = 'ACEPTADO')
+                    OR (tipo.descripcion = 'VSD' AND sunat.nombre = 'NO_APLICA')
+                )
+          )
           AND COALESCE(p.es_gas, FALSE) = TRUE
           AND vc.fecha BETWEEN v_inicio_ant AND v_fin_actual
         GROUP BY p.id, p.nombre

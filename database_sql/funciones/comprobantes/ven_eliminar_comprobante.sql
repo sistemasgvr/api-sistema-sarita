@@ -20,6 +20,10 @@ BEGIN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id);
     END IF;
 
+    IF EXISTS (SELECT 1 FROM ven_vsd_operacion WHERE id_comprobante=p_id AND tipo='CAMBIO_BALON' AND datos->>'tipoOperacion'='CAMBIO') THEN
+        RAISE EXCEPTION 'La venta tiene cambios físicos registrados. No se puede eliminar ni restaurar automáticamente su inventario original';
+    END IF;
+
     SELECT es.nombre, c.serie, c.numero, c.id_almacen
     INTO v_estado_sunat, v_serie, v_numero, v_id_almacen_venta
     FROM ven_comprobante c
