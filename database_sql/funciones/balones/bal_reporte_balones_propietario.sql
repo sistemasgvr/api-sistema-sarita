@@ -77,11 +77,18 @@ BEGIN
             eb.nombre AS nombre_estado_balon,
             b.id_almacen,
             a.nombre AS nombre_almacen,
+            b.id_cliente_ubicacion,
+            COALESCE(
+                NULLIF(TRIM(cu.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', cu.nombres, cu.apellido_paterno, cu.apellido_materno)), ''),
+                cu.numero_documento
+            ) AS nombre_cliente_ubicacion,
             b.fecha_proxima_prueba_hidrostatica
         FROM bal_balon b
         LEFT JOIN gen_lista_opciones prop ON prop.id = b.id_propietario
         LEFT JOIN cli_clientes pl ON pl.id = b.id_planta
         LEFT JOIN cli_clientes cp ON cp.id = b.id_cliente_propietario
+        LEFT JOIN cli_clientes cu ON cu.id = b.id_cliente_ubicacion
         LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
         LEFT JOIN gen_lista_opciones um ON um.id = tb.id_unidad_medida
         LEFT JOIN pro_producto pg ON pg.id = b.id_producto_gas
@@ -105,9 +112,9 @@ BEGIN
               OR gen_texto_coincide(COALESCE(b.codigo_balon, ''), v_buscar)
               OR gen_texto_coincide(COALESCE(b.numero_serie, ''), v_buscar)
               OR gen_texto_coincide(COALESCE(prop.nombre, ''), v_buscar)
-              OR gen_texto_coincide(cli_texto_busqueda(pl), v_buscar)
+              OR gen_texto_coincide(COALESCE(pl.razon_social, ''), v_buscar)
               OR gen_texto_coincide(COALESCE(pl.nombres, ''), v_buscar)
-              OR gen_texto_coincide(cli_texto_busqueda(cp), v_buscar)
+              OR gen_texto_coincide(COALESCE(cp.razon_social, ''), v_buscar)
               OR gen_texto_coincide(COALESCE(cp.nombres, ''), v_buscar)
               OR gen_texto_coincide(COALESCE(pg.nombre, ''), v_buscar)
               OR gen_texto_coincide(COALESCE(a.nombre, ''), v_buscar)
