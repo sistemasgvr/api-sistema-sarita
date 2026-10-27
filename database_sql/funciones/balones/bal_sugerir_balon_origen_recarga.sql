@@ -1,13 +1,15 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: bal_sugerir_balon_origen_recarga
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.950Z
-DROP FUNCTION IF EXISTS bal_sugerir_balon_origen_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric, p_id_almacen integer);
+-- Sugiere el balón origen principal para una recarga
+DROP FUNCTION IF EXISTS public.bal_sugerir_balon_origen_recarga (
+  p_id_producto_gas integer,
+  p_capacidad_requerida numeric,
+  p_id_almacen integer
+);
 
-CREATE OR REPLACE FUNCTION bal_sugerir_balon_origen_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric DEFAULT NULL::numeric, p_id_almacen integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.bal_sugerir_balon_origen_recarga (
+  p_id_producto_gas integer,
+  p_capacidad_requerida numeric DEFAULT NULL::numeric,
+  p_id_almacen integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_asignacion JSON;
     v_principal JSON;
@@ -47,7 +49,6 @@ BEGIN
         );
     END IF;
 
-    -- Sin capacidad: primer balón con stock (FIFO)
     RETURN (
         SELECT json_build_object(
             'registro', row_to_json(t)
@@ -68,8 +69,6 @@ BEGIN
               AND COALESCE(eb.nombre, '') = 'DISPONIBLE'
               AND b.id_producto_gas = p_id_producto_gas
               AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
-            -- Sin filtro por capacidad: el balón origen es solo trazabilidad; la
-            -- disponibilidad real la valida bal_asignar_origenes_recarga contra pro_stock.
             ORDER BY b.fecha_creacion ASC NULLS LAST, b.id ASC
             LIMIT 1
         ) t

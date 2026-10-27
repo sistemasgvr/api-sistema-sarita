@@ -1,31 +1,10 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: doc_generar_salida
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
---
--- Para OS sin venta (id_venta IS NULL) de tipos compatibles con REPARTO, tras el
--- kardex se corrige custodia a PENDIENTE_ENVIO (ver bloque al final del loop).
---
--- Actualizada por database_sql/migraciones/20260910_doc_generar_um_conversion.sql:
---   · la cantidad que va al kardex se expresa en la U.M. del producto
---     (doc_cantidad_linea_en_unidad_producto), la misma regla que usa
---     bal_sincronizar_gas_retorno_planta para la entrada. Antes la salida
---     registraba la cantidad cruda y el retorno la convertía, así que el neto
---     de stock se sesgaba cuando las unidades no coincidían;
---   · pre-vuelo antes de tocar inventario: se resuelven todas las conversiones
---     en seco (un factor faltante devuelve error de negocio en vez de reventar
---     la petición a medio kardex) y, en RECARGA_PLANTA_EXTERNA, se rechaza el
---     gas declarado por encima de la capacidad de los cilindros de la orden.
---
--- Actualizada por database_sql/migraciones/20260911_w4_hardening.sql:
---   · EstadoCicloSalida GENERADA se resuelve ANTES del loop de kardex; si falta
---     el catálogo se devuelve soft-error sin mover stock.
-DROP FUNCTION IF EXISTS doc_generar_salida(p_id integer, p_id_usuario_auditoria integer);
+-- Genera un documento de salida y registra sus movimientos de inventario
+DROP FUNCTION IF EXISTS public.doc_generar_salida (p_id integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION doc_generar_salida(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_generar_salida (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_doc RECORD;
     v_estado VARCHAR;
@@ -38,7 +17,6 @@ DECLARE
     v_n INTEGER := 0;
     v_id_pend_envio INTEGER;
     v_hay_balones BOOLEAN;
-    -- Solo fuerza la evaluación del pre-vuelo de unidades; su valor no se usa.
     v_prevuelo NUMERIC;
     v_exceso_gas TEXT;
 BEGIN
@@ -63,20 +41,15 @@ BEGIN
     END IF;
 
     IF v_estado IN ('GENERADA', 'EMITIDA_SUNAT') THEN
-        -- Ya produjo efectos; no se repiten.
         RETURN doc_obtener_salida(p_id);
     END IF;
 
-    -- El tipo de movimiento depende del propósito del documento.
     v_codigo_mov := CASE v_tipo
         WHEN 'RECARGA_PLANTA_EXTERNA' THEN 'SALIDA_PLANTA_EXTERNA'
         WHEN 'TRASLADO'               THEN 'TRASLADO'
         ELSE 'SALIDA_ENTREGA_CLIENTE'
     END;
 
-    -- Se comprueba acá y no solo al crear: hay órdenes anteriores a que el
-    -- destino existiera, y sin él inv_registrar_movimiento aborta con una
-    -- excepción que tumba toda la petición en vez de devolver el error.
     IF v_tipo = 'TRASLADO' AND v_doc.id_almacen_destino IS NULL THEN
         RETURN json_build_object(
             'error', 'El traslado requiere almacén de destino: regístralo antes de generar',
@@ -84,9 +57,6 @@ BEGIN
         );
     END IF;
 
-    -- EstadoCicloSalida GENERADA: resolver ANTES de cualquier movimiento de stock.
-    -- Si falta el catálogo y se moviera el kardex primero, la orden quedaría con
-    -- inventario tocado y el ciclo aún en BORRADOR (mismo patrón que doc_anular_salida).
     SELECT lo.id INTO v_id_generada
     FROM gen_lista_opciones lo
     JOIN gen_lista l ON l.id = lo.id_lista
@@ -104,21 +74,6 @@ BEGIN
             RETURN json_build_object('error', 'El documento no tiene líneas que trasladar', 'registro', NULL);
         END IF;
 
-        -- ------------------------------------------------------------
-        -- Pre-vuelo de unidades (antes de cualquier movimiento)
-        --
-        -- Las conversiones se resuelven en seco: si a un gas le falta el
-        -- factor o la U.M. de la línea no es convertible,
-        -- inv_convertir_a_unidad_producto lanza excepción, y dentro del bucle
-        -- eso tumbaría la petición con el kardex a medias. Acá se traduce a un
-        -- error de negocio, que es lo que la orden puede corregir.
-        --
-        -- En RECARGA_PLANTA_EXTERNA se compara además el gas declarado contra
-        -- la capacidad de los cilindros de la orden, ambos ya en la U.M. del
-        -- gas: la planta no puede haber cargado más de lo que cabe. Si los
-        -- cilindros no tienen gas o capacidad configurados no hay tope contra
-        -- el cual comparar y la línea pasa.
-        -- ------------------------------------------------------------
         BEGIN
             SELECT COALESCE(SUM(doc_cantidad_linea_en_unidad_producto(dd.id)), 0)
             INTO v_prevuelo
@@ -168,9 +123,6 @@ BEGIN
                       AND dd.cantidad > 0
                     GROUP BY dd.id_producto, p.nombre, um.nombre
                 ) t
-                -- Redondeo a 2 decimales: las conversiones redondean a 4 y se
-                -- suman por cilindro, así que un tope exacto rechazaría por
-                -- milésimas lo que en la práctica sí cabe.
                 WHERE t.capacidad > 0
                   AND ROUND(t.declarado, 2) > ROUND(t.capacidad, 2);
 
@@ -191,7 +143,6 @@ BEGIN
             );
         END;
 
-        -- Custodia REPARTO (OS sin venta): validar catálogo ANTES del kardex.
         IF v_tipo NOT IN ('RECARGA_PLANTA_EXTERNA', 'TRASLADO') THEN
             SELECT EXISTS (
                 SELECT 1
@@ -222,19 +173,11 @@ BEGIN
         FOR v_det IN
             SELECT
                 dd.*,
-                -- La cantidad del kardex va en la U.M. del producto (la de
-                -- pro_stock), no en la de la línea: es la misma regla con la
-                -- que entra el gas del retorno.
                 doc_cantidad_linea_en_unidad_producto(dd.id) AS cantidad_movimiento
             FROM doc_salida_detalle dd
             WHERE dd.id_doc_salida = p_id AND dd.estado = 1
             ORDER BY dd.item
         LOOP
-            -- El gas viaja SIEMPRE en sus propias líneas de producto, nunca en
-            -- la del cilindro. El detalle se arma en dos planos: una línea por
-            -- balón, que mueve el envase (estado y almacén), y una línea por
-            -- producto con la cantidad total de gas que sale. Tomar además el
-            -- gas del balón descontaría el mismo gas dos veces.
             v_mov := inv_registrar_movimiento(
                 p_naturaleza                   => CASE WHEN v_det.id_balon IS NOT NULL THEN 'BALON' ELSE 'PRODUCTO' END,
                 p_codigo_tipo_movimiento       => v_codigo_mov,
@@ -271,19 +214,6 @@ BEGIN
             v_n := v_n + 1;
         END LOOP;
 
-        -- ------------------------------------------------------------
-        -- Custodia REPARTO (OS sin venta, tipos de entrega a cliente)
-        --
-        -- TRADEOFF: se mantiene SALIDA_ENTREGA_CLIENTE en inv_registrar_movimiento
-        -- (kardex + auditoría del movimiento). Ese tipo pone EN_PODER_CLIENTE y
-        -- limpia id_almacen —demasiado temprano para el flujo age_* (iniciar →
-        -- EN_TRANSITO, culminar → EN_PODER_CLIENTE), que exige PENDIENTE_ENVIO.
-        -- Cambiar el TipoMovInvUnificado / el CASE de estados en
-        -- inv_registrar_movimiento es más riesgoso (afecta otros callers).
-        -- Corrección local: tras generar, los cilindros de la OS vuelven a
-        -- PENDIENTE_ENVIO y al almacén de la orden. TRASLADO y
-        -- RECARGA_PLANTA_EXTERNA no pasan por REPARTO y no se tocan.
-        -- ------------------------------------------------------------
         IF v_id_pend_envio IS NOT NULL THEN
             UPDATE bal_balon b
             SET id_estado_balon = v_id_pend_envio,
@@ -302,8 +232,6 @@ BEGIN
                   )) NOT IN ('DADO_DE_BAJA', 'ROBO');
         END IF;
     END IF;
-    -- Con id_venta no se toca inventario: el movimiento lo creó la venta y este
-    -- documento solo lo respalda documentalmente (apunte 1.c.iv.6).
 
     UPDATE doc_salida
     SET id_estado_ciclo = v_id_generada,

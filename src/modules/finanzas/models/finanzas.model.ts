@@ -184,19 +184,19 @@ export class FinanzasModel {
   }
 
   actualizarGarantia(id: number, dto: ActualizarGarantiaDto) {
-    return this.db.callFunctionJson<AuthSingleResult>(
-      'ven_actualizar_garantia_manual',
-      [
-        id,
-        dto.fecha ?? null,
-        dto.idCliente ?? null,
-        dto.idMedioPago ?? null,
-        dto.importe ?? null,
-        dto.observacion ?? null,
-        dto.idUsuarioAuditoria ?? null,
-        dto.idCuentaBancaria ?? null,
-      ],
-    );
+    return this.db.callFunctionJson<
+      AuthSingleResult<Record<string, unknown>> & { avisos?: string[] }
+    >('ven_actualizar_garantia', [
+      id,
+      dto.fecha ?? null,
+      dto.idCliente ?? null,
+      dto.idMedioPago ?? null,
+      dto.idCuentaBancaria ?? null,
+      dto.numeroOperacion ?? null,
+      dto.importe ?? null,
+      dto.observacion ?? null,
+      dto.idUsuarioAuditoria ?? null,
+    ]);
   }
 
   listarGarantias(filtros: FiltroGarantiaDto) {

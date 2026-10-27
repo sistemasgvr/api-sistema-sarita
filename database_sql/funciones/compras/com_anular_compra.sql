@@ -1,27 +1,13 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: com_anular_compra
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.953Z
--- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
---   Anular la compra deshace SOLO lo que la compra movió (etiquetado COMPRA):
---   INGRESOs de líneas, cilindros comprados (ENTRADA_COMPRA + su gas) y el gas
---   del retorno de planta facturado (ENTRADA_PLANTA_EXTERNA PRODUCTO).
---   La orden de recarga vinculada se desvincula y conserva su retorno físico
---   (los envases están etiquetados ORDEN_SALIDA): el gas vuelve a lo declarado
---   en las líneas de la orden vía bal_sincronizar_gas_retorno_planta.
---   Antes revertía toda la orden por ('ORDEN_SALIDA', id) —incluida la
---   SALIDA_PLANTA_EXTERNA de ida— y escribía doc_salida.id_estado, columna
---   que no existe (el ciclo real es id_estado_ciclo y no cambia al anular la
---   factura). com_revertir_cilindros_recarga_compra queda eliminada.
--- Actualizada por database_sql/migraciones/20261023_compras_medio_pago_caja.sql:
---   anular una compra al contado devuelve su pago a la caja: si el medio afecta
---   caja, exige la caja de la compra abierta (como fin_anular_pago).
-DROP FUNCTION IF EXISTS com_anular_compra(p_id_comprobante integer, p_id_usuario_auditoria integer);
+-- Anula una compra y revierte solo los movimientos que ella generó
+DROP FUNCTION IF EXISTS public.com_anular_compra (
+  p_id_comprobante integer,
+  p_id_usuario_auditoria integer
+);
 
-CREATE OR REPLACE FUNCTION com_anular_compra(p_id_comprobante integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.com_anular_compra (
+  p_id_comprobante integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_detalle             RECORD;
     v_id_almacen_default  INTEGER;
@@ -58,7 +44,6 @@ BEGIN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id_comprobante, 'error', v_err_caja);
     END IF;
 
-    -- No anular si la CxP vinculada ya tiene pagos.
     SELECT EXISTS (
         SELECT 1
         FROM fin_pago p
@@ -97,7 +82,6 @@ BEGIN
     WHERE gl.nombre = 'TipoMovInvUnificado' AND lo.nombre = 'ENTRADA_COMPRA' AND lo.estado = 1
     LIMIT 1;
 
-    -- Cilindros dados de alta por esta compra (antes de revertir movimientos).
     SELECT COALESCE(array_agg(DISTINCT m.id_balon) FILTER (WHERE m.id_balon IS NOT NULL), ARRAY[]::INTEGER[])
     INTO v_ids_balones_compra
     FROM inv_movimiento m
@@ -107,10 +91,6 @@ BEGIN
       AND m.id_documento_origen = p_id_comprobante
       AND (v_id_tipo_entrada_compra IS NULL OR m.id_tipo_movimiento = v_id_tipo_entrada_compra);
 
-    -- ---------- PASO 1: VALIDACIÓN COMPLETA (sin modificar nada aún) ----------
-
-    -- 1.a Un cilindro comprado que ya salió del almacén (prestado, vendido, en
-    --     planta...) no se puede dar de baja como si nunca hubiera entrado.
     IF cardinality(v_ids_balones_compra) > 0 THEN
         SELECT b.codigo_balon, COALESCE(eb.nombre, 'sin estado') AS estado_balon
         INTO v_balon_ocupado
@@ -132,10 +112,6 @@ BEGIN
         END IF;
     END IF;
 
-    -- 1.b Stock suficiente para revertir todos los ingresos de producto que
-    --     hizo esta compra, agregados por (producto, almacén): líneas
-    --     afecta_stock, gas de cilindros comprados y gas del retorno de planta
-    --     facturado. Todos están etiquetados COMPRA + esta compra.
     FOR v_detalle IN
         WITH ingresos AS (
             SELECT
@@ -173,7 +149,6 @@ BEGIN
                         AND UPPER(lo.nombre) = 'TRASLADO'
                   )
               )
-              -- Evitar doble conteo: líneas de detalle ya cubiertas arriba
               AND NOT (
                   m.naturaleza = 'PRODUCTO'
                   AND m.id_documento_detalle IN (
@@ -217,10 +192,6 @@ BEGIN
         );
     END IF;
 
-    -- ---------- PASO 2: REVERSA REAL (ya validado que hay stock suficiente) ----------
-    -- Todo lo etiquetado COMPRA + esta compra: INGRESOs de líneas, cilindros
-    -- comprados con su gas y el gas del retorno de planta facturado. Los
-    -- envases del retorno están etiquetados ORDEN_SALIDA y no se tocan.
     v_result_movimiento := inv_revertir_por_documento(
         'COMPRA',
         p_id_comprobante,
@@ -242,7 +213,6 @@ BEGIN
         fecha_modificacion = NOW()
     WHERE id_comprobante = p_id_comprobante;
 
-    -- Baja lógica de cilindros creados por esta compra (ENTRADA_COMPRA).
     IF cardinality(v_ids_balones_compra) > 0 THEN
         UPDATE bal_balon
         SET estado = 0,
@@ -252,10 +222,6 @@ BEGIN
           AND estado = 1;
     END IF;
 
-    -- Órdenes de recarga planta que apuntaban a esta compra: se desvinculan y
-    -- conservan su ciclo (id_estado_ciclo) y su retorno físico. El gas del
-    -- retorno, que era el facturado, vuelve a lo declarado en la orden; si la
-    -- orden no tenía retorno registrado no hay nada que ajustar.
     FOR v_orden IN
         SELECT id
         FROM doc_salida
@@ -285,7 +251,6 @@ BEGIN
     WHERE id_comprobante_compra = p_id_comprobante
       AND estado = 1;
 
-    -- Baja lógica de CxP vinculada (cabeceras + cuotas hijas). Ya validado sin pagos.
     FOR v_id_cuenta_padre IN
         SELECT fc.id
         FROM fin_cuenta fc

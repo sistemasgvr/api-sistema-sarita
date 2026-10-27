@@ -1,0 +1,39 @@
+-- Obtiene condicion pago por id
+DROP FUNCTION IF EXISTS public.gen_obtener_condicion_pago (p_id integer);
+
+CREATE OR REPLACE FUNCTION public.gen_obtener_condicion_pago (p_id integer) RETURNS json LANGUAGE plpgsql AS $function$
+DECLARE
+    v_registro JSON;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT row_to_json(t) INTO v_registro
+    FROM (
+        SELECT
+            cp.id,
+            cp.codigo,
+            cp.nombre,
+            cp.dias_credito,
+            cp.numero_cuotas,
+            cp.dia_mes_pago,
+            CASE
+                WHEN COALESCE(cp.numero_cuotas, 0) > 1 THEN 'CUOTAS'
+                WHEN COALESCE(cp.dias_credito, 0) > 0 THEN 'CREDITO'
+                ELSE 'CONTADO'
+            END AS modalidad,
+            cp.estado,
+            cp.fecha_creacion,
+            cp.fecha_modificacion,
+            cp.id_usuario_creacion,
+            uc.nombre AS nombre_usuario_creacion,
+            cp.id_usuario_modificacion,
+            um.nombre AS nombre_usuario_modificacion
+        FROM gen_condicion_pago cp
+        LEFT JOIN auth_usuarios uc ON cp.id_usuario_creacion = uc.id
+        LEFT JOIN auth_usuarios um ON cp.id_usuario_modificacion = um.id
+        WHERE cp.id = p_id AND cp.estado = 1
+    ) t;
+
+    RETURN json_build_object('registro', v_registro);
+END;
+$function$;

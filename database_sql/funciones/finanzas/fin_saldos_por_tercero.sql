@@ -1,13 +1,21 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_saldos_por_tercero
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.960Z
-DROP FUNCTION IF EXISTS fin_saldos_por_tercero(p_tipo character varying, p_fecha_corte date, p_buscar character varying, p_solo_pendientes integer, p_limite integer, p_offset integer);
+-- Lista paginada de saldos por tercero a una fecha de corte, con resumen
+DROP FUNCTION IF EXISTS public.fin_saldos_por_tercero (
+  p_tipo character varying,
+  p_fecha_corte date,
+  p_buscar character varying,
+  p_solo_pendientes integer,
+  p_limite integer,
+  p_offset integer
+);
 
-CREATE OR REPLACE FUNCTION fin_saldos_por_tercero(p_tipo character varying DEFAULT 'COBRAR'::character varying, p_fecha_corte date DEFAULT CURRENT_DATE, p_buscar character varying DEFAULT NULL::character varying, p_solo_pendientes integer DEFAULT 1, p_limite integer DEFAULT 50, p_offset integer DEFAULT 0)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_saldos_por_tercero (
+  p_tipo character varying DEFAULT 'COBRAR'::character varying,
+  p_fecha_corte date DEFAULT CURRENT_DATE,
+  p_buscar character varying DEFAULT NULL::character varying,
+  p_solo_pendientes integer DEFAULT 1,
+  p_limite integer DEFAULT 50,
+  p_offset integer DEFAULT 0
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_tipo   INT;
     v_buscar    VARCHAR;

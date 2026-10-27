@@ -1,13 +1,15 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: bal_aprobar_baja_balon
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.944Z
-DROP FUNCTION IF EXISTS bal_aprobar_baja_balon(p_id_baja integer, p_id_usuario_autoriza integer, p_id_usuario_auditoria integer);
+-- Aprueba una solicitud de baja de balón y cambia su estado
+DROP FUNCTION IF EXISTS public.bal_aprobar_baja_balon (
+  p_id_baja integer,
+  p_id_usuario_autoriza integer,
+  p_id_usuario_auditoria integer
+);
 
-CREATE OR REPLACE FUNCTION bal_aprobar_baja_balon(p_id_baja integer, p_id_usuario_autoriza integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.bal_aprobar_baja_balon (
+  p_id_baja integer,
+  p_id_usuario_autoriza integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_balon INTEGER;
     v_id_motivo_baja INTEGER;
@@ -33,7 +35,6 @@ BEGIN
         RETURN json_build_object('error', 'Debe indicar el administrador autorizador', 'registro', NULL);
     END IF;
 
-    -- Rol Administrador + permiso bajas_balon.aprobar (o auth.todo). Permite auto-aprobación.
     IF NOT auth_usuario_es_admin_con_permiso(p_id_usuario_autoriza, 'bajas_balon.aprobar') THEN
         RETURN json_build_object(
             'error',
@@ -121,7 +122,6 @@ BEGIN
             END;
         END IF;
 
-        -- Movimiento SALIDA_VENTA con trazabilidad al comprobante (estado lo aplica esta función)
         v_mov := bal_registrar_salida_documento(
             v_id_balon,
             'SALIDA_VENTA',

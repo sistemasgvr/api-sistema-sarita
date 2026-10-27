@@ -1,26 +1,13 @@
--- Function: fin_validar_cuenta_medio_pago
--- Fase 3 — principio 3 del plan: "Todo dinero tiene medio de pago + cuenta".
---
--- Devuelve NULL si la combinación es válida, o el mensaje de error si no lo es
--- (misma convención que fin_caja_assert_abierta, para que el llamador decida si
--- lo devuelve como 'error' en su JSON o lo lanza como excepción).
---
--- Reglas:
---   * Un medio con requiere_cuenta_bancaria exige una cuenta.
---   * La cuenta debe ser de ámbito EMPRESA y estar activa.
---   * La cuenta debe tener el medio asociado en gen_cuenta_medio_pago.
---   * El efectivo y el crédito no admiten cuenta bancaria.
+-- Valida la combinación de medio de pago y cuenta bancaria; devuelve el error o NULL
+DROP FUNCTION IF EXISTS public.fin_validar_cuenta_medio_pago (
+  p_id_medio_pago integer,
+  p_id_cuenta_bancaria integer
+);
 
-DROP FUNCTION IF EXISTS fin_validar_cuenta_medio_pago(p_id_medio_pago integer, p_id_cuenta_bancaria integer);
-
-CREATE OR REPLACE FUNCTION fin_validar_cuenta_medio_pago(
-    p_id_medio_pago integer,
-    p_id_cuenta_bancaria integer DEFAULT NULL::integer
-)
- RETURNS text
- LANGUAGE plpgsql
- STABLE
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_validar_cuenta_medio_pago (
+  p_id_medio_pago integer,
+  p_id_cuenta_bancaria integer DEFAULT NULL::integer
+) RETURNS text LANGUAGE plpgsql STABLE AS $function$
 DECLARE
     v_nombre_medio VARCHAR;
     v_requiere BOOLEAN;
@@ -46,8 +33,6 @@ BEGIN
 
     IF p_id_cuenta_bancaria IS NULL THEN
         IF v_requiere THEN
-            -- Neutral en la dirección: sirve tanto para un cobro (entra) como
-            -- para un gasto o una devolución de garantía (sale).
             RETURN format(
                 'El medio de pago %s exige indicar la cuenta bancaria de la empresa del movimiento.',
                 v_nombre_medio

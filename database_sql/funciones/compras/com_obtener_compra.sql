@@ -1,18 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: com_obtener_compra
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.954Z
--- Actualizada por database_sql/migraciones/20260910_compras_detalle_es_gas.sql:
---   el detalle expone es_gas del producto (el editor de la compra lo necesita
---   para validar la cantidad: un gas admite decimales aunque su U.M. sea UNID).
--- Actualizada por database_sql/migraciones/20261023_compras_medio_pago_caja.sql:
---   la cabecera expone el medio de pago, la cuenta y el Nº de operación.
-DROP FUNCTION IF EXISTS com_obtener_compra(p_id integer);
+-- Obtiene compra por id
+DROP FUNCTION IF EXISTS public.com_obtener_compra (p_id integer);
 
-CREATE OR REPLACE FUNCTION com_obtener_compra(p_id integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.com_obtener_compra (p_id integer) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_cabecera JSON;
     v_detalle  JSON;
@@ -51,6 +40,7 @@ BEGIN
         'numero_operacion',          c.numero_operacion,
         'sub_total',                 c.sub_total,
         'igv',                       c.igv,
+        'porcentaje_igv',            c.porcentaje_igv,
         'total_importe',             c.total_importe,
         'afecta_inventario',         c.afecta_inventario,
         'declarar_sunat',            c.declarar_sunat,
@@ -62,7 +52,6 @@ BEGIN
         'id_recarga_planta',         c.id_doc_salida,
         'numero_recarga_planta',     rp.numero,
         'tiene_movimientos_inventario', com_tiene_movimientos_inventario(c.id),
-        -- Activa: se puede editar cabecera y líneas (ingresos/salidas según afecta_stock)
         'puede_modificarse_parcial', (c.estado = 1),
         'fecha_creacion',            c.fecha_creacion,
         'fecha_modificacion',        c.fecha_modificacion
@@ -105,8 +94,6 @@ BEGIN
             'precio_unitario',        cd.precio_unitario,
             'importe',                cd.importe,
             'afecta_stock',           cd.afecta_stock,
-            -- El editor valida la cantidad según la U.M.: los gases admiten
-            -- decimales aunque su unidad sea de las que exigen enteros.
             'es_gas',                 COALESCE(p.es_gas, FALSE),
             'id_clasificacion_gasto', cd.id_clasificacion_gasto,
             'clasificacion_gasto',    CASE WHEN cg.id IS NOT NULL

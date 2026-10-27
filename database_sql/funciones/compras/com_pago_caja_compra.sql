@@ -1,23 +1,7 @@
--- Function: com_pago_caja_compra
--- 20261023: el pago que una compra aporta a la caja, o NULL si no aporta ninguno.
---
--- Solo aporta una compra activa, AL CONTADO (sin CxP activa) y con medio de
--- pago: una al crédito mueve dinero al pagar su CxP (fin_pago), y las compras
--- al contado anteriores a esta fecha no tienen medio y no se reinterpretan como
--- efectivo, porque eso descuadraría el arqueo de cajas ya cerradas.
---
--- Mismo criterio que el bloque de compras al contado de fin_caja_calcular_totales.
--- Los que modifican una compra comparan este valor antes y después del cambio
--- (com_assert_caja_compra) para exigir la caja abierta solo cuando el cambio
--- toca de verdad el arqueo.
+-- Devuelve el pago que una compra al contado aporta a la caja, o NULL
+DROP FUNCTION IF EXISTS public.com_pago_caja_compra (p_id_comprobante integer);
 
-DROP FUNCTION IF EXISTS com_pago_caja_compra(p_id_comprobante integer);
-
-CREATE OR REPLACE FUNCTION com_pago_caja_compra(p_id_comprobante integer)
- RETURNS jsonb
- LANGUAGE sql
- STABLE
-AS $function$
+CREATE OR REPLACE FUNCTION public.com_pago_caja_compra (p_id_comprobante integer) RETURNS jsonb LANGUAGE sql STABLE AS $function$
     SELECT jsonb_build_object(
         'idMedioPago', cc.id_medio_pago,
         'monto',       cc.total_importe,

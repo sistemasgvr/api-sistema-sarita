@@ -1,13 +1,25 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: doc_crear_salida_detalle
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
-DROP FUNCTION IF EXISTS doc_crear_salida_detalle(p_id_doc_salida integer, p_id_producto integer, p_id_balon integer, p_cantidad numeric, p_descripcion character varying, p_id_unidad_medida integer, p_glosa character varying, p_id_usuario_auditoria integer);
+-- Crea salida detalle
+DROP FUNCTION IF EXISTS public.doc_crear_salida_detalle (
+  p_id_doc_salida integer,
+  p_id_producto integer,
+  p_id_balon integer,
+  p_cantidad numeric,
+  p_descripcion character varying,
+  p_id_unidad_medida integer,
+  p_glosa character varying,
+  p_id_usuario_auditoria integer
+);
 
-CREATE OR REPLACE FUNCTION doc_crear_salida_detalle(p_id_doc_salida integer, p_id_producto integer DEFAULT NULL::integer, p_id_balon integer DEFAULT NULL::integer, p_cantidad numeric DEFAULT 1, p_descripcion character varying DEFAULT NULL::character varying, p_id_unidad_medida integer DEFAULT NULL::integer, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_crear_salida_detalle (
+  p_id_doc_salida integer,
+  p_id_producto integer DEFAULT NULL::integer,
+  p_id_balon integer DEFAULT NULL::integer,
+  p_cantidad numeric DEFAULT 1,
+  p_descripcion character varying DEFAULT NULL::character varying,
+  p_id_unidad_medida integer DEFAULT NULL::integer,
+  p_glosa character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_doc RECORD;
     v_estado VARCHAR;

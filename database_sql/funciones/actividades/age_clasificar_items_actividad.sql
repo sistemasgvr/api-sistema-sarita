@@ -1,13 +1,7 @@
--- Function: age_clasificar_items_actividad
--- Source: migraciones/20260909_age_reparto_flujo_entrega.sql
+-- Clasifica los ítems de una actividad en CILINDRO, GAS o ACCESORIO
+DROP FUNCTION IF EXISTS public.age_clasificar_items_actividad (p_id_actividad integer);
 
-DROP FUNCTION IF EXISTS age_clasificar_items_actividad(integer);
-
-CREATE OR REPLACE FUNCTION age_clasificar_items_actividad(p_id_actividad integer)
-RETURNS TABLE (id_item integer, clase character varying)
-LANGUAGE sql
-STABLE
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_clasificar_items_actividad (p_id_actividad integer) RETURNS TABLE (id_item integer, clase character varying) LANGUAGE sql STABLE AS $function$
     SELECT
         ai.id,
         CASE

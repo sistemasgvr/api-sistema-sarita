@@ -1,19 +1,17 @@
--- Function: age_registrar_verificacion
--- Registra lecturas de verificación (escaneo o confirmación por id_item).
--- pendiente=true revierte el ítem a PENDIENTE (desmarcar checkbox).
+-- Registra lecturas de verificación (escaneo o confirmación) de ítems de una actividad
+DROP FUNCTION IF EXISTS public.age_registrar_verificacion (
+  p_id_actividad integer,
+  p_momento character varying,
+  p_lecturas json,
+  p_id_usuario_auditoria integer
+);
 
-DROP FUNCTION IF EXISTS age_registrar_verificacion(p_id_actividad integer, p_momento character varying, p_codigos json, p_observacion character varying, p_id_usuario_auditoria integer);
-DROP FUNCTION IF EXISTS age_registrar_verificacion(p_id_actividad integer, p_momento character varying, p_lecturas json, p_id_usuario_auditoria integer);
-
-CREATE OR REPLACE FUNCTION age_registrar_verificacion(
-    p_id_actividad integer,
-    p_momento character varying,
-    p_lecturas json DEFAULT NULL::json,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_registrar_verificacion (
+  p_id_actividad integer,
+  p_momento character varying,
+  p_lecturas json DEFAULT NULL::json,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_momento        VARCHAR;
     v_es_salida      BOOLEAN;
@@ -53,7 +51,6 @@ BEGIN
         RETURN json_build_object('error', 'La actividad no existe o esta anulada', 'registro', NULL);
     END IF;
 
-    -- La verificación la responde el responsable asignado (sesión).
     SELECT a.id_trabajador_responsable, a.id_usuario_responsable,
            UPPER(TRIM(ea.nombre))
     INTO v_id_trabajador_resp, v_id_usuario_resp, v_nombre_estado
@@ -68,7 +65,6 @@ BEGIN
         );
     END IF;
 
-    -- Llegada operativa: la carga ya salio / el recojo ya esta en camino.
     IF NOT v_es_salida AND COALESCE(v_nombre_estado, '') <> 'EN_RUTA' THEN
         RETURN json_build_object(
             'error', 'La verificacion de LLEGADA solo aplica cuando la actividad esta EN_RUTA',
@@ -168,7 +164,6 @@ BEGIN
                 CONTINUE;
             END IF;
 
-            -- Escaneo marca el ítem completo (accesorio incluido).
             IF v_clase = 'ACCESORIO' THEN
                 v_cantidad := COALESCE(v_cantidad, v_cantidad_item);
             END IF;
@@ -200,7 +195,6 @@ BEGIN
             END IF;
         END IF;
 
-        -- Desmarcar: vuelve a Pendiente para reverificar.
         IF v_pendiente THEN
             IF v_es_salida THEN
                 UPDATE age_actividad_item
@@ -272,7 +266,6 @@ BEGIN
         v_coincidencias := v_coincidencias + 1;
     END LOOP;
 
-    -- El gas se deriva del peor estado de sus cilindros.
     IF v_es_salida THEN
         UPDATE age_actividad_item gas
         SET id_estado_verificacion_salida = d.estado_derivado,

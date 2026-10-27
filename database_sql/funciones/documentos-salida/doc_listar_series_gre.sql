@@ -1,19 +1,9 @@
--- Series de guía de remisión disponibles para el modal "Convertir a GRE", con
--- el último correlativo usado y el siguiente a reservar (mismo criterio que
--- doc_convertir_a_gre: MAX(numero_sunat) por serie, incluyendo anuladas, para
--- no reutilizar números). Equivale a ven_obtener_siguiente_numero de boletas,
--- pero devolviendo todas las series ya usadas para elegirlas en un select.
---
--- El tipo de guía define el prefijo SUNAT: 09 GRE Remitente → T###,
--- 31 GRE Transportista → V###. Si la serie por defecto (T002 / V001) aún no
--- se ha usado, se ofrece con correlativo 00000001.
--- T002 se ofrece primero para nuevas guías; las existentes conservan su serie.
-DROP FUNCTION IF EXISTS doc_listar_series_gre(p_id_tipo_guia_remision integer);
+-- Lista las series de guía de remisión (V o T según tipo) con su último número
+DROP FUNCTION IF EXISTS public.doc_listar_series_gre (p_id_tipo_guia_remision integer);
 
-CREATE OR REPLACE FUNCTION doc_listar_series_gre(p_id_tipo_guia_remision integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_listar_series_gre (
+  p_id_tipo_guia_remision integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_codigo_tipo VARCHAR;
     v_prefijo VARCHAR;
@@ -29,7 +19,6 @@ BEGIN
         WHERE lo.id = p_id_tipo_guia_remision;
     END IF;
 
-    -- Sin tipo (o tipo desconocido) se asume remitente, el caso habitual.
     v_prefijo := CASE WHEN v_codigo_tipo = '31' THEN 'V' ELSE 'T' END;
     v_serie_default := CASE WHEN v_codigo_tipo = '31' THEN 'V001' ELSE 'T002' END;
 

@@ -1,13 +1,10 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: tra_eliminar_trabajador
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.965Z
-DROP FUNCTION IF EXISTS tra_eliminar_trabajador(p_id integer, p_id_usuario_auditoria integer);
+-- Elimina (lógicamente) trabajador
+DROP FUNCTION IF EXISTS public.tra_eliminar_trabajador (p_id integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION tra_eliminar_trabajador(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.tra_eliminar_trabajador (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -21,7 +18,6 @@ BEGIN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id);
     END IF;
 
-    -- Borrado lógico del usuario de acceso vinculado (si existe)
     UPDATE auth_usuarios
     SET estado = FALSE,
         fecha_modificacion = NOW()

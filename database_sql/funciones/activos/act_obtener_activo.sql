@@ -1,13 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: act_obtener_activo
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.941Z
-DROP FUNCTION IF EXISTS act_obtener_activo(p_id integer);
+-- Obtiene activo por id
+DROP FUNCTION IF EXISTS public.act_obtener_activo (p_id integer);
 
-CREATE OR REPLACE FUNCTION act_obtener_activo(p_id integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.act_obtener_activo (p_id integer) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registro JSON;
 BEGIN

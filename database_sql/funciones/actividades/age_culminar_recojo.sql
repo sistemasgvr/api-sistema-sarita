@@ -1,22 +1,15 @@
--- Function: age_culminar_recojo
--- Cierra el recojo como REALIZADA tras verificar lo recogido y elige almacén
--- destino. Devuelve cada cilindro del préstamo al almacén indicado y, en un
--- recojo de alquiler, reingresa el regulador/accesorio.
---
--- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
--- el alquiler ya no tiene detalle de cilindros (bal_alquiler_detalle eliminada);
--- el ítem de alquiler es siempre el regulador (sin balón).
+-- Cierra un recojo como REALIZADA y devuelve lo recogido al almacén destino
+DROP FUNCTION IF EXISTS public.age_culminar_recojo (
+  p_id integer,
+  p_id_almacen_destino integer,
+  p_id_usuario_auditoria integer
+);
 
-DROP FUNCTION IF EXISTS age_culminar_recojo(integer, integer, integer);
-
-CREATE OR REPLACE FUNCTION age_culminar_recojo(
-    p_id integer,
-    p_id_almacen_destino integer,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_culminar_recojo (
+  p_id integer,
+  p_id_almacen_destino integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_act            RECORD;
     v_nombre_estado  VARCHAR;
@@ -125,8 +118,6 @@ BEGIN
     FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
     WHERE l.nombre = 'EstadoVerificacionItem' AND lo.nombre = 'CON_OBSERVACION' AND lo.estado = 1 LIMIT 1;
 
-    -- En recojo el momento de verificación operativa es LLEGADA (= recogido
-    -- confirmado). Las observaciones leves no bloquean.
     SELECT COUNT(*) FILTER (
         WHERE ai.id_estado_verificacion_llegada IS DISTINCT FROM v_id_ok
           AND ai.id_estado_verificacion_llegada IS DISTINCT FROM v_id_observado
@@ -157,9 +148,6 @@ BEGIN
         RETURN json_build_object('error', 'No hay ítems de devolución para culminar el recojo', 'registro', NULL);
     END IF;
 
-    -- Devuelve cada cilindro al almacén elegido.
-    -- Cualquier error de bal_devolver_* aborta con RAISE para revertir
-    -- devoluciones parciales ya aplicadas en esta misma transacción.
     FOR v_item IN
         SELECT ai.id, ai.id_balon, ai.id_prestamo_detalle,
                ai.id_producto, ai.observacion_llegada
@@ -168,21 +156,6 @@ BEGIN
         ORDER BY ai.item
     LOOP
         IF v_item.id_prestamo_detalle IS NOT NULL THEN
-            -- TODO: p_nombre_estado_contenido va fijo en 'VACIO'. Si el cilindro
-            -- vuelve con contenido (gas remanente), esto no lo registra ni ajusta
-            -- el stock: bal_prestamo_aplicar_retorno_cilindro recibe el parámetro
-            -- pero nunca lo usa (ver TODO ahí). Falta: (1) capturar el contenido
-            -- real por ítem al verificar la llegada del recojo (age_actividad_item
-            -- no tiene ese dato hoy), y (2) con LLENO, generar un movimiento
-            -- inv_registrar_movimiento(naturaleza=>'PRODUCTO',
-            -- codigo_tipo_movimiento=>'AJUSTE', sentido_ajuste=>'MAS') por el gas
-            -- devuelto. Para referenciar que el ajuste viene de este recojo:
-            -- inv_registrar_movimiento ya soporta p_codigo_tipo_documento_origen +
-            -- p_id_documento_origen (catálogo TipoDocumentoRef), pero ese catálogo
-            -- no tiene 'ACTIVIDAD' ni 'RECOJO' todavía — hay que agregarlo, o
-            -- reutilizar 'PRESTAMO' + id_prestamo como ya hace el movimiento
-            -- ENTRADA_DEVOLUCION del propio cilindro un poco más abajo en la
-            -- cadena (bal_prestamo_aplicar_retorno_cilindro).
             v_dev := bal_devolver_prestamo_detalle(
                 p_id                       => v_item.id_prestamo_detalle,
                 p_fecha_devolucion         => CURRENT_DATE,
@@ -199,10 +172,6 @@ BEGIN
         ELSIF v_item.id_balon IS NULL
               AND v_item.id_producto IS NOT NULL
               AND v_act.id_alquiler IS NOT NULL THEN
-            -- Regulador/accesorio del alquiler (ítem sin balón).
-            -- bal_devolver_regulador_alquiler NO acepta p_id_almacen_destino:
-            -- reingresa stock con bal_alquiler.id_almacen. Si es NULL, falla
-            -- en claro en lugar de marcar REALIZADA sin reingreso.
             SELECT a.id_almacen INTO v_id_almacen_alq
             FROM bal_alquiler a
             WHERE a.id = v_act.id_alquiler AND a.estado = 1;
@@ -243,7 +212,6 @@ BEGIN
     RETURN age_obtener_actividad(p_id);
 EXCEPTION
     WHEN OTHERS THEN
-        -- Revierte devoluciones parciales del loop y expone el error al API.
         RETURN json_build_object('error', SQLERRM, 'registro', NULL);
 END;
 $function$;

@@ -1,13 +1,11 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: dash_ventas_del_dia
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.957Z
-DROP FUNCTION IF EXISTS dash_ventas_del_dia(p_fecha date, p_limite integer, p_offset integer);
+-- Dashboard: monto total y lista paginada de comprobantes de una fecha
+DROP FUNCTION IF EXISTS public.dash_ventas_del_dia (p_fecha date, p_limite integer, p_offset integer);
 
-CREATE OR REPLACE FUNCTION dash_ventas_del_dia(p_fecha date DEFAULT CURRENT_DATE, p_limite integer DEFAULT 20, p_offset integer DEFAULT 0)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.dash_ventas_del_dia (
+  p_fecha date DEFAULT CURRENT_DATE,
+  p_limite integer DEFAULT 20,
+  p_offset integer DEFAULT 0
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_total_monto NUMERIC(12,4) := 0;
     v_total_registros BIGINT := 0;

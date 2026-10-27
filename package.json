@@ -19,7 +19,9 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:e2e-api": "playwright test",
-    "test:e2e-api:report": "playwright show-report"
+    "test:e2e-api:report": "playwright show-report",
+    "test:db-scripts": "node --test \"database_sql/scripts/lib/*.test.js\"",
+    "format:sql": "node database_sql/scripts/formatear-sql.js"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
@@ -74,6 +76,7 @@
     "jest": "^30.0.0",
     "prettier": "^3.4.2",
     "source-map-support": "^0.5.21",
+    "sql-formatter": "^15.9.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
     "ts-loader": "^9.5.2",

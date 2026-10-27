@@ -1,13 +1,19 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_verificar_duplicado_pago
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.960Z
-DROP FUNCTION IF EXISTS fin_verificar_duplicado_pago(p_id_cuenta integer, p_fecha_pago date, p_monto numeric, p_dias_ventana integer, p_numero_comprobante character varying);
+-- Detecta posibles pagos duplicados de una cuenta por monto, fecha o comprobante
+DROP FUNCTION IF EXISTS public.fin_verificar_duplicado_pago (
+  p_id_cuenta integer,
+  p_fecha_pago date,
+  p_monto numeric,
+  p_dias_ventana integer,
+  p_numero_comprobante character varying
+);
 
-CREATE OR REPLACE FUNCTION fin_verificar_duplicado_pago(p_id_cuenta integer, p_fecha_pago date, p_monto numeric, p_dias_ventana integer DEFAULT 7, p_numero_comprobante character varying DEFAULT NULL::character varying)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_verificar_duplicado_pago (
+  p_id_cuenta integer,
+  p_fecha_pago date,
+  p_monto numeric,
+  p_dias_ventana integer DEFAULT 7,
+  p_numero_comprobante character varying DEFAULT NULL::character varying
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_cuenta           fin_cuenta%ROWTYPE;
     v_id_tercero       INT;
@@ -41,7 +47,6 @@ BEGIN
         v_cuenta.numero_comprobante
     )), '');
 
-    -- 1) MISMO COMPROBANTE al mismo tercero (independiente del monto) → alta
     IF v_comp IS NOT NULL THEN
         SELECT
             p.id,
@@ -94,7 +99,6 @@ BEGIN
         END IF;
     END IF;
 
-    -- 2) DUPLICADO EXACTO: mismo tercero + monto + fecha
     SELECT p.id, p.fecha_pago, p.monto, c.numero_comprobante, c.id AS id_cuenta
       INTO v_pago_exacto
     FROM fin_pago p
@@ -128,7 +132,6 @@ BEGIN
         );
     END IF;
 
-    -- 3) DUPLICADO PROBABLE: mismo tercero + mismo monto en la ventana de días
     SELECT p.id, p.fecha_pago, p.monto, c.id AS id_cuenta
       INTO v_pago_probable
     FROM fin_pago p

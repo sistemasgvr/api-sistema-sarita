@@ -1,16 +1,10 @@
--- Function: age_cancelar_actividad
---
--- Cancela la actividad. Para REPARTO, el camino de vuelta de custodia es
--- EN_TRANSITO → PENDIENTE_ENVIO (NO DISPONIBLE): la OS sigue vigente y sigue
--- dueña de la reserva; cancelar el viaje no libera el cilindro al stock
--- vendible. La liberación a DISPONIBLE ocurre al anular la OS
--- (doc_anular_salida).
-DROP FUNCTION IF EXISTS age_cancelar_actividad(p_id integer, p_id_usuario_auditoria integer);
+-- Cancela una actividad; en un reparto devuelve los cilindros a pendiente de envío
+DROP FUNCTION IF EXISTS public.age_cancelar_actividad (p_id integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION age_cancelar_actividad(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_cancelar_actividad (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_estado_cancelada INTEGER;
     v_id_estado_actual INTEGER;
@@ -61,22 +55,6 @@ BEGIN
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;
 
-    -- ------------------------------------------------------------
-    -- Camino de vuelta de la custodia: EN_TRANSITO -> PENDIENTE_ENVIO
-    --
-    -- Si se cancela un reparto que ya habia salido, los cilindros vuelven a
-    -- estar comprometidos pero sin viaje en curso. Sin esto quedarian en
-    -- transito para siempre, que es justo el atasco que ya sufrio
-    -- PENDIENTE_ENVIO por no tener salida.
-    --
-    -- IMPORTANTE: cancelar REPARTO NO pone DISPONIBLE. Si la OS sigue activa,
-    -- los balones de sus items (via id_doc_salida / id_balon) permanecen en
-    -- PENDIENTE_ENVIO: la orden sigue dueña de la reserva. Solo
-    -- doc_anular_salida libera a DISPONIBLE.
-    --
-    -- Se filtra por el estado actual del cilindro y no por el de la actividad:
-    -- asi es idempotente y no toca cilindros que ya siguieron otro camino.
-    -- ------------------------------------------------------------
     SELECT lo.id INTO v_id_transito
     FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
     WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'EN_TRANSITO' AND lo.estado = 1
@@ -95,8 +73,6 @@ BEGIN
     IF v_id_transito IS NOT NULL AND v_id_pend_envio IS NOT NULL THEN
         UPDATE bal_balon b
         SET id_estado_balon = v_id_pend_envio,
-            -- age_iniciar_entrega deja id_almacen NULL al subir al camion;
-            -- al cancelar, el cilindro vuelve al almacen de la OS si se conoce.
             id_almacen = COALESCE(v_id_almacen_os, b.id_almacen),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()

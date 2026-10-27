@@ -1,13 +1,10 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: pro_restaurar_producto
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.965Z
-DROP FUNCTION IF EXISTS pro_restaurar_producto(p_id integer, p_id_usuario_auditoria integer);
+-- Restaura producto eliminado
+DROP FUNCTION IF EXISTS public.pro_restaurar_producto (p_id integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION pro_restaurar_producto(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.pro_restaurar_producto (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_estado INTEGER;
 BEGIN

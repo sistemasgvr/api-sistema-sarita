@@ -1,15 +1,10 @@
--- Fase 2 — quita una línea de un documento de salida que todavía está en
--- BORRADOR. Simétrica a doc_crear_salida_detalle: mismas dos guardas (estado
--- BORRADOR, sin id_venta) porque en BORRADOR ninguna línea generó movimiento
--- todavía (eso lo hace doc_generar_salida), así que no hay nada que revertir
--- en inv_movimiento — a diferencia de com_eliminar_compra_detalle, que sí
--- puede estar borrando una línea ya facturada/con stock movido.
-DROP FUNCTION IF EXISTS doc_eliminar_salida_detalle(p_id integer, p_id_usuario_auditoria integer);
+-- Elimina (lógicamente) salida detalle
+DROP FUNCTION IF EXISTS public.doc_eliminar_salida_detalle (p_id integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION doc_eliminar_salida_detalle(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_eliminar_salida_detalle (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_det RECORD;
 BEGIN

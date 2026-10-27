@@ -1,5 +1,7 @@
--- Valida también los ítems agregados mediante edición y la materialización de recojos antiguos.
-CREATE OR REPLACE FUNCTION age_validar_item_recojo() RETURNS trigger LANGUAGE plpgsql AS $function$
+-- Trigger: valida que el balón de un ítem de recojo esté prestado en el préstamo
+DROP FUNCTION IF EXISTS public.age_validar_item_recojo ();
+
+CREATE OR REPLACE FUNCTION public.age_validar_item_recojo () RETURNS trigger LANGUAGE plpgsql AS $function$
 DECLARE v_prestamo integer;
 BEGIN
     IF NEW.estado <> 1 OR NEW.id_balon IS NULL THEN RETURN NEW; END IF;
@@ -15,9 +17,6 @@ BEGIN
         WHERE pd.id = NEW.id_prestamo_detalle AND pd.id_prestamo = v_prestamo
           AND pd.id_balon = NEW.id_balon AND pd.estado = 1 AND pd.rol = 'ENTREGADO'
           AND pd.fecha_devolucion IS NULL AND p.fecha_retorno_real IS NULL
-          -- Mismo criterio que age_balones_disponibles_recojo: el cilindro está
-          -- con el cliente tanto si salió por el préstamo (PRESTADO_CLIENTE)
-          -- como si la entrega se confirmó (EN_PODER_CLIENTE).
           AND b.id_cliente_ubicacion = p.id_cliente
           AND UPPER(TRIM(eb.nombre)) IN ('EN_PODER_CLIENTE', 'PRESTADO_CLIENTE')) THEN
         RAISE EXCEPTION 'El balón no está entregado y pendiente de devolución en este préstamo.';
@@ -34,6 +33,3 @@ BEGIN
     RETURN NEW;
 END;
 $function$;
-DROP TRIGGER IF EXISTS trg_age_item_recojo ON age_actividad_item;
-CREATE TRIGGER trg_age_item_recojo BEFORE INSERT OR UPDATE OF id_balon, id_prestamo_detalle, id_actividad, estado
-ON age_actividad_item FOR EACH ROW EXECUTE FUNCTION age_validar_item_recojo();

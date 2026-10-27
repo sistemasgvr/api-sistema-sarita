@@ -1,21 +1,10 @@
--- Function: age_culminar_entrega
--- Source: migraciones/20260909_age_culminar_entrega_custodia.sql
---
--- Actualizada por database_sql/migraciones/20260910_age_custodia_recojo_candado.sql:
---   · se exige el juego COMPLETO de cilindros en custodia, igual que
---     age_iniciar_entrega. Con "al menos uno" bastaba un cilindro en tránsito
---     para cerrar la entrega y los demás quedaban colgados en su estado previo;
---   · el descuadre posterior al UPDATE es RAISE (rollback), no error soft.
+-- Cierra una entrega como REALIZADA verificando la custodia de los cilindros
+DROP FUNCTION IF EXISTS public.age_culminar_entrega (p_id integer, p_id_usuario_auditoria integer);
 
-DROP FUNCTION IF EXISTS age_culminar_entrega(integer, integer);
-
-CREATE OR REPLACE FUNCTION age_culminar_entrega(
-    p_id integer,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_culminar_entrega (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_act            RECORD;
     v_nombre_estado  VARCHAR;
@@ -48,8 +37,6 @@ BEGIN
 
     v_nombre_estado := v_act.nombre_estado;
 
-    -- Culminar exige haber pasado por EN_RUTA: si no, la verificacion de salida
-    -- nunca se exigio y la de llegada no prueba nada.
     IF COALESCE(v_nombre_estado, '') <> 'EN_RUTA' THEN
         RETURN json_build_object(
             'error', 'Solo se puede culminar una entrega que este EN_RUTA',
@@ -86,8 +73,6 @@ BEGIN
         );
     END IF;
 
-    -- Se acota a la lista EstadoActividad: buscar 'realizada' suelto puede
-    -- traer la opcion homonima de otra lista.
     SELECT lo.id INTO v_id_realizada
     FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
     WHERE (l.nombre = 'EstadoActividad' OR l.id = 49)
@@ -122,20 +107,11 @@ BEGIN
         );
     END IF;
 
-    -- CON_OBSERVACION no bloquea: un arañazo o detalle leve queda en la
-    -- bitacora y en el item, pero la entrega puede culminarse.
-
-    -- ------------------------------------------------------------
-    -- Cierre de custodia: EN_TRANSITO / PENDIENTE_ENVIO -> EN_PODER_CLIENTE
-    -- ------------------------------------------------------------
     SELECT lo.id INTO v_id_pend_envio
     FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
     WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'PENDIENTE_ENVIO' AND lo.estado = 1
     LIMIT 1;
 
-    -- Lo normal es venir de EN_TRANSITO (lo puso iniciar entrega), pero se
-    -- acepta tambien PENDIENTE_ENVIO: hay actividades anteriores a que
-    -- existiera el transito, y el catalogo podria faltar en alguna instalacion.
     SELECT lo.id INTO v_id_transito
     FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
     WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'EN_TRANSITO' AND lo.estado = 1
@@ -171,9 +147,6 @@ BEGIN
     LEFT JOIN bal_balon b ON b.id = ai.id_balon AND b.estado = 1
     WHERE ai.id_actividad = p_id AND ai.estado = 1;
 
-    -- Accesorios-only: sin cilindros no se exige custodia.
-    -- Con cilindros se exige que TODOS esten en custodia (no "al menos uno"):
-    -- cerrar con un subconjunto dejaba al resto fuera de EN_PODER_CLIENTE.
     IF v_cilindros_tot > 0 AND v_cilindros_esp < v_cilindros_tot THEN
         RETURN json_build_object(
             'error', format(
@@ -186,11 +159,8 @@ BEGIN
         );
     END IF;
 
-    -- Custodia primero: si falla, la actividad no queda REALIZADA a medias.
     UPDATE bal_balon b
     SET id_estado_balon = v_id_en_poder,
-        -- Un cilindro en poder del cliente sin cliente_ubicacion seria un
-        -- estado roto; si la venta ya lo apunto, se respeta.
         id_cliente_ubicacion = COALESCE(b.id_cliente_ubicacion, v_act.id_cliente),
         id_almacen = NULL,
         id_usuario_modificacion = p_id_usuario_auditoria,
@@ -204,8 +174,6 @@ BEGIN
 
     GET DIAGNOSTICS v_cilindros_upd = ROW_COUNT;
 
-    -- El UPDATE ya corrió: un error soft aquí confirmaría los cilindros que sí
-    -- cambiaron y dejaría la entrega cerrada a medias.
     IF v_cilindros_esp > 0 AND v_cilindros_upd <> v_cilindros_esp THEN
         RAISE EXCEPTION
             'No se actualizaron todos los cilindros a EN_PODER_CLIENTE (se esperaban %, se actualizaron %)',

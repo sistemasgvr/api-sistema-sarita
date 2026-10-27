@@ -1,22 +1,21 @@
--- Function: fin_reembolsar_garantia
--- Fase 3: el reembolso lleva su propia cuenta bancaria. No tiene por qué ser la
--- misma por la que entró: el cliente pudo pagar por Yape y pedir la devolución
--- por transferencia.
+-- Registra el reembolso de una garantía con su medio y cuenta bancaria
+DROP FUNCTION IF EXISTS public.fin_reembolsar_garantia (
+  p_id integer,
+  p_fecha_reembolso date,
+  p_id_medio_reembolso integer,
+  p_observacion_reembolso character varying,
+  p_id_usuario integer,
+  p_id_cuenta_bancaria_reembolso integer
+);
 
-DROP FUNCTION IF EXISTS fin_reembolsar_garantia(p_id integer, p_fecha_reembolso date, p_id_medio_reembolso integer, p_observacion_reembolso character varying, p_id_usuario integer);
-DROP FUNCTION IF EXISTS fin_reembolsar_garantia(p_id integer, p_fecha_reembolso date, p_id_medio_reembolso integer, p_observacion_reembolso character varying, p_id_usuario integer, p_id_cuenta_bancaria_reembolso integer);
-
-CREATE OR REPLACE FUNCTION fin_reembolsar_garantia(
-    p_id integer,
-    p_fecha_reembolso date,
-    p_id_medio_reembolso integer,
-    p_observacion_reembolso character varying DEFAULT NULL::character varying,
-    p_id_usuario integer DEFAULT NULL::integer,
-    p_id_cuenta_bancaria_reembolso integer DEFAULT NULL::integer
-)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_reembolsar_garantia (
+  p_id integer,
+  p_fecha_reembolso date,
+  p_id_medio_reembolso integer,
+  p_observacion_reembolso character varying DEFAULT NULL::character varying,
+  p_id_usuario integer DEFAULT NULL::integer,
+  p_id_cuenta_bancaria_reembolso integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_garantia  fin_garantia%ROWTYPE;
     v_id_devuelta INT;

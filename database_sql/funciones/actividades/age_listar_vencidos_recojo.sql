@@ -1,15 +1,17 @@
+-- Lista vencidos recojo con filtros y paginación
+DROP FUNCTION IF EXISTS public.age_listar_vencidos_recojo (
+  p_busqueda character varying,
+  p_limite integer,
+  p_offset integer,
+  p_incluir_no_vencidos boolean
+);
 
-DROP FUNCTION IF EXISTS age_listar_vencidos_recojo(character varying, integer, integer, boolean);
-
-CREATE OR REPLACE FUNCTION age_listar_vencidos_recojo(
-    p_busqueda character varying DEFAULT ''::character varying,
-    p_limite integer DEFAULT 30,
-    p_offset integer DEFAULT 0,
-    p_incluir_no_vencidos boolean DEFAULT FALSE
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_listar_vencidos_recojo (
+  p_busqueda character varying DEFAULT ''::character varying,
+  p_limite integer DEFAULT 30,
+  p_offset integer DEFAULT 0,
+  p_incluir_no_vencidos boolean DEFAULT FALSE
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_busqueda VARCHAR := LOWER(TRIM(COALESCE(p_busqueda, '')));
     v_rows JSON;
@@ -39,9 +41,6 @@ BEGIN
             ) AS nombre_cliente,
             p.fecha_retorno_pactada AS fecha_pactada,
             (CURRENT_DATE - p.fecha_retorno_pactada)::INTEGER AS dias_vencido,
-            -- Cilindros entregados aún con el cliente, sin importar si ya están
-            -- reservados por un recojo abierto (age_balones_disponibles_recojo
-            -- los excluye y daba 0 en pantalla).
             (
                 SELECT COUNT(*)::INTEGER
                 FROM bal_prestamo_detalle pd
@@ -86,7 +85,6 @@ BEGIN
             ),
             a.fecha_fin_pactada,
             (CURRENT_DATE - a.fecha_fin_pactada)::INTEGER,
-            -- El alquiler no lleva cilindros (van por préstamo).
             0::INTEGER,
             (
                 SELECT COUNT(*)::INTEGER
@@ -118,9 +116,6 @@ BEGIN
            OR gen_texto_coincide(nombre_cliente, v_busqueda)
            OR LOWER(origen) LIKE '%' || v_busqueda || '%'
     )
-    -- Total y página en la MISMA sentencia: un CTE solo vive dentro de la
-    -- sentencia que lo declara (el segundo SELECT fallaba con
-    -- «relation "filtrado" does not exist»).
     SELECT
         (SELECT COUNT(*) FROM filtrado),
         (

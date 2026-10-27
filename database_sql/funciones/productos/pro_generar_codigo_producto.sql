@@ -1,13 +1,9 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: pro_generar_codigo_producto
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.964Z
-DROP FUNCTION IF EXISTS pro_generar_codigo_producto(p_prefijo character varying);
+-- Genera el siguiente código de producto con el prefijo indicado
+DROP FUNCTION IF EXISTS public.pro_generar_codigo_producto (p_prefijo character varying);
 
-CREATE OR REPLACE FUNCTION pro_generar_codigo_producto(p_prefijo character varying DEFAULT 'PRO'::character varying)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.pro_generar_codigo_producto (
+  p_prefijo character varying DEFAULT 'PRO'::character varying
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_prefijo VARCHAR(10);
     v_siguiente INTEGER;

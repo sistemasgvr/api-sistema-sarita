@@ -1,13 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: age_listar_actividades_proximas
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.941Z
-DROP FUNCTION IF EXISTS age_listar_actividades_proximas(p_minutos_adelante integer);
+-- Lista las actividades de hoy que inician en los próximos minutos indicados
+DROP FUNCTION IF EXISTS public.age_listar_actividades_proximas (p_minutos_adelante integer);
 
-CREATE OR REPLACE FUNCTION age_listar_actividades_proximas(p_minutos_adelante integer DEFAULT 60)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_listar_actividades_proximas (p_minutos_adelante integer DEFAULT 60) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registros JSON;
     v_ahora TIME;

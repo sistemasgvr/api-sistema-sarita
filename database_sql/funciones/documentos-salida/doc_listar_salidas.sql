@@ -1,43 +1,39 @@
-﻿-- Function: doc_listar_salidas
--- Source: migraciones/20260908_age_id_doc_salida_y_ordenes_disponibles.sql
---
--- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
---   · p_id_proveedor: filtra órdenes de planta por proveedor (el selector de
---     Compras solo debe ofrecer las del proveedor de la factura);
---   · p_codigo_estado_ciclo: uno o varios códigos de EstadoCicloSalida
---     separados por coma (p. ej. 'GENERADA,EMITIDA_SUNAT') para excluir
---     borradores/anuladas sin resolver ids en el cliente;
---   · total_cilindros / total_productos: total_items mezclaba líneas de balón
---     y de gas y se mostraba como "N cilindros".
---   Ambos parámetros van al final: las llamadas posicionales no cambian.
---
--- Actualizada por database_sql/migraciones/20260910_retorno_fisico_fecha_ph.sql:
---   retorno_fisico: el listado de recargas marcaba "RETORNADO" con solo
---   fecha_llegada_almacen, que no implica que los cilindros hayan entrado.
+-- Lista salidas con filtros y paginación
+DROP FUNCTION IF EXISTS public.doc_listar_salidas (
+  p_busqueda character varying,
+  p_limite integer,
+  p_offset integer,
+  p_id_tipo_orden integer,
+  p_id_estado_ciclo integer,
+  p_id_sucursal integer,
+  p_id_almacen integer,
+  p_id_cliente integer,
+  p_emitido_sunat boolean,
+  p_fecha_desde date,
+  p_fecha_hasta date,
+  p_codigo_tipo_orden character varying,
+  p_sin_actividad_vigente boolean,
+  p_id_proveedor integer,
+  p_codigo_estado_ciclo character varying
+);
 
-DROP FUNCTION IF EXISTS doc_listar_salidas(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_orden integer, p_id_estado_ciclo integer, p_id_sucursal integer, p_id_almacen integer, p_id_cliente integer, p_emitido_sunat boolean, p_fecha_desde date, p_fecha_hasta date, p_codigo_tipo_orden character varying);
-DROP FUNCTION IF EXISTS doc_listar_salidas(p_busqueda character varying, p_limite integer, p_offset integer, p_id_tipo_orden integer, p_id_estado_ciclo integer, p_id_sucursal integer, p_id_almacen integer, p_id_cliente integer, p_emitido_sunat boolean, p_fecha_desde date, p_fecha_hasta date, p_codigo_tipo_orden character varying, p_sin_actividad_vigente boolean);
-
-CREATE OR REPLACE FUNCTION doc_listar_salidas(
-    p_busqueda character varying DEFAULT ''::character varying,
-    p_limite integer DEFAULT 10,
-    p_offset integer DEFAULT 0,
-    p_id_tipo_orden integer DEFAULT NULL::integer,
-    p_id_estado_ciclo integer DEFAULT NULL::integer,
-    p_id_sucursal integer DEFAULT NULL::integer,
-    p_id_almacen integer DEFAULT NULL::integer,
-    p_id_cliente integer DEFAULT NULL::integer,
-    p_emitido_sunat boolean DEFAULT NULL::boolean,
-    p_fecha_desde date DEFAULT NULL::date,
-    p_fecha_hasta date DEFAULT NULL::date,
-    p_codigo_tipo_orden character varying DEFAULT NULL::character varying,
-    p_sin_actividad_vigente boolean DEFAULT NULL::boolean,
-    p_id_proveedor integer DEFAULT NULL::integer,
-    p_codigo_estado_ciclo character varying DEFAULT NULL::character varying
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_listar_salidas (
+  p_busqueda character varying DEFAULT ''::character varying,
+  p_limite integer DEFAULT 10,
+  p_offset integer DEFAULT 0,
+  p_id_tipo_orden integer DEFAULT NULL::integer,
+  p_id_estado_ciclo integer DEFAULT NULL::integer,
+  p_id_sucursal integer DEFAULT NULL::integer,
+  p_id_almacen integer DEFAULT NULL::integer,
+  p_id_cliente integer DEFAULT NULL::integer,
+  p_emitido_sunat boolean DEFAULT NULL::boolean,
+  p_fecha_desde date DEFAULT NULL::date,
+  p_fecha_hasta date DEFAULT NULL::date,
+  p_codigo_tipo_orden character varying DEFAULT NULL::character varying,
+  p_sin_actividad_vigente boolean DEFAULT NULL::boolean,
+  p_id_proveedor integer DEFAULT NULL::integer,
+  p_codigo_estado_ciclo character varying DEFAULT NULL::character varying
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registros JSON;
     v_total BIGINT;
@@ -46,7 +42,6 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    -- 'GENERADA,EMITIDA_SUNAT' -> {GENERADA,EMITIDA_SUNAT}; vacío = sin filtro.
     IF NULLIF(TRIM(COALESCE(p_codigo_estado_ciclo, '')), '') IS NOT NULL THEN
         SELECT array_agg(UPPER(TRIM(x))) FILTER (WHERE TRIM(x) <> '')
         INTO v_estados_ciclo
@@ -109,8 +104,6 @@ BEGIN
             d.emitido_sunat,
             d.serie, d.numero_sunat,
             d.id_estado_sunat, es.nombre AS nombre_estado_sunat,
-            -- El menú de la fila decide con esto si ofrece «Consultar estado SUNAT»
-            -- o «Emitir» (mismo criterio que el detalle, doc_obtener_salida).
             d.ticket_sunat,
             (SELECT i.estado FROM doc_gre_intento i WHERE i.id_doc_salida = d.id ORDER BY i.id DESC LIMIT 1) AS gre_estado_envio,
             d.id_venta, vc.serie AS serie_venta, vc.numero AS numero_venta,
@@ -119,8 +112,6 @@ BEGIN
             d.id_almacen, alm.nombre AS nombre_almacen,
             d.id_almacen_destino, almdest.nombre AS nombre_almacen_destino,
             d.id_almacen_retorno, almret.nombre AS nombre_almacen_retorno,
-            -- Retorno físico: los envases de la orden tienen su entrada
-            -- vigente. La fecha de llegada sola no mueve inventario.
             EXISTS (
                 SELECT 1
                 FROM inv_movimiento m
@@ -154,7 +145,6 @@ BEGIN
                     WHERE dd.id_doc_salida = d.id AND dd.estado = 1
                 )
             END AS total_items,
-            -- Solo líneas propias: en órdenes desde venta el detalle vive en la venta.
             (
                 SELECT COUNT(*) FROM doc_salida_detalle dd
                 WHERE dd.id_doc_salida = d.id AND dd.estado = 1 AND dd.id_balon IS NOT NULL
@@ -215,4 +205,3 @@ BEGIN
     RETURN json_build_object('registros', v_registros, 'total', v_total, 'resumen', v_resumen);
 END;
 $function$;
-

@@ -1,32 +1,60 @@
--- Table: doc_gre_intento
--- Creada por 20260916_gre_fecha_e_intentos.sql; ampliada por
--- 20260916_gre_p0_fiscal_numeracion_entorno.sql (empresa, entorno, consultas).
---
--- Cada envío de GRE al PSE queda registrado ANTES de contactar al proveedor,
--- con la empresa, el RUC y el entorno (beta/produccion) con los que salió.
--- El índice parcial garantiza un solo intento abierto por documento: dos
--- solicitudes concurrentes producen un único envío.
-
-CREATE TABLE doc_gre_intento (
-    id bigserial PRIMARY KEY,
-    id_doc_salida integer NOT NULL REFERENCES doc_salida(id),
-    estado text NOT NULL CHECK (estado IN ('ENVIANDO','POR_CONFIRMAR','PENDIENTE','ACEPTADO','RECHAZADO')),
-    solicitud jsonb NOT NULL,
-    documento jsonb NOT NULL,
-    respuesta jsonb,
-    id_usuario integer,
-    id_empresa integer REFERENCES gen_empresa(id),
-    ruc_emisor varchar(11),
-    entorno text,
-    id_empresa_pse integer,
-    consultas integer NOT NULL DEFAULT 0,
-    proxima_consulta timestamptz,
-    creado timestamptz NOT NULL DEFAULT now(),
-    actualizado timestamptz NOT NULL DEFAULT now()
+-- Intentos de envío de guías de remisión al proveedor con solicitud y respuesta
+CREATE TABLE public.doc_gre_intento (
+  id bigint NOT NULL,
+  id_doc_salida integer NOT NULL,
+  estado text NOT NULL,
+  solicitud jsonb NOT NULL,
+  documento jsonb NOT NULL,
+  respuesta jsonb,
+  id_usuario integer,
+  creado timestamp with time zone DEFAULT now() NOT NULL,
+  actualizado timestamp with time zone DEFAULT now() NOT NULL,
+  id_empresa integer,
+  ruc_emisor character varying(11),
+  entorno text,
+  id_empresa_pse integer,
+  consultas integer DEFAULT 0 NOT NULL,
+  proxima_consulta timestamp with time zone,
+  CONSTRAINT doc_gre_intento_estado_check CHECK (
+    (
+      estado = ANY (
+        ARRAY[
+          'ENVIANDO'::text,
+          'POR_CONFIRMAR'::text,
+          'PENDIENTE'::text,
+          'ACEPTADO'::text,
+          'RECHAZADO'::text
+        ]
+      )
+    )
+  )
 );
 
-CREATE UNIQUE INDEX uq_doc_gre_intento_abierto ON doc_gre_intento(id_doc_salida)
-WHERE estado <> 'RECHAZADO';
+CREATE SEQUENCE public.doc_gre_intento_id_seq START
+WITH
+  1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
 
-CREATE INDEX ix_doc_gre_intento_pendientes ON doc_gre_intento(proxima_consulta)
-WHERE estado IN ('PENDIENTE', 'POR_CONFIRMAR');
+ALTER SEQUENCE public.doc_gre_intento_id_seq OWNED BY public.doc_gre_intento.id;
+
+ALTER TABLE ONLY public.doc_gre_intento
+ALTER COLUMN id
+SET DEFAULT nextval('public.doc_gre_intento_id_seq'::regclass);
+
+ALTER TABLE ONLY public.doc_gre_intento
+ADD CONSTRAINT doc_gre_intento_pkey PRIMARY KEY (id);
+
+CREATE INDEX ix_doc_gre_intento_pendientes ON public.doc_gre_intento USING btree (proxima_consulta)
+WHERE
+  (
+    estado = ANY (ARRAY['PENDIENTE'::text, 'POR_CONFIRMAR'::text])
+  );
+
+CREATE UNIQUE INDEX uq_doc_gre_intento_abierto ON public.doc_gre_intento USING btree (id_doc_salida)
+WHERE
+  (estado <> 'RECHAZADO'::text);
+
+ALTER TABLE ONLY public.doc_gre_intento
+ADD CONSTRAINT doc_gre_intento_id_doc_salida_fkey FOREIGN KEY (id_doc_salida) REFERENCES public.doc_salida (id);
+
+ALTER TABLE ONLY public.doc_gre_intento
+ADD CONSTRAINT doc_gre_intento_id_empresa_fkey FOREIGN KEY (id_empresa) REFERENCES public.gen_empresa (id);

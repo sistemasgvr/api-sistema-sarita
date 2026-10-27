@@ -1,13 +1,17 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: com_sincronizar_cxp_compra
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.954Z
-DROP FUNCTION IF EXISTS com_sincronizar_cxp_compra(p_id_comprobante integer, p_id_usuario_auditoria integer, p_fecha_vencimiento date, p_cuotas jsonb);
+-- Crea, actualiza o elimina la cuenta por pagar según la condición de la compra
+DROP FUNCTION IF EXISTS public.com_sincronizar_cxp_compra (
+  p_id_comprobante integer,
+  p_id_usuario_auditoria integer,
+  p_fecha_vencimiento date,
+  p_cuotas jsonb
+);
 
-CREATE OR REPLACE FUNCTION com_sincronizar_cxp_compra(p_id_comprobante integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_fecha_vencimiento date DEFAULT NULL::date, p_cuotas jsonb DEFAULT NULL::jsonb)
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.com_sincronizar_cxp_compra (
+  p_id_comprobante integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_fecha_vencimiento date DEFAULT NULL::date,
+  p_cuotas jsonb DEFAULT NULL::jsonb
+) RETURNS void LANGUAGE plpgsql AS $function$
 DECLARE
     v_total NUMERIC(12,4);
     v_id_condicion INTEGER;

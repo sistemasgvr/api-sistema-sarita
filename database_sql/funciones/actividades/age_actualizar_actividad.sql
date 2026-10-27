@@ -1,31 +1,45 @@
--- Function: age_actualizar_actividad
--- Source: migraciones/20260908_age_id_doc_salida_y_ordenes_disponibles.sql
+-- Actualiza actividad
+DROP FUNCTION IF EXISTS public.age_actualizar_actividad (
+  p_id integer,
+  p_titulo character varying,
+  p_descripcion text,
+  p_fecha_programada date,
+  p_hora_inicio_estimada time without time zone,
+  p_hora_fin_estimada time without time zone,
+  p_fecha_hora_cierre timestamp without time zone,
+  p_id_tipo_actividad integer,
+  p_id_prioridad integer,
+  p_id_cliente integer,
+  p_id_trabajador_responsable integer,
+  p_id_estado_actividad integer,
+  p_observaciones character varying,
+  p_id_usuario_auditoria integer,
+  p_id_comprobante integer,
+  p_id_doc_salida integer,
+  p_items json,
+  p_id_chofer_responsable integer
+);
 
-DROP FUNCTION IF EXISTS age_actualizar_actividad(p_id integer, p_titulo character varying, p_descripcion text, p_fecha_programada date, p_hora_inicio_estimada time without time zone, p_hora_fin_estimada time without time zone, p_fecha_hora_cierre timestamp without time zone, p_id_tipo_actividad integer, p_id_prioridad integer, p_id_cliente integer, p_id_trabajador_responsable integer, p_id_estado_actividad integer, p_observaciones character varying, p_id_usuario_auditoria integer, p_id_comprobante integer, p_id_guia_remision integer, p_items json);
-
-CREATE OR REPLACE FUNCTION age_actualizar_actividad(
-    p_id integer,
-    p_titulo character varying,
-    p_descripcion text,
-    p_fecha_programada date,
-    p_hora_inicio_estimada time without time zone,
-    p_hora_fin_estimada time without time zone,
-    p_fecha_hora_cierre timestamp without time zone,
-    p_id_tipo_actividad integer,
-    p_id_prioridad integer,
-    p_id_cliente integer DEFAULT NULL::integer,
-    p_id_trabajador_responsable integer DEFAULT NULL::integer,
-    p_id_estado_actividad integer DEFAULT NULL::integer,
-    p_observaciones character varying DEFAULT NULL::character varying,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer,
-    p_id_comprobante integer DEFAULT NULL::integer,
-    p_id_doc_salida integer DEFAULT NULL::integer,
-    p_items json DEFAULT NULL::json,
-    p_id_chofer_responsable integer DEFAULT NULL
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_actualizar_actividad (
+  p_id integer,
+  p_titulo character varying,
+  p_descripcion text,
+  p_fecha_programada date,
+  p_hora_inicio_estimada time without time zone,
+  p_hora_fin_estimada time without time zone,
+  p_fecha_hora_cierre timestamp without time zone,
+  p_id_tipo_actividad integer,
+  p_id_prioridad integer,
+  p_id_cliente integer DEFAULT NULL::integer,
+  p_id_trabajador_responsable integer DEFAULT NULL::integer,
+  p_id_estado_actividad integer DEFAULT NULL::integer,
+  p_observaciones character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_id_comprobante integer DEFAULT NULL::integer,
+  p_id_doc_salida integer DEFAULT NULL::integer,
+  p_items json DEFAULT NULL::json,
+  p_id_chofer_responsable integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_tipo VARCHAR;
     v_item JSON;
@@ -48,13 +62,6 @@ BEGIN
         RETURN json_build_object('registro', NULL);
     END IF;
 
-    -- ------------------------------------------------------------
-    -- El formulario NO mueve el flujo operativo. EN_RUTA / REALIZADA /
-    -- CANCELADA solo cambian por iniciar_entrega, culminar_entrega,
-    -- cancelar o marcar realizada. Si el UPDATE aceptara cualquier
-    -- id_estado_actividad, un EN_RUTA -> PENDIENTE dejaria cilindros en
-    -- EN_TRANSITO sin viaje.
-    -- ------------------------------------------------------------
     IF p_id_estado_actividad IS NOT NULL
        AND p_id_estado_actividad IS DISTINCT FROM v_id_estado_actual THEN
 
@@ -146,10 +153,6 @@ BEGIN
 
     END IF;
 
-    -- El responsable de un reparto ya no tiene que ser chofer de flota propia:
-    -- en la entrega suelen ir el chofer y alguien de apoyo, y cualquiera de los
-    -- dos puede figurar como responsable. Se comprueba fuera del IF del tipo
-    -- para que también valide cuando se cambia solo el responsable.
     IF p_id_trabajador_responsable IS NOT NULL THEN
         IF NOT EXISTS (
             SELECT 1 FROM tra_trabajadores t
@@ -238,6 +241,3 @@ BEGIN
     RETURN age_obtener_actividad(p_id);
 END;
 $function$;
-
--- =============================================================================
-

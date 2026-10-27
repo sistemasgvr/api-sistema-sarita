@@ -1,13 +1,10 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: dash_obtener_solicitudes_baja
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.957Z
-DROP FUNCTION IF EXISTS dash_obtener_solicitudes_baja(p_limite integer, p_offset integer);
+-- Lista paginada de solicitudes de baja pendientes de clientes y balones, con totales
+DROP FUNCTION IF EXISTS public.dash_obtener_solicitudes_baja (p_limite integer, p_offset integer);
 
-CREATE OR REPLACE FUNCTION dash_obtener_solicitudes_baja(p_limite integer DEFAULT 10, p_offset integer DEFAULT 0)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.dash_obtener_solicitudes_baja (
+  p_limite integer DEFAULT 10,
+  p_offset integer DEFAULT 0
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_total_clientes_pendientes BIGINT := 0;
     v_total_balones_pendientes BIGINT := 0;

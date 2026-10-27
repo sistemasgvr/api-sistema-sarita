@@ -1,13 +1,15 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: bal_listar_estado_historial
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.947Z
-DROP FUNCTION IF EXISTS bal_listar_estado_historial(p_id_balon integer, p_limite integer, p_offset integer);
+-- Lista paginada del historial de estados de un balón
+DROP FUNCTION IF EXISTS public.bal_listar_estado_historial (
+  p_id_balon integer,
+  p_limite integer,
+  p_offset integer
+);
 
-CREATE OR REPLACE FUNCTION bal_listar_estado_historial(p_id_balon integer, p_limite integer DEFAULT 50, p_offset integer DEFAULT 0)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.bal_listar_estado_historial (
+  p_id_balon integer,
+  p_limite integer DEFAULT 50,
+  p_offset integer DEFAULT 0
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registros JSON;
     v_total BIGINT;

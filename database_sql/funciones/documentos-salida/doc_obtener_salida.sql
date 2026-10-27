@@ -1,27 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: doc_obtener_salida
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
---
--- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
--- el detalle expone id_unidad_capacidad_balon (U.M. de la capacidad del tipo
--- de balón). Compras arma sus líneas de gas sumando capacidades, y sin el id
--- de esa unidad la línea quedaba con U.M. nula y el gas entraba sin convertir.
---
--- Actualizada por database_sql/migraciones/20260905_venta_gas_prestamo_garantia_join.sql:
--- con id_venta el detalle une los items de la venta con los cilindros
--- entregados en prestamo (rol ENTREGADO) y descarta las lineas de garantia.
---
--- Actualizada por database_sql/migraciones/20260910_retorno_fisico_fecha_ph.sql:
--- retorno_fisico (¿los cilindros ya entraron al almacén?) y el almacén de
--- llegada. La UI daba el retorno por hecho con solo fecha_llegada_almacen, que
--- no implica movimiento de inventario.
-DROP FUNCTION IF EXISTS doc_obtener_salida(p_id integer);
+-- Obtiene salida por id
+DROP FUNCTION IF EXISTS public.doc_obtener_salida (p_id integer);
 
-CREATE OR REPLACE FUNCTION doc_obtener_salida(p_id integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_obtener_salida (p_id integer) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registro JSON;
     v_id_venta INTEGER;
@@ -40,24 +20,6 @@ BEGIN
     IF v_id_venta IS NOT NULL THEN
         SELECT (vc.estado = 0) INTO v_venta_anulada FROM ven_comprobante vc WHERE vc.id = v_id_venta;
 
-        -- El detalle de una orden ligada a venta se arma por JOIN (principio
-        -- "detalle no duplicado") y tiene dos orígenes:
-        --   VENTA    — los ítems/productos del comprobante. Si la venta fue
-        --              anulada sus líneas quedaron en estado=0
-        --              (ven_eliminar_comprobante), así que el OR con
-        --              v_venta_anulada evita que el documento se vea vacío en
-        --              vez de mostrar qué se vendió originalmente. Cuando el
-        --              ítem ya trae id_balon, esa fila representa el cilindro
-        --              y el gas despachado.
-        --   PRESTAMO — cilindros entregados en préstamo por esa misma venta
-        --              que NO aparezcan ya en el detalle de la venta. Si el
-        --              gas se vendió ligado al mismo cilindro, repetirlo aquí
-        --              duplicaba el balón en la orden de salida.
-        -- Se excluyen dos cosas: las líneas de garantía antiguas (garantía es
-        -- dinero, no se despacha) y los cilindros de rol GARANTIA, que entran al
-        -- almacén en vez de salir.
-        -- El item de los cilindros continúa la numeración de la venta, así que
-        -- se calcula antes: dentro del UNION no hay forma de mirar el otro lado.
         SELECT COALESCE(MAX(vd.item), 0) INTO v_ultimo_item_venta
         FROM ven_comprobante_detalle vd
         WHERE vd.id_comprobante = v_id_venta
@@ -168,20 +130,12 @@ BEGIN
                 COALESCE(dd.descripcion, p.nombre, b.codigo_balon) AS descripcion,
                 dd.id_balon,
                 b.codigo_balon,
-                -- Tipo y almacén del cilindro: la card del detalle los muestra
-                -- igual que el selector, y el detalle no los tenía.
                 b.id_tipo_balon,
                 tb.nombre AS nombre_tipo_balon,
                 alm.nombre AS nombre_almacen_balon,
-                -- Capacidad del tipo: en planta externa el editor la suma por
-                -- gas para topar cuánto se puede declarar que sale. Sin esto,
-                -- al recargar un documento ya guardado no habría con qué
-                -- calcular ese tope.
                 tb.capacidad AS capacidad_balon,
                 umtb.nombre AS unidad_capacidad_balon,
                 tb.id_unidad_medida AS id_unidad_capacidad_balon,
-                -- Gas del cilindro: decide si la orden puede asociarse a una
-                -- ficha de lote y protocolo (una ficha cubre un solo gas).
                 b.id_producto_gas AS id_producto_gas_balon,
                 pgb.nombre AS nombre_producto_gas_balon,
                 pgb.codigo AS codigo_producto_gas_balon,
@@ -224,8 +178,6 @@ BEGIN
             d.id_doc_salida_origen,
             d.id_sucursal, suc.nombre AS nombre_sucursal,
             d.id_almacen, alm.nombre AS nombre_almacen,
-            -- Destino del traslado: además de mover el stock, es la dirección
-            -- de llegada por defecto de la guía de remisión.
             d.id_almacen_destino,
             almdest.nombre AS nombre_almacen_destino,
             almdest.ubicacion AS direccion_almacen_destino,
@@ -233,8 +185,6 @@ BEGIN
             almdest.id_provincia AS id_provincia_almacen_destino,
             almdest.id_departamento AS id_departamento_almacen_destino,
             depalmdest.id_pais AS id_pais_almacen_destino,
-            -- Ubicación del almacén: es el punto de partida por defecto de la
-            -- guía de remisión, para no volver a tipear el origen.
             alm.ubicacion AS direccion_almacen,
             alm.id_distrito AS id_distrito_almacen,
             alm.id_provincia AS id_provincia_almacen,
@@ -258,8 +208,6 @@ BEGIN
             prov.numero_documento AS documento_proveedor,
             d.fecha, d.fecha_emision_gre,
             (SELECT i.estado FROM doc_gre_intento i WHERE i.id_doc_salida = d.id ORDER BY i.id DESC LIMIT 1) AS gre_estado_envio,
-            -- Entorno (beta/produccion) con el que se envió el último intento: la
-            -- consulta posterior debe usar ese y no la configuración vigente.
             (SELECT i.entorno FROM doc_gre_intento i WHERE i.id_doc_salida = d.id ORDER BY i.id DESC LIMIT 1) AS gre_entorno,
             d.fecha_traslado, d.fecha_retorno,
             d.id_tipo_guia_remision, tgr.nombre AS nombre_tipo_guia_remision,
@@ -297,15 +245,12 @@ BEGIN
                      NULLIF(TRIM(CONCAT_WS(' ', trans.nombres, trans.apellido_paterno, trans.apellido_materno)), '')) AS nombre_transportista,
             trans.numero_documento AS documento_transportista,
             d.id_chofer,
-            -- Preferir identidad del trabajador vinculado (más actual) para GRE.
             TRIM(CONCAT_WS(
                 ' ',
                 COALESCE(NULLIF(TRIM(tra.nombres), ''), cho.nombres),
                 COALESCE(NULLIF(TRIM(tra.apellido_paterno), ''), cho.apellido_paterno),
                 COALESCE(NULLIF(TRIM(tra.apellido_materno), ''), cho.apellido_materno)
             )) AS nombre_chofer,
-            -- Nombres y apellidos por separado: la GRE los exige estructurados y
-            -- partir la cadena falla con nombres compuestos.
             COALESCE(NULLIF(TRIM(tra.nombres), ''), NULLIF(TRIM(cho.nombres), '')) AS nombres_chofer,
             COALESCE(NULLIF(TRIM(tra.apellido_paterno), ''), NULLIF(TRIM(cho.apellido_paterno), '')) AS apellido_paterno_chofer,
             COALESCE(NULLIF(TRIM(tra.apellido_materno), ''), NULLIF(TRIM(cho.apellido_materno), '')) AS apellido_materno_chofer,
@@ -325,12 +270,7 @@ BEGIN
             d.serie_factura, d.numero_factura,
             d.fecha_llegada_almacen, d.lote, d.fecha_vencimiento_lote, d.fecha_prueba_hidrostatica,
             d.id_lote_protocolo,
-            -- Almacén al que llegaron los cilindros de planta externa. Es otra
-            -- cosa que id_almacen (de dónde salieron), que el retorno pisaba.
             d.id_almacen_retorno, almret.nombre AS nombre_almacen_retorno,
-            -- Retorno físico: los envases tienen su entrada vigente. Solo con
-            -- esto los cilindros están de vuelta y el gas ingresó; la fecha de
-            -- llegada por sí sola no mueve inventario.
             EXISTS (
                 SELECT 1
                 FROM inv_movimiento m

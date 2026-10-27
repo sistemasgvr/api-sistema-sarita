@@ -1,13 +1,17 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: bal_asignar_origenes_recarga
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.944Z
-DROP FUNCTION IF EXISTS bal_asignar_origenes_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric, p_id_almacen integer, p_id_balon_preferido integer);
+-- Asigna balones origen con gas suficiente para cubrir la capacidad de una recarga
+DROP FUNCTION IF EXISTS public.bal_asignar_origenes_recarga (
+  p_id_producto_gas integer,
+  p_capacidad_requerida numeric,
+  p_id_almacen integer,
+  p_id_balon_preferido integer
+);
 
-CREATE OR REPLACE FUNCTION bal_asignar_origenes_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric, p_id_almacen integer DEFAULT NULL::integer, p_id_balon_preferido integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.bal_asignar_origenes_recarga (
+  p_id_producto_gas integer,
+  p_capacidad_requerida numeric,
+  p_id_almacen integer DEFAULT NULL::integer,
+  p_id_balon_preferido integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_requerida NUMERIC;
     v_total_disponible NUMERIC := 0;
@@ -33,7 +37,6 @@ BEGIN
 
     v_total_disponible := inv_stock_producto(p_id_producto_gas, p_id_almacen);
 
-    -- La unidad la define el producto (decisión 3 del plan), no se asume m³.
     SELECT UPPER(TRIM(COALESCE(um.nombre, '')))
     INTO v_unidad_gas
     FROM pro_producto p
@@ -56,8 +59,6 @@ BEGIN
         );
     END IF;
 
-    -- Balón de referencia: el preferido si es válido, si no el EMPRESA/DISPONIBLE más
-    -- antiguo del mismo gas (solo para trazabilidad, no reparte m³ real por cilindro).
     IF p_id_balon_preferido IS NOT NULL THEN
         SELECT b.id, b.codigo_balon INTO v_id_balon_origen, v_codigo_balon_origen
         FROM bal_balon b

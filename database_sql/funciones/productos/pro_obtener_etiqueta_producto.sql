@@ -1,13 +1,7 @@
--- Function: pro_obtener_etiqueta_producto
--- Datos mínimos para imprimir la etiqueta adhesiva del producto (50 × 25 mm):
--- código, nombre, categoría, subcategoría y código de barras.
--- Separada de pro_obtener_producto para no arrastrar precios, stock ni auditoría.
--- (pro_etiqueta_producto ya existe y devuelve solo el texto "código — nombre" para mensajes.)
+-- Obtiene los datos de un producto para imprimir su etiqueta
+DROP FUNCTION IF EXISTS public.pro_obtener_etiqueta_producto (p_id integer);
 
-CREATE OR REPLACE FUNCTION pro_obtener_etiqueta_producto(p_id integer)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.pro_obtener_etiqueta_producto (p_id integer) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registro JSON;
 BEGIN

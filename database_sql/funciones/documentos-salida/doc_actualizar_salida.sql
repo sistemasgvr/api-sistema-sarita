@@ -1,22 +1,15 @@
--- Function: doc_actualizar_salida
--- Observaciones de la orden después de creada.
---
--- doc_crear_salida las recibe, pero no había forma de corregirlas: una nota que
--- se escribe mal al crear ("envío urgente", "revisar presión de balones")
--- quedaba fija hasta anular el documento. El detalle sí se puede seguir
--- editando en BORRADOR, así que la nota que lo acompaña también debería.
---
--- Se puede editar mientras el documento no esté anulado ni emitido a SUNAT,
--- misma regla que doc_actualizar_traslado: después de la emisión el contenido
--- es inmutable.
---
--- NULL = no cambiar. Para vaciar las observaciones se envía cadena vacía.
-DROP FUNCTION IF EXISTS doc_actualizar_salida(p_id integer, p_observaciones character varying, p_id_usuario_auditoria integer);
+-- Actualiza salida
+DROP FUNCTION IF EXISTS public.doc_actualizar_salida (
+  p_id integer,
+  p_observaciones character varying,
+  p_id_usuario_auditoria integer
+);
 
-CREATE OR REPLACE FUNCTION doc_actualizar_salida(p_id integer, p_observaciones character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_actualizar_salida (
+  p_id integer,
+  p_observaciones character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_estado VARCHAR;
     v_emitido BOOLEAN;

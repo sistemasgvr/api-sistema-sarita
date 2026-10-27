@@ -1,14 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: bal_capacidad_balon_en_unidad_gas
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.944Z
-DROP FUNCTION IF EXISTS bal_capacidad_balon_en_unidad_gas(p_id_balon integer);
+-- Devuelve la capacidad de un balón expresada en la unidad del producto gas
+DROP FUNCTION IF EXISTS public.bal_capacidad_balon_en_unidad_gas (p_id_balon integer);
 
-CREATE OR REPLACE FUNCTION bal_capacidad_balon_en_unidad_gas(p_id_balon integer)
- RETURNS numeric
- LANGUAGE plpgsql
- STABLE
-AS $function$
+CREATE OR REPLACE FUNCTION public.bal_capacidad_balon_en_unidad_gas (p_id_balon integer) RETURNS numeric LANGUAGE plpgsql STABLE AS $function$
 DECLARE
     v_capacidad NUMERIC;
     v_id_unidad_tipo INTEGER;

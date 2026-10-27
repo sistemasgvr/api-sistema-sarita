@@ -1,13 +1,10 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: dash_almacenes_operativos
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.954Z
-DROP FUNCTION IF EXISTS dash_almacenes_operativos(p_limite integer, p_offset integer);
+-- Dashboard: total y lista paginada de almacenes activos con su sucursal
+DROP FUNCTION IF EXISTS public.dash_almacenes_operativos (p_limite integer, p_offset integer);
 
-CREATE OR REPLACE FUNCTION dash_almacenes_operativos(p_limite integer DEFAULT 20, p_offset integer DEFAULT 0)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.dash_almacenes_operativos (
+  p_limite integer DEFAULT 20,
+  p_offset integer DEFAULT 0
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_total_almacenes BIGINT := 0;
     v_registros JSON;

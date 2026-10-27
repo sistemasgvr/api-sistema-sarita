@@ -1,50 +1,101 @@
--- p_id_doc_salida: antes se llamaba p_id_recarga_planta. Desde la Fase 2 la
--- orden de recarga vive en doc_salida, así que el nombre viejo apuntaba a una
--- tabla que ya no existe. Misma posición en la firma: las llamadas posicionales
--- no cambian.
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: com_crear_compra
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.954Z
--- Actualizada por database_sql/migraciones/20260910_recarga_retorno_gas_por_compra.sql:
---   el retorno de cilindros desde Compras solo lo dispara el checkbox
---   (p_registrar_retorno_balones), ya no la fecha de llegada; no exige
---   lote/vencimiento/P.H. (el protocolo va por la ficha ICP del documento de
---   salida); y si la orden ya tiene fecha_llegada_almacen (retorno registrado
---   desde el documento de salida) solo vincula la compra, sin volver a mover
---   inventario.
--- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
---   · la orden se bloquea (FOR UPDATE) al validarla: dos compras simultáneas
---     ya no pueden vincular la misma orden (además hay índice único parcial
---     sobre com_comprobante_compra.id_doc_salida);
---   · exige la orden GENERADA / EMITIDA_SUNAT (se quita el check muerto de
---     'CERRADO', que no existe en EstadoCicloSalida);
---   · si el retorno ya estaba registrado, al vincular la factura el gas se
---     re-sincroniza a las cantidades facturadas
---     (bal_sincronizar_gas_retorno_planta) y no se pisa el almacén de llegada;
---   · se elimina p_id_guia_retorno: nunca se persistía (la GRE del proveedor
---     va como serie/número de guía de ingreso, referencial).
--- Actualizada por database_sql/migraciones/20260910_retorno_fisico_fecha_ph.sql:
---   · "el retorno ya está registrado" pasa a mirar la ENTRADA_PLANTA_EXTERNA
---     vigente de los envases, no fecha_llegada_almacen. Una orden con la fecha
---     puesta pero sin entrada física (finalizar sin "guardar en almacén")
---     hacía que la compra se saltara el retorno: los cilindros se quedaban
---     EN_RECARGA_EXTERNA y el gas nunca ingresaba;
---   · el almacén de llegada ya no pisa doc_salida.id_almacen (origen de la
---     salida): va a id_almacen_retorno.
--- Actualizada por database_sql/migraciones/20261023_compras_medio_pago_caja.sql:
---   p_id_medio_pago / p_id_cuenta_bancaria / p_numero_operacion: cómo se pagó
---   una compra al contado (obligatorio si tiene importe). Ese pago entra a la
---   caja como pago a proveedor; si el medio afecta caja exige la caja abierta.
-DROP FUNCTION IF EXISTS com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer, p_id_recarga_planta integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_id_sucursal integer, p_id_moneda integer, p_id_condicion_pago integer, p_declarar_sunat boolean, p_glosa character varying, p_id_usuario_auditoria integer, p_registrar_retorno_balones boolean, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_id_guia_retorno integer, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb);
-DROP FUNCTION IF EXISTS com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer, p_id_doc_salida integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_id_sucursal integer, p_id_moneda integer, p_id_condicion_pago integer, p_declarar_sunat boolean, p_glosa character varying, p_id_usuario_auditoria integer, p_registrar_retorno_balones boolean, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_id_guia_retorno integer, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb);
-DROP FUNCTION IF EXISTS com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer, p_id_doc_salida integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_id_sucursal integer, p_id_moneda integer, p_id_condicion_pago integer, p_declarar_sunat boolean, p_glosa character varying, p_id_usuario_auditoria integer, p_registrar_retorno_balones boolean, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb);
-DROP FUNCTION IF EXISTS com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer, p_id_doc_salida integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_id_sucursal integer, p_id_moneda integer, p_id_condicion_pago integer, p_declarar_sunat boolean, p_glosa character varying, p_id_usuario_auditoria integer, p_registrar_retorno_balones boolean, p_fecha_llegada_almacen date, p_lote character varying, p_fecha_vencimiento_lote date, p_fecha_prueba_hidrostatica date, p_serie_guia_ingreso character varying, p_numero_guia_ingreso character varying, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb, p_id_medio_pago integer, p_id_cuenta_bancaria integer, p_numero_operacion character varying);
+-- Crea compra
+DROP FUNCTION IF EXISTS public.com_crear_compra (
+  p_id_tipo_comprobante integer,
+  p_serie character varying,
+  p_numero character varying,
+  p_fecha date,
+  p_id_proveedor integer,
+  p_id_almacen integer,
+  p_detalles jsonb,
+  p_id_comprobante_referencia integer,
+  p_id_doc_salida integer,
+  p_id_tipo_registro integer,
+  p_id_categoria_gasto integer,
+  p_id_sucursal integer,
+  p_id_moneda integer,
+  p_id_condicion_pago integer,
+  p_declarar_sunat boolean,
+  p_glosa character varying,
+  p_id_usuario_auditoria integer,
+  p_registrar_retorno_balones boolean,
+  p_fecha_llegada_almacen date,
+  p_lote character varying,
+  p_fecha_vencimiento_lote date,
+  p_fecha_prueba_hidrostatica date,
+  p_serie_guia_ingreso character varying,
+  p_numero_guia_ingreso character varying,
+  p_fecha_vencimiento_cxp date,
+  p_cuotas_cxp jsonb,
+  p_id_medio_pago integer,
+  p_id_cuenta_bancaria integer,
+  p_numero_operacion character varying
+);
 
-CREATE OR REPLACE FUNCTION com_crear_compra(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying, p_fecha date, p_id_proveedor integer, p_id_almacen integer, p_detalles jsonb, p_id_comprobante_referencia integer DEFAULT NULL::integer, p_id_doc_salida integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_declarar_sunat boolean DEFAULT false, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_registrar_retorno_balones boolean DEFAULT false, p_fecha_llegada_almacen date DEFAULT NULL::date, p_lote character varying DEFAULT NULL::character varying, p_fecha_vencimiento_lote date DEFAULT NULL::date, p_fecha_prueba_hidrostatica date DEFAULT NULL::date, p_serie_guia_ingreso character varying DEFAULT NULL::character varying, p_numero_guia_ingreso character varying DEFAULT NULL::character varying, p_fecha_vencimiento_cxp date DEFAULT NULL::date, p_cuotas_cxp jsonb DEFAULT NULL::jsonb, p_id_medio_pago integer DEFAULT NULL::integer, p_id_cuenta_bancaria integer DEFAULT NULL::integer, p_numero_operacion character varying DEFAULT NULL::character varying)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+DROP FUNCTION IF EXISTS public.com_crear_compra (
+  p_id_tipo_comprobante integer,
+  p_serie character varying,
+  p_numero character varying,
+  p_fecha date,
+  p_id_proveedor integer,
+  p_id_almacen integer,
+  p_detalles jsonb,
+  p_id_comprobante_referencia integer,
+  p_id_doc_salida integer,
+  p_id_tipo_registro integer,
+  p_id_categoria_gasto integer,
+  p_id_sucursal integer,
+  p_id_moneda integer,
+  p_id_condicion_pago integer,
+  p_declarar_sunat boolean,
+  p_glosa character varying,
+  p_id_usuario_auditoria integer,
+  p_registrar_retorno_balones boolean,
+  p_fecha_llegada_almacen date,
+  p_lote character varying,
+  p_fecha_vencimiento_lote date,
+  p_fecha_prueba_hidrostatica date,
+  p_serie_guia_ingreso character varying,
+  p_numero_guia_ingreso character varying,
+  p_fecha_vencimiento_cxp date,
+  p_cuotas_cxp jsonb,
+  p_id_medio_pago integer,
+  p_id_cuenta_bancaria integer,
+  p_numero_operacion character varying,
+  p_porcentaje_igv numeric
+);
+
+CREATE OR REPLACE FUNCTION public.com_crear_compra (
+  p_id_tipo_comprobante integer,
+  p_serie character varying,
+  p_numero character varying,
+  p_fecha date,
+  p_id_proveedor integer,
+  p_id_almacen integer,
+  p_detalles jsonb,
+  p_id_comprobante_referencia integer DEFAULT NULL::integer,
+  p_id_doc_salida integer DEFAULT NULL::integer,
+  p_id_tipo_registro integer DEFAULT NULL::integer,
+  p_id_categoria_gasto integer DEFAULT NULL::integer,
+  p_id_sucursal integer DEFAULT NULL::integer,
+  p_id_moneda integer DEFAULT NULL::integer,
+  p_id_condicion_pago integer DEFAULT NULL::integer,
+  p_declarar_sunat boolean DEFAULT FALSE,
+  p_glosa character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_registrar_retorno_balones boolean DEFAULT FALSE,
+  p_fecha_llegada_almacen date DEFAULT NULL::date,
+  p_lote character varying DEFAULT NULL::character varying,
+  p_fecha_vencimiento_lote date DEFAULT NULL::date,
+  p_fecha_prueba_hidrostatica date DEFAULT NULL::date,
+  p_serie_guia_ingreso character varying DEFAULT NULL::character varying,
+  p_numero_guia_ingreso character varying DEFAULT NULL::character varying,
+  p_fecha_vencimiento_cxp date DEFAULT NULL::date,
+  p_cuotas_cxp jsonb DEFAULT NULL::jsonb,
+  p_id_medio_pago integer DEFAULT NULL::integer,
+  p_id_cuenta_bancaria integer DEFAULT NULL::integer,
+  p_numero_operacion character varying DEFAULT NULL::character varying,
+  p_porcentaje_igv numeric DEFAULT 18
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_compra           INTEGER;
     v_link_planta         JSON;
@@ -60,7 +111,8 @@ DECLARE
     v_es_gas              BOOLEAN;
     v_importe             NUMERIC(12,4);
     v_total_bruto         NUMERIC(12,4) := 0;
-    v_tasa_igv            NUMERIC(6,4) := 0.18;
+    v_porcentaje_igv      NUMERIC(5,2);
+    v_tasa_igv            NUMERIC(7,4);
     v_base_imponible      NUMERIC(12,4);
     v_igv_calculado       NUMERIC(12,4);
     v_id_tipo_ingreso     INTEGER;
@@ -87,8 +139,12 @@ BEGIN
         RETURN json_build_object('error', 'La fecha de la compra es obligatoria', 'registro', NULL);
     END IF;
 
-    -- Pago al contado (20261023). Si la condición resulta ser crédito el medio
-    -- se descarta más abajo, así que aquí solo se valida que sea coherente.
+    v_porcentaje_igv := ROUND(COALESCE(p_porcentaje_igv, 18), 2);
+    IF v_porcentaje_igv < 0 OR v_porcentaje_igv > 100 THEN
+        RETURN json_build_object('error', 'El porcentaje de IGV debe estar entre 0 y 100', 'registro', NULL);
+    END IF;
+    v_tasa_igv := v_porcentaje_igv / 100;
+
     IF fin_medio_pago_flag(p_id_medio_pago, 'ES_CREDITO') THEN
         RETURN json_build_object('error', 'El medio de pago de la compra no puede ser crédito: para una compra al crédito elige la condición de pago.', 'registro', NULL);
     END IF;
@@ -110,9 +166,6 @@ BEGIN
         RETURN json_build_object('error', 'El almacén (por defecto) indicado no existe o está inactivo', 'registro', NULL);
     END IF;
 
-    -- El detalle de productos es opcional: se puede registrar la cabecera
-    -- (por ejemplo, ligada a una orden de recarga en planta externa) y
-    -- agregar las líneas después con com_crear_compra_detalle.
     IF p_detalles IS NOT NULL AND jsonb_typeof(p_detalles) IS DISTINCT FROM 'array' THEN
         RETURN json_build_object('error', 'El detalle de productos debe ser un arreglo JSON', 'registro', NULL);
     END IF;
@@ -139,10 +192,6 @@ BEGIN
         END IF;
     END IF;
 
-    -- La orden debe existir, estar activa, GENERADA (o con GRE emitida) y sin
-    -- otra compra activa vinculada: si no, se estaría facturando la misma orden
-    -- dos veces. FOR UPDATE: dos compras que lleguen a la vez por la misma
-    -- orden se serializan aquí y la segunda ve el vínculo de la primera.
     IF p_id_doc_salida IS NOT NULL THEN
         SELECT
             rp.id,
@@ -203,8 +252,6 @@ BEGIN
         END IF;
     END IF;
 
-    -- IDs de listas resueltos una sola vez (no dentro del loop). Solo hace
-    -- falta que estén configuradas si de verdad hay líneas que procesar.
     IF p_detalles IS NOT NULL AND jsonb_array_length(p_detalles) > 0 THEN
         SELECT glo.id INTO v_id_tipo_ingreso
         FROM gen_lista_opciones glo
@@ -221,20 +268,19 @@ BEGIN
         END IF;
     END IF;
 
-    -- Cabecera (totales en 0; se recalculan al final con lo realmente insertado)
     INSERT INTO com_comprobante_compra (
         id_tipo_comprobante, serie, numero, fecha, id_proveedor,
         id_tipo_registro, id_categoria_gasto, id_sucursal, id_almacen,
         id_moneda, id_condicion_pago, sub_total, igv, total_importe,
         declarar_sunat, glosa, id_comprobante_referencia, id_doc_salida,
-        id_medio_pago, id_cuenta_bancaria, numero_operacion,
+        id_medio_pago, id_cuenta_bancaria, numero_operacion, porcentaje_igv,
         id_usuario_creacion, id_usuario_modificacion
     ) VALUES (
         p_id_tipo_comprobante, p_serie, p_numero, p_fecha, p_id_proveedor,
         p_id_tipo_registro, p_id_categoria_gasto, p_id_sucursal, p_id_almacen,
         p_id_moneda, p_id_condicion_pago, 0, 0, 0,
         p_declarar_sunat, v_glosa_final, p_id_comprobante_referencia, p_id_doc_salida,
-        p_id_medio_pago, p_id_cuenta_bancaria, NULLIF(TRIM(p_numero_operacion), ''),
+        p_id_medio_pago, p_id_cuenta_bancaria, NULLIF(TRIM(p_numero_operacion), ''), v_porcentaje_igv,
         p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id_compra;
@@ -269,14 +315,10 @@ BEGIN
             RAISE EXCEPTION 'El producto id=% de la línea % no existe o está inactivo', v_id_producto, v_item;
         END IF;
 
-        -- Payload puede forzar afecta_stock (p.ej. costo de recarga planta = false).
         IF v_linea ? 'afecta_stock' AND jsonb_typeof(v_linea->'afecta_stock') <> 'null' THEN
             v_afecta_stock := COALESCE((v_linea->>'afecta_stock')::BOOLEAN, v_afecta_stock);
         END IF;
 
-        -- Compra vinculada a orden de planta: el gas lo ingresa solo el retorno
-        -- (bal_finalizar_recarga_planta / bal_sincronizar_gas_retorno_planta).
-        -- La línea es costo.
         IF p_id_doc_salida IS NOT NULL AND v_es_gas THEN
             v_afecta_stock := FALSE;
         END IF;
@@ -346,30 +388,15 @@ BEGIN
         )
     WHERE id = v_id_compra;
 
-    -- Vínculo opcional con orden de recarga planta externa (factura de costo).
-    -- El gas NO ingresa por líneas de compra: lo ingresa el retorno con las
-    -- cantidades de esta factura.
     v_id_almacen_compra := p_id_almacen;
 
     IF p_id_doc_salida IS NOT NULL THEN
-        -- Retorno físico: SOLO el checkbox lo dispara. Antes bastaba con que
-        -- viniera p_fecha_llegada_almacen, pero el formulario la precarga desde
-        -- la orden cuando el retorno ya se registró en el documento de salida,
-        -- y eso volvía a disparar el retorno (doble ingreso).
         v_registrar_retorno := COALESCE(p_registrar_retorno_balones, FALSE);
 
-        -- Lote/venc/P.H. ya no son obligatorios para el retorno: el protocolo se
-        -- registra por la ficha ICP desde el documento de salida. Si vienen, se
-        -- copian a la orden (COALESCE de abajo).
         v_lote := COALESCE(NULLIF(TRIM(p_lote), ''), NULLIF(TRIM(v_orden.lote), ''));
         v_fecha_venc_lote := COALESCE(p_fecha_vencimiento_lote, v_orden.fecha_vencimiento_lote);
         v_fecha_ph := COALESCE(p_fecha_prueba_hidrostatica, v_orden.fecha_prueba_hidrostatica);
 
-        -- El retorno está hecho cuando los envases tienen su ENTRADA_PLANTA_
-        -- EXTERNA vigente, no cuando la orden tiene fecha de llegada. Mismo
-        -- criterio que bal_finalizar_recarga_planta y bal_sincronizar_gas_
-        -- retorno_planta: una fecha sin entrada física dejaba los cilindros en
-        -- planta y el gas sin ingresar, y la compra ni lo intentaba.
         SELECT lo.id INTO v_id_tipo_entrada_planta
         FROM gen_lista_opciones lo
         JOIN gen_lista l ON l.id = lo.id_lista
@@ -394,9 +421,6 @@ BEGIN
               AND m.id_balon = dd.id_balon
         ) INTO v_retorno_ya_registrado;
 
-        -- Con el retorno ya registrado (envases + gas) desde el documento de
-        -- salida, la compra se vincula y el gas se ajusta a lo facturado, sin
-        -- volver a mover los cilindros.
         IF v_registrar_retorno AND NOT v_retorno_ya_registrado THEN
             v_fecha_llegada := COALESCE(p_fecha_llegada_almacen, p_fecha);
         ELSE
@@ -404,11 +428,6 @@ BEGIN
             v_fecha_llegada := NULL;
         END IF;
 
-        -- Serie/número de factura no se replican: quedan en la compra y las
-        -- lecturas de la orden los resuelven por JOIN vía este FK.
-        -- id_almacen es el origen de la salida y no se toca; el almacén de
-        -- llegada solo se escribe cuando el retorno se registra ahora (con
-        -- retorno previo manda el almacén donde entraron los cilindros).
         UPDATE doc_salida
         SET id_comprobante_compra   = v_id_compra,
             id_almacen_retorno      = CASE
@@ -427,10 +446,6 @@ BEGIN
         WHERE id = p_id_doc_salida AND estado = 1;
 
         IF v_registrar_retorno THEN
-            -- El retorno físico de los cilindros (custodia de los envases +
-            -- entrada de gas consolidada con las cantidades de esta compra) lo
-            -- hace bal_finalizar_recarga_planta. Su parámetro sigue llamándose
-            -- p_id_recarga_planta; el rename a p_id_doc_salida fue solo aquí.
             v_link_planta := bal_finalizar_recarga_planta(
                 p_id_recarga_planta        => p_id_doc_salida,
                 p_id_comprobante_compra    => v_id_compra,
@@ -449,15 +464,10 @@ BEGIN
                 RAISE EXCEPTION '%', v_link_planta->>'error';
             END IF;
         ELSIF v_retorno_ya_registrado THEN
-            -- La factura llegó después del retorno: hasta ahora el stock tenía
-            -- el gas declarado en la orden; pasa a tener lo facturado. Si el
-            -- retorno se registró "sin guardar en almacén" no hay gas que
-            -- ajustar y la función no hace nada.
             PERFORM bal_sincronizar_gas_retorno_planta(p_id_doc_salida, p_id_usuario_auditoria);
         END IF;
     END IF;
 
-    -- Crédito / cuotas: genera CxP vinculada a la compra según condición de pago.
     PERFORM com_generar_cxp_compra(
         v_id_compra,
         p_id_usuario_auditoria,
@@ -465,9 +475,6 @@ BEGIN
         p_cuotas_cxp
     );
 
-    -- Al crédito el dinero sale al pagar la CxP: el medio no aplica. Al contado
-    -- con importe el medio es obligatorio, y si afecta caja el pago entra al
-    -- arqueo de hoy (com_pago_caja_compra), así que la caja debe estar abierta.
     IF EXISTS (
         SELECT 1 FROM fin_cuenta fc
         WHERE fc.id_comprobante_compra = v_id_compra AND fc.estado = 1

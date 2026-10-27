@@ -1,0 +1,100 @@
+-- Registra un traslado de varios productos entre almacenes
+DROP FUNCTION IF EXISTS public.pro_crear_traslado_lote (
+  p_fecha date,
+  p_id_almacen integer,
+  p_id_almacen_destino integer,
+  p_detalles jsonb,
+  p_glosa character varying,
+  p_id_usuario_auditoria integer,
+  p_id_documento_ref integer,
+  p_codigo_documento_ref character varying
+);
+
+CREATE OR REPLACE FUNCTION public.pro_crear_traslado_lote (
+  p_fecha date,
+  p_id_almacen integer,
+  p_id_almacen_destino integer,
+  p_detalles jsonb,
+  p_glosa character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_id_documento_ref integer DEFAULT NULL::integer,
+  p_codigo_documento_ref character varying DEFAULT NULL::character varying
+) RETURNS json LANGUAGE plpgsql AS $function$
+DECLARE
+    v_detalle JSONB;
+    v_result JSON;
+    v_registros JSONB := '[]'::JSONB;
+    v_id_producto INTEGER;
+    v_cantidad NUMERIC;
+    v_total INTEGER := 0;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    IF p_fecha IS NULL THEN
+        RETURN json_build_object('error', 'La fecha del traslado es obligatoria', 'registros', NULL);
+    END IF;
+
+    IF p_detalles IS NULL
+       OR jsonb_typeof(p_detalles) <> 'array'
+       OR jsonb_array_length(p_detalles) = 0
+    THEN
+        RETURN json_build_object('error', 'Los detalles del traslado son obligatorios', 'registros', NULL);
+    END IF;
+
+    IF p_id_almacen IS NULL OR p_id_almacen_destino IS NULL THEN
+        RETURN json_build_object('error', 'Almacén origen y destino son obligatorios', 'registros', NULL);
+    END IF;
+
+    IF p_id_almacen = p_id_almacen_destino THEN
+        RETURN json_build_object(
+            'error', 'El almacén de destino debe ser distinto al de origen',
+            'registros', NULL
+        );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM gen_almacen WHERE id = p_id_almacen AND estado = 1) THEN
+        RETURN json_build_object('error', 'El almacén de origen no existe o está inactivo', 'registros', NULL);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM gen_almacen WHERE id = p_id_almacen_destino AND estado = 1) THEN
+        RETURN json_build_object('error', 'El almacén de destino no existe o está inactivo', 'registros', NULL);
+    END IF;
+
+    FOR v_detalle IN SELECT * FROM jsonb_array_elements(p_detalles)
+    LOOP
+        v_id_producto := NULLIF(TRIM(COALESCE(v_detalle->>'idProducto', '')), '')::INTEGER;
+        v_cantidad := NULLIF(TRIM(COALESCE(v_detalle->>'cantidad', '')), '')::NUMERIC;
+
+        IF v_id_producto IS NULL OR v_cantidad IS NULL OR v_cantidad <= 0 THEN
+            RAISE EXCEPTION 'Cada detalle debe incluir idProducto y cantidad mayor a cero';
+        END IF;
+
+        v_result := inv_registrar_movimiento(
+            p_naturaleza                => 'PRODUCTO',
+            p_codigo_tipo_movimiento    => 'TRASLADO',
+            p_fecha                     => p_fecha,
+            p_id_producto               => v_id_producto,
+            p_cantidad                  => v_cantidad,
+            p_id_almacen_origen         => p_id_almacen,
+            p_id_almacen_destino        => p_id_almacen_destino,
+            p_codigo_tipo_documento_origen => p_codigo_documento_ref,
+            p_id_documento_origen       => p_id_documento_ref,
+            p_glosa                     => p_glosa,
+            p_id_usuario_auditoria      => p_id_usuario_auditoria
+        );
+
+        IF v_result->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_result->>'error';
+        END IF;
+
+        v_registros := v_registros || jsonb_build_array(v_result->'registro');
+        v_total := v_total + 1;
+    END LOOP;
+
+    RETURN json_build_object(
+        'error', NULL,
+        'registros', v_registros,
+        'total', v_total
+    );
+END;
+$function$;

@@ -1,23 +1,13 @@
--- Function: bal_sync_ph_desde_orden_salida
--- Creada: 2026-09-10 (migración 20260910_retorno_fisico_fecha_ph).
---
--- Equivalente a bal_sync_ph_desde_recarga para la recarga en planta externa:
--- la fecha de P.H. que se registra con el retorno es una prueba real hecha en
--- planta, así que tiene que llegar al libro de P.H. de cada cilindro. Antes
--- quedaba solo en la cabecera del documento y los balones seguían con la
--- vigencia vieja (y aparecían en "P.H. por vencer" con la prueba recién hecha).
---
--- Solo la llama bal_finalizar_recarga_planta y solo cuando el retorno físico
--- está registrado: sin cilindros de vuelta no hay prueba que anotar.
---
--- Idempotente por (id_doc_salida, id_balon): reenviar el retorno o corregir la
--- fecha no genera filas duplicadas en el historial.
-DROP FUNCTION IF EXISTS bal_sync_ph_desde_orden_salida(p_id_doc_salida integer, p_id_usuario_auditoria integer);
+-- Registra la prueba hidrostática de una recarga en planta en el historial
+DROP FUNCTION IF EXISTS public.bal_sync_ph_desde_orden_salida (
+  p_id_doc_salida integer,
+  p_id_usuario_auditoria integer
+);
 
-CREATE OR REPLACE FUNCTION bal_sync_ph_desde_orden_salida(p_id_doc_salida integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.bal_sync_ph_desde_orden_salida (
+  p_id_doc_salida integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS void LANGUAGE plpgsql AS $function$
 DECLARE
     v_doc RECORD;
     v_id_balon INTEGER;

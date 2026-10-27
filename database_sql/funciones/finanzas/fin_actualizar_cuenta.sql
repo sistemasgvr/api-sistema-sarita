@@ -1,13 +1,31 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_actualizar_cuenta
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
-DROP FUNCTION IF EXISTS fin_actualizar_cuenta(p_id integer, p_tipo character varying, p_id_tercero integer, p_tercero_nombre character varying, p_fecha_emision date, p_fecha_vencimiento date, p_monto numeric, p_descripcion character varying, p_observacion character varying, p_numero_comprobante character varying, p_id_usuario integer);
+-- Actualiza cuenta
+DROP FUNCTION IF EXISTS public.fin_actualizar_cuenta (
+  p_id integer,
+  p_tipo character varying,
+  p_id_tercero integer,
+  p_tercero_nombre character varying,
+  p_fecha_emision date,
+  p_fecha_vencimiento date,
+  p_monto numeric,
+  p_descripcion character varying,
+  p_observacion character varying,
+  p_numero_comprobante character varying,
+  p_id_usuario integer
+);
 
-CREATE OR REPLACE FUNCTION fin_actualizar_cuenta(p_id integer, p_tipo character varying DEFAULT NULL::character varying, p_id_tercero integer DEFAULT NULL::integer, p_tercero_nombre character varying DEFAULT NULL::character varying, p_fecha_emision date DEFAULT NULL::date, p_fecha_vencimiento date DEFAULT NULL::date, p_monto numeric DEFAULT NULL::numeric, p_descripcion character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_numero_comprobante character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_actualizar_cuenta (
+  p_id integer,
+  p_tipo character varying DEFAULT NULL::character varying,
+  p_id_tercero integer DEFAULT NULL::integer,
+  p_tercero_nombre character varying DEFAULT NULL::character varying,
+  p_fecha_emision date DEFAULT NULL::date,
+  p_fecha_vencimiento date DEFAULT NULL::date,
+  p_monto numeric DEFAULT NULL::numeric,
+  p_descripcion character varying DEFAULT NULL::character varying,
+  p_observacion character varying DEFAULT NULL::character varying,
+  p_numero_comprobante character varying DEFAULT NULL::character varying,
+  p_id_usuario integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_cuenta        fin_cuenta%ROWTYPE;
     v_id_tipo       INT;
@@ -23,13 +41,11 @@ BEGIN
         RETURN json_build_object('registro', NULL, 'error', 'La cuenta no existe o está inactiva');
     END IF;
 
-    -- No permitir editar cuotas hijas directamente
     IF v_cuenta.id_cuenta_padre IS NOT NULL THEN
         RETURN json_build_object('registro', NULL, 'error',
             'No se puede editar una cuota individual; edita la cuenta padre del plan');
     END IF;
 
-    -- Validación opcional del tipo
     IF p_tipo IS NOT NULL THEN
         SELECT glo.id INTO v_id_tipo
         FROM gen_lista_opciones glo
@@ -47,7 +63,6 @@ BEGIN
         SELECT 1 FROM fin_pago WHERE id_cuenta = p_id AND estado = 1
     ) INTO v_tiene_pagos;
 
-    -- Si hay pagos y quieren cambiar campos "financieros" (tercero/monto/fecha_emision), rechazar
     IF v_tiene_pagos AND (
         p_id_tercero IS NOT NULL
         OR (p_tercero_nombre IS NOT NULL AND p_tercero_nombre <> '')
@@ -69,7 +84,6 @@ BEGIN
             'Esta cuenta es un plan de cuotas: solo puedes editar descripción, observación y comprobante');
     END IF;
 
-    -- Validaciones de valores
     IF p_id_tercero IS NOT NULL THEN
         SELECT id INTO v_nuevo_tercero FROM cli_clientes WHERE id = p_id_tercero AND estado = 1;
         IF v_nuevo_tercero IS NULL THEN
@@ -88,7 +102,6 @@ BEGIN
             'La fecha de vencimiento no puede ser anterior a la emisión');
     END IF;
 
-    -- Actualización dinámica: solo cambia lo que llega no-null
     UPDATE fin_cuenta SET
         id_tercero          = COALESCE(p_id_tercero, id_tercero),
         tercero_nombre      = CASE
@@ -122,14 +135,12 @@ BEGIN
         fecha_modificacion  = NOW()
     WHERE id = p_id;
 
-    -- Validar que quede tercero (uno de los dos)
     SELECT * INTO v_cuenta FROM fin_cuenta WHERE id = p_id;
     IF v_cuenta.id_tercero IS NULL AND (v_cuenta.tercero_nombre IS NULL OR TRIM(v_cuenta.tercero_nombre) = '') THEN
         RETURN json_build_object('registro', NULL, 'error',
             'Debe quedar al menos un tercero (id o nombre libre)');
     END IF;
 
-    -- Devolver el registro actualizado
     SELECT row_to_json(t) INTO v_registro
     FROM (
         SELECT

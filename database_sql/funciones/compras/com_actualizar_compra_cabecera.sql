@@ -1,24 +1,52 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: com_actualizar_compra_cabecera
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.953Z
--- Actualizada por database_sql/migraciones/20261023_compras_medio_pago_caja.sql:
---   p_id_medio_pago / p_id_cuenta_bancaria / p_numero_operacion. Con medio se
---   reemplazan los tres (la cuenta y el Nº de operación dependen del medio);
---   sin medio se conservan. Si el cambio altera el pago que la compra aporta a
---   la caja (medio, importe o paso contado ↔ crédito), la caja de la compra
---   debe estar abierta: com_assert_caja_compra.
-DROP FUNCTION IF EXISTS com_actualizar_compra_cabecera(p_id_comprobante integer, p_glosa character varying, p_id_condicion_pago integer, p_id_categoria_gasto integer, p_declarar_sunat boolean, p_id_usuario_auditoria integer, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb);
-DROP FUNCTION IF EXISTS com_actualizar_compra_cabecera(p_id_comprobante integer, p_glosa character varying, p_id_condicion_pago integer, p_id_categoria_gasto integer, p_declarar_sunat boolean, p_id_usuario_auditoria integer, p_fecha_vencimiento_cxp date, p_cuotas_cxp jsonb, p_id_medio_pago integer, p_id_cuenta_bancaria integer, p_numero_operacion character varying);
+-- Actualiza compra cabecera
+DROP FUNCTION IF EXISTS public.com_actualizar_compra_cabecera (
+  p_id_comprobante integer,
+  p_glosa character varying,
+  p_id_condicion_pago integer,
+  p_id_categoria_gasto integer,
+  p_declarar_sunat boolean,
+  p_id_usuario_auditoria integer,
+  p_fecha_vencimiento_cxp date,
+  p_cuotas_cxp jsonb,
+  p_id_medio_pago integer,
+  p_id_cuenta_bancaria integer,
+  p_numero_operacion character varying
+);
 
-CREATE OR REPLACE FUNCTION com_actualizar_compra_cabecera(p_id_comprobante integer, p_glosa character varying DEFAULT NULL::character varying, p_id_condicion_pago integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_declarar_sunat boolean DEFAULT NULL::boolean, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_fecha_vencimiento_cxp date DEFAULT NULL::date, p_cuotas_cxp jsonb DEFAULT NULL::jsonb, p_id_medio_pago integer DEFAULT NULL::integer, p_id_cuenta_bancaria integer DEFAULT NULL::integer, p_numero_operacion character varying DEFAULT NULL::character varying)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+DROP FUNCTION IF EXISTS public.com_actualizar_compra_cabecera (
+  p_id_comprobante integer,
+  p_glosa character varying,
+  p_id_condicion_pago integer,
+  p_id_categoria_gasto integer,
+  p_declarar_sunat boolean,
+  p_id_usuario_auditoria integer,
+  p_fecha_vencimiento_cxp date,
+  p_cuotas_cxp jsonb,
+  p_id_medio_pago integer,
+  p_id_cuenta_bancaria integer,
+  p_numero_operacion character varying,
+  p_porcentaje_igv numeric
+);
+
+CREATE OR REPLACE FUNCTION public.com_actualizar_compra_cabecera (
+  p_id_comprobante integer,
+  p_glosa character varying DEFAULT NULL::character varying,
+  p_id_condicion_pago integer DEFAULT NULL::integer,
+  p_id_categoria_gasto integer DEFAULT NULL::integer,
+  p_declarar_sunat boolean DEFAULT NULL::boolean,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_fecha_vencimiento_cxp date DEFAULT NULL::date,
+  p_cuotas_cxp jsonb DEFAULT NULL::jsonb,
+  p_id_medio_pago integer DEFAULT NULL::integer,
+  p_id_cuenta_bancaria integer DEFAULT NULL::integer,
+  p_numero_operacion character varying DEFAULT NULL::character varying,
+  p_porcentaje_igv numeric DEFAULT NULL::numeric
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_pago_antes JSONB;
     v_tenia_cxp BOOLEAN;
     v_err TEXT;
+    v_porcentaje_igv NUMERIC(5,2);
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -37,6 +65,13 @@ BEGIN
         END IF;
     END IF;
 
+    IF p_porcentaje_igv IS NOT NULL THEN
+        v_porcentaje_igv := ROUND(p_porcentaje_igv, 2);
+        IF v_porcentaje_igv < 0 OR v_porcentaje_igv > 100 THEN
+            RETURN json_build_object('error', 'El porcentaje de IGV debe estar entre 0 y 100', 'registro', NULL);
+        END IF;
+    END IF;
+
     v_pago_antes := com_pago_caja_compra(p_id_comprobante);
     v_tenia_cxp := EXISTS (
         SELECT 1 FROM fin_cuenta fc
@@ -51,9 +86,17 @@ BEGIN
         id_medio_pago       = COALESCE(p_id_medio_pago, id_medio_pago),
         id_cuenta_bancaria  = CASE WHEN p_id_medio_pago IS NOT NULL THEN p_id_cuenta_bancaria ELSE id_cuenta_bancaria END,
         numero_operacion    = CASE WHEN p_id_medio_pago IS NOT NULL THEN NULLIF(TRIM(p_numero_operacion), '') ELSE numero_operacion END,
+        porcentaje_igv      = COALESCE(v_porcentaje_igv, porcentaje_igv),
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion  = NOW()
     WHERE id = p_id_comprobante;
+
+    IF v_porcentaje_igv IS NOT NULL THEN
+        UPDATE com_comprobante_compra
+        SET sub_total = ROUND(COALESCE(total_importe, 0) / (1 + v_porcentaje_igv / 100), 4),
+            igv       = COALESCE(total_importe, 0) - ROUND(COALESCE(total_importe, 0) / (1 + v_porcentaje_igv / 100), 4)
+        WHERE id = p_id_comprobante;
+    END IF;
 
     PERFORM com_sincronizar_cxp_compra(
         p_id_comprobante,
@@ -70,8 +113,6 @@ BEGIN
         SET id_medio_pago = NULL, id_cuenta_bancaria = NULL, numero_operacion = NULL
         WHERE id = p_id_comprobante;
     ELSIF v_tenia_cxp AND EXISTS (
-        -- Pasó de crédito a contado: ahora se paga en el momento. Una compra al
-        -- contado de antes de 20261023 sin medio se puede seguir editando.
         SELECT 1 FROM com_comprobante_compra
         WHERE id = p_id_comprobante AND id_medio_pago IS NULL AND COALESCE(total_importe, 0) > 0
     ) THEN

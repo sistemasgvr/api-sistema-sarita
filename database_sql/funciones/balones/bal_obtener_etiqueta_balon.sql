@@ -1,12 +1,7 @@
--- Function: bal_obtener_etiqueta_balon
--- Datos mínimos para imprimir la etiqueta adhesiva del cilindro (50 × 25 mm):
--- código (va como código de barras), tipo, marca, fabricación y vencimiento de la PH.
--- Separada de bal_obtener_balon para no arrastrar sus joins ni su auditoría.
+-- Obtiene los datos de un balón para imprimir su etiqueta
+DROP FUNCTION IF EXISTS public.bal_obtener_etiqueta_balon (p_id integer);
 
-CREATE OR REPLACE FUNCTION bal_obtener_etiqueta_balon(p_id integer)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.bal_obtener_etiqueta_balon (p_id integer) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registro JSON;
 BEGIN

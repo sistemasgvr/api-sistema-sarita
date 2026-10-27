@@ -1,13 +1,10 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_obtener_cuenta
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.959Z
-DROP FUNCTION IF EXISTS fin_obtener_cuenta(p_id integer, p_tipo character varying);
+-- Obtiene cuenta por id
+DROP FUNCTION IF EXISTS public.fin_obtener_cuenta (p_id integer, p_tipo character varying);
 
-CREATE OR REPLACE FUNCTION fin_obtener_cuenta(p_id integer, p_tipo character varying DEFAULT NULL::character varying)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_obtener_cuenta (
+  p_id integer,
+  p_tipo character varying DEFAULT NULL::character varying
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registro JSON;
     v_id_tipo  INT;
@@ -64,7 +61,6 @@ BEGIN
                 fc.fecha_vencimiento
             ) AS estado_calculado,
             fc.observacion,
-            -- Cuotas hijas (solo cuando es cabecera de plan)
             (
                 SELECT COALESCE(json_agg(
                     json_build_object(
@@ -85,7 +81,6 @@ BEGIN
                 FROM fin_cuenta h
                 WHERE h.id_cuenta_padre = fc.id AND h.estado = 1
             ) AS cuotas,
-            -- Pagos aplicados directamente a esta cuenta
             COALESCE((
                 SELECT json_agg(
                     json_build_object(

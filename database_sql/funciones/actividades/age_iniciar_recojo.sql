@@ -1,17 +1,10 @@
--- Function: age_iniciar_recojo
--- Pone el recojo EN_RUTA. Exige responsable e ítems materializados.
--- La verificación (escaneo) se hace mientras se recoge; el cierre con
--- almacén destino es age_culminar_recojo.
+-- Pone un recojo EN_RUTA; exige responsable e ítems
+DROP FUNCTION IF EXISTS public.age_iniciar_recojo (p_id integer, p_id_usuario_auditoria integer);
 
-DROP FUNCTION IF EXISTS age_iniciar_recojo(integer, integer);
-
-CREATE OR REPLACE FUNCTION age_iniciar_recojo(
-    p_id integer,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_iniciar_recojo (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_act            RECORD;
     v_nombre_estado  VARCHAR;
@@ -91,7 +84,6 @@ BEGIN
         RETURN json_build_object('error', 'No se encontro el estado EN_RUTA en EstadoActividad', 'registro', NULL);
     END IF;
 
-    -- Materializa ítems si aún no están (préstamo/alquiler lazy).
     PERFORM age_iniciar_verificacion(p_id, p_id_usuario_auditoria);
 
     SELECT COUNT(*) INTO v_items
@@ -113,8 +105,6 @@ BEGIN
         WHERE ai.id_actividad = p_id AND ai.estado = 1 AND ai.id_balon IS NOT NULL
           AND (pd.id IS NULL OR pd.estado <> 1 OR pd.fecha_devolucion IS NOT NULL
                OR pd.id_prestamo IS DISTINCT FROM v_act.id_prestamo
-               -- Mismo criterio que age_balones_disponibles_recojo: vale tanto
-               -- el despacho del préstamo como la entrega confirmada.
                OR COALESCE(UPPER(TRIM(eb.nombre)), '') NOT IN ('EN_PODER_CLIENTE', 'PRESTADO_CLIENTE'))
     ) THEN
         RETURN json_build_object('error', 'Hay balones que ya no están pendientes de devolución o no fueron entregados. Revisa el recojo.', 'registro', NULL);
@@ -125,9 +115,6 @@ BEGIN
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id AND estado = 1;
-
-    -- No se mueve custodia aquí: el cilindro sigue en poder del cliente hasta
-    -- age_culminar_recojo, que llama a bal_devolver_* con el almacén destino.
 
     RETURN age_obtener_actividad(p_id);
 END;

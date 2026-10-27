@@ -1,18 +1,23 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: doc_registrar_respuesta_sunat
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
---
--- Actualizada por database_sql/migraciones/20260910_gre_planta_destinatario_emit.sql:
--- una orden anulada ya no puede registrar respuesta de SUNAT. Conservaba serie
--- y correlativo de cuando estaba vigente, así que la emisión seguía adelante y
--- dejaba una guía viva de un traslado inexistente.
-DROP FUNCTION IF EXISTS doc_registrar_respuesta_sunat(p_id integer, p_codigo_estado_sunat character varying, p_ticket_sunat character varying, p_hash_documento character varying, p_xml_firmado text, p_cdr_respuesta text, p_id_usuario_auditoria integer);
+-- Registra la respuesta de SUNAT de una guía de remisión
+DROP FUNCTION IF EXISTS public.doc_registrar_respuesta_sunat (
+  p_id integer,
+  p_codigo_estado_sunat character varying,
+  p_ticket_sunat character varying,
+  p_hash_documento character varying,
+  p_xml_firmado text,
+  p_cdr_respuesta text,
+  p_id_usuario_auditoria integer
+);
 
-CREATE OR REPLACE FUNCTION doc_registrar_respuesta_sunat(p_id integer, p_codigo_estado_sunat character varying, p_ticket_sunat character varying DEFAULT NULL::character varying, p_hash_documento character varying DEFAULT NULL::character varying, p_xml_firmado text DEFAULT NULL::text, p_cdr_respuesta text DEFAULT NULL::text, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_registrar_respuesta_sunat (
+  p_id integer,
+  p_codigo_estado_sunat character varying,
+  p_ticket_sunat character varying DEFAULT NULL::character varying,
+  p_hash_documento character varying DEFAULT NULL::character varying,
+  p_xml_firmado text DEFAULT NULL::text,
+  p_cdr_respuesta text DEFAULT NULL::text,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_doc RECORD;
     v_id_estado_sunat INTEGER;
@@ -45,7 +50,6 @@ BEGIN
         );
     END IF;
 
-    -- Una consulta atrasada nunca hace retroceder una aceptación ya registrada.
     IF EXISTS (SELECT 1 FROM gen_lista_opciones WHERE id = v_doc.id_estado_sunat AND nombre = 'ACEPTADO') THEN
         RETURN doc_obtener_salida(p_id);
     END IF;

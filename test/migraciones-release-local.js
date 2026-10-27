@@ -1,3 +1,6 @@
+// HISTÓRICO, YA NO EJECUTABLE: lee migraciones sueltas de database_sql/migraciones/ que se retiraron en la
+// limpieza del 2026-10-27 (database_sql/ ahora solo tiene migraciones/sync-*.sql). Se conserva como registro del
+// ensayo de release del 2026-10-17; los archivos originales están en git (commit c07be19).
 // Rehearsal against an explicitly named local Docker restoration. Never loads .env.
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');

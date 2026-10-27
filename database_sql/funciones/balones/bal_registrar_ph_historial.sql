@@ -1,18 +1,31 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: bal_registrar_ph_historial
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.949Z
---
--- Actualizada por database_sql/migraciones/20260910_retorno_fisico_fecha_ph.sql:
---   p_id_doc_salida es el tercer origen de una P.H. (el retorno de una recarga
---   en planta externa), junto a mantenimiento y recarga propia. Va al final de
---   la firma para no romper las llamadas posicionales existentes.
-DROP FUNCTION IF EXISTS bal_registrar_ph_historial(p_id_balon integer, p_fecha_prueba date, p_vigencia_anios integer, p_id_organo_inspector integer, p_organo_inspector_no_aplica boolean, p_numero_certificado character varying, p_id_mantenimiento integer, p_id_movimiento_recarga integer, p_observacion character varying, p_id_usuario_auditoria integer);
+-- Registra una prueba hidrostática de un balón y calcula su próxima fecha
+DROP FUNCTION IF EXISTS public.bal_registrar_ph_historial (
+  p_id_balon integer,
+  p_fecha_prueba date,
+  p_vigencia_anios integer,
+  p_id_organo_inspector integer,
+  p_organo_inspector_no_aplica boolean,
+  p_numero_certificado character varying,
+  p_id_mantenimiento integer,
+  p_id_movimiento_recarga integer,
+  p_observacion character varying,
+  p_id_usuario_auditoria integer,
+  p_id_doc_salida integer
+);
 
-CREATE OR REPLACE FUNCTION bal_registrar_ph_historial(p_id_balon integer, p_fecha_prueba date, p_vigencia_anios integer DEFAULT NULL::integer, p_id_organo_inspector integer DEFAULT NULL::integer, p_organo_inspector_no_aplica boolean DEFAULT false, p_numero_certificado character varying DEFAULT NULL::character varying, p_id_mantenimiento integer DEFAULT NULL::integer, p_id_movimiento_recarga integer DEFAULT NULL::integer, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_doc_salida integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.bal_registrar_ph_historial (
+  p_id_balon integer,
+  p_fecha_prueba date,
+  p_vigencia_anios integer DEFAULT NULL::integer,
+  p_id_organo_inspector integer DEFAULT NULL::integer,
+  p_organo_inspector_no_aplica boolean DEFAULT FALSE,
+  p_numero_certificado character varying DEFAULT NULL::character varying,
+  p_id_mantenimiento integer DEFAULT NULL::integer,
+  p_id_movimiento_recarga integer DEFAULT NULL::integer,
+  p_observacion character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_id_doc_salida integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id INTEGER;
     v_vigencia INTEGER;
@@ -29,7 +42,6 @@ BEGIN
         RETURN json_build_object('error', 'La fecha de prueba hidrostática es obligatoria', 'registro', NULL);
     END IF;
 
-    -- Formato de negocio: solo mes/año (día 1)
     v_fecha_prueba := make_date(
         EXTRACT(YEAR FROM p_fecha_prueba)::INT,
         EXTRACT(MONTH FROM p_fecha_prueba)::INT,

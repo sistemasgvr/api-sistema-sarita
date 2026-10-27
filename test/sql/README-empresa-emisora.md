@@ -1,3 +1,7 @@
+> Nota (2026-10-27): las migraciones citadas en este documento se eliminaron del repo en la limpieza de `database_sql/`; su contenido sigue en el historial de git. Hoy el esquema vive en `database_sql/{tablas,funciones,seeds}` (ver `database_sql/README.md`).
+
+> `apply-migration.js` se conserva solo por esta referencia histórica: aplica un archivo a la base de `DATABASE_URL` de `.env` (puede ser PRODUCCIÓN). Para publicar usar `database_sql/migraciones/sync-*.sql` según `database_sql/README.md`.
+
 # Empresa emisora de las guías
 
 ## Despliegue

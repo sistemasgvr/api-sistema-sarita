@@ -1,13 +1,15 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_eliminar_cuenta
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.959Z
-DROP FUNCTION IF EXISTS fin_eliminar_cuenta(p_id integer, p_tipo character varying, p_id_usuario integer);
+-- Elimina (lógicamente) cuenta
+DROP FUNCTION IF EXISTS public.fin_eliminar_cuenta (
+  p_id integer,
+  p_tipo character varying,
+  p_id_usuario integer
+);
 
-CREATE OR REPLACE FUNCTION fin_eliminar_cuenta(p_id integer, p_tipo character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_eliminar_cuenta (
+  p_id integer,
+  p_tipo character varying DEFAULT NULL::character varying,
+  p_id_usuario integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_cuenta   fin_cuenta%ROWTYPE;
     v_id_tipo  INT;
@@ -20,13 +22,11 @@ BEGIN
         RETURN json_build_object('eliminado', false, 'id', p_id, 'error', 'La cuenta no existe o ya está inactiva');
     END IF;
 
-    -- No permitir eliminar cuotas individuales
     IF v_cuenta.id_cuenta_padre IS NOT NULL THEN
         RETURN json_build_object('eliminado', false, 'id', p_id, 'error',
             'No se puede eliminar una cuota individual: elimina el plan completo desde su cabecera');
     END IF;
 
-    -- Validación opcional del tipo
     IF p_tipo IS NOT NULL THEN
         SELECT glo.id INTO v_id_tipo
         FROM gen_lista_opciones glo
@@ -38,7 +38,6 @@ BEGIN
         END IF;
     END IF;
 
-    -- Verificar pagos activos (en la propia cuenta o en cualquier cuota hija)
     SELECT EXISTS(
         SELECT 1
         FROM fin_pago p
@@ -52,7 +51,6 @@ BEGIN
             'No se puede eliminar: hay pagos aplicados. Anula primero los pagos activos.');
     END IF;
 
-    -- Baja lógica de la cabecera + cuotas hijas
     UPDATE fin_cuenta
        SET estado = 0,
            id_usuario_modificacion = p_id_usuario,

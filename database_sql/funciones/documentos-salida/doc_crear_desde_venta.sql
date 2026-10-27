@@ -1,18 +1,19 @@
--- Function: doc_crear_desde_venta
---
--- Al confirmar que la venta es para envío, los cilindros que salen quedan en
--- estado PENDIENTE_ENVIO: siguen siendo nuestros y siguen en el almacén, pero
--- ya están comprometidos y no deben ofrecerse para otra entrega.
---
--- ven_crear_comprobante ya reserva en PENDIENTE_ENVIO los id_balon del detalle
--- que seguían DISPONIBLE; este UPDATE es idempotente para esos y además cubre
--- cilindros de préstamo (rol ENTREGADO) que aparecen en doc_obtener_salida.
-DROP FUNCTION IF EXISTS doc_crear_desde_venta(p_id_venta integer, p_id_destinatario integer, p_fecha_traslado date, p_id_usuario_auditoria integer);
+-- Crea un documento de salida a partir de un comprobante de venta
+DROP FUNCTION IF EXISTS public.doc_crear_desde_venta (
+  p_id_venta integer,
+  p_id_destinatario integer,
+  p_fecha_traslado date,
+  p_id_usuario_auditoria integer,
+  p_id_empresa integer
+);
 
-CREATE OR REPLACE FUNCTION doc_crear_desde_venta(p_id_venta integer, p_id_destinatario integer DEFAULT NULL::integer, p_fecha_traslado date DEFAULT NULL::date, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_empresa integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_crear_desde_venta (
+  p_id_venta integer,
+  p_id_destinatario integer DEFAULT NULL::integer,
+  p_fecha_traslado date DEFAULT NULL::date,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_id_empresa integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_venta RECORD;
     v_id_sucursal INTEGER;
@@ -41,8 +42,6 @@ BEGIN
         (SELECT a.id_sucursal FROM gen_almacen a WHERE a.id = v_venta.id_almacen)
     );
 
-    -- Catálogo ANTES de crear la OS: si falta PENDIENTE_ENVIO no dejamos
-    -- documento huérfano ni generamos a medias.
     SELECT EXISTS (
         SELECT 1
         FROM ven_comprobante_detalle d
@@ -94,22 +93,9 @@ BEGIN
 
     v_id := (v_resultado->'registro'->>'id')::INTEGER;
 
-    -- Los cilindros de la OS (venta + préstamo ENTREGADO) pasan a PENDIENTE_ENVIO.
-    --
-    -- Orígenes alineados con doc_obtener_salida:
-    --   VENTA    — ven_comprobante_detalle con id_balon (excluye líneas de garantía).
-    --   PRESTAMO — bal_prestamo_detalle.rol = ENTREGADO de esa venta; el de
-    --              rol GARANTIA entra al almacén y no se marca como pendiente.
-    --
-    -- No pasa por inv_registrar_movimiento a propósito: esto no mueve inventario
-    -- —el movimiento lo hizo la venta / el préstamo— sino que marca una situación
-    -- logística sobre el mismo cilindro. Idempotente si ya está PENDIENTE_ENVIO
-    -- (p. ej. reserva hecha en ven_crear_comprobante).
     IF v_id_estado_pendiente_envio IS NOT NULL THEN
         UPDATE bal_balon b
         SET id_estado_balon = v_id_estado_pendiente_envio,
-            -- Si el préstamo ya limpió el almacén (PRESTADO_CLIENTE), la OS lo
-            -- vuelve a anclar al almacén de despacho: sigue en local hasta REPARTO.
             id_almacen = COALESCE(b.id_almacen, v_venta.id_almacen),
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
@@ -138,8 +124,6 @@ BEGIN
           );
     END IF;
 
-    -- Se genera de inmediato: no mueve inventario (lo hizo la venta), así que no hay
-    -- nada que el usuario deba revisar antes de cerrarla.
     RETURN doc_generar_salida(v_id, p_id_usuario_auditoria);
 END;
 $function$;

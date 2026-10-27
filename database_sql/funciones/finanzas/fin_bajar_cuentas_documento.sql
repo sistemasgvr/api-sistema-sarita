@@ -1,13 +1,15 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_bajar_cuentas_documento
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
-DROP FUNCTION IF EXISTS fin_bajar_cuentas_documento(p_id_usuario integer, p_id_comprobante_venta integer, p_id_comprobante_compra integer);
+-- Da de baja las cuentas financieras de un comprobante de venta o compra
+DROP FUNCTION IF EXISTS public.fin_bajar_cuentas_documento (
+  p_id_usuario integer,
+  p_id_comprobante_venta integer,
+  p_id_comprobante_compra integer
+);
 
-CREATE OR REPLACE FUNCTION fin_bajar_cuentas_documento(p_id_usuario integer, p_id_comprobante_venta integer DEFAULT NULL::integer, p_id_comprobante_compra integer DEFAULT NULL::integer)
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_bajar_cuentas_documento (
+  p_id_usuario integer,
+  p_id_comprobante_venta integer DEFAULT NULL::integer,
+  p_id_comprobante_compra integer DEFAULT NULL::integer
+) RETURNS void LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_padre INTEGER;
 BEGIN

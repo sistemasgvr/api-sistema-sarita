@@ -1,14 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: bal_m3_desde_psi
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.947Z
-DROP FUNCTION IF EXISTS bal_m3_desde_psi(p_id_tipo_balon integer, p_psi numeric);
+-- Calcula los m3 de gas de un tipo de balón a partir de su presión en PSI
+DROP FUNCTION IF EXISTS public.bal_m3_desde_psi (p_id_tipo_balon integer, p_psi numeric);
 
-CREATE OR REPLACE FUNCTION bal_m3_desde_psi(p_id_tipo_balon integer, p_psi numeric)
- RETURNS numeric
- LANGUAGE plpgsql
- STABLE
-AS $function$
+CREATE OR REPLACE FUNCTION public.bal_m3_desde_psi (p_id_tipo_balon integer, p_psi numeric) RETURNS numeric LANGUAGE plpgsql STABLE AS $function$
 DECLARE
     v_cap NUMERIC;
     v_psi_lleno NUMERIC;

@@ -1,13 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_refrescar_cabecera_plan
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.959Z
-DROP FUNCTION IF EXISTS fin_refrescar_cabecera_plan(p_id_padre integer);
+-- Recalcula abonado, saldo y estado de la cuenta cabecera de un plan de cuotas
+DROP FUNCTION IF EXISTS public.fin_refrescar_cabecera_plan (p_id_padre integer);
 
-CREATE OR REPLACE FUNCTION fin_refrescar_cabecera_plan(p_id_padre integer)
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_refrescar_cabecera_plan (p_id_padre integer) RETURNS void LANGUAGE plpgsql AS $function$
 DECLARE
     v_pendiente        NUMERIC(12,2);
     v_total_abonado    NUMERIC(12,2);

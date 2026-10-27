@@ -1,19 +1,13 @@
--- Function: age_iniciar_verificacion
--- Source: migraciones/20260909_age_reparto_flujo_entrega.sql
---
--- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
--- origen ALQUILER materializa solo el regulador/accesorio (bal_alquiler_detalle
--- eliminada; el cilindro siempre es préstamo).
+-- Materializa los ítems a verificar de una actividad según su origen
+DROP FUNCTION IF EXISTS public.age_iniciar_verificacion (
+  p_id_actividad integer,
+  p_id_usuario_auditoria integer
+);
 
-DROP FUNCTION IF EXISTS age_iniciar_verificacion(integer, integer);
-
-CREATE OR REPLACE FUNCTION age_iniciar_verificacion(
-    p_id_actividad integer,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_iniciar_verificacion (
+  p_id_actividad integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_act RECORD;
     v_id_pendiente INTEGER;
@@ -94,8 +88,6 @@ BEGIN
           AND pd.id_balon IS NOT NULL;
         GET DIAGNOSTICS v_items = ROW_COUNT;
     ELSIF v_act.id_alquiler IS NOT NULL THEN
-        -- El alquiler es solo del regulador/accesorio (el cilindro va por
-        -- préstamo): un único ítem sin balón, con el producto alquilado.
         INSERT INTO age_actividad_item (
             id_actividad, item, id_producto, descripcion, cantidad, id_balon,
             id_estado_verificacion_salida, id_estado_verificacion_llegada,
@@ -121,8 +113,6 @@ BEGIN
           AND a.fecha_devolucion_regulador IS NULL;
         GET DIAGNOSTICS v_items = ROW_COUNT;
     ELSIF v_act.id_doc_salida IS NOT NULL OR v_act.id_comprobante IS NOT NULL THEN
-        -- REPARTO sin items materializados: no hay nada que derivar aqui, los
-        -- items los crea age_crear_actividad desde el detalle del documento.
         RETURN json_build_object(
             'error', 'La actividad de reparto no tiene items: revisa el documento de origen',
             'registro', NULL

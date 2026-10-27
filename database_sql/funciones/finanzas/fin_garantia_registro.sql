@@ -1,18 +1,7 @@
--- Function: fin_garantia_registro
--- Proyección única de una garantía de finanzas.
---
--- El mismo bloque row_to_json estaba copiado en fin_crear_garantia,
--- fin_actualizar_garantia, fin_reembolsar_garantia y fin_anular_reembolso_garantia.
--- Al añadir la cuenta bancaria en Fase 3 habría que haberlo tocado en cuatro
--- sitios, así que se extrae aquí.
+-- Devuelve el registro JSON completo de una garantía de finanzas
+DROP FUNCTION IF EXISTS public.fin_garantia_registro (p_id integer);
 
-DROP FUNCTION IF EXISTS fin_garantia_registro(p_id integer);
-
-CREATE OR REPLACE FUNCTION fin_garantia_registro(p_id integer)
- RETURNS json
- LANGUAGE sql
- STABLE
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_garantia_registro (p_id integer) RETURNS json LANGUAGE sql STABLE AS $function$
     SELECT row_to_json(t) FROM (
         SELECT
             g.id, g.fecha,

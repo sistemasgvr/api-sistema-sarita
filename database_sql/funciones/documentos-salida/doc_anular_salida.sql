@@ -1,36 +1,15 @@
--- Function: doc_anular_salida
---
--- Anula el ciclo de la OS y libera custodia logística (PENDIENTE_ENVIO /
--- EN_TRANSITO → DISPONIBLE). Si hay reparto vigente, hay que cancelarlo antes.
--- También se invoca en cascada desde ven_eliminar_comprobante (path con
--- id_venta): ese camino no pasa por inv_revertir_por_documento, así que la
--- liberación de balones vive aquí.
---
--- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
--- una orden de planta con compra activa vinculada no se anula (anular la
--- compra primero). Con ello la reversa por ORDEN_SALIDA cubre ida + retorno
--- completos (envases y gas declarado en la orden).
---
--- Actualizada por database_sql/migraciones/20260910_inv_soft_raise_y_recojo.sql:
--- el id del estado ANULADA se resuelve antes de revertir inventario.
---
--- Actualizada por database_sql/migraciones/20260910_venta_custodia_mostrador_anular.sql:
--- un REPARTO ya REALIZADA bloquea la anulación. La entrega ocurrió: los
--- cilindros están EN_PODER_CLIENTE y liberarlos a DISPONIBLE inventaría
--- envases que no tenemos. La corrección documental es una nota de crédito.
---
--- Actualizada por database_sql/migraciones/20260911_w1_nc_planta_devolver.sql:
--- bloqueaba si había bal_recojo PROGRAMADO/EN_RUTA con id_doc_salida = p_id.
---
--- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
--- se retira ese bloqueo: bal_recojo y el recojo de planta ya no existen; el
--- retorno de planta se registra solo con bal_finalizar_recarga_planta.
-DROP FUNCTION IF EXISTS doc_anular_salida(p_id integer, p_motivo character varying, p_id_usuario_auditoria integer);
+-- Anula un documento de salida y libera la custodia de sus cilindros
+DROP FUNCTION IF EXISTS public.doc_anular_salida (
+  p_id integer,
+  p_motivo character varying,
+  p_id_usuario_auditoria integer
+);
 
-CREATE OR REPLACE FUNCTION doc_anular_salida(p_id integer, p_motivo character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_anular_salida (
+  p_id integer,
+  p_motivo character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_doc RECORD;
     v_compra RECORD;
@@ -64,8 +43,6 @@ BEGIN
         );
     END IF;
 
-    -- Ticket PSE pendiente: anular rompería el correlativo/ticket en SUNAT
-    -- sin poder reconciliar (consultarEstado rechaza ANULADA).
     IF NULLIF(TRIM(COALESCE(v_doc.ticket_sunat, '')), '') IS NOT NULL THEN
         RETURN json_build_object(
             'error',
@@ -74,9 +51,6 @@ BEGIN
         );
     END IF;
 
-    -- Orden de planta con factura vinculada: la compra tiene su gas del retorno
-    -- etiquetado COMPRA, que la reversa por ORDEN_SALIDA no alcanza. Anular la
-    -- compra primero (que desvincula y ajusta el gas) deja todo consistente.
     IF v_doc.id_comprobante_compra IS NOT NULL AND EXISTS (
         SELECT 1 FROM com_comprobante_compra c
         WHERE c.id = v_doc.id_comprobante_compra AND c.estado = 1
@@ -94,9 +68,6 @@ BEGIN
         );
     END IF;
 
-    -- Entrega ya realizada: los cilindros pasaron a EN_PODER_CLIENTE y el
-    -- cliente se quedó con ellos. Anular repondría stock inexistente, así que
-    -- se bloquea aquí y también en la cascada desde ven_eliminar_comprobante.
     IF EXISTS (
         SELECT 1
         FROM age_actividad a
@@ -115,7 +86,6 @@ BEGIN
         );
     END IF;
 
-    -- No anular si hay reparto / actividad operativa todavía vigente.
     IF EXISTS (
         SELECT 1
         FROM age_actividad a
@@ -157,9 +127,6 @@ BEGIN
         );
     END IF;
 
-    -- El estado ANULADA se resuelve antes de revertir inventario: si faltara en
-    -- el catálogo, el error soft se devolvía con los movimientos ya revertidos y
-    -- la orden seguía activa.
     SELECT lo.id INTO v_id_anulada
     FROM gen_lista_opciones lo
     JOIN gen_lista l ON l.id = lo.id_lista
@@ -172,7 +139,6 @@ BEGIN
         );
     END IF;
 
-    -- Solo se revierte lo que este documento movió por su cuenta.
     IF v_doc.id_venta IS NULL THEN
         v_rev := inv_revertir_por_documento('ORDEN_SALIDA', p_id, p_id_usuario_auditoria);
 
@@ -187,14 +153,6 @@ BEGIN
         WHERE id_doc_salida = p_id;
     END IF;
 
-    -- ------------------------------------------------------------
-    -- Custodia logística: PENDIENTE_ENVIO / EN_TRANSITO → DISPONIBLE
-    --
-    -- Con id_venta el inventario lo movió la venta (no hay movimiento OS),
-    -- pero los cilindros sí quedaron comprometidos al crear la OS
-    -- (doc_crear_desde_venta). Sin esto quedan atrapados al anular.
-    -- Sin id_venta, cubre residuales que no hayan pasado por kardex BALON.
-    -- ------------------------------------------------------------
     UPDATE bal_balon b
     SET id_estado_balon = v_id_disponible,
         id_almacen = COALESCE(v_doc.id_almacen, b.id_almacen),
@@ -216,7 +174,6 @@ BEGIN
             AND vd.id_balon IS NOT NULL
             AND COALESCE(vd.descripcion, '') !~* 'garant[ií]a'
           UNION
-          -- Misma cobertura que doc_crear_desde_venta / doc_obtener_salida
           SELECT pd.id_balon
           FROM bal_prestamo pr
           INNER JOIN bal_prestamo_detalle pd

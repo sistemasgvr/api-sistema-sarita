@@ -1,13 +1,15 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: dash_valor_total_inventario
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.957Z
-DROP FUNCTION IF EXISTS dash_valor_total_inventario(p_id_almacen integer, p_limite integer, p_offset integer);
+-- Dashboard: valor total del stock y lista paginada por producto
+DROP FUNCTION IF EXISTS public.dash_valor_total_inventario (
+  p_id_almacen integer,
+  p_limite integer,
+  p_offset integer
+);
 
-CREATE OR REPLACE FUNCTION dash_valor_total_inventario(p_id_almacen integer DEFAULT NULL::integer, p_limite integer DEFAULT 20, p_offset integer DEFAULT 0)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.dash_valor_total_inventario (
+  p_id_almacen integer DEFAULT NULL::integer,
+  p_limite integer DEFAULT 20,
+  p_offset integer DEFAULT 0
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_valor_total NUMERIC(14,4) := 0;
     v_total_items_stock BIGINT := 0;

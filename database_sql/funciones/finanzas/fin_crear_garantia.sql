@@ -1,22 +1,23 @@
--- Function: fin_crear_garantia
--- Fase 3 (apunte 1.c.vi): una garantía cobrada por Yape, transferencia o
--- tarjeta queda ligada a la cuenta bancaria de la empresa que recibió el dinero.
+-- Crea garantia
+DROP FUNCTION IF EXISTS public.fin_crear_garantia (
+  p_fecha date,
+  p_id_cliente integer,
+  p_id_medio_pago integer,
+  p_importe numeric,
+  p_observacion character varying,
+  p_id_usuario integer,
+  p_id_cuenta_bancaria integer
+);
 
-DROP FUNCTION IF EXISTS fin_crear_garantia(p_fecha date, p_id_cliente integer, p_id_medio_pago integer, p_importe numeric, p_observacion character varying, p_id_usuario integer);
-DROP FUNCTION IF EXISTS fin_crear_garantia(p_fecha date, p_id_cliente integer, p_id_medio_pago integer, p_importe numeric, p_observacion character varying, p_id_usuario integer, p_id_cuenta_bancaria integer);
-
-CREATE OR REPLACE FUNCTION fin_crear_garantia(
-    p_fecha date,
-    p_id_cliente integer,
-    p_id_medio_pago integer,
-    p_importe numeric,
-    p_observacion character varying DEFAULT NULL::character varying,
-    p_id_usuario integer DEFAULT NULL::integer,
-    p_id_cuenta_bancaria integer DEFAULT NULL::integer
-)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_crear_garantia (
+  p_fecha date,
+  p_id_cliente integer,
+  p_id_medio_pago integer,
+  p_importe numeric,
+  p_observacion character varying DEFAULT NULL::character varying,
+  p_id_usuario integer DEFAULT NULL::integer,
+  p_id_cuenta_bancaria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_cliente INT;
     v_id_estado  INT;

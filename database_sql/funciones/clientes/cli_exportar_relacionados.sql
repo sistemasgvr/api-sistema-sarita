@@ -1,13 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: cli_exportar_relacionados
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.952Z
-DROP FUNCTION IF EXISTS cli_exportar_relacionados(p_ids_cliente integer[]);
+-- Devuelve direcciones y contactos de varios clientes para exportar
+DROP FUNCTION IF EXISTS public.cli_exportar_relacionados (p_ids_cliente INTEGER[]);
 
-CREATE OR REPLACE FUNCTION cli_exportar_relacionados(p_ids_cliente integer[])
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.cli_exportar_relacionados (p_ids_cliente INTEGER[]) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_resultado JSON;
 BEGIN

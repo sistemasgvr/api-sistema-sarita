@@ -1,15 +1,19 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: cli_listar_clientes_mapa
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.952Z
--- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
--- sin lateral sobre bal_alquiler_detalle (el cilindro nunca se alquila; solo préstamo).
-DROP FUNCTION IF EXISTS cli_listar_clientes_mapa(p_solo_activos integer, p_buscar character varying, p_filtro_balones character varying, p_limite integer, p_offset integer);
+-- Lista clientes mapa con filtros y paginación
+DROP FUNCTION IF EXISTS public.cli_listar_clientes_mapa (
+  p_solo_activos integer,
+  p_buscar character varying,
+  p_filtro_balones character varying,
+  p_limite integer,
+  p_offset integer
+);
 
-CREATE OR REPLACE FUNCTION cli_listar_clientes_mapa(p_solo_activos integer DEFAULT 1, p_buscar character varying DEFAULT NULL::character varying, p_filtro_balones character varying DEFAULT NULL::character varying, p_limite integer DEFAULT 500, p_offset integer DEFAULT 0)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.cli_listar_clientes_mapa (
+  p_solo_activos integer DEFAULT 1,
+  p_buscar character varying DEFAULT NULL::character varying,
+  p_filtro_balones character varying DEFAULT NULL::character varying,
+  p_limite integer DEFAULT 500,
+  p_offset integer DEFAULT 0
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_resultado JSON;
     v_buscar    VARCHAR;
@@ -140,7 +144,6 @@ BEGIN
                 LIMIT 1
             ) prest ON TRUE
             WHERE b.estado = 1
-              -- ALQUILADO ya no existe como custodia: el cilindro nunca se alquila.
               AND eb.nombre IN (
                   'PRESTADO_CLIENTE',
                   'POR_RECOGER',
@@ -221,8 +224,6 @@ BEGIN
             ba.max_dias_en_cliente
         FROM cli_clientes c
         LEFT JOIN gen_lista_opciones tp ON c.id_tipo_persona = tp.id
-        -- Dirección a dibujar: la principal si tiene coordenadas; si no, la
-        -- georreferenciada más reciente (ej. la marcada desde una orden de salida).
         INNER JOIN LATERAL (
             SELECT cd.*
             FROM cli_direcciones cd

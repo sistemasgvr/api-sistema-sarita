@@ -1,6 +1,9 @@
 -- Prueba de esquema y numeración GRE por empresa (plan GRE 16/09/2026, P0 #4 y #2).
 -- Se ejecuta dentro de una transacción y termina en ROLLBACK: no deja datos.
--- Requiere aplicada database_sql/migraciones/20260916_gre_p0_fiscal_numeracion_entorno.sql.
+-- Antes requería la migración 20260916_gre_p0_fiscal_numeracion_entorno.sql (ya retirada). Hoy ese esquema está
+-- en database_sql/tablas/ (gen_empresa, doc_gre_intento) y las funciones en database_sql/funciones/:
+-- documentos-salida/doc_convertir_a_gre.sql, documentos-salida/doc_obtener_salida.sql y general/gen_*_empresa.sql,
+-- todas iguales en DEV y PROD (origen "ambas" en .cache/decisiones-funciones.json).
 BEGIN;
 
 -- 1. Firmas y columnas que exige el backend.

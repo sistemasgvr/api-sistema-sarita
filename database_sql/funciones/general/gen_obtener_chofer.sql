@@ -1,0 +1,69 @@
+-- Obtiene chofer por id
+DROP FUNCTION IF EXISTS public.gen_obtener_chofer (p_id integer);
+
+CREATE OR REPLACE FUNCTION public.gen_obtener_chofer (p_id integer) RETURNS json LANGUAGE plpgsql AS $function$
+DECLARE
+    v_registro JSON;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT row_to_json(t) INTO v_registro
+    FROM (
+        SELECT
+            ch.id,
+            ch.id_cliente,
+            c.razon_social AS cliente_razon_social,
+            c.nombres AS cliente_nombres,
+            c.apellido_paterno AS cliente_apellido_paterno,
+            c.apellido_materno AS cliente_apellido_materno,
+            c.numero_documento AS cliente_numero_documento,
+            ch.id_trabajador,
+            (ch.id_trabajador IS NOT NULL) AS es_chofer_empresa,
+            COALESCE(tr.apellido_paterno, ch.apellido_paterno) AS apellido_paterno,
+            COALESCE(tr.apellido_materno, ch.apellido_materno) AS apellido_materno,
+            COALESCE(tr.nombres, ch.nombres) AS nombres,
+            COALESCE(tr.id_tipo_documento, ch.id_tipo_documento) AS id_tipo_documento,
+            td.nombre AS nombre_tipo_documento,
+            COALESCE(tr.numero_documento, ch.numero_documento) AS numero_documento,
+            ch.telefono,
+
+            lic.id                    AS id_licencia,
+            lic.codigo                AS codigo_licencia,
+            lic.fecha_emision,
+            lic.fecha_vencimiento,
+            lic.id_tipo_licencia,
+            tl.nombre                 AS nombre_tipo_licencia,
+            lic.id_categoria_licencia,
+            cl.nombre                 AS nombre_categoria_licencia,
+
+            ch.estado,
+            ch.fecha_creacion,
+            ch.fecha_modificacion,
+            ch.id_usuario_creacion,
+            uc.nombre AS nombre_usuario_creacion,
+            ch.id_usuario_modificacion,
+            um.nombre AS nombre_usuario_modificacion
+        FROM gen_chofer ch
+        LEFT JOIN cli_clientes c ON ch.id_cliente = c.id
+        LEFT JOIN tra_trabajadores tr ON tr.id = ch.id_trabajador
+        LEFT JOIN gen_lista_opciones td ON COALESCE(tr.id_tipo_documento, ch.id_tipo_documento) = td.id
+        LEFT JOIN auth_usuarios uc ON ch.id_usuario_creacion = uc.id
+        LEFT JOIN auth_usuarios um ON ch.id_usuario_modificacion = um.id
+
+        LEFT JOIN LATERAL (
+            SELECT gl.*
+            FROM gen_licencia gl
+            WHERE gl.id_chofer = ch.id
+              AND gl.estado = 1
+            ORDER BY gl.fecha_vencimiento DESC, gl.fecha_emision DESC, gl.id DESC
+            LIMIT 1
+        ) lic ON TRUE
+        LEFT JOIN gen_lista_opciones tl ON lic.id_tipo_licencia = tl.id
+        LEFT JOIN gen_lista_opciones cl ON lic.id_categoria_licencia = cl.id
+
+        WHERE ch.id = p_id AND ch.estado = 1
+    ) t;
+
+    RETURN json_build_object('registro', v_registro);
+END;
+$function$;

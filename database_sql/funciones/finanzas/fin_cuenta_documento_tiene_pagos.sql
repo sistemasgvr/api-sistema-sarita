@@ -1,14 +1,13 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_cuenta_documento_tiene_pagos
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.959Z
-DROP FUNCTION IF EXISTS fin_cuenta_documento_tiene_pagos(p_id_comprobante_venta integer, p_id_comprobante_compra integer);
+-- Indica si las cuentas de un comprobante de venta o compra tienen pagos activos
+DROP FUNCTION IF EXISTS public.fin_cuenta_documento_tiene_pagos (
+  p_id_comprobante_venta integer,
+  p_id_comprobante_compra integer
+);
 
-CREATE OR REPLACE FUNCTION fin_cuenta_documento_tiene_pagos(p_id_comprobante_venta integer DEFAULT NULL::integer, p_id_comprobante_compra integer DEFAULT NULL::integer)
- RETURNS boolean
- LANGUAGE plpgsql
- STABLE
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_cuenta_documento_tiene_pagos (
+  p_id_comprobante_venta integer DEFAULT NULL::integer,
+  p_id_comprobante_compra integer DEFAULT NULL::integer
+) RETURNS boolean LANGUAGE plpgsql STABLE AS $function$
 BEGIN
     RETURN EXISTS (
         SELECT 1

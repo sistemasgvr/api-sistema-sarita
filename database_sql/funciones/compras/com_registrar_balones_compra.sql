@@ -1,36 +1,15 @@
--- Function: com_registrar_balones_compra
--- Fase 7 — compra de cilindros: los da de alta en el libro y mueve inventario.
---
--- Comprar un balón no es como comprar un producto: el cilindro tiene identidad
--- propia, así que además de la línea de compra hay que crearlo en bal_balon y
--- registrar su ENTRADA_COMPRA en inv_movimiento. Un movimiento por cilindro,
--- no uno por línea (apunte 4.b.iv).
---
--- Si el cilindro viene cargado, `cantidad_gas` registra además la entrada del
--- gas como movimiento de PRODUCTO: comprar un balón lleno son dos hechos —
--- entra el envase y entra su contenido— y cada uno lleva su movimiento.
---
--- p_balones: [{ codigo_balon, numero_serie, id_tipo_balon, id_producto_gas,
---               id_marca_cilindro, fecha_fabricacion,
---               fecha_ultima_prueba_hidrostatica, cantidad_gas }]
---
--- Actualizada por database_sql/migraciones/20260910_compras_anular_retorno_p0p1.sql:
---   las validaciones de códigos (vacío, repetido en el lote, ya en el libro)
---   corren sobre todo el lote antes del bucle, y dentro del bucle todo fallo
---   es RAISE. Antes un {error} blando en el 3.er cilindro dejaba los dos
---   primeros dados de alta con su movimiento (sin rollback).
---
--- Actualizada por database_sql/migraciones/20260910_retorno_fisico_fecha_ph.sql:
---   "los cilindros ya llegaron" se mide por la ENTRADA_PLANTA_EXTERNA vigente
---   de los envases, no por doc_salida.fecha_llegada_almacen: una orden con solo
---   la fecha tiene los cilindros todavía en planta, y el gas de esta compra
---   entraba igual (inflando el stock).
-DROP FUNCTION IF EXISTS com_registrar_balones_compra(p_id_comprobante integer, p_balones jsonb, p_id_usuario_auditoria integer);
+-- Da de alta los cilindros comprados y registra su entrada a inventario
+DROP FUNCTION IF EXISTS public.com_registrar_balones_compra (
+  p_id_comprobante integer,
+  p_balones jsonb,
+  p_id_usuario_auditoria integer
+);
 
-CREATE OR REPLACE FUNCTION com_registrar_balones_compra(p_id_comprobante integer, p_balones jsonb DEFAULT NULL::jsonb, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.com_registrar_balones_compra (
+  p_id_comprobante integer,
+  p_balones jsonb DEFAULT NULL::jsonb,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_compra            RECORD;
     v_linea             JSONB;
@@ -79,7 +58,6 @@ BEGIN
         RETURN json_build_object('error', 'La compra no existe o está anulada', 'registro', NULL);
     END IF;
 
-    -- Un cilindro comprado entra como propio y disponible en el almacén de la compra.
     SELECT lo.id INTO v_id_propietario
     FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
     WHERE l.nombre = 'PropietarioBalon' AND lo.nombre = 'EMPRESA' AND lo.estado = 1 LIMIT 1;
@@ -96,10 +74,6 @@ BEGIN
     FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
     WHERE l.nombre = 'ReferenciaCilindro' AND lo.nombre = 'ALMACEN' AND lo.estado = 1 LIMIT 1;
 
-    -- El gas entra al stock cuando los cilindros ya llegaron. Si la compra cuelga
-    -- de una orden a planta cuyo retorno no se marcó, el gas todavía está en la
-    -- planta y sumarlo inflaría el inventario. Se valida ANTES del bucle: si se
-    -- comprobara por línea, los cilindros anteriores ya estarían dados de alta.
     IF NOT v_compra.retorno_marcado
        AND EXISTS (
            SELECT 1 FROM jsonb_array_elements(p_balones) AS a(x)
@@ -112,9 +86,6 @@ BEGIN
         );
     END IF;
 
-    -- Validaciones de todo el lote ANTES de dar de alta el primero: dentro del
-    -- bucle un {error} blando dejaría confirmados los cilindros anteriores
-    -- (la función no falla, así que no hay rollback).
     IF EXISTS (
         SELECT 1 FROM jsonb_array_elements(p_balones) AS a(x)
         WHERE NULLIF(TRIM(x->>'codigo_balon'), '') IS NULL
@@ -154,8 +125,6 @@ BEGIN
     LOOP
         v_codigo := NULLIF(TRIM(v_linea->>'codigo_balon'), '');
 
-        -- El gas no se elige a mano: lo define el tipo de balón. Un cilindro de
-        -- oxígeno medicinal no puede entrar con otro gas por un descuido al tipear.
         v_id_gas := COALESCE(
             (v_linea->>'id_producto_gas')::INTEGER,
             (SELECT tb.id_gas FROM bal_tipo_balon tb WHERE tb.id = (v_linea->>'id_tipo_balon')::INTEGER)
@@ -182,9 +151,6 @@ BEGIN
             p_id_usuario_auditoria             => p_id_usuario_auditoria
         );
 
-        -- Desde el segundo cilindro ya hay altas confirmadas: cualquier fallo se
-        -- levanta con RAISE para que la transacción entera se deshaga y no
-        -- queden cilindros dados de alta a medias.
         IF (v_res->>'error') IS NOT NULL THEN
             RAISE EXCEPTION 'No se pudo dar de alta el cilindro %: %', v_codigo, v_res->>'error';
         END IF;
@@ -195,12 +161,6 @@ BEGIN
             RAISE EXCEPTION 'No se pudo crear el cilindro %', v_codigo;
         END IF;
 
-        -- El cilindro ya existe en el libro: si el movimiento falla se levanta
-        -- excepción para que no quede un balón dado de alta sin su entrada de
-        -- inventario.
-        -- id_documento_detalle = id_balon: cada cilindro es un hecho distinto para
-        -- la idempotencia de inv_registrar_movimiento (sin esto, el 2.º gas del
-        -- mismo producto reusa el 1.er movimiento y se pierde stock).
         v_res := inv_registrar_movimiento(
             p_naturaleza                   => 'BALON',
             p_codigo_tipo_movimiento       => 'ENTRADA_COMPRA',
@@ -221,8 +181,6 @@ BEGIN
                 v_codigo, v_res->>'error';
         END IF;
 
-        -- Gas del cilindro comprado: entra al stock del producto por la misma vía
-        -- unificada que cualquier otro ingreso.
         IF v_cantidad_gas > 0 AND v_id_gas IS NOT NULL THEN
             v_res := inv_registrar_movimiento(
                 p_naturaleza                   => 'PRODUCTO',

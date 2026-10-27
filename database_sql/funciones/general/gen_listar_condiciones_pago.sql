@@ -1,0 +1,65 @@
+-- Lista condiciones pago con filtros y paginación
+DROP FUNCTION IF EXISTS public.gen_listar_condiciones_pago (
+  p_busqueda character varying,
+  p_limite integer,
+  p_offset integer
+);
+
+CREATE OR REPLACE FUNCTION public.gen_listar_condiciones_pago (
+  p_busqueda character varying DEFAULT ''::character varying,
+  p_limite integer DEFAULT 10,
+  p_offset integer DEFAULT 0
+) RETURNS json LANGUAGE plpgsql AS $function$
+DECLARE
+    v_registros JSON;
+    v_total BIGINT;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT COUNT(*) INTO v_total
+    FROM gen_condicion_pago cp
+    WHERE cp.estado = 1
+      AND (
+          p_busqueda = ''
+          OR gen_texto_coincide(cp.codigo, p_busqueda)
+          OR gen_texto_coincide(cp.nombre, p_busqueda)
+      );
+
+    SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
+    FROM (
+        SELECT
+            cp.id,
+            cp.codigo,
+            cp.nombre,
+            cp.dias_credito,
+            cp.numero_cuotas,
+            cp.dia_mes_pago,
+            CASE
+                WHEN COALESCE(cp.numero_cuotas, 0) > 1 THEN 'CUOTAS'
+                WHEN COALESCE(cp.dias_credito, 0) > 0 THEN 'CREDITO'
+                ELSE 'CONTADO'
+            END AS modalidad,
+            cp.estado,
+            cp.fecha_creacion,
+            cp.fecha_modificacion,
+            cp.id_usuario_creacion,
+            uc.nombre AS nombre_usuario_creacion,
+            cp.id_usuario_modificacion,
+            um.nombre AS nombre_usuario_modificacion
+        FROM gen_condicion_pago cp
+        LEFT JOIN auth_usuarios uc ON cp.id_usuario_creacion = uc.id
+        LEFT JOIN auth_usuarios um ON cp.id_usuario_modificacion = um.id
+        WHERE cp.estado = 1
+          AND (
+              p_busqueda = ''
+              OR gen_texto_coincide(cp.codigo, p_busqueda)
+              OR gen_texto_coincide(cp.nombre, p_busqueda)
+          )
+        ORDER BY cp.nombre ASC
+        LIMIT p_limite
+        OFFSET p_offset
+    ) t;
+
+    RETURN json_build_object('registros', v_registros, 'total', v_total);
+END;
+$function$;

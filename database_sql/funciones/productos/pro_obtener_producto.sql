@@ -1,13 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: pro_obtener_producto
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.965Z
-DROP FUNCTION IF EXISTS pro_obtener_producto(p_id integer);
+-- Obtiene producto por id
+DROP FUNCTION IF EXISTS public.pro_obtener_producto (p_id integer);
 
-CREATE OR REPLACE FUNCTION pro_obtener_producto(p_id integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.pro_obtener_producto (p_id integer) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registro JSON;
 BEGIN

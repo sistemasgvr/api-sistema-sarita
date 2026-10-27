@@ -1,13 +1,17 @@
--- Function: fin_abonar_por_nota_credito
--- P0: el abono automático lleva medio AJUSTE_NC (AFECTA_CAJA=false) para que
--- caja no haga COALESCE(null → efectivo) y cuente la NC como cobranza en efectivo.
+-- Abona el monto de una nota de crédito a las cuentas por cobrar del comprobante origen
+DROP FUNCTION IF EXISTS public.fin_abonar_por_nota_credito (
+  p_id_comprobante_origen integer,
+  p_id_nota_credito integer,
+  p_monto numeric,
+  p_id_usuario integer
+);
 
-DROP FUNCTION IF EXISTS fin_abonar_por_nota_credito(p_id_comprobante_origen integer, p_id_nota_credito integer, p_monto numeric, p_id_usuario integer);
-
-CREATE OR REPLACE FUNCTION fin_abonar_por_nota_credito(p_id_comprobante_origen integer, p_id_nota_credito integer, p_monto numeric, p_id_usuario integer DEFAULT NULL::integer)
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_abonar_por_nota_credito (
+  p_id_comprobante_origen integer,
+  p_id_nota_credito integer,
+  p_monto numeric,
+  p_id_usuario integer DEFAULT NULL::integer
+) RETURNS void LANGUAGE plpgsql AS $function$
 DECLARE
     v_restante NUMERIC(12,2);
     v_aplicar NUMERIC(12,2);
@@ -23,7 +27,6 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Medio interno no-caja: no exige cuenta bancaria y no entra al arqueo.
     SELECT o.id INTO v_id_medio_nc
     FROM gen_lista_opciones o
     JOIN gen_lista l ON l.id = o.id_lista AND l.nombre = 'MedioPago'

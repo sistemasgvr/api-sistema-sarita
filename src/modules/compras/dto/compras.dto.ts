@@ -10,6 +10,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   ValidateNested,
@@ -358,6 +359,19 @@ export class CreateCompraDto extends AuditoriaDto {
   numeroOperacion?: string;
 
   @ApiPropertyOptional({
+    example: 18,
+    minimum: 0,
+    maximum: 100,
+    description: 'Porcentaje de IGV de la compra (0 a 100, 2 decimales). Por defecto 18.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  porcentajeIgv?: number;
+
+  @ApiPropertyOptional({
     type: [CreateCompraDetalleDto],
     description:
       'Líneas del detalle de compra (opcional: se pueden agregar después)',
@@ -425,6 +439,20 @@ export class ActualizarCompraCabeceraDto extends AuditoriaDto {
   @IsString()
   @MaxLength(80)
   numeroOperacion?: string;
+
+  @ApiPropertyOptional({
+    example: 18,
+    minimum: 0,
+    maximum: 100,
+    description:
+      'Nuevo porcentaje de IGV (0 a 100, 2 decimales). Recalcula base imponible e IGV; si no se envía se conserva.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  porcentajeIgv?: number;
 }
 
 export class ActualizarCompraDetalleDto extends AuditoriaDto {

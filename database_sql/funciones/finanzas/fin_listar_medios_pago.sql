@@ -1,20 +1,7 @@
--- Function: fin_listar_medios_pago
--- Fase 3: además del catálogo, devuelve la configuración de cada medio
--- (fin_medio_pago_config) y las cuentas de empresa asociadas, para que el
--- frontend sepa cuándo exigir cuenta bancaria y qué cuentas ofrecer sin
--- necesidad de una segunda llamada.
---
--- `configurado: false` marca los medios que existen en el catálogo pero no
--- tienen fila en fin_medio_pago_config: usarlos lanzará excepción en
--- fin_medio_pago_flag, así que la UI debe poder señalarlos.
+-- Lista los medios de pago con su configuración y cuentas bancarias asociadas
+DROP FUNCTION IF EXISTS public.fin_listar_medios_pago ();
 
-DROP FUNCTION IF EXISTS fin_listar_medios_pago();
-
-CREATE OR REPLACE FUNCTION fin_listar_medios_pago()
- RETURNS json
- LANGUAGE sql
- STABLE
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_listar_medios_pago () RETURNS json LANGUAGE sql STABLE AS $function$
     SELECT COALESCE(
         json_agg(
             json_build_object(
@@ -55,8 +42,5 @@ AS $function$
     FROM gen_lista_opciones glo
     JOIN gen_lista gl ON gl.id = glo.id_lista
     LEFT JOIN fin_medio_pago_config c ON c.id_medio_pago = glo.id AND c.estado = 1
-    WHERE gl.nombre = 'MedioPago'
-      AND glo.estado = 1
-      -- Medio interno de abonos por NC: no se ofrece en UI de cobro.
-      AND UPPER(glo.nombre) <> 'AJUSTE_NC';
+    WHERE gl.nombre = 'MedioPago' AND glo.estado = 1;
 $function$;

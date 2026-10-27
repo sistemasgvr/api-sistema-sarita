@@ -1,13 +1,10 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: act_eliminar_activo
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.940Z
-DROP FUNCTION IF EXISTS act_eliminar_activo(p_id integer, p_id_usuario_auditoria integer);
+-- Elimina (lógicamente) activo
+DROP FUNCTION IF EXISTS public.act_eliminar_activo (p_id integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION act_eliminar_activo(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.act_eliminar_activo (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
 

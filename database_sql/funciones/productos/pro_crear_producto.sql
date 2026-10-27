@@ -1,13 +1,47 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: pro_crear_producto
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.964Z
-DROP FUNCTION IF EXISTS pro_crear_producto(p_codigo character varying, p_nombre character varying, p_id_sub_categoria integer, p_codigo_barra character varying, p_id_unidad_medida integer, p_marca character varying, p_presentacion character varying, p_es_gas boolean, p_es_servicio boolean, p_es_alquilable boolean, p_afecta_stock boolean, p_precio numeric, p_codigo_ubicacion character varying, p_id_usuario_auditoria integer, p_precio_compra numeric, p_precio_garantia numeric, p_factor_kg_m3 numeric, p_factor_lb_m3 numeric, p_es_mantenimiento boolean);
+-- Crea producto
+DROP FUNCTION IF EXISTS public.pro_crear_producto (
+  p_codigo character varying,
+  p_nombre character varying,
+  p_id_sub_categoria integer,
+  p_codigo_barra character varying,
+  p_id_unidad_medida integer,
+  p_marca character varying,
+  p_presentacion character varying,
+  p_es_gas boolean,
+  p_es_servicio boolean,
+  p_es_alquilable boolean,
+  p_afecta_stock boolean,
+  p_precio numeric,
+  p_codigo_ubicacion character varying,
+  p_id_usuario_auditoria integer,
+  p_precio_compra numeric,
+  p_precio_garantia numeric,
+  p_factor_kg_m3 numeric,
+  p_factor_lb_m3 numeric,
+  p_es_mantenimiento boolean
+);
 
-CREATE OR REPLACE FUNCTION pro_crear_producto(p_codigo character varying, p_nombre character varying, p_id_sub_categoria integer DEFAULT NULL::integer, p_codigo_barra character varying DEFAULT NULL::character varying, p_id_unidad_medida integer DEFAULT NULL::integer, p_marca character varying DEFAULT NULL::character varying, p_presentacion character varying DEFAULT NULL::character varying, p_es_gas boolean DEFAULT false, p_es_servicio boolean DEFAULT false, p_es_alquilable boolean DEFAULT false, p_afecta_stock boolean DEFAULT true, p_precio numeric DEFAULT 0, p_codigo_ubicacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_precio_compra numeric DEFAULT 0, p_precio_garantia numeric DEFAULT 0, p_factor_kg_m3 numeric DEFAULT NULL::numeric, p_factor_lb_m3 numeric DEFAULT NULL::numeric, p_es_mantenimiento boolean DEFAULT false)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.pro_crear_producto (
+  p_codigo character varying,
+  p_nombre character varying,
+  p_id_sub_categoria integer DEFAULT NULL::integer,
+  p_codigo_barra character varying DEFAULT NULL::character varying,
+  p_id_unidad_medida integer DEFAULT NULL::integer,
+  p_marca character varying DEFAULT NULL::character varying,
+  p_presentacion character varying DEFAULT NULL::character varying,
+  p_es_gas boolean DEFAULT FALSE,
+  p_es_servicio boolean DEFAULT FALSE,
+  p_es_alquilable boolean DEFAULT FALSE,
+  p_afecta_stock boolean DEFAULT TRUE,
+  p_precio numeric DEFAULT 0,
+  p_codigo_ubicacion character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_precio_compra numeric DEFAULT 0,
+  p_precio_garantia numeric DEFAULT 0,
+  p_factor_kg_m3 numeric DEFAULT NULL::numeric,
+  p_factor_lb_m3 numeric DEFAULT NULL::numeric,
+  p_es_mantenimiento boolean DEFAULT FALSE
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id INTEGER;
     v_codigo_ubicacion VARCHAR;
@@ -104,8 +138,6 @@ BEGIN
             THEN COALESCE(p_es_mantenimiento, FALSE)
             ELSE FALSE
         END,
-        -- Desde la Fase 1 el gas ES un producto con stock (pro_stock); solo los
-        -- servicios quedan sin stock.
         CASE
             WHEN COALESCE(p_es_servicio, FALSE) THEN FALSE
             WHEN COALESCE(p_es_gas, FALSE) THEN TRUE

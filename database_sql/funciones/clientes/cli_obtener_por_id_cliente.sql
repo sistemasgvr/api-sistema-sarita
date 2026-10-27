@@ -1,13 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: cli_obtener_por_id_cliente
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.953Z
-DROP FUNCTION IF EXISTS cli_obtener_por_id_cliente(p_id integer);
+-- Obtiene un cliente por id
+DROP FUNCTION IF EXISTS public.cli_obtener_por_id_cliente (p_id integer);
 
-CREATE OR REPLACE FUNCTION cli_obtener_por_id_cliente(p_id integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.cli_obtener_por_id_cliente (p_id integer) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registro JSON;
 BEGIN
@@ -29,7 +23,6 @@ BEGIN
             c.id_tipo_documento,
             td.nombre AS nombre_tipo_documento,
             c.numero_documento,
-            -- Dirección principal 
             dir.id            AS id_direccion,
             dir.direccion,
             dir.referencia,
@@ -60,7 +53,6 @@ BEGIN
             um.nombre AS nombre_usuario_modificacion,
             c.fecha_creacion,
             c.fecha_modificacion,
-            -- Datos de baja (si tiene solicitud pendiente)
             bc.id AS id_baja_pendiente,
             ea.nombre AS estado_baja_aprobacion,
             bc.motivo_detalle AS motivo_baja_detalle,
@@ -78,7 +70,6 @@ BEGIN
                                        AND ea.nombre = 'PENDIENTE'
         LEFT JOIN gen_lista_opciones mb ON bc.id_motivo_baja = mb.id
 
-        -- Dirección principal del cliente
         LEFT JOIN LATERAL (
             SELECT cd.*
             FROM cli_direcciones cd

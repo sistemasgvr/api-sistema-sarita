@@ -1,13 +1,10 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_anular_reembolso_garantia
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
-DROP FUNCTION IF EXISTS fin_anular_reembolso_garantia(p_id integer, p_id_usuario integer);
+-- Anula el reembolso de una garantía y la deja activa de nuevo
+DROP FUNCTION IF EXISTS public.fin_anular_reembolso_garantia (p_id integer, p_id_usuario integer);
 
-CREATE OR REPLACE FUNCTION fin_anular_reembolso_garantia(p_id integer, p_id_usuario integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_anular_reembolso_garantia (
+  p_id integer,
+  p_id_usuario integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_garantia    fin_garantia%ROWTYPE;
     v_id_activa   INT;
@@ -33,8 +30,6 @@ BEGIN
     UPDATE fin_garantia SET
         fecha_reembolso       = NULL,
         id_medio_reembolso    = NULL,
-        -- Fase 3: si se limpia el medio hay que limpiar también la cuenta, o la
-        -- garantía queda apuntando al banco de un reembolso que ya no existe.
         id_cuenta_bancaria_reembolso = NULL,
         observacion_reembolso = NULL,
         id_usuario_reembolso  = NULL,

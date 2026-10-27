@@ -1,17 +1,7 @@
--- Function: pro_generar_codigo_barra
--- Siguiente código de barras interno del producto: EAN-13 de circulación
--- restringida «20» + correlativo de 10 dígitos + dígito verificador
--- (ej. 2000000000015). Solo dígitos, así la pistola lo lee igual con
--- cualquier distribución de teclado (los guiones de PRO-001 se pierden).
--- Si se envía p_id_producto y el producto aún no tiene código de barras, se lo
--- asigna; si ya tiene uno, lo devuelve sin cambiarlo.
+-- Genera el siguiente código de barras interno EAN-13 de un producto
+DROP FUNCTION IF EXISTS public.pro_generar_codigo_barra (p_id_producto integer);
 
-DROP FUNCTION IF EXISTS pro_generar_codigo_barra(p_id_producto integer);
-
-CREATE OR REPLACE FUNCTION pro_generar_codigo_barra(p_id_producto integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.pro_generar_codigo_barra (p_id_producto integer DEFAULT NULL::integer) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_actual VARCHAR(50);
     v_siguiente BIGINT;
@@ -41,7 +31,6 @@ BEGIN
         END IF;
     END IF;
 
-    -- Serializa generaciones simultáneas para que no salga el mismo correlativo.
     PERFORM pg_advisory_xact_lock(hashtext('pro_generar_codigo_barra'));
 
     SELECT COALESCE(MAX(SUBSTRING(TRIM(codigo_barra) FROM 3 FOR 10)::BIGINT), 0) + 1
@@ -55,7 +44,6 @@ BEGIN
 
     v_base := '20' || LPAD(v_siguiente::TEXT, 10, '0');
 
-    -- Dígito verificador EAN-13: posiciones impares ×1, pares ×3.
     FOR i IN 1..12 LOOP
         v_suma := v_suma + SUBSTRING(v_base FROM i FOR 1)::INTEGER * CASE WHEN i % 2 = 0 THEN 3 ELSE 1 END;
     END LOOP;

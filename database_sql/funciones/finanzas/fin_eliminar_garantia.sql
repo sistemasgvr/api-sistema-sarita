@@ -1,13 +1,10 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_eliminar_garantia
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.959Z
-DROP FUNCTION IF EXISTS fin_eliminar_garantia(p_id integer, p_id_usuario integer);
+-- Elimina (lógicamente) garantia
+DROP FUNCTION IF EXISTS public.fin_eliminar_garantia (p_id integer, p_id_usuario integer);
 
-CREATE OR REPLACE FUNCTION fin_eliminar_garantia(p_id integer, p_id_usuario integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_eliminar_garantia (
+  p_id integer,
+  p_id_usuario integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
 

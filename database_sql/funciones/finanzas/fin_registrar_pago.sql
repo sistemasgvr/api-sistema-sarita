@@ -1,13 +1,31 @@
--- Function: fin_registrar_pago
--- P0: SELECT cuenta FOR UPDATE antes de leer saldo; exige id_medio_pago;
---     sucursal preferida de la cuenta (body solo si no hay o si coincide).
+-- Registra un pago a una cuenta por cobrar o pagar y actualiza su saldo
+DROP FUNCTION IF EXISTS public.fin_registrar_pago (
+  p_id_cuenta integer,
+  p_tipo character varying,
+  p_fecha_pago date,
+  p_monto numeric,
+  p_id_medio_pago integer,
+  p_id_cuenta_bancaria integer,
+  p_numero_operacion character varying,
+  p_referencia character varying,
+  p_observacion character varying,
+  p_id_usuario integer,
+  p_id_sucursal integer
+);
 
-DROP FUNCTION IF EXISTS fin_registrar_pago(p_id_cuenta integer, p_tipo character varying, p_fecha_pago date, p_monto numeric, p_id_medio_pago integer, p_id_cuenta_bancaria integer, p_numero_operacion character varying, p_referencia character varying, p_observacion character varying, p_id_usuario integer, p_id_sucursal integer);
-
-CREATE OR REPLACE FUNCTION fin_registrar_pago(p_id_cuenta integer, p_tipo character varying, p_fecha_pago date DEFAULT NULL::date, p_monto numeric DEFAULT NULL::numeric, p_id_medio_pago integer DEFAULT NULL::integer, p_id_cuenta_bancaria integer DEFAULT NULL::integer, p_numero_operacion character varying DEFAULT NULL::character varying, p_referencia character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer, p_id_sucursal integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_registrar_pago (
+  p_id_cuenta integer,
+  p_tipo character varying,
+  p_fecha_pago date DEFAULT NULL::date,
+  p_monto numeric DEFAULT NULL::numeric,
+  p_id_medio_pago integer DEFAULT NULL::integer,
+  p_id_cuenta_bancaria integer DEFAULT NULL::integer,
+  p_numero_operacion character varying DEFAULT NULL::character varying,
+  p_referencia character varying DEFAULT NULL::character varying,
+  p_observacion character varying DEFAULT NULL::character varying,
+  p_id_usuario integer DEFAULT NULL::integer,
+  p_id_sucursal integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_tipo     INT;
     v_cuenta      fin_cuenta%ROWTYPE;
@@ -25,7 +43,6 @@ BEGIN
         RETURN json_build_object('registro', NULL, 'error', 'El medio de pago es obligatorio');
     END IF;
 
-    -- Sucursal: preferir la de la cuenta/comprobante; rechazar body distinto.
     v_id_sucursal_cuenta := fin_sucursal_de_cuenta(p_id_cuenta);
     IF p_id_sucursal IS NOT NULL
        AND v_id_sucursal_cuenta IS NOT NULL
@@ -43,8 +60,6 @@ BEGIN
         RETURN json_build_object('registro', NULL, 'error', v_err_caja);
     END IF;
 
-    -- Fase 3: la columna id_cuenta_bancaria ya existía, pero nadie comprobaba
-    -- que la cuenta fuera de la empresa ni que aceptara el medio elegido.
     v_err_caja := fin_validar_cuenta_medio_pago(p_id_medio_pago, p_id_cuenta_bancaria);
     IF v_err_caja IS NOT NULL THEN
         RETURN json_build_object('registro', NULL, 'error', v_err_caja);
@@ -57,7 +72,6 @@ BEGIN
       AND glo.nombre = UPPER(p_tipo)
     LIMIT 1;
 
-    -- Bloqueo pesimista: evita overpay concurrente sobre el mismo saldo.
     SELECT * INTO v_cuenta
     FROM fin_cuenta
     WHERE id = p_id_cuenta AND estado = 1
@@ -71,7 +85,6 @@ BEGIN
         RETURN json_build_object('registro', NULL, 'error', 'La cuenta no corresponde al tipo indicado');
     END IF;
 
-    -- No permitir pagar directamente contra la cabecera de un plan de cuotas
     IF v_cuenta.numero_cuotas_total IS NOT NULL THEN
         RETURN json_build_object('registro', NULL, 'error',
             'Esta cuenta es un plan de cuotas: registra el pago sobre la cuota correspondiente');
@@ -90,7 +103,6 @@ BEGIN
         RETURN json_build_object('registro', NULL, 'error', 'El monto excede el saldo pendiente');
     END IF;
 
-    -- La fecha de pago no puede ser anterior a la emisión de la cuenta
     IF COALESCE(p_fecha_pago, CURRENT_DATE) < v_cuenta.fecha_emision THEN
         RETURN json_build_object(
             'registro', NULL,

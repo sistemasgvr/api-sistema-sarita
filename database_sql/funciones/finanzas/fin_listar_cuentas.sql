@@ -1,13 +1,25 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_listar_cuentas
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.959Z
-DROP FUNCTION IF EXISTS fin_listar_cuentas(p_tipo character varying, p_id_tercero integer, p_estado character varying, p_solo_pendientes integer, p_buscar character varying, p_id_padre integer, p_limite integer, p_offset integer);
+-- Lista cuentas con filtros y paginación
+DROP FUNCTION IF EXISTS public.fin_listar_cuentas (
+  p_tipo character varying,
+  p_id_tercero integer,
+  p_estado character varying,
+  p_solo_pendientes integer,
+  p_buscar character varying,
+  p_id_padre integer,
+  p_limite integer,
+  p_offset integer
+);
 
-CREATE OR REPLACE FUNCTION fin_listar_cuentas(p_tipo character varying DEFAULT NULL::character varying, p_id_tercero integer DEFAULT NULL::integer, p_estado character varying DEFAULT NULL::character varying, p_solo_pendientes integer DEFAULT NULL::integer, p_buscar character varying DEFAULT NULL::character varying, p_id_padre integer DEFAULT NULL::integer, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_listar_cuentas (
+  p_tipo character varying DEFAULT NULL::character varying,
+  p_id_tercero integer DEFAULT NULL::integer,
+  p_estado character varying DEFAULT NULL::character varying,
+  p_solo_pendientes integer DEFAULT NULL::integer,
+  p_buscar character varying DEFAULT NULL::character varying,
+  p_id_padre integer DEFAULT NULL::integer,
+  p_limite integer DEFAULT 10,
+  p_offset integer DEFAULT 0
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_resultado JSON;
     v_buscar    VARCHAR;
@@ -58,7 +70,6 @@ BEGIN
             fin_redondear_monto(COALESCE(fc.monto_abonado, 0)) AS monto_abonado,
             fin_redondear_monto(COALESCE(fc.monto_saldo, fc.monto_pendiente - COALESCE(fc.monto_abonado, 0))) AS saldo,
             fc.observacion,
-            -- Indica si es cabecera de un plan de cuotas
             (fc.numero_cuotas_total IS NOT NULL) AS es_plan
         FROM fin_cuenta fc
         LEFT JOIN cli_clientes ter ON ter.id = fc.id_tercero
@@ -67,7 +78,6 @@ BEGIN
         WHERE fc.estado = 1
           AND (v_id_tipo IS NULL OR fc.id_tipo_cuenta = v_id_tipo)
           AND (p_id_tercero IS NULL OR fc.id_tercero = p_id_tercero)
-          -- Alcance: si p_id_padre viene, listar hijas; si no, solo primer nivel
           AND (
                 (p_id_padre IS NULL AND fc.id_cuenta_padre IS NULL)
              OR (p_id_padre IS NOT NULL AND fc.id_cuenta_padre = p_id_padre)

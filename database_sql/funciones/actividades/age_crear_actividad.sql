@@ -1,29 +1,41 @@
--- Function: age_crear_actividad
--- Source: migraciones/20260908_age_id_doc_salida_y_ordenes_disponibles.sql
+-- Crea actividad
+DROP FUNCTION IF EXISTS public.age_crear_actividad (
+  p_titulo character varying,
+  p_descripcion text,
+  p_fecha_programada date,
+  p_hora_inicio_estimada time without time zone,
+  p_hora_fin_estimada time without time zone,
+  p_id_tipo_actividad integer,
+  p_id_prioridad integer,
+  p_id_cliente integer,
+  p_id_trabajador_responsable integer,
+  p_id_estado_actividad integer,
+  p_observaciones character varying,
+  p_id_usuario_auditoria integer,
+  p_id_comprobante integer,
+  p_id_doc_salida integer,
+  p_items json,
+  p_id_chofer_responsable integer
+);
 
-DROP FUNCTION IF EXISTS age_crear_actividad(p_titulo character varying, p_descripcion text, p_fecha_programada date, p_hora_inicio_estimada time without time zone, p_hora_fin_estimada time without time zone, p_id_tipo_actividad integer, p_id_prioridad integer, p_id_cliente integer, p_id_trabajador_responsable integer, p_id_estado_actividad integer, p_observaciones character varying, p_id_usuario_auditoria integer, p_id_comprobante integer, p_id_guia_remision integer, p_items json);
-
-CREATE OR REPLACE FUNCTION age_crear_actividad(
-    p_titulo character varying,
-    p_descripcion text,
-    p_fecha_programada date,
-    p_hora_inicio_estimada time without time zone,
-    p_hora_fin_estimada time without time zone,
-    p_id_tipo_actividad integer,
-    p_id_prioridad integer,
-    p_id_cliente integer DEFAULT NULL::integer,
-    p_id_trabajador_responsable integer DEFAULT NULL::integer,
-    p_id_estado_actividad integer DEFAULT NULL::integer,
-    p_observaciones character varying DEFAULT NULL::character varying,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer,
-    p_id_comprobante integer DEFAULT NULL::integer,
-    p_id_doc_salida integer DEFAULT NULL::integer,
-    p_items json DEFAULT NULL::json,
-    p_id_chofer_responsable integer DEFAULT NULL
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_crear_actividad (
+  p_titulo character varying,
+  p_descripcion text,
+  p_fecha_programada date,
+  p_hora_inicio_estimada time without time zone,
+  p_hora_fin_estimada time without time zone,
+  p_id_tipo_actividad integer,
+  p_id_prioridad integer,
+  p_id_cliente integer DEFAULT NULL::integer,
+  p_id_trabajador_responsable integer DEFAULT NULL::integer,
+  p_id_estado_actividad integer DEFAULT NULL::integer,
+  p_observaciones character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_id_comprobante integer DEFAULT NULL::integer,
+  p_id_doc_salida integer DEFAULT NULL::integer,
+  p_items json DEFAULT NULL::json,
+  p_id_chofer_responsable integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_verif_pendiente INTEGER;
     v_id_tipo_origen INTEGER;
@@ -95,7 +107,6 @@ BEGIN
             RETURN json_build_object('registro', NULL, 'error', 'La orden de salida indicada no existe.');
         END IF;
 
-        -- REPARTO no se puede crear sobre una OS ya anulada.
         IF v_ciclo_os = 'ANULADA' THEN
             RETURN json_build_object(
                 'registro', NULL,
@@ -172,10 +183,6 @@ BEGIN
     FROM gen_lista_opciones
     WHERE id = p_id_tipo_actividad;
 
-    -- El responsable de un reparto ya no tiene que ser chofer de flota propia:
-    -- en la entrega suelen ir el chofer y alguien de apoyo (hay que subir los
-    -- balones a un tercer o cuarto piso), y cualquiera de los dos puede figurar
-    -- como responsable. Solo se exige que sea un trabajador vigente.
     IF p_id_trabajador_responsable IS NOT NULL THEN
         IF NOT EXISTS (
             SELECT 1 FROM tra_trabajadores t
@@ -271,7 +278,6 @@ BEGIN
         WHERE d.id_comprobante = p_id_comprobante AND d.estado = 1
         ORDER BY d.item;
     ELSIF p_id_doc_salida IS NOT NULL THEN
-        -- Detalle vÃ­a doc_obtener_salida (venta/prÃ©stamo/propio); no re-teclear.
         INSERT INTO age_actividad_item (
             id_actividad, item, id_producto, descripcion, cantidad, id_balon,
             id_doc_salida_detalle,
@@ -300,6 +306,3 @@ BEGIN
     RETURN age_obtener_actividad(v_id);
 END;
 $function$;
-
--- =============================================================================
-

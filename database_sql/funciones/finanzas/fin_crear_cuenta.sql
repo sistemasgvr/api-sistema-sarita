@@ -1,13 +1,33 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_crear_cuenta
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.959Z
-DROP FUNCTION IF EXISTS fin_crear_cuenta(p_tipo character varying, p_id_tercero integer, p_tercero_nombre character varying, p_fecha_emision date, p_fecha_vencimiento date, p_monto numeric, p_descripcion character varying, p_observacion character varying, p_id_banco integer, p_tasa_interes numeric, p_numero_comprobante character varying, p_id_usuario integer);
+-- Crea cuenta
+DROP FUNCTION IF EXISTS public.fin_crear_cuenta (
+  p_tipo character varying,
+  p_id_tercero integer,
+  p_tercero_nombre character varying,
+  p_fecha_emision date,
+  p_fecha_vencimiento date,
+  p_monto numeric,
+  p_descripcion character varying,
+  p_observacion character varying,
+  p_id_banco integer,
+  p_tasa_interes numeric,
+  p_numero_comprobante character varying,
+  p_id_usuario integer
+);
 
-CREATE OR REPLACE FUNCTION fin_crear_cuenta(p_tipo character varying, p_id_tercero integer DEFAULT NULL::integer, p_tercero_nombre character varying DEFAULT NULL::character varying, p_fecha_emision date DEFAULT NULL::date, p_fecha_vencimiento date DEFAULT NULL::date, p_monto numeric DEFAULT NULL::numeric, p_descripcion character varying DEFAULT NULL::character varying, p_observacion character varying DEFAULT NULL::character varying, p_id_banco integer DEFAULT NULL::integer, p_tasa_interes numeric DEFAULT NULL::numeric, p_numero_comprobante character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_crear_cuenta (
+  p_tipo character varying,
+  p_id_tercero integer DEFAULT NULL::integer,
+  p_tercero_nombre character varying DEFAULT NULL::character varying,
+  p_fecha_emision date DEFAULT NULL::date,
+  p_fecha_vencimiento date DEFAULT NULL::date,
+  p_monto numeric DEFAULT NULL::numeric,
+  p_descripcion character varying DEFAULT NULL::character varying,
+  p_observacion character varying DEFAULT NULL::character varying,
+  p_id_banco integer DEFAULT NULL::integer,
+  p_tasa_interes numeric DEFAULT NULL::numeric,
+  p_numero_comprobante character varying DEFAULT NULL::character varying,
+  p_id_usuario integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_tipo    INT;
     v_id_tercero INT;
@@ -17,7 +37,6 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    -- Validar tipo
     SELECT glo.id INTO v_id_tipo
     FROM gen_lista_opciones glo
     JOIN gen_lista gl ON gl.id = glo.id_lista
@@ -41,7 +60,6 @@ BEGIN
         );
     END IF;
 
-    -- Validar tercero: al menos uno de los dos
     v_nombre := NULLIF(TRIM(p_tercero_nombre), '');
 
     IF p_id_tercero IS NULL AND v_nombre IS NULL THEN
@@ -58,7 +76,6 @@ BEGIN
         END IF;
     END IF;
 
-    -- Validar fechas
     IF p_fecha_emision IS NULL THEN
         RETURN json_build_object('registro', NULL, 'error', 'La fecha de emisión es obligatoria');
     END IF;
@@ -67,12 +84,10 @@ BEGIN
         RETURN json_build_object('registro', NULL, 'error', 'La fecha de vencimiento no puede ser anterior a la emisión');
     END IF;
 
-    -- Validar monto
     IF p_monto IS NULL OR p_monto <= 0 THEN
         RETURN json_build_object('registro', NULL, 'error', 'El monto debe ser mayor a cero');
     END IF;
 
-    -- Inserción
     INSERT INTO fin_cuenta (
         id_tipo_cuenta, id_tercero, tercero_nombre,
         fecha_emision, fecha_vencimiento,

@@ -1,18 +1,7 @@
--- Function: fin_medio_pago_flag
--- Fase 3 — fuente única del comportamiento de un medio de pago.
---
--- Mismo criterio que inv_signo_tipo_movimiento (F1): el comportamiento se lee de
--- fin_medio_pago_config, no se infiere del nombre del catálogo. Un medio sin
--- configurar es un error explícito, no un "no afecta caja" silencioso que
--- descuadraría el arqueo sin que nadie se entere.
+-- Devuelve un indicador de comportamiento de un medio de pago desde su configuración
+DROP FUNCTION IF EXISTS public.fin_medio_pago_flag (p_id_medio_pago integer, p_flag text);
 
-DROP FUNCTION IF EXISTS fin_medio_pago_flag(p_id_medio_pago integer, p_flag text);
-
-CREATE OR REPLACE FUNCTION fin_medio_pago_flag(p_id_medio_pago integer, p_flag text)
- RETURNS boolean
- LANGUAGE plpgsql
- STABLE
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_medio_pago_flag (p_id_medio_pago integer, p_flag text) RETURNS boolean LANGUAGE plpgsql STABLE AS $function$
 DECLARE
     v RECORD;
     v_nombre VARCHAR;

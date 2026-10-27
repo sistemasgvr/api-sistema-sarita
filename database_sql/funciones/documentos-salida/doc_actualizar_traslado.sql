@@ -1,18 +1,33 @@
--- Function: doc_actualizar_traslado
--- Datos de traslado de la orden: motivo, modalidad, peso y bultos.
---
--- Hasta ahora estos campos solo se llenaban en doc_convertir_a_gre, así que una
--- orden de salida que nunca se convierte a guía los tenía siempre en NULL y
--- salían vacíos en el PDF. Esta función los deja editar sobre el documento.
---
--- Se puede editar mientras el documento no esté anulado ni emitido a SUNAT:
--- después de la emisión el contenido es inmutable.
-DROP FUNCTION IF EXISTS doc_actualizar_traslado(p_id integer, p_id_motivo_traslado integer, p_id_modalidad_traslado integer, p_peso_bruto numeric, p_numero_bultos integer, p_id_unidad_medida integer, p_id_usuario_auditoria integer);
+-- Actualiza los datos de traslado de un documento de salida no emitido
+DROP FUNCTION IF EXISTS public.doc_actualizar_traslado (
+  p_id integer,
+  p_id_motivo_traslado integer,
+  p_id_modalidad_traslado integer,
+  p_peso_bruto numeric,
+  p_numero_bultos integer,
+  p_id_unidad_medida integer,
+  p_id_usuario_auditoria integer,
+  p_id_tipo_guia_remision integer,
+  p_id_chofer integer,
+  p_id_vehiculo integer,
+  p_id_transportista integer,
+  p_fecha_traslado date
+);
 
-CREATE OR REPLACE FUNCTION doc_actualizar_traslado(p_id integer, p_id_motivo_traslado integer DEFAULT NULL::integer, p_id_modalidad_traslado integer DEFAULT NULL::integer, p_peso_bruto numeric DEFAULT NULL::numeric, p_numero_bultos integer DEFAULT NULL::integer, p_id_unidad_medida integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_id_tipo_guia_remision integer DEFAULT NULL, p_id_chofer integer DEFAULT NULL, p_id_vehiculo integer DEFAULT NULL, p_id_transportista integer DEFAULT NULL, p_fecha_traslado date DEFAULT NULL)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_actualizar_traslado (
+  p_id integer,
+  p_id_motivo_traslado integer DEFAULT NULL::integer,
+  p_id_modalidad_traslado integer DEFAULT NULL::integer,
+  p_peso_bruto numeric DEFAULT NULL::numeric,
+  p_numero_bultos integer DEFAULT NULL::integer,
+  p_id_unidad_medida integer DEFAULT NULL::integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_id_tipo_guia_remision integer DEFAULT NULL::integer,
+  p_id_chofer integer DEFAULT NULL::integer,
+  p_id_vehiculo integer DEFAULT NULL::integer,
+  p_id_transportista integer DEFAULT NULL::integer,
+  p_fecha_traslado date DEFAULT NULL::date
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_estado VARCHAR;
     v_emitido BOOLEAN;

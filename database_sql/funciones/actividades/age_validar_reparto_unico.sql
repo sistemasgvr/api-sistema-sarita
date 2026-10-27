@@ -1,5 +1,7 @@
--- El control también cubre cambios de orden o reactivación de una actividad cancelada.
-CREATE OR REPLACE FUNCTION age_validar_reparto_unico() RETURNS trigger LANGUAGE plpgsql AS $function$
+-- Trigger: impide más de un reparto activo para el mismo documento de salida
+DROP FUNCTION IF EXISTS public.age_validar_reparto_unico ();
+
+CREATE OR REPLACE FUNCTION public.age_validar_reparto_unico () RETURNS trigger LANGUAGE plpgsql AS $function$
 BEGIN
     IF NEW.estado = 1 AND NEW.id_doc_salida IS NOT NULL
        AND EXISTS (SELECT 1 FROM gen_lista_opciones WHERE id = NEW.id_tipo_actividad AND UPPER(TRIM(nombre)) = 'REPARTO')
@@ -17,6 +19,3 @@ BEGIN
     RETURN NEW;
 END;
 $function$;
-DROP TRIGGER IF EXISTS trg_age_reparto_unico ON age_actividad;
-CREATE TRIGGER trg_age_reparto_unico BEFORE INSERT OR UPDATE OF id_doc_salida, id_tipo_actividad, id_estado_actividad, estado
-ON age_actividad FOR EACH ROW EXECUTE FUNCTION age_validar_reparto_unico();

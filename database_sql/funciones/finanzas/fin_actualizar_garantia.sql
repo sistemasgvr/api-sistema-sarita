@@ -1,22 +1,25 @@
--- Function: fin_actualizar_garantia
--- Fase 3: admite la cuenta bancaria del cobro.
+-- Actualiza garantia
+DROP FUNCTION IF EXISTS public.fin_actualizar_garantia (
+  p_id integer,
+  p_fecha date,
+  p_id_cliente integer,
+  p_id_medio_pago integer,
+  p_importe numeric,
+  p_observacion character varying,
+  p_id_usuario integer,
+  p_id_cuenta_bancaria integer
+);
 
-DROP FUNCTION IF EXISTS fin_actualizar_garantia(p_id integer, p_fecha date, p_id_cliente integer, p_id_medio_pago integer, p_importe numeric, p_observacion character varying, p_id_usuario integer);
-DROP FUNCTION IF EXISTS fin_actualizar_garantia(p_id integer, p_fecha date, p_id_cliente integer, p_id_medio_pago integer, p_importe numeric, p_observacion character varying, p_id_usuario integer, p_id_cuenta_bancaria integer);
-
-CREATE OR REPLACE FUNCTION fin_actualizar_garantia(
-    p_id integer,
-    p_fecha date DEFAULT NULL::date,
-    p_id_cliente integer DEFAULT NULL::integer,
-    p_id_medio_pago integer DEFAULT NULL::integer,
-    p_importe numeric DEFAULT NULL::numeric,
-    p_observacion character varying DEFAULT NULL::character varying,
-    p_id_usuario integer DEFAULT NULL::integer,
-    p_id_cuenta_bancaria integer DEFAULT NULL::integer
-)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_actualizar_garantia (
+  p_id integer,
+  p_fecha date DEFAULT NULL::date,
+  p_id_cliente integer DEFAULT NULL::integer,
+  p_id_medio_pago integer DEFAULT NULL::integer,
+  p_importe numeric DEFAULT NULL::numeric,
+  p_observacion character varying DEFAULT NULL::character varying,
+  p_id_usuario integer DEFAULT NULL::integer,
+  p_id_cuenta_bancaria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_garantia   fin_garantia%ROWTYPE;
     v_id_cliente INT;
@@ -31,7 +34,6 @@ BEGIN
         RETURN json_build_object('registro', NULL, 'error', 'La garantía no existe o está inactiva');
     END IF;
 
-    -- No permitir editar datos si ya fue reembolsada
     IF v_garantia.fecha_reembolso IS NOT NULL THEN
         RETURN json_build_object('registro', NULL, 'error',
             'Esta garantía ya fue reembolsada. Anula el reembolso primero para editarla.');
@@ -49,8 +51,6 @@ BEGIN
     END IF;
 
     v_medio := COALESCE(p_id_medio_pago, v_garantia.id_medio_pago);
-    -- Cambiar de medio invalida la cuenta anterior: si no llega una nueva, se
-    -- valida contra NULL y el mensaje pide la que corresponde.
     v_cuenta := CASE
         WHEN p_id_cuenta_bancaria IS NOT NULL THEN p_id_cuenta_bancaria
         WHEN p_id_medio_pago IS NOT NULL

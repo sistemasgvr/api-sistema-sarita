@@ -212,7 +212,8 @@ export class FinanzasLogic {
 
   async actualizarGarantia(id: number, dto: ActualizarGarantiaDto) {
     const result = await this.finanzasModel.actualizarGarantia(id, dto);
-    return mapSingleResult(result, `Garantía ${id} no encontrada`);
+    const garantia = mapSingleResult(result, `Garantía ${id} no encontrada`);
+    return { ...garantia, avisos: result.avisos ?? [] };
   }
 
   async eliminarGarantia(id: number, idUsuarioAuditoria?: number) {

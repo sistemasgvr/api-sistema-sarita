@@ -1,13 +1,15 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_anular_pago
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
-DROP FUNCTION IF EXISTS fin_anular_pago(p_id_pago integer, p_tipo character varying, p_id_usuario integer);
+-- Anula un pago de cuenta y repone el saldo, validando la caja
+DROP FUNCTION IF EXISTS public.fin_anular_pago (
+  p_id_pago integer,
+  p_tipo character varying,
+  p_id_usuario integer
+);
 
-CREATE OR REPLACE FUNCTION fin_anular_pago(p_id_pago integer, p_tipo character varying DEFAULT NULL::character varying, p_id_usuario integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_anular_pago (
+  p_id_pago integer,
+  p_tipo character varying DEFAULT NULL::character varying,
+  p_id_usuario integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_tipo INT;
     v_pago    fin_pago%ROWTYPE;

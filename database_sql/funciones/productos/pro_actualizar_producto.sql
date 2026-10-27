@@ -1,19 +1,56 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: pro_actualizar_producto
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.964Z
-DROP FUNCTION IF EXISTS pro_actualizar_producto(p_id integer, p_codigo character varying, p_codigo_barra character varying, p_nombre character varying, p_id_sub_categoria integer, p_id_unidad_medida integer, p_marca character varying, p_presentacion character varying, p_es_gas boolean, p_es_servicio boolean, p_es_alquilable boolean, p_afecta_stock boolean, p_precio numeric, p_codigo_ubicacion character varying, p_id_usuario_auditoria integer, p_precio_compra numeric, p_precio_garantia numeric, p_factor_kg_m3 numeric, p_factor_lb_m3 numeric, p_es_mantenimiento boolean, p_convertir_stock boolean);
+-- Actualiza producto
+DROP FUNCTION IF EXISTS public.pro_actualizar_producto (
+  p_id integer,
+  p_codigo character varying,
+  p_codigo_barra character varying,
+  p_nombre character varying,
+  p_id_sub_categoria integer,
+  p_id_unidad_medida integer,
+  p_marca character varying,
+  p_presentacion character varying,
+  p_es_gas boolean,
+  p_es_servicio boolean,
+  p_es_alquilable boolean,
+  p_afecta_stock boolean,
+  p_precio numeric,
+  p_codigo_ubicacion character varying,
+  p_id_usuario_auditoria integer,
+  p_precio_compra numeric,
+  p_precio_garantia numeric,
+  p_factor_kg_m3 numeric,
+  p_factor_lb_m3 numeric,
+  p_es_mantenimiento boolean,
+  p_convertir_stock boolean
+);
 
-CREATE OR REPLACE FUNCTION pro_actualizar_producto(p_id integer, p_codigo character varying DEFAULT NULL::character varying, p_codigo_barra character varying DEFAULT NULL::character varying, p_nombre character varying DEFAULT NULL::character varying, p_id_sub_categoria integer DEFAULT NULL::integer, p_id_unidad_medida integer DEFAULT NULL::integer, p_marca character varying DEFAULT NULL::character varying, p_presentacion character varying DEFAULT NULL::character varying, p_es_gas boolean DEFAULT NULL::boolean, p_es_servicio boolean DEFAULT NULL::boolean, p_es_alquilable boolean DEFAULT NULL::boolean, p_afecta_stock boolean DEFAULT NULL::boolean, p_precio numeric DEFAULT NULL::numeric, p_codigo_ubicacion character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_precio_compra numeric DEFAULT NULL::numeric, p_precio_garantia numeric DEFAULT NULL::numeric, p_factor_kg_m3 numeric DEFAULT NULL::numeric, p_factor_lb_m3 numeric DEFAULT NULL::numeric, p_es_mantenimiento boolean DEFAULT NULL::boolean, p_convertir_stock boolean DEFAULT false)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.pro_actualizar_producto (
+  p_id integer,
+  p_codigo character varying DEFAULT NULL::character varying,
+  p_codigo_barra character varying DEFAULT NULL::character varying,
+  p_nombre character varying DEFAULT NULL::character varying,
+  p_id_sub_categoria integer DEFAULT NULL::integer,
+  p_id_unidad_medida integer DEFAULT NULL::integer,
+  p_marca character varying DEFAULT NULL::character varying,
+  p_presentacion character varying DEFAULT NULL::character varying,
+  p_es_gas boolean DEFAULT NULL::boolean,
+  p_es_servicio boolean DEFAULT NULL::boolean,
+  p_es_alquilable boolean DEFAULT NULL::boolean,
+  p_afecta_stock boolean DEFAULT NULL::boolean,
+  p_precio numeric DEFAULT NULL::numeric,
+  p_codigo_ubicacion character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_precio_compra numeric DEFAULT NULL::numeric,
+  p_precio_garantia numeric DEFAULT NULL::numeric,
+  p_factor_kg_m3 numeric DEFAULT NULL::numeric,
+  p_factor_lb_m3 numeric DEFAULT NULL::numeric,
+  p_es_mantenimiento boolean DEFAULT NULL::boolean,
+  p_convertir_stock boolean DEFAULT FALSE
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_codigo VARCHAR;
     v_nombre VARCHAR;
     v_codigo_ubicacion VARCHAR;
     v_es_alquilable BOOLEAN;
-    -- Cambio de unidad de medida (decisión 3 del plan).
     v_unidad_anterior INTEGER;
     v_nombre_unidad_anterior VARCHAR;
     v_nombre_unidad_nueva VARCHAR;
@@ -79,12 +116,6 @@ BEGIN
         RETURN json_build_object('error', 'El factor lb→m³ debe ser mayor a 0', 'registro', NULL);
     END IF;
 
-    -- ─────────────────────────────────────────────────────────────────────────
-    -- Cambio de unidad de medida (decisión 3 del plan).
-    -- pro_stock NO guarda unidad: su saldo se lee siempre en la unidad ACTUAL del
-    -- producto. Cambiarla sin más reinterpreta el saldo en silencio (12 KG pasarían
-    -- a leerse como 12 MT3). Se bloquea salvo que se pida convertir explícitamente.
-    -- ─────────────────────────────────────────────────────────────────────────
     SELECT id_unidad_medida, nombre INTO v_unidad_anterior, v_nombre_producto
     FROM pro_producto WHERE id = p_id AND estado = 1;
 
@@ -166,9 +197,6 @@ BEGIN
             THEN COALESCE(p_es_mantenimiento, es_mantenimiento)
             ELSE FALSE
         END,
-        -- Desde la Fase 1 el gas ES un producto con stock (pro_stock). Antes se
-        -- forzaba FALSE aquí, lo que apagaba el control de stock de un gas en cuanto
-        -- se editaba cualquier campo suyo. Solo los servicios quedan sin stock.
         afecta_stock = CASE
             WHEN COALESCE(p_es_servicio, es_servicio) THEN FALSE
             WHEN COALESCE(p_es_gas, es_gas) THEN TRUE
@@ -193,20 +221,12 @@ BEGIN
 
     SELECT COALESCE(es_gas, FALSE) INTO v_es_gas_final FROM pro_producto WHERE id = p_id;
 
-    -- ─────────────────────────────────────────────────────────────────────────
-    -- Conversión del saldo tras cambiar la unidad (confirmada con p_convertir_stock).
-    -- El saldo NO se toca a mano: se calcula el delta y se aplica con
-    -- inv_registrar_movimiento, que sigue siendo el único punto de escritura de
-    -- pro_stock y deja el ajuste visible en el kardex.
-    -- ─────────────────────────────────────────────────────────────────────────
     IF v_cambia_unidad AND COALESCE(p_convertir_stock, FALSE) THEN
         FOR v_stock IN
             SELECT s.id_almacen, s.stock
             FROM pro_stock s
             WHERE s.id_producto = p_id AND s.estado = 1 AND s.stock <> 0
         LOOP
-            -- La unidad del producto ya es la nueva, así que convertir "desde la
-            -- unidad anterior" devuelve el saldo expresado en la nueva.
             v_convertido := inv_convertir_a_unidad_producto(p_id, v_stock.stock, v_unidad_anterior);
             v_delta := ROUND(COALESCE(v_convertido, v_stock.stock) - v_stock.stock, 4);
 
@@ -237,11 +257,6 @@ BEGIN
         END LOOP;
     END IF;
 
-    -- ─────────────────────────────────────────────────────────────────────────
-    -- Un gas con tipos de balón catalogados en otra unidad NO puede quedarse sin
-    -- factor de conversión: las recargas fallarían después, lejos de la causa.
-    -- Se revalida reutilizando la misma conversión que usa el flujo real.
-    -- ─────────────────────────────────────────────────────────────────────────
     IF v_es_gas_final THEN
         FOR v_tipo IN
             SELECT tb.id, tb.nombre, tb.capacidad, tb.id_unidad_medida

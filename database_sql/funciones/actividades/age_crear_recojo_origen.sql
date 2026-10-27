@@ -1,27 +1,25 @@
--- Function: age_crear_recojo_origen
--- Synced from migracion 20260909_age_crear_recojo_hora_inicio.sql
---
--- Actualizada por database_sql/migraciones/20260911_recojos_solo_actividades.sql:
--- un recojo ES una actividad. El módulo Balones > Recojos (bal_recojo) se
--- retiró y con él el candado recíproco: la única forma de programar el recojo
--- de un préstamo o alquiler es esta función (idempotente por origen vigente).
+-- Crea una actividad de recojo de balones para un préstamo u otro origen
+DROP FUNCTION IF EXISTS public.age_crear_recojo_origen (
+  p_tipo_origen character varying,
+  p_id_origen integer,
+  p_fecha_programada date,
+  p_hora_inicio_estimada time without time zone,
+  p_id_trabajador_responsable integer,
+  p_observaciones character varying,
+  p_id_usuario_auditoria integer,
+  p_ids_balones INTEGER[]
+);
 
-DROP FUNCTION IF EXISTS age_crear_recojo_origen(character varying, integer, date, integer, character varying, integer);
-DROP FUNCTION IF EXISTS age_crear_recojo_origen(character varying, integer, date, time without time zone, integer, character varying, integer);
-
-CREATE OR REPLACE FUNCTION age_crear_recojo_origen(
-    p_tipo_origen character varying,
-    p_id_origen integer,
-    p_fecha_programada date DEFAULT NULL::date,
-    p_hora_inicio_estimada time without time zone DEFAULT NULL::time without time zone,
-    p_id_trabajador_responsable integer DEFAULT NULL::integer,
-    p_observaciones character varying DEFAULT NULL::character varying,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer,
-    p_ids_balones integer[] DEFAULT NULL
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_crear_recojo_origen (
+  p_tipo_origen character varying,
+  p_id_origen integer,
+  p_fecha_programada date DEFAULT NULL::date,
+  p_hora_inicio_estimada time without time zone DEFAULT NULL::time without time zone,
+  p_id_trabajador_responsable integer DEFAULT NULL::integer,
+  p_observaciones character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_ids_balones INTEGER[] DEFAULT NULL::INTEGER[]
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_tipo_origen   VARCHAR := UPPER(TRIM(COALESCE(p_tipo_origen, '')));
     v_id_existente  INTEGER;
@@ -143,7 +141,6 @@ BEGIN
     END IF;
 
     IF v_tipo_origen = 'PRESTAMO' THEN
-        -- Bloquear en orden fijo impide reservar el mismo balón desde dos préstamos.
         FOR v_balon IN SELECT DISTINCT pd.id_balon FROM bal_prestamo_detalle pd
             WHERE pd.id_prestamo = p_id_origen AND pd.estado = 1 AND pd.id_balon IS NOT NULL ORDER BY pd.id_balon
         LOOP

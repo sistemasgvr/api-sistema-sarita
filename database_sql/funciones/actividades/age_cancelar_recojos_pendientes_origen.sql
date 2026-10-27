@@ -1,27 +1,17 @@
--- Function: age_cancelar_recojos_pendientes_origen
--- Source: migraciones/20260911_recojos_solo_actividades.sql
---
--- Cuando un préstamo se cierra o un alquiler se finaliza por fuera de la
--- agenda (devolución en mostrador, renovación POS), la actividad de RECOJO
--- que seguía PENDIENTE / PROGRAMADA para ese origen ya no tiene qué recoger.
--- Reemplaza lo que hacía bal_actualizar_recojo(CANCELADO) sobre bal_recojo.
---
--- Solo toca PENDIENTE / PROGRAMADA: una EN_RUTA la cierra el chofer con
--- age_culminar_recojo (que es quien devuelve los cilindros y llega aquí a
--- través de bal_devolver_*) o se cancela a mano con age_cancelar_actividad.
--- Devuelve cuántas actividades canceló. Nunca falla por no encontrar nada.
+-- Cancela los recojos pendientes de un préstamo o alquiler ya cerrado
+DROP FUNCTION IF EXISTS public.age_cancelar_recojos_pendientes_origen (
+  p_tipo_origen character varying,
+  p_id_origen integer,
+  p_id_usuario_auditoria integer,
+  p_motivo character varying
+);
 
-DROP FUNCTION IF EXISTS age_cancelar_recojos_pendientes_origen(character varying, integer, integer, character varying);
-
-CREATE OR REPLACE FUNCTION age_cancelar_recojos_pendientes_origen(
-    p_tipo_origen character varying,
-    p_id_origen integer,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer,
-    p_motivo character varying DEFAULT NULL::character varying
-)
-RETURNS integer
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_cancelar_recojos_pendientes_origen (
+  p_tipo_origen character varying,
+  p_id_origen integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_motivo character varying DEFAULT NULL::character varying
+) RETURNS integer LANGUAGE plpgsql AS $function$
 DECLARE
     v_tipo_origen  VARCHAR := UPPER(TRIM(COALESCE(p_tipo_origen, '')));
     v_id_cancelada INTEGER;

@@ -1,24 +1,10 @@
--- Function: age_eliminar_actividad
--- Baja lógica + revierte custodia EN_TRANSITO -> PENDIENTE_ENVIO
--- (mismo camino de vuelta que age_cancelar_actividad).
---
--- Actualizada por database_sql/migraciones/20260910_age_custodia_recojo_candado.sql:
---   · EN_RUTA y REALIZADA ya no se pueden eliminar. Una actividad en ruta debe
---     cancelarse (age_cancelar_actividad) y una realizada no se deshace por
---     baja lógica: borrarlas por aquí saltaba los cierres de custodia;
---   · al revertir EN_TRANSITO se restituye el almacén de la OS, igual que
---     cancelar. Sin ello el cilindro volvía a PENDIENTE_ENVIO con
---     id_almacen NULL, es decir comprometido y en ninguna parte.
+-- Elimina (lógicamente) actividad
+DROP FUNCTION IF EXISTS public.age_eliminar_actividad (p_id integer, p_id_usuario_auditoria integer);
 
-DROP FUNCTION IF EXISTS age_eliminar_actividad(p_id integer, p_id_usuario_auditoria integer);
-
-CREATE OR REPLACE FUNCTION age_eliminar_actividad(
-    p_id integer,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_eliminar_actividad (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_nombre_estado VARCHAR;
     v_id_transito   INTEGER;
@@ -66,14 +52,6 @@ BEGIN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id);
     END IF;
 
-    -- ------------------------------------------------------------
-    -- Camino de vuelta de la custodia: EN_TRANSITO -> PENDIENTE_ENVIO
-    --
-    -- Con EN_RUTA bloqueado esto solo alcanza residuales (actividades que
-    -- quedaron en tránsito por flujos antiguos), pero se mantiene: eliminar no
-    -- puede dejar cilindros en un viaje que ya no existe. Misma regla que
-    -- cancelar, incluida la restitución del almacén de la OS.
-    -- ------------------------------------------------------------
     SELECT lo.id INTO v_id_transito
     FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
     WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'EN_TRANSITO' AND lo.estado = 1

@@ -1,13 +1,19 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: bal_listar_balones_origen_recarga
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.947Z
-DROP FUNCTION IF EXISTS bal_listar_balones_origen_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric, p_id_almacen integer, p_limite integer, p_offset integer);
+-- Lista balones candidatos para servir de origen de una recarga de gas
+DROP FUNCTION IF EXISTS public.bal_listar_balones_origen_recarga (
+  p_id_producto_gas integer,
+  p_capacidad_requerida numeric,
+  p_id_almacen integer,
+  p_limite integer,
+  p_offset integer
+);
 
-CREATE OR REPLACE FUNCTION bal_listar_balones_origen_recarga(p_id_producto_gas integer, p_capacidad_requerida numeric DEFAULT NULL::numeric, p_id_almacen integer DEFAULT NULL::integer, p_limite integer DEFAULT 50, p_offset integer DEFAULT 0)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.bal_listar_balones_origen_recarga (
+  p_id_producto_gas integer,
+  p_capacidad_requerida numeric DEFAULT NULL::numeric,
+  p_id_almacen integer DEFAULT NULL::integer,
+  p_limite integer DEFAULT 50,
+  p_offset integer DEFAULT 0
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registros JSON;
     v_total BIGINT;
@@ -46,8 +52,6 @@ BEGIN
           AND COALESCE(eb.nombre, '') = 'DISPONIBLE'
           AND b.id_producto_gas = p_id_producto_gas
           AND (p_id_almacen IS NULL OR b.id_almacen = p_id_almacen)
-        -- Sin filtro por capacidad: el gas se controla en el stock global del almacén
-        -- (pro_stock), no por cilindro. El balón origen es solo trazabilidad.
     )
     SELECT
         (SELECT COUNT(*) FROM candidatos),

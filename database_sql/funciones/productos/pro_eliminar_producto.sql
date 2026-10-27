@@ -1,13 +1,10 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: pro_eliminar_producto
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.964Z
-DROP FUNCTION IF EXISTS pro_eliminar_producto(p_id integer, p_id_usuario_auditoria integer);
+-- Elimina (lógicamente) producto
+DROP FUNCTION IF EXISTS public.pro_eliminar_producto (p_id integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION pro_eliminar_producto(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.pro_eliminar_producto (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -32,7 +29,6 @@ BEGIN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id);
     END IF;
 
-    -- Las imágenes y archivos en storage se conservan para poder restaurar el producto
     RETURN json_build_object('eliminado', TRUE, 'id', p_id);
 END;
 $function$;

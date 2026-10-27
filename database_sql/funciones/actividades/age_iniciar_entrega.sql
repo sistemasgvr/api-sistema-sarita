@@ -1,19 +1,10 @@
--- Function: age_iniciar_entrega
--- Source: migraciones/20260909_age_reparto_flujo_entrega.sql
---
--- Actualizada por database_sql/migraciones/20260910_age_custodia_recojo_candado.sql:
--- el descuadre de cilindros actualizados se detecta con bal_balon ya mutado, así
--- que es RAISE (rollback) y no un error soft que dejaría la custodia a medias.
+-- Pone una entrega EN_RUTA y pasa sus cilindros a tránsito
+DROP FUNCTION IF EXISTS public.age_iniciar_entrega (p_id integer, p_id_usuario_auditoria integer);
 
-DROP FUNCTION IF EXISTS age_iniciar_entrega(integer, integer);
-
-CREATE OR REPLACE FUNCTION age_iniciar_entrega(
-    p_id integer,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_iniciar_entrega (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_act            RECORD;
     v_nombre_estado  VARCHAR;
@@ -61,7 +52,6 @@ BEGIN
         RETURN json_build_object('error', 'La entrega ya esta en ruta', 'registro', NULL);
     END IF;
 
-    -- Sin responsable no hay quien responda por la carga que sale.
     IF v_act.id_trabajador_responsable IS NULL THEN
         RETURN json_build_object('error', 'Asigna un responsable antes de iniciar la entrega', 'registro', NULL);
     END IF;
@@ -126,24 +116,6 @@ BEGIN
         );
     END IF;
 
-    -- CON_OBSERVACION no bloquea: es un aviso leve que queda registrado.
-    -- Solo los pendientes impiden salir del almacen.
-
-    -- ------------------------------------------------------------
-    -- Custodia: PENDIENTE_ENVIO -> EN_TRANSITO
-    --
-    -- Sin esto el cilindro sigue diciendo "en preparacion, en el almacen"
-    -- mientras va en el camion. EN_TRANSITO ya existia en el catalogo, creado
-    -- justo para esto ("Se cambia el estado cuando se inicie la actividad") y
-    -- nunca cableado.
-    --
-    -- Como en doc_crear_desde_venta, es un UPDATE directo y no un movimiento de
-    -- inventario: el stock ya salio con la venta, registrar otro movimiento lo
-    -- contaria dos veces. Esto solo marca donde esta fisicamente el envase.
-    --
-    -- El camino de vuelta lo hace age_cancelar_actividad. Sin el, un reparto
-    -- cancelado dejaria cilindros en transito para siempre.
-    -- ------------------------------------------------------------
     SELECT lo.id INTO v_id_pend_envio
     FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
     WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'PENDIENTE_ENVIO' AND lo.estado = 1
@@ -169,8 +141,6 @@ BEGIN
     LEFT JOIN bal_balon b ON b.id = ai.id_balon AND b.estado = 1
     WHERE ai.id_actividad = p_id AND ai.estado = 1;
 
-    -- Accesorios-only: sin cilindros no se exige custodia.
-    -- Con cilindros se exige que TODOS esten en PENDIENTE_ENVIO (no "al menos uno").
     IF v_cilindros_tot > 0 AND v_cilindros_esp < v_cilindros_tot THEN
         RETURN json_build_object(
             'error', format(
@@ -183,8 +153,6 @@ BEGIN
         );
     END IF;
 
-    -- Custodia primero: si falla, la actividad no queda EN_RUTA a medias.
-    -- id_almacen = NULL: ya no esta en el almacen, va en el camion.
     UPDATE bal_balon b
     SET id_estado_balon = v_id_transito,
         id_almacen = NULL,
@@ -199,8 +167,6 @@ BEGIN
 
     GET DIAGNOSTICS v_cilindros_upd = ROW_COUNT;
 
-    -- El UPDATE ya corrió: un error soft aquí confirmaría los cilindros que sí
-    -- cambiaron y dejaría la custodia partida entre almacén y camión.
     IF v_cilindros_esp > 0 AND v_cilindros_upd <> v_cilindros_esp THEN
         RAISE EXCEPTION
             'No se actualizaron todos los cilindros a EN_TRANSITO (se esperaban %, se actualizaron %)',

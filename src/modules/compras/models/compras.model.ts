@@ -121,6 +121,7 @@ export class ComprasModel {
       dto.idMedioPago ?? null,
       dto.idCuentaBancaria ?? null,
       dto.numeroOperacion ?? null,
+      dto.porcentajeIgv ?? null,
     ]);
   }
 
@@ -146,6 +147,7 @@ export class ComprasModel {
         dto.idMedioPago ?? null,
         dto.idCuentaBancaria ?? null,
         dto.numeroOperacion ?? null,
+        dto.porcentajeIgv ?? null,
       ],
     );
   }

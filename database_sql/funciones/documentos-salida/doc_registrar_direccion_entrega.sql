@@ -1,38 +1,27 @@
--- Registra o actualiza la dirección de entrega + coordenadas de un documento
--- de salida. Se puede llamar en cualquier momento del ciclo (BORRADOR o
--- GENERADA) — no mueve inventario ni cambia estado, solo guarda dónde
--- entregar. Si viene de una dirección guardada del cliente (p_id_direccion_cliente),
--- se copia el snapshot de esa fila; si es manual, se usan los parámetros tal cual.
---
--- Dirección manual + p_guardar_en_cliente (default TRUE): la dirección se
--- registra también en cli_direcciones del destinatario del documento
--- (id_destinatario → id_cliente → id_proveedor; los proveedores también son
--- filas de cli_clientes) y el doc queda enlazado a esa fila. Así una dirección
--- marcada desde la orden de salida aparece en la ficha del cliente/proveedor
--- y en el mapa (cli_listar_clientes_mapa). Si el cliente ya tiene una
--- dirección activa con el mismo texto se reutiliza (y se completan sus
--- coordenadas/referencia/distrito con lo nuevo) en vez de duplicarla. Solo se
--- marca como principal cuando el cliente aún no tiene una.
---
--- ⚠️ Requiere las columnas agregadas por
--- database_sql/migraciones/20260904_doc_salida_direccion_entrega.sql.
-DROP FUNCTION IF EXISTS doc_registrar_direccion_entrega(p_id integer, p_direccion_entrega character varying, p_referencia_entrega character varying, p_latitud numeric, p_longitud numeric, p_id_distrito_entrega integer, p_id_direccion_cliente integer, p_id_usuario_auditoria integer);
-DROP FUNCTION IF EXISTS doc_registrar_direccion_entrega(p_id integer, p_direccion_entrega character varying, p_referencia_entrega character varying, p_latitud numeric, p_longitud numeric, p_id_distrito_entrega integer, p_id_direccion_cliente integer, p_id_usuario_auditoria integer, p_guardar_en_cliente boolean);
+-- Registra la dirección y coordenadas de entrega de un documento de salida
+DROP FUNCTION IF EXISTS public.doc_registrar_direccion_entrega (
+  p_id integer,
+  p_direccion_entrega character varying,
+  p_referencia_entrega character varying,
+  p_latitud numeric,
+  p_longitud numeric,
+  p_id_distrito_entrega integer,
+  p_id_direccion_cliente integer,
+  p_id_usuario_auditoria integer,
+  p_guardar_en_cliente boolean
+);
 
-CREATE OR REPLACE FUNCTION doc_registrar_direccion_entrega(
-    p_id integer,
-    p_direccion_entrega character varying DEFAULT NULL::character varying,
-    p_referencia_entrega character varying DEFAULT NULL::character varying,
-    p_latitud numeric DEFAULT NULL::numeric,
-    p_longitud numeric DEFAULT NULL::numeric,
-    p_id_distrito_entrega integer DEFAULT NULL::integer,
-    p_id_direccion_cliente integer DEFAULT NULL::integer,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer,
-    p_guardar_en_cliente boolean DEFAULT TRUE
-)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_registrar_direccion_entrega (
+  p_id integer,
+  p_direccion_entrega character varying DEFAULT NULL::character varying,
+  p_referencia_entrega character varying DEFAULT NULL::character varying,
+  p_latitud numeric DEFAULT NULL::numeric,
+  p_longitud numeric DEFAULT NULL::numeric,
+  p_id_distrito_entrega integer DEFAULT NULL::integer,
+  p_id_direccion_cliente integer DEFAULT NULL::integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_guardar_en_cliente boolean DEFAULT TRUE
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_doc RECORD;
     v_direccion VARCHAR;
@@ -86,11 +75,9 @@ BEGIN
         RETURN json_build_object('error', 'La dirección de entrega es obligatoria', 'registro', NULL);
     END IF;
 
-    -- Dirección manual: asociarla al cliente/proveedor destinatario del documento.
     v_id_cliente := COALESCE(v_doc.id_destinatario, v_doc.id_cliente, v_doc.id_proveedor);
 
     IF p_id_direccion_cliente IS NULL AND COALESCE(p_guardar_en_cliente, TRUE) AND v_id_cliente IS NOT NULL THEN
-        -- Reutilizar una dirección activa con el mismo texto en vez de duplicarla.
         SELECT cd.id
         INTO v_id_direccion_cliente
         FROM cli_direcciones cd

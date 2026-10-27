@@ -1,19 +1,19 @@
--- Function: age_asignar_responsable_actividad
--- Source: migraciones/20260909_age_responsable_apoyo.sql
+-- Asigna o libera el responsable y apoyo de una actividad
+DROP FUNCTION IF EXISTS public.age_asignar_responsable_actividad (
+  p_id integer,
+  p_id_usuario_auditoria integer,
+  p_id_trabajador_responsable integer,
+  p_id_trabajador_apoyo integer,
+  p_liberar boolean
+);
 
-DROP FUNCTION IF EXISTS age_asignar_responsable_actividad(p_id integer, p_id_usuario_auditoria integer, p_id_trabajador_responsable integer);
-DROP FUNCTION IF EXISTS age_asignar_responsable_actividad(integer, integer, integer, integer, boolean);
-
-CREATE OR REPLACE FUNCTION age_asignar_responsable_actividad(
-    p_id integer,
-    p_id_usuario_auditoria integer DEFAULT NULL::integer,
-    p_id_trabajador_responsable integer DEFAULT NULL::integer,
-    p_id_trabajador_apoyo integer DEFAULT NULL::integer,
-    p_liberar boolean DEFAULT FALSE
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_asignar_responsable_actividad (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_id_trabajador_responsable integer DEFAULT NULL::integer,
+  p_id_trabajador_apoyo integer DEFAULT NULL::integer,
+  p_liberar boolean DEFAULT FALSE
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_nombre_estado VARCHAR;
 BEGIN
@@ -29,7 +29,6 @@ BEGIN
         LEFT JOIN gen_lista_opciones lo ON lo.id = a.id_estado_actividad
         WHERE a.id = p_id AND a.estado = 1;
 
-        -- Liberar en ruta dejaria cilindros EN_TRANSITO sin responsable.
         IF COALESCE(v_nombre_estado, '') = 'EN_RUTA' THEN
             RETURN json_build_object(
                 'registro', NULL,
@@ -47,8 +46,6 @@ BEGIN
         RETURN age_obtener_actividad(p_id);
     END IF;
 
-    -- Sin esto, "Tomar actividad" desde un usuario sin ficha de trabajador
-    -- dejaba la actividad sin asignar y devolvia exito.
     IF p_id_trabajador_responsable IS NULL THEN
         RETURN json_build_object(
             'registro', NULL,

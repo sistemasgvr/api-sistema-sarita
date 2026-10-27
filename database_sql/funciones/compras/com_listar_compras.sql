@@ -1,9 +1,31 @@
-DROP FUNCTION IF EXISTS com_listar_compras(p_busqueda character varying, p_limite integer, p_offset integer, p_id_proveedor integer, p_id_almacen integer, p_fecha_desde date, p_fecha_hasta date, p_estado integer, p_id_tipo_registro integer, p_id_categoria_gasto integer, p_sin_comprobante boolean);
+-- Lista compras con filtros y paginación
+DROP FUNCTION IF EXISTS public.com_listar_compras (
+  p_busqueda character varying,
+  p_limite integer,
+  p_offset integer,
+  p_id_proveedor integer,
+  p_id_almacen integer,
+  p_fecha_desde date,
+  p_fecha_hasta date,
+  p_estado integer,
+  p_id_tipo_registro integer,
+  p_id_categoria_gasto integer,
+  p_sin_comprobante boolean
+);
 
-CREATE OR REPLACE FUNCTION com_listar_compras(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_proveedor integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_estado integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_sin_comprobante boolean DEFAULT NULL::boolean)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.com_listar_compras (
+  p_busqueda character varying DEFAULT ''::character varying,
+  p_limite integer DEFAULT 10,
+  p_offset integer DEFAULT 0,
+  p_id_proveedor integer DEFAULT NULL::integer,
+  p_id_almacen integer DEFAULT NULL::integer,
+  p_fecha_desde date DEFAULT NULL::date,
+  p_fecha_hasta date DEFAULT NULL::date,
+  p_estado integer DEFAULT NULL::integer,
+  p_id_tipo_registro integer DEFAULT NULL::integer,
+  p_id_categoria_gasto integer DEFAULT NULL::integer,
+  p_sin_comprobante boolean DEFAULT NULL::boolean
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registros JSON;
     v_total     BIGINT;
@@ -20,8 +42,6 @@ BEGIN
       AND (p_estado IS NULL OR c.estado = p_estado)
       AND (p_id_tipo_registro IS NULL OR c.id_tipo_registro = p_id_tipo_registro)
       AND (p_id_categoria_gasto IS NULL OR c.id_categoria_gasto = p_id_categoria_gasto)
-      -- Una compra "sin comprobante" es la que no tiene serie o no tiene número:
-      -- el ingreso quedó registrado pero el documento del proveedor nunca llegó.
       AND (
           p_sin_comprobante IS NULL
           OR (
@@ -58,7 +78,7 @@ BEGIN
             c.id_almacen, alm.nombre AS almacen,
             c.id_tipo_registro, tr.nombre AS tipo_registro,
             c.id_categoria_gasto, cat.nombre AS categoria_gasto,
-            c.sub_total, c.total_importe,
+            c.sub_total, c.total_importe, c.porcentaje_igv,
             c.estado,
             (
                 COALESCE(TRIM(c.serie), '') <> '' AND COALESCE(TRIM(c.numero), '') <> ''
@@ -77,8 +97,6 @@ BEGIN
           AND (p_estado IS NULL OR c.estado = p_estado)
           AND (p_id_tipo_registro IS NULL OR c.id_tipo_registro = p_id_tipo_registro)
           AND (p_id_categoria_gasto IS NULL OR c.id_categoria_gasto = p_id_categoria_gasto)
-      -- Una compra "sin comprobante" es la que no tiene serie o no tiene número:
-      -- el ingreso quedó registrado pero el documento del proveedor nunca llegó.
       AND (
           p_sin_comprobante IS NULL
           OR (

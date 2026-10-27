@@ -1,20 +1,27 @@
--- Function: age_listar_actividades
--- Source: migraciones/20260908_age_id_doc_salida_y_ordenes_disponibles.sql
+-- Lista actividades con filtros y paginación
+DROP FUNCTION IF EXISTS public.age_listar_actividades (
+  p_busqueda character varying,
+  p_limite integer,
+  p_offset integer,
+  p_fecha_desde date,
+  p_fecha_hasta date,
+  p_id_estado integer,
+  p_id_tipo integer,
+  p_id_prioridad integer,
+  p_sin_responsable boolean
+);
 
-CREATE OR REPLACE FUNCTION age_listar_actividades(
-    p_busqueda character varying DEFAULT ''::character varying,
-    p_limite integer DEFAULT 10,
-    p_offset integer DEFAULT 0,
-    p_fecha_desde date DEFAULT NULL::date,
-    p_fecha_hasta date DEFAULT NULL::date,
-    p_id_estado integer DEFAULT NULL::integer,
-    p_id_tipo integer DEFAULT NULL::integer,
-    p_id_prioridad integer DEFAULT NULL::integer,
-    p_sin_responsable boolean DEFAULT NULL::boolean
-)
-RETURNS json
-LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_listar_actividades (
+  p_busqueda character varying DEFAULT ''::character varying,
+  p_limite integer DEFAULT 10,
+  p_offset integer DEFAULT 0,
+  p_fecha_desde date DEFAULT NULL::date,
+  p_fecha_hasta date DEFAULT NULL::date,
+  p_id_estado integer DEFAULT NULL::integer,
+  p_id_tipo integer DEFAULT NULL::integer,
+  p_id_prioridad integer DEFAULT NULL::integer,
+  p_sin_responsable boolean DEFAULT NULL::boolean
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registros JSON;
     v_total BIGINT;
@@ -147,6 +154,3 @@ BEGIN
     RETURN json_build_object('registros', v_registros, 'total', v_total);
 END;
 $function$;
-
--- =============================================================================
-

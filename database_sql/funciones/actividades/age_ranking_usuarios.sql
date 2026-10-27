@@ -1,14 +1,15 @@
--- Function: age_ranking_usuarios
--- Fase 6 (apunte 8.b.i.6) — ranking de colaboradores por actividades en un rango.
---
--- Cuenta por responsable, no por quien creó el registro: lo que interesa medir
--- es quién sale a hacer el trabajo, no quién lo tipeó en el sistema.
-DROP FUNCTION IF EXISTS age_ranking_usuarios(p_fecha_desde date, p_fecha_hasta date, p_limite integer);
+-- Ranking de responsables por cantidad de actividades en un rango de fechas
+DROP FUNCTION IF EXISTS public.age_ranking_usuarios (
+  p_fecha_desde date,
+  p_fecha_hasta date,
+  p_limite integer
+);
 
-CREATE OR REPLACE FUNCTION age_ranking_usuarios(p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_limite integer DEFAULT 20)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_ranking_usuarios (
+  p_fecha_desde date DEFAULT NULL::date,
+  p_fecha_hasta date DEFAULT NULL::date,
+  p_limite integer DEFAULT 20
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registros JSON;
     v_total     BIGINT;

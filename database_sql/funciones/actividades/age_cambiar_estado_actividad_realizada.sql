@@ -1,13 +1,10 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: age_cambiar_estado_actividad_realizada
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.941Z
-DROP FUNCTION IF EXISTS age_cambiar_estado_actividad_realizada(p_id integer, p_id_usuario_auditoria integer);
+-- Marca una actividad como REALIZADA
+DROP FUNCTION IF EXISTS public.age_cambiar_estado_actividad_realizada (p_id integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION age_cambiar_estado_actividad_realizada(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_cambiar_estado_actividad_realizada (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_estado_realizada INTEGER;
     v_id_estado_actual INTEGER;

@@ -1,13 +1,35 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: pro_generar_codigo_ubicacion
--- Overloads: 2
--- Generated: 2026-09-03T16:50:38.964Z
-DROP FUNCTION IF EXISTS pro_generar_codigo_ubicacion(p_prefijo character varying, p_id_producto integer);
+-- Genera el siguiente código de ubicación numérico de producto
+DROP FUNCTION IF EXISTS public.pro_generar_codigo_ubicacion ();
 
-CREATE OR REPLACE FUNCTION pro_generar_codigo_ubicacion(p_prefijo character varying DEFAULT NULL::character varying, p_id_producto integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.pro_generar_codigo_ubicacion () RETURNS json LANGUAGE plpgsql AS $function$
+DECLARE
+    v_siguiente INTEGER;
+    v_codigo VARCHAR(20);
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT COALESCE(MAX(codigo_ubicacion::INTEGER), 0) + 1
+    INTO v_siguiente
+    FROM pro_producto
+    WHERE codigo_ubicacion ~ '^\d+$';
+
+    v_codigo := LPAD(v_siguiente::TEXT, GREATEST(4, LENGTH(v_siguiente::TEXT)), '0');
+
+    RETURN json_build_object(
+        'registro', json_build_object('codigo_ubicacion', v_codigo)
+    );
+END;
+$function$;
+
+DROP FUNCTION IF EXISTS public.pro_generar_codigo_ubicacion (
+  p_prefijo character varying,
+  p_id_producto integer
+);
+
+CREATE OR REPLACE FUNCTION public.pro_generar_codigo_ubicacion (
+  p_prefijo character varying DEFAULT NULL::character varying,
+  p_id_producto integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_prefijo VARCHAR(17);
     v_siguiente INTEGER;
@@ -81,31 +103,6 @@ BEGIN
             );
         END IF;
     END IF;
-
-    RETURN json_build_object(
-        'registro', json_build_object('codigo_ubicacion', v_codigo)
-    );
-END;
-$function$;
-
-DROP FUNCTION IF EXISTS pro_generar_codigo_ubicacion();
-
-CREATE OR REPLACE FUNCTION pro_generar_codigo_ubicacion()
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-    v_siguiente INTEGER;
-    v_codigo VARCHAR(20);
-BEGIN
-    SET TIME ZONE 'America/Lima';
-
-    SELECT COALESCE(MAX(codigo_ubicacion::INTEGER), 0) + 1
-    INTO v_siguiente
-    FROM pro_producto
-    WHERE codigo_ubicacion ~ '^\d+$';
-
-    v_codigo := LPAD(v_siguiente::TEXT, GREATEST(4, LENGTH(v_siguiente::TEXT)), '0');
 
     RETURN json_build_object(
         'registro', json_build_object('codigo_ubicacion', v_codigo)

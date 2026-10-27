@@ -1,22 +1,41 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: doc_crear_salida
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.958Z
--- p_peso_bruto / p_numero_bultos: se piden al crear la orden y los reutiliza la
--- guía de remisión. Van al final para no romper llamadas posicionales previas.
---
--- p_id_almacen_destino: obligatorio en TRASLADO. Sin él la orden no se podía
--- generar — inv_registrar_movimiento exige destino para mover producto entre
--- almacenes — así que el tipo existía en el catálogo pero reventaba al generar.
-DROP FUNCTION IF EXISTS doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer, p_id_cliente integer, p_id_destinatario integer, p_id_proveedor integer, p_id_doc_salida_origen integer, p_fecha date, p_fecha_traslado date, p_observaciones character varying, p_id_usuario_auditoria integer);
-DROP FUNCTION IF EXISTS doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer, p_id_cliente integer, p_id_destinatario integer, p_id_proveedor integer, p_id_doc_salida_origen integer, p_fecha date, p_fecha_traslado date, p_observaciones character varying, p_id_usuario_auditoria integer, p_peso_bruto numeric, p_numero_bultos integer);
+-- Crea salida
+DROP FUNCTION IF EXISTS public.doc_crear_salida (
+  p_codigo_tipo_orden character varying,
+  p_id_sucursal integer,
+  p_id_almacen integer,
+  p_id_venta integer,
+  p_id_cliente integer,
+  p_id_destinatario integer,
+  p_id_proveedor integer,
+  p_id_doc_salida_origen integer,
+  p_fecha date,
+  p_fecha_traslado date,
+  p_observaciones character varying,
+  p_id_usuario_auditoria integer,
+  p_peso_bruto numeric,
+  p_numero_bultos integer,
+  p_id_almacen_destino integer,
+  p_id_empresa integer
+);
 
-DROP FUNCTION IF EXISTS doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer, p_id_cliente integer, p_id_destinatario integer, p_id_proveedor integer, p_id_doc_salida_origen integer, p_fecha date, p_fecha_traslado date, p_observaciones character varying, p_id_usuario_auditoria integer, p_peso_bruto numeric, p_numero_bultos integer, p_id_almacen_destino integer);
-
-CREATE OR REPLACE FUNCTION doc_crear_salida(p_codigo_tipo_orden character varying, p_id_sucursal integer, p_id_almacen integer, p_id_venta integer DEFAULT NULL::integer, p_id_cliente integer DEFAULT NULL::integer, p_id_destinatario integer DEFAULT NULL::integer, p_id_proveedor integer DEFAULT NULL::integer, p_id_doc_salida_origen integer DEFAULT NULL::integer, p_fecha date DEFAULT NULL::date, p_fecha_traslado date DEFAULT NULL::date, p_observaciones character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_peso_bruto numeric DEFAULT NULL::numeric, p_numero_bultos integer DEFAULT NULL::integer, p_id_almacen_destino integer DEFAULT NULL::integer, p_id_empresa integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_crear_salida (
+  p_codigo_tipo_orden character varying,
+  p_id_sucursal integer,
+  p_id_almacen integer,
+  p_id_venta integer DEFAULT NULL::integer,
+  p_id_cliente integer DEFAULT NULL::integer,
+  p_id_destinatario integer DEFAULT NULL::integer,
+  p_id_proveedor integer DEFAULT NULL::integer,
+  p_id_doc_salida_origen integer DEFAULT NULL::integer,
+  p_fecha date DEFAULT NULL::date,
+  p_fecha_traslado date DEFAULT NULL::date,
+  p_observaciones character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer,
+  p_peso_bruto numeric DEFAULT NULL::numeric,
+  p_numero_bultos integer DEFAULT NULL::integer,
+  p_id_almacen_destino integer DEFAULT NULL::integer,
+  p_id_empresa integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_tipo_orden INTEGER;
     v_id_borrador INTEGER;
@@ -58,9 +77,6 @@ BEGIN
         RETURN json_build_object('error', 'El almacén no existe o no pertenece a la sucursal indicada', 'registro', NULL);
     END IF;
 
-    -- El destino solo tiene sentido en un traslado, y ahí es obligatorio: es el
-    -- dato que necesita el movimiento para descontar de un almacén y sumar en
-    -- el otro. Puede estar en otra sucursal (traslado entre sedes).
     IF UPPER(TRIM(COALESCE(p_codigo_tipo_orden, ''))) = 'TRASLADO' THEN
         IF p_id_almacen_destino IS NULL THEN
             RETURN json_build_object('error', 'El traslado requiere almacén de destino', 'registro', NULL);
@@ -80,7 +96,6 @@ BEGIN
             RETURN json_build_object('error', 'La venta indicada no existe o está anulada', 'registro', NULL);
         END IF;
 
-        -- Una venta no debería tener dos órdenes vivas: duplicaría el documento de traslado.
         IF EXISTS (
             SELECT 1 FROM doc_salida d
             JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo

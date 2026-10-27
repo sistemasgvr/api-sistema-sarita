@@ -1,24 +1,17 @@
--- Function: doc_actualizar_salida_detalle
--- Corrige cantidad y glosa de una línea sin borrarla y volver a crearla.
---
--- Hasta ahora el detalle solo se podía agregar y quitar, así que cambiar una
--- cantidad obligaba a DELETE + POST: eso renumera el item y deja huecos en la
--- secuencia. En planta externa la cantidad de gas se consolida en una línea por
--- producto y se ajusta varias veces antes de generar, que es justo el caso que
--- esto resuelve.
---
--- Mismas dos guardas que doc_crear_salida_detalle y doc_eliminar_salida_detalle
--- (estado BORRADOR, documento sin id_venta): en BORRADOR la línea todavía no
--- generó movimiento, así que no hay inventario que revertir.
---
--- NULL = no cambiar (convención de doc_actualizar_traslado). Para vaciar la
--- glosa se envía cadena vacía.
-DROP FUNCTION IF EXISTS doc_actualizar_salida_detalle(p_id integer, p_cantidad numeric, p_glosa character varying, p_id_usuario_auditoria integer);
+-- Actualiza salida detalle
+DROP FUNCTION IF EXISTS public.doc_actualizar_salida_detalle (
+  p_id integer,
+  p_cantidad numeric,
+  p_glosa character varying,
+  p_id_usuario_auditoria integer
+);
 
-CREATE OR REPLACE FUNCTION doc_actualizar_salida_detalle(p_id integer, p_cantidad numeric DEFAULT NULL::numeric, p_glosa character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.doc_actualizar_salida_detalle (
+  p_id integer,
+  p_cantidad numeric DEFAULT NULL::numeric,
+  p_glosa character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_det RECORD;
 BEGIN

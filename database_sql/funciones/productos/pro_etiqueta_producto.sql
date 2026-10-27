@@ -1,14 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: pro_etiqueta_producto
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.964Z
-DROP FUNCTION IF EXISTS pro_etiqueta_producto(p_id integer);
+-- Devuelve el texto 'código — nombre' de un producto
+DROP FUNCTION IF EXISTS public.pro_etiqueta_producto (p_id integer);
 
-CREATE OR REPLACE FUNCTION pro_etiqueta_producto(p_id integer)
- RETURNS text
- LANGUAGE sql
- STABLE
-AS $function$
+CREATE OR REPLACE FUNCTION public.pro_etiqueta_producto (p_id integer) RETURNS text LANGUAGE sql STABLE AS $function$
     SELECT COALESCE(
         NULLIF(
             TRIM(CONCAT_WS(

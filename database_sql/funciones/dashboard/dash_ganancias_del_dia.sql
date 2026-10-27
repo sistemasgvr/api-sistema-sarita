@@ -1,13 +1,11 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: dash_ganancias_del_dia
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.956Z
-DROP FUNCTION IF EXISTS dash_ganancias_del_dia(p_fecha date, p_limite integer, p_offset integer);
+-- Dashboard: ganancia total y por ítem vendido en una fecha (importe menos costo)
+DROP FUNCTION IF EXISTS public.dash_ganancias_del_dia (p_fecha date, p_limite integer, p_offset integer);
 
-CREATE OR REPLACE FUNCTION dash_ganancias_del_dia(p_fecha date DEFAULT CURRENT_DATE, p_limite integer DEFAULT 20, p_offset integer DEFAULT 0)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.dash_ganancias_del_dia (
+  p_fecha date DEFAULT CURRENT_DATE,
+  p_limite integer DEFAULT 20,
+  p_offset integer DEFAULT 0
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_ganancia_total NUMERIC(12,4) := 0;
     v_total_items BIGINT := 0;

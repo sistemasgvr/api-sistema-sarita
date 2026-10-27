@@ -1,19 +1,16 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: com_recalcular_totales_compra
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.954Z
--- Actualizada por database_sql/migraciones/20261023_compras_medio_pago_caja.sql:
---   cambiar líneas de una compra al contado cambia lo que pagó de la caja, así
---   que exige esa caja abierta (com_assert_caja_compra).
-DROP FUNCTION IF EXISTS com_recalcular_totales_compra(p_id_comprobante integer, p_id_usuario_auditoria integer);
+-- Recalcula base imponible, IGV y total de una compra desde su detalle
+DROP FUNCTION IF EXISTS public.com_recalcular_totales_compra (
+  p_id_comprobante integer,
+  p_id_usuario_auditoria integer
+);
 
-CREATE OR REPLACE FUNCTION com_recalcular_totales_compra(p_id_comprobante integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.com_recalcular_totales_compra (
+  p_id_comprobante integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS void LANGUAGE plpgsql AS $function$
 DECLARE
     v_total_bruto     NUMERIC(12,4);
-    v_tasa_igv        NUMERIC(6,4) := 0.18;
+    v_tasa_igv        NUMERIC(7,4);
     v_base_imponible  NUMERIC(12,4);
     v_igv_calculado   NUMERIC(12,4);
     v_pago_antes      JSONB;
@@ -24,6 +21,11 @@ BEGIN
     SELECT COALESCE(SUM(importe), 0) INTO v_total_bruto
     FROM com_comprobante_compra_detalle
     WHERE id_comprobante = p_id_comprobante AND estado = 1;
+
+    SELECT COALESCE(porcentaje_igv, 18) / 100 INTO v_tasa_igv
+    FROM com_comprobante_compra
+    WHERE id = p_id_comprobante;
+    v_tasa_igv := COALESCE(v_tasa_igv, 0.18);
 
     v_base_imponible := ROUND(v_total_bruto / (1 + v_tasa_igv), 4);
     v_igv_calculado := v_total_bruto - v_base_imponible;
@@ -36,8 +38,6 @@ BEGIN
         fecha_modificacion = NOW()
     WHERE id = p_id_comprobante;
 
-    -- Si la cabecera se creó sin líneas (total 0) y ahora hay importe + crédito/cuotas,
-    -- genera la CxP (idempotente si ya existe).
     PERFORM com_sincronizar_cxp_compra(p_id_comprobante, p_id_usuario_auditoria);
 
     v_err := com_assert_caja_compra(v_pago_antes, com_pago_caja_compra(p_id_comprobante));

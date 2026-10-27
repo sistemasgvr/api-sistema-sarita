@@ -1,13 +1,10 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: cli_restaurar_cliente
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.953Z
-DROP FUNCTION IF EXISTS cli_restaurar_cliente(p_id integer, p_id_usuario_auditoria integer);
+-- Restaura cliente eliminado
+DROP FUNCTION IF EXISTS public.cli_restaurar_cliente (p_id integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION cli_restaurar_cliente(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.cli_restaurar_cliente (
+  p_id integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_estado INT;
 BEGIN

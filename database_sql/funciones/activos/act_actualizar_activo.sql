@@ -1,13 +1,33 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: act_actualizar_activo
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.940Z
-DROP FUNCTION IF EXISTS act_actualizar_activo(p_id integer, p_id_tipo integer, p_descripcion character varying, p_fecha_compra date, p_importe numeric, p_id_sucursal integer, p_marca character varying, p_modelo character varying, p_numero_serie character varying, p_id_trabajador_responsable integer, p_imagen_principal_ruta character varying, p_id_usuario_auditoria integer);
+-- Actualiza activo
+DROP FUNCTION IF EXISTS public.act_actualizar_activo (
+  p_id integer,
+  p_id_tipo integer,
+  p_descripcion character varying,
+  p_fecha_compra date,
+  p_importe numeric,
+  p_id_sucursal integer,
+  p_marca character varying,
+  p_modelo character varying,
+  p_numero_serie character varying,
+  p_id_trabajador_responsable integer,
+  p_imagen_principal_ruta character varying,
+  p_id_usuario_auditoria integer
+);
 
-CREATE OR REPLACE FUNCTION act_actualizar_activo(p_id integer, p_id_tipo integer DEFAULT NULL::integer, p_descripcion character varying DEFAULT NULL::character varying, p_fecha_compra date DEFAULT NULL::date, p_importe numeric DEFAULT NULL::numeric, p_id_sucursal integer DEFAULT NULL::integer, p_marca character varying DEFAULT NULL::character varying, p_modelo character varying DEFAULT NULL::character varying, p_numero_serie character varying DEFAULT NULL::character varying, p_id_trabajador_responsable integer DEFAULT NULL::integer, p_imagen_principal_ruta character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.act_actualizar_activo (
+  p_id integer,
+  p_id_tipo integer DEFAULT NULL::integer,
+  p_descripcion character varying DEFAULT NULL::character varying,
+  p_fecha_compra date DEFAULT NULL::date,
+  p_importe numeric DEFAULT NULL::numeric,
+  p_id_sucursal integer DEFAULT NULL::integer,
+  p_marca character varying DEFAULT NULL::character varying,
+  p_modelo character varying DEFAULT NULL::character varying,
+  p_numero_serie character varying DEFAULT NULL::character varying,
+  p_id_trabajador_responsable integer DEFAULT NULL::integer,
+  p_imagen_principal_ruta character varying DEFAULT NULL::character varying,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_existe INTEGER;
 BEGIN

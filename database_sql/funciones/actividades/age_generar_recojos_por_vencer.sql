@@ -1,21 +1,15 @@
--- Function: age_generar_recojos_por_vencer
--- Fase 6 (apunte 8.b.i.5) — auto-registro de la actividad de recojo.
---
--- Recorre los préstamos cuyo retorno pactado cae dentro de la ventana y crea su
--- actividad de recojo. Se apoya en age_crear_recojo_prestamo, que es idempotente
--- por préstamo, así que correrlo a diario no genera duplicados.
---
--- p_dias_antes: ventana hacia adelante. 0 = solo los ya vencidos.
---   El valor operativo lo decide el negocio (decisión 12 del plan); mientras no
---   esté fijado, quien llama al job pasa el que quiera y el default es 3.
--- p_id_trabajador_responsable: a quién se asigna. NULL = sin asignar, para que
---   el encargado reparta desde la agenda.
-DROP FUNCTION IF EXISTS age_generar_recojos_por_vencer(p_dias_antes integer, p_id_trabajador_responsable integer, p_id_usuario_auditoria integer);
+-- Crea actividades de recojo para préstamos cuyo retorno pactado está próximo
+DROP FUNCTION IF EXISTS public.age_generar_recojos_por_vencer (
+  p_dias_antes integer,
+  p_id_trabajador_responsable integer,
+  p_id_usuario_auditoria integer
+);
 
-CREATE OR REPLACE FUNCTION age_generar_recojos_por_vencer(p_dias_antes integer DEFAULT 3, p_id_trabajador_responsable integer DEFAULT NULL::integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_generar_recojos_por_vencer (
+  p_dias_antes integer DEFAULT 3,
+  p_id_trabajador_responsable integer DEFAULT NULL::integer,
+  p_id_usuario_auditoria integer DEFAULT NULL::integer
+) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_prestamo   RECORD;
     v_res        JSON;
@@ -51,7 +45,6 @@ BEGIN
         );
 
         IF (v_res->>'error') IS NOT NULL THEN
-            -- Un préstamo con datos inconsistentes no debe frenar al resto.
             CONTINUE;
         END IF;
 

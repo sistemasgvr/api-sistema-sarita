@@ -1,14 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_sucursal_de_cuenta
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.960Z
-DROP FUNCTION IF EXISTS fin_sucursal_de_cuenta(p_id_cuenta integer);
+-- Devuelve la sucursal de una cuenta según su comprobante de venta o compra
+DROP FUNCTION IF EXISTS public.fin_sucursal_de_cuenta (p_id_cuenta integer);
 
-CREATE OR REPLACE FUNCTION fin_sucursal_de_cuenta(p_id_cuenta integer)
- RETURNS integer
- LANGUAGE sql
- STABLE
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_sucursal_de_cuenta (p_id_cuenta integer) RETURNS integer LANGUAGE sql STABLE AS $function$
     SELECT COALESCE(
         vc.id_sucursal,
         vc_padre.id_sucursal,

@@ -1,13 +1,7 @@
--- Synced from DEV via database_sql/scripts/sync-functions-from-dev.js
--- Function: fin_resumen_cuentas
--- Overloads: 1
--- Generated: 2026-09-03T16:50:38.959Z
-DROP FUNCTION IF EXISTS fin_resumen_cuentas(p_tipo character varying);
+-- Resume cuentas por cobrar o pagar agrupadas por tercero
+DROP FUNCTION IF EXISTS public.fin_resumen_cuentas (p_tipo character varying);
 
-CREATE OR REPLACE FUNCTION fin_resumen_cuentas(p_tipo character varying)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION public.fin_resumen_cuentas (p_tipo character varying) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_tipo INT;
     v_res     JSON;
@@ -21,8 +15,6 @@ BEGIN
       AND glo.nombre = UPPER(p_tipo)
     LIMIT 1;
 
-    -- Excluimos las CABECERAS de planes de cuotas para no contar doble
-    -- (su monto_pendiente ya está distribuido en las cuotas hijas).
     WITH c AS (
         SELECT
             COALESCE(fc.id_tercero::text, fc.tercero_nombre) AS tercero_key,

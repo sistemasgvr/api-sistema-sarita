@@ -1,24 +1,7 @@
--- Function: com_assert_caja_compra
--- 20261023: valida que un cambio en el pago de caja de una compra
--- (com_pago_caja_compra antes / después) caiga en una caja abierta.
---
--- Devuelve NULL si es válido o el mensaje de error, igual que
--- fin_caja_assert_abierta. Sin cambio no valida nada: editar la glosa de una
--- compra de un día ya cerrado sigue permitido.
---
--- Solo los medios con AFECTA_CAJA (efectivo, Yape, Plin) exigen la caja: son
--- los que entran al arqueo. Una compra pagada por transferencia puede
--- registrarse aunque la factura llegue días después y esa caja esté cerrada.
--- Se valida la caja del pago anterior y la del nuevo: mover una compra en
--- efectivo de una caja cerrada a otra abierta también altera la cerrada.
+-- Valida que el cambio de pago de una compra caiga en una caja abierta
+DROP FUNCTION IF EXISTS public.com_assert_caja_compra (p_antes jsonb, p_despues jsonb);
 
-DROP FUNCTION IF EXISTS com_assert_caja_compra(p_antes jsonb, p_despues jsonb);
-
-CREATE OR REPLACE FUNCTION com_assert_caja_compra(p_antes jsonb, p_despues jsonb)
- RETURNS text
- LANGUAGE plpgsql
- STABLE
-AS $function$
+CREATE OR REPLACE FUNCTION public.com_assert_caja_compra (p_antes jsonb, p_despues jsonb) RETURNS text LANGUAGE plpgsql STABLE AS $function$
 DECLARE
     v_pago JSONB;
     v_err TEXT;

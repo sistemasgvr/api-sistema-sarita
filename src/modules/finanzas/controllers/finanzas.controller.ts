@@ -85,7 +85,7 @@ export class FinanzasController {
   @Permisos(PermisoBanderas.FINANZAS_GARANTIAS_EDITAR)
   @ApiOperation({
     summary:
-      'Editar una garantía manual (sin devoluciones ni vínculo operativo)',
+      'Editar una garantía de cualquier origen (devuelve avisos de caja cerrada o documento ligado)',
   })
   actualizarGarantia(
     @Param('id', ParseIntPipe) id: number,

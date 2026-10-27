@@ -1,78 +1,98 @@
-/** Verifica cobertura: cada función DEV tiene archivo en repo. */
-const { Client } = require('pg')
+/**
+ * Verifica cobertura de funciones: cada función/procedimiento `public` de la base elegida
+ * tiene archivo en database_sql/funciones/<modulo>/<nombre>.sql, y al revés.
+ * Conexión de solo lectura (lib/conexion.js); nunca imprime la URL.
+ *
+ * Uso:
+ *   node database_sql/scripts/verify-functions-coverage.js --env dev
+ *   node database_sql/scripts/verify-functions-coverage.js --env prod
+ *
+ * Sale con código 1 si falta alguna función en el repo.
+ */
 const fs = require('fs')
 const path = require('path')
+const { conectar, sanear } = require('./lib/conexion')
+const { moduloDe } = require('./lib/modulos')
 
-const ROOT = path.join(__dirname, '../..')
-const FUNCIONES_DIR = path.join(ROOT, 'database_sql', 'funciones')
+const FUNCIONES_DIR = path.join(__dirname, '..', 'funciones')
 
-function loadActiveUrl() {
-  const raw = fs.readFileSync(path.join(ROOT, '.env'), 'utf8')
-  for (const line of raw.split(/\r?\n/)) {
-    const t = line.trim()
-    if (t.startsWith('DATABASE_URL=')) return t.slice('DATABASE_URL='.length).trim()
+function leerEnv() {
+  const i = process.argv.indexOf('--env')
+  const env = i !== -1 ? process.argv[i + 1] : null
+  if (env !== 'dev' && env !== 'prod') {
+    throw new Error('Uso: node database_sql/scripts/verify-functions-coverage.js --env dev|prod')
   }
-  throw new Error('no DATABASE_URL')
+  return env
 }
 
-function walk(dir, out = []) {
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (e.name === '_orphans' && e.isDirectory()) continue
-    const full = path.join(dir, e.name)
-    if (e.isDirectory()) walk(full, out)
-    else if (e.name.endsWith('.sql')) out.push(full)
+/** Archivos .sql de funciones/<modulo>/ → [{ modulo, archivo }]. */
+function archivosRepo() {
+  const out = []
+  for (const modulo of fs.readdirSync(FUNCIONES_DIR, { withFileTypes: true })) {
+    if (!modulo.isDirectory()) continue
+    const dir = path.join(FUNCIONES_DIR, modulo.name)
+    for (const f of fs.readdirSync(dir)) {
+      if (f.endsWith('.sql')) out.push({ modulo: modulo.name, archivo: path.join(dir, f) })
+    }
   }
   return out
 }
 
-function namesIn(sql) {
+function nombresEn(sql) {
   const s = new Set()
-  const re = /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?([a-zA-Z0-9_]+)\s*\(/gi
+  const re = /CREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\s+(?:public\.)?"?([a-zA-Z0-9_]+)"?\s*\(/gi
   let m
   while ((m = re.exec(sql))) s.add(m[1].toLowerCase())
   return s
 }
 
+const SQL = `
+  SELECT DISTINCT p.proname AS nombre
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND p.prokind IN ('f', 'p')
+    AND NOT EXISTS (
+      SELECT 1 FROM pg_depend d
+      WHERE d.classid = 'pg_proc'::regclass AND d.objid = p.oid AND d.deptype = 'e'
+    )
+  ORDER BY 1`
+
 async function main() {
-  const files = walk(FUNCIONES_DIR)
+  const env = leerEnv()
+  const archivos = archivosRepo()
   const repo = new Set()
-  for (const f of files) {
-    for (const n of namesIn(fs.readFileSync(f, 'utf8'))) repo.add(n)
+  const malUbicados = []
+  for (const { modulo, archivo } of archivos) {
+    const base = path.basename(archivo, '.sql').toLowerCase()
+    for (const n of nombresEn(fs.readFileSync(archivo, 'utf8'))) repo.add(n)
+    const esperado = moduloDe(base).modulo
+    if (esperado !== modulo) malUbicados.push(`${modulo}/${base}.sql (esperado ${esperado}/)`)
   }
 
-  const client = new Client({
-    connectionString: loadActiveUrl(),
-    ssl: { rejectUnauthorized: false },
-  })
-  await client.connect()
-  const r = await client.query(`
-    SELECT DISTINCT p.proname
-    FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.prokind = 'f'
-      AND NOT EXISTS (
-        SELECT 1 FROM pg_depend d
-        JOIN pg_extension e ON d.refobjid = e.oid
-        WHERE d.objid = p.oid AND d.deptype = 'e'
-      )
-      AND p.proname NOT LIKE 'pg_%'
-      AND p.proname NOT LIKE 'uuid_%'
-    ORDER BY 1
-  `)
-  await client.end()
+  const client = await conectar(env)
+  let filas
+  try {
+    await client.query('BEGIN TRANSACTION READ ONLY')
+    filas = (await client.query(SQL)).rows
+    await client.query('ROLLBACK')
+  } finally {
+    await client.end().catch(() => {})
+  }
 
-  const db = new Set(r.rows.map((x) => x.proname.toLowerCase()))
-  const missingInRepo = [...db].filter((n) => !repo.has(n))
-  const extraInRepo = [...repo].filter((n) => !db.has(n))
+  const db = new Set(filas.map((x) => x.nombre.toLowerCase()))
+  const faltantes = [...db].filter((n) => !repo.has(n)).sort()
+  const sobrantes = [...repo].filter((n) => !db.has(n)).sort()
 
-  console.log('db_unique', db.size)
-  console.log('repo_unique', repo.size)
-  console.log('sql_files', files.length)
-  console.log('missing_in_repo', missingInRepo.length, missingInRepo.slice(0, 20))
-  console.log('extra_in_repo', extraInRepo.length, extraInRepo.slice(0, 20))
+  console.log(`[${env}] funciones en base (nombres): ${db.size}`)
+  console.log(`[${env}] funciones en repo (nombres): ${repo.size} en ${archivos.length} archivos`)
+  console.log(`[${env}] faltan en repo: ${faltantes.length}`, faltantes.slice(0, 30))
+  console.log(`[${env}] en repo pero no en la base: ${sobrantes.length}`, sobrantes.slice(0, 30))
+  console.log(`[${env}] archivos fuera de su módulo: ${malUbicados.length}`, malUbicados.slice(0, 30))
+  if (faltantes.length) process.exitCode = 1
 }
 
-main().catch((e) => {
-  console.error(e)
+main().catch((err) => {
+  console.error(`Error: ${sanear(err && err.message)}`)
   process.exit(1)
 })

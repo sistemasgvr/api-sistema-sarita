@@ -1,15 +1,7 @@
--- Function: age_obtener_actividad
--- Synced from migracion 20260908_age_recojo_vencidos_fk.sql
---
--- Actualizada por database_sql/migraciones/20260911_alquiler_solo_regulador.sql:
--- el alquiler ya no tiene detalle de cilindros (bal_alquiler_detalle eliminada);
--- el origen ALQUILER expone solo el regulador/accesorio pendiente.
+-- Obtiene actividad por id
+DROP FUNCTION IF EXISTS public.age_obtener_actividad (p_id integer);
 
-CREATE OR REPLACE FUNCTION age_obtener_actividad(p_id integer)
-RETURNS json
-LANGUAGE plpgsql
-STABLE
-AS $function$
+CREATE OR REPLACE FUNCTION public.age_obtener_actividad (p_id integer) RETURNS json LANGUAGE plpgsql STABLE AS $function$
 DECLARE
     v_registro JSON;
     v_items JSON;
@@ -121,8 +113,6 @@ BEGIN
             'id_origen', a.id,
             'numero', a.numero_alquiler,
             'fecha_pactada', a.fecha_fin_pactada,
-            -- El alquiler es solo del regulador/accesorio; el cilindro va por
-            -- préstamo. Se mantiene la clave para el frontend, siempre vacía.
             'cilindros', '[]'::JSON,
             'garantias', COALESCE((
                 SELECT json_agg(row_to_json(g) ORDER BY g.id)
