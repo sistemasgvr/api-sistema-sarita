@@ -1050,6 +1050,16 @@ export class RegistrarCobroLineaDto {
   @IsInt()
   idPago!: number;
 
+  @ApiPropertyOptional({
+    example: 4,
+    description:
+      'Cambiar el medio de pago de la línea. Omitir para conservar el actual. Si el anterior o el nuevo afecta caja, la caja de la fecha de la venta debe estar abierta.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idMedioPago?: number;
+
   @ApiPropertyOptional({ example: 'YAPE-4471' })
   @IsOptional()
   @IsString()

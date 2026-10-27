@@ -26,13 +26,8 @@ BEGIN
     ORDER BY s.id DESC
     LIMIT 1;
 
+    -- La caja abierta de la fecha del movimiento lo admite, aunque sea de un día anterior.
     IF v_estado = 'ABIERTA' THEN
-        IF p_fecha < v_hoy THEN
-            RETURN format(
-                'La caja del %s quedó abierta. Debes cerrarla (arqueo) en Ventas → Caja antes de registrar más operaciones, y luego abrir la caja de hoy.',
-                to_char(p_fecha, 'DD/MM/YYYY')
-            );
-        END IF;
         RETURN NULL;
     END IF;
 
@@ -56,7 +51,8 @@ BEGIN
 
     IF v_pendiente_fecha IS NOT NULL THEN
         RETURN format(
-            'Hay una caja sin cerrar del %s. Ciérrala en Ventas → Caja (arqueo) antes de abrir o operar la de hoy.',
+            'Hay una caja sin cerrar del %s. Registra con fecha %s para usar esa caja, o ciérrala en Ventas → Caja (arqueo) y abre la de hoy.',
+            to_char(v_pendiente_fecha, 'DD/MM/YYYY'),
             to_char(v_pendiente_fecha, 'DD/MM/YYYY')
         );
     END IF;
