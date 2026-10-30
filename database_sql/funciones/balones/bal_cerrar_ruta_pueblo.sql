@@ -27,7 +27,8 @@ BEGIN
     INTO v_estado, v_m3_calc, v_tolerancia, v_m3_rep
     FROM bal_ruta_pueblo r
     LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
-    WHERE r.id = p_id AND r.estado = 1;
+    WHERE r.id = p_id AND r.estado = 1
+    FOR UPDATE OF r;
 
     IF v_estado IS NULL THEN
         RETURN json_build_object('error', 'Ruta no encontrada', 'registro', NULL);
@@ -54,7 +55,8 @@ BEGIN
         );
     END IF;
 
-    SELECT COALESCE(SUM(d.m3_delta), 0) INTO v_m3_calc
+    -- Truncar una sola vez el total; conservar los decimales de cada cilindro.
+    SELECT TRUNC(COALESCE(SUM(d.m3_delta), 0)) INTO v_m3_calc
     FROM bal_ruta_pueblo_detalle d
     WHERE d.id_ruta_pueblo = p_id AND d.estado = 1;
 
@@ -62,7 +64,7 @@ BEGIN
     IF v_m3_rep IS NULL THEN
         RETURN json_build_object(
             'error',
-            'Indica los mÂ³ reportados por el repartidor (ventas de la ruta)',
+            'Indica los m³ reportados por el repartidor (ventas de la ruta)',
             'registro',
             NULL
         );

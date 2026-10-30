@@ -19,6 +19,8 @@ DECLARE
     v_factor NUMERIC;
     v_detalle JSON;
     v_id_balon INTEGER;
+    v_codigo_balon VARCHAR;
+    v_balon_label TEXT;
     v_lb_retorno NUMERIC;
     v_id_det INTEGER;
     v_lb_salida NUMERIC;
@@ -26,8 +28,6 @@ DECLARE
     v_m3_delta NUMERIC;
     v_restante_m3 NUMERIC;
     v_mov JSON;
-    v_cap_m3 NUMERIC;
-    v_cap_lb NUMERIC;
     v_det_producto JSON;
     v_id_producto INTEGER;
     v_cantidad_retorno NUMERIC;
@@ -47,7 +47,8 @@ BEGIN
     INTO v_estado, v_id_almacen, v_factor_ruta
     FROM bal_ruta_pueblo r
     LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
-    WHERE r.id = p_id AND r.estado = 1;
+    WHERE r.id = p_id AND r.estado = 1
+    FOR UPDATE OF r;
 
     IF v_estado IS NULL THEN
         RETURN json_build_object('error', 'Ruta no encontrada', 'registro', NULL);
@@ -58,7 +59,10 @@ BEGIN
     END IF;
 
     IF v_estado = 'ABIERTA' THEN
-        PERFORM bal_iniciar_ruta_pueblo(p_id, p_id_usuario_auditoria);
+        v_mov := bal_iniciar_ruta_pueblo(p_id, p_id_usuario_auditoria);
+        IF v_mov->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION 'No se pudo iniciar la ruta: %', v_mov->>'error';
+        END IF;
         SELECT er.nombre, r.id_almacen, r.factor_lb_m3
         INTO v_estado, v_id_almacen, v_factor_ruta
         FROM bal_ruta_pueblo r
@@ -82,15 +86,18 @@ BEGIN
                 RAISE EXCEPTION 'Cada ítem requiere idBalon y lbRetorno ≥ 0';
             END IF;
 
-            SELECT d.id, d.lb_salida, d.lb_retorno
-            INTO v_id_det, v_lb_salida, v_lb_retorno_existente
+            SELECT d.id, d.lb_salida, d.lb_retorno, b.codigo_balon
+            INTO v_id_det, v_lb_salida, v_lb_retorno_existente, v_codigo_balon
             FROM bal_ruta_pueblo_detalle d
+            LEFT JOIN bal_balon b ON b.id = d.id_balon
             WHERE d.id_ruta_pueblo = p_id
               AND d.id_balon = v_id_balon
               AND d.estado = 1;
 
+            v_balon_label := COALESCE(NULLIF(TRIM(v_codigo_balon), ''), v_id_balon::TEXT);
+
             IF v_id_det IS NULL THEN
-                RAISE EXCEPTION 'Cilindro % no pertenece a esta ruta', v_id_balon;
+                RAISE EXCEPTION 'Cilindro % no pertenece a esta ruta', v_balon_label;
             END IF;
 
             IF v_lb_retorno_existente IS NOT NULL THEN
@@ -98,21 +105,11 @@ BEGIN
             END IF;
 
             IF v_lb_retorno > v_lb_salida THEN
-                RAISE EXCEPTION 'Cilindro %: lb retorno (%.4f) no puede superar lb salida (%.4f)',
-                    v_id_balon, v_lb_retorno, v_lb_salida;
+                RAISE EXCEPTION 'Cilindro %: lb retorno (%) no puede superar lb salida (%)',
+                    v_balon_label, v_lb_retorno, v_lb_salida;
             END IF;
 
-            SELECT tb.capacidad, tb.capacidad_lb
-            INTO v_cap_m3, v_cap_lb
-            FROM bal_balon b
-            LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon AND tb.estado = 1
-            WHERE b.id = v_id_balon AND b.estado = 1;
-
-            IF v_cap_m3 IS NOT NULL AND v_cap_m3 > 0 AND v_cap_lb IS NOT NULL AND v_cap_lb > 0 THEN
-                v_factor := ROUND(v_cap_m3 / v_cap_lb, 6);
-            ELSE
-                v_factor := COALESCE(v_factor_ruta, 0.317400);
-            END IF;
+            v_factor := bal_factor_ruta_balon(v_id_balon);
 
             v_m3_delta := ROUND((v_lb_salida - v_lb_retorno) * v_factor, 4);
             v_restante_m3 := ROUND(v_lb_retorno * v_factor, 4);
@@ -121,6 +118,7 @@ BEGIN
             SET
                 lb_retorno = v_lb_retorno,
                 m3_delta = v_m3_delta,
+                capacidad_restante_m3 = v_restante_m3,
                 observacion = COALESCE(
                     NULLIF(TRIM(COALESCE(v_detalle->>'observacion', '')), ''),
                     observacion
@@ -139,12 +137,13 @@ BEGIN
                 'DISPONIBLE',
                 FALSE,
                 v_id_almacen,
-                format('Retorno ruta pueblos #%s · %.4f lb residual', p_id, v_lb_retorno),
+                format('Retorno ruta pueblos #%s · %s lb residual', p_id, v_lb_retorno),
                 p_id_usuario_auditoria
             );
 
             IF v_mov->>'error' IS NOT NULL THEN
-                NULL;
+                RAISE EXCEPTION 'No se pudo registrar el retorno del cilindro %: %',
+                    v_balon_label, v_mov->>'error';
             END IF;
 
             UPDATE bal_balon
@@ -204,7 +203,7 @@ BEGIN
             END IF;
 
             IF v_cantidad_retorno > v_cantidad_enviada THEN
-                RAISE EXCEPTION 'Producto %: cantidad retorno (%.4f) no puede superar cantidad enviada (%.4f)',
+                RAISE EXCEPTION 'Producto %: cantidad retorno (%) no puede superar cantidad enviada (%)',
                     v_producto_nombre, v_cantidad_retorno, v_cantidad_enviada;
             END IF;
 
@@ -220,7 +219,7 @@ BEGIN
             WHERE id = v_id_det_prod;
 
             IF v_afecta_stock AND v_cantidad_retorno > 0 THEN
-                SELECT s.id, COALESCE(s.stock, 0) AS stock, pm.id AS id_unidad_medida
+                SELECT s.id, COALESCE(s.stock, 0) AS stock, pm.id_unidad_medida AS id_unidad_medida
                 INTO v_stock_record
                 FROM pro_stock s
                 INNER JOIN pro_producto pm ON pm.id = s.id_producto
@@ -257,7 +256,7 @@ BEGIN
                         tdlo.id,
                         v_stock_anterior,
                         v_stock_nuevo,
-                        format('Retorno ruta pueblos #%s · %.4f ud de %s', p_id, v_cantidad_retorno, v_producto_nombre),
+                        format('Retorno ruta pueblos #%s · %s ud de %s', p_id, v_cantidad_retorno, v_producto_nombre),
                         p_id_usuario_auditoria,
                         p_id_usuario_auditoria
                     FROM gen_lista_opciones lo
@@ -274,7 +273,7 @@ BEGIN
     UPDATE bal_ruta_pueblo
     SET
         m3_calculado = (
-            SELECT COALESCE(SUM(d.m3_delta), 0)
+            SELECT TRUNC(COALESCE(SUM(d.m3_delta), 0))
             FROM bal_ruta_pueblo_detalle d
             WHERE d.id_ruta_pueblo = p_id AND d.estado = 1 AND d.lb_retorno IS NOT NULL
         ),

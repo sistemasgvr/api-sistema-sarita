@@ -23,7 +23,8 @@ BEGIN
     INTO v_estado, v_id_almacen
     FROM bal_ruta_pueblo r
     LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
-    WHERE r.id = p_id AND r.estado = 1;
+    WHERE r.id = p_id AND r.estado = 1
+    FOR UPDATE OF r;
 
     IF v_estado IS NULL THEN
         RETURN json_build_object('error', 'Ruta no encontrada', 'registro', NULL);
@@ -62,7 +63,7 @@ BEGIN
             'EN_RUTA_LIMA',
             TRUE,
             NULL,
-            format('Salida ruta pueblos #%s · %.4f lb', p_id, v_det.lb_salida),
+            format('Salida ruta pueblos #%s · %s lb', p_id, v_det.lb_salida),
             p_id_usuario_auditoria
         );
 
@@ -84,7 +85,7 @@ BEGIN
         WHERE dp.id_ruta_pueblo = p_id AND dp.estado = 1
     LOOP
         IF COALESCE(v_det_prod.afecta_stock, FALSE) THEN
-            SELECT s.id, COALESCE(s.stock, 0) AS stock, pm.id AS id_unidad_medida
+            SELECT s.id, COALESCE(s.stock, 0) AS stock, pm.id_unidad_medida AS id_unidad_medida
             INTO v_stock_record
             FROM pro_stock s
             INNER JOIN pro_producto pm ON pm.id = s.id_producto
@@ -98,7 +99,7 @@ BEGIN
             END IF;
 
             IF v_stock_record.stock < v_det_prod.cantidad THEN
-                RAISE EXCEPTION 'Producto "%": stock insuficiente (%.4f disponible, %.4f requerido)',
+                RAISE EXCEPTION 'Producto "%": stock insuficiente (% disponible, % requerido)',
                     v_det_prod.producto_nombre, v_stock_record.stock, v_det_prod.cantidad;
             END IF;
 
@@ -130,7 +131,7 @@ BEGIN
                 tdlo.id,
                 v_stock_anterior,
                 v_stock_nuevo,
-                format('Salida ruta pueblos #%s · %.4f ud de %s', p_id, v_det_prod.cantidad, v_det_prod.producto_nombre),
+                format('Salida ruta pueblos #%s · %s ud de %s', p_id, v_det_prod.cantidad, v_det_prod.producto_nombre),
                 p_id_usuario_auditoria,
                 p_id_usuario_auditoria
             FROM gen_lista_opciones lo

@@ -29,6 +29,8 @@ DECLARE
     v_id_estado INTEGER;
     v_detalle JSON;
     v_id_balon INTEGER;
+    v_codigo_balon VARCHAR;
+    v_balon_label TEXT;
     v_lb_salida NUMERIC;
     v_sellado BOOLEAN;
     v_item INTEGER := 0;
@@ -116,12 +118,13 @@ BEGIN
             END IF;
 
             IF v_id_balon = ANY (v_balones) THEN
-                RAISE EXCEPTION 'El cilindro % está duplicado en la ruta', v_id_balon;
+                RAISE EXCEPTION 'El cilindro % está duplicado en la ruta',
+                    COALESCE((SELECT NULLIF(TRIM(codigo_balon), '') FROM bal_balon WHERE id = v_id_balon), v_id_balon::TEXT);
             END IF;
             v_balones := array_append(v_balones, v_id_balon);
 
-            SELECT eb.nombre, b.id_almacen, tb.capacidad, tb.capacidad_lb, tb.nombre
-            INTO v_estado_balon, v_id_almacen_balon, v_cap_m3, v_cap_lb, v_nombre_tipo
+            SELECT eb.nombre, b.id_almacen, tb.capacidad, tb.capacidad_lb, tb.nombre, b.codigo_balon
+            INTO v_estado_balon, v_id_almacen_balon, v_cap_m3, v_cap_lb, v_nombre_tipo, v_codigo_balon
             FROM bal_balon b
             LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
             LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon AND tb.estado = 1
@@ -131,31 +134,27 @@ BEGIN
                 RAISE EXCEPTION 'Cilindro % no existe o está inactivo', v_id_balon;
             END IF;
 
+            v_balon_label := COALESCE(NULLIF(TRIM(v_codigo_balon), ''), v_id_balon::TEXT);
+
             IF v_estado_balon NOT IN ('DISPONIBLE') THEN
-                RAISE EXCEPTION 'Cilindro % debe estar en almacén (estado actual: %)', v_id_balon, v_estado_balon;
+                RAISE EXCEPTION 'Cilindro % debe estar en almacén (estado actual: %)', v_balon_label, v_estado_balon;
             END IF;
 
             IF v_id_almacen_balon IS DISTINCT FROM p_id_almacen THEN
-                RAISE EXCEPTION 'Cilindro % no está en el almacén de la ruta', v_id_balon;
+                RAISE EXCEPTION 'Cilindro % no está en el almacén de la ruta', v_balon_label;
             END IF;
 
-            IF v_cap_m3 IS NULL OR v_cap_m3 <= 0 OR v_cap_lb IS NULL OR v_cap_lb <= 0 THEN
-                RAISE EXCEPTION
-                    'El tipo "%" del cilindro % no tiene capacidad m³ y lb configuradas. Edítalo en Tipos de balón.',
-                    COALESCE(v_nombre_tipo, '(sin tipo)'),
-                    v_id_balon;
-            END IF;
+            v_factor_tipo := bal_factor_ruta_balon(v_id_balon);
 
             IF v_lb_salida > v_cap_lb THEN
                 RAISE EXCEPTION
-                    'Cilindro %: libras de salida (%.4f) no pueden superar la capacidad lb del tipo "%" (%.4f)',
-                    v_id_balon,
+                    'Cilindro %: libras de salida (%) no pueden superar la capacidad lb del tipo "%" (%)',
+                    v_balon_label,
                     v_lb_salida,
                     COALESCE(v_nombre_tipo, '(sin tipo)'),
                     v_cap_lb;
             END IF;
 
-            v_factor_tipo := ROUND(v_cap_m3 / v_cap_lb, 6);
             v_factores := array_append(v_factores, v_factor_tipo);
 
             IF EXISTS (
@@ -167,7 +166,7 @@ BEGIN
                   AND d.estado = 1
                   AND er.nombre IN ('ABIERTA', 'EN_RUTA')
             ) THEN
-                RAISE EXCEPTION 'Cilindro % ya está en otra ruta abierta/en tránsito', v_id_balon;
+                RAISE EXCEPTION 'Cilindro % ya está en otra ruta abierta/en tránsito', v_balon_label;
             END IF;
         END LOOP;
     END IF;
@@ -213,7 +212,7 @@ BEGIN
                 WHERE s.id_almacen = p_id_almacen AND s.id_producto = v_id_producto AND s.estado = 1;
 
                 IF COALESCE(v_stock_actual, 0) < v_cantidad_prod THEN
-                    RAISE EXCEPTION 'Producto "%" (%): stock insuficiente (%.4f disponible, %.4f requerido)',
+                    RAISE EXCEPTION 'Producto "%" (%): stock insuficiente (% disponible, % requerido)',
                         v_producto_nombre, v_id_producto, COALESCE(v_stock_actual, 0), v_cantidad_prod;
                 END IF;
             END IF;

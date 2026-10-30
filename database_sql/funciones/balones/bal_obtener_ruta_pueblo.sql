@@ -6,6 +6,9 @@ DECLARE
     v_registro JSON;
     v_detalles JSON;
     v_detalles_productos JSON;
+    v_m3_exacto NUMERIC;
+    v_m3_registrado NUMERIC;
+    v_ajuste_m3 NUMERIC;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -53,7 +56,8 @@ BEGIN
             tb.nombre AS nombre_tipo_balon,
             tb.capacidad AS capacidad_tipo,
             tb.capacidad_lb AS capacidad_lb_tipo,
-            bal_factor_lb_m3(tb.id, b.id_producto_gas) AS factor_lb_m3_tipo,
+            um.nombre AS unidad_capacidad_tipo,
+            bal_factor_ruta_balon(b.id, FALSE) AS factor_lb_m3_tipo,
             det.sellado,
             det.lb_salida,
             det.lb_retorno,
@@ -62,6 +66,7 @@ BEGIN
         FROM bal_ruta_pueblo_detalle det
         INNER JOIN bal_balon b ON b.id = det.id_balon
         LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+        LEFT JOIN gen_lista_opciones um ON um.id = tb.id_unidad_medida
         WHERE det.id_ruta_pueblo = p_id AND det.estado = 1
     ) d;
 
@@ -82,9 +87,25 @@ BEGIN
         WHERE detp.id_ruta_pueblo = p_id AND detp.estado = 1
     ) dp;
 
+    -- El detalle conserva la conversión original. La nota se deriva de los
+    -- valores guardados y no se pierde al editar la observación del usuario.
+    SELECT COALESCE(SUM(d.m3_delta), 0) INTO v_m3_exacto
+    FROM bal_ruta_pueblo_detalle d
+    WHERE d.id_ruta_pueblo = p_id AND d.estado = 1 AND d.lb_retorno IS NOT NULL;
+    v_m3_registrado := (v_registro->>'m3_calculado')::NUMERIC;
+    v_ajuste_m3 := v_m3_registrado - v_m3_exacto;
+
     RETURN json_build_object(
         'error', NULL,
         'registro', (v_registro::JSONB
+            || jsonb_build_object(
+                'm3_calculado_exacto', v_m3_exacto,
+                'ajuste_truncamiento_m3', v_ajuste_m3,
+                'observacion_truncamiento', CASE WHEN v_ajuste_m3 <> 0 THEN
+                    format('Consumo calculado: %s m³. Consumo registrado: %s m³. Ajuste por truncamiento: %s m³.',
+                        v_m3_exacto, v_m3_registrado, v_ajuste_m3)
+                    ELSE NULL END
+            )
             || jsonb_build_object('detalles', v_detalles)
             || jsonb_build_object('detalles_productos', v_detalles_productos)
         )::JSON
