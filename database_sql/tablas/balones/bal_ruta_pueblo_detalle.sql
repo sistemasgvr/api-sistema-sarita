@@ -7,6 +7,13 @@ CREATE TABLE public.bal_ruta_pueblo_detalle (
   lb_salida numeric(12, 4) NOT NULL,
   lb_retorno numeric(12, 4),
   m3_delta numeric(12, 4),
+  m3_salida numeric(12, 4),
+  m3_retorno numeric(12, 4),
+  id_producto_gas integer REFERENCES public.pro_producto(id),
+  CONSTRAINT bal_ruta_m3_manuales_validos CHECK (
+    (m3_salida IS NULL OR (m3_salida >= 0 AND m3_salida::text NOT IN ('NaN', 'Infinity', '-Infinity') AND id_producto_gas IS NOT NULL))
+    AND (m3_retorno IS NULL OR (m3_salida IS NOT NULL AND m3_retorno >= 0 AND m3_retorno <= m3_salida))
+  ),
   capacidad_restante_m3 numeric(12, 4),
   observacion character varying(500),
   estado integer DEFAULT 1 NOT NULL,

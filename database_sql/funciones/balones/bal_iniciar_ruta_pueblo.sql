@@ -7,6 +7,7 @@ CREATE OR REPLACE FUNCTION public.bal_iniciar_ruta_pueblo (
 ) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_estado VARCHAR;
+    v_manual BOOLEAN;
     v_id_almacen INTEGER;
     v_id_estado_ruta INTEGER;
     v_det RECORD;
@@ -19,8 +20,8 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT er.nombre, r.id_almacen
-    INTO v_estado, v_id_almacen
+    SELECT er.nombre, r.id_almacen, r.control_gas_manual
+    INTO v_estado, v_id_almacen, v_manual
     FROM bal_ruta_pueblo r
     LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
     WHERE r.id = p_id AND r.estado = 1
@@ -48,11 +49,31 @@ BEGIN
     WHERE l.nombre = 'EstadoRutaPueblo' AND lo.nombre = 'EN_RUTA' AND lo.estado = 1
     LIMIT 1;
 
+    IF v_id_estado_ruta IS NULL THEN RAISE EXCEPTION 'Estado EN_RUTA no configurado'; END IF;
+
+    IF v_manual THEN
+        PERFORM bal_validar_capacidad_salida_ruta(d.id_balon, d.m3_salida)
+        FROM bal_ruta_pueblo_detalle d WHERE d.id_ruta_pueblo = p_id AND d.estado = 1;
+        -- Revalidar y bloquear el saldo actual: puede haber cambiado desde la creación.
+        PERFORM bal_validar_stock_salida_ruta(p_id, TRUE);
+    END IF;
+
     FOR v_det IN
-        SELECT d.id_balon, d.lb_salida
+        SELECT d.id, d.id_balon, d.lb_salida, d.m3_salida, d.id_producto_gas
         FROM bal_ruta_pueblo_detalle d
         WHERE d.id_ruta_pueblo = p_id AND d.estado = 1
     LOOP
+        IF v_manual THEN
+            PERFORM 1 FROM bal_balon b LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+            JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+            WHERE b.id = v_det.id_balon AND b.estado = 1 AND b.id_almacen = v_id_almacen AND eb.nombre = 'DISPONIBLE'
+              AND COALESCE(b.id_producto_gas, tb.id_gas) = v_det.id_producto_gas
+            FOR UPDATE OF b;
+            IF NOT FOUND THEN
+                RAISE EXCEPTION 'El cilindro % ya no está disponible en el almacén de la ruta o cambió de producto gas', v_det.id_balon;
+            END IF;
+            PERFORM bal_movimiento_gas_ruta(v_det.id, FALSE, p_id_usuario_auditoria);
+        END IF;
         v_mov := bal_registrar_salida_documento(
             v_det.id_balon,
             'TRASLADO_LIMA',
@@ -91,7 +112,8 @@ BEGIN
             INNER JOIN pro_producto pm ON pm.id = s.id_producto
             WHERE s.id_almacen = v_id_almacen
               AND s.id_producto = v_det_prod.id_producto
-              AND s.estado = 1;
+              AND s.estado = 1
+            FOR UPDATE;
 
             IF v_stock_record IS NULL THEN
                 RAISE EXCEPTION 'Producto "%" no tiene stock en el almacén de la ruta',

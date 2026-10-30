@@ -236,3 +236,14 @@ SELECT
     ),
     FALSE
   );
+
+
+-- Gas de rutas manuales: separar el movimiento del gas del movimiento del envase.
+INSERT INTO gen_lista_opciones (id_lista, nombre, descripcion, estado)
+SELECT l.id, v.nombre, v.descripcion, 1
+FROM gen_lista l CROSS JOIN (VALUES
+    ('SALIDA_RUTA_PUEBLO', 'Salida de gas a ruta pueblos'),
+    ('ENTRADA_RETORNO_RUTA_PUEBLO', 'Retorno de gas desde ruta pueblos')
+) AS v(nombre, descripcion)
+WHERE l.nombre = 'TipoMovInvUnificado'
+  AND NOT EXISTS (SELECT 1 FROM gen_lista_opciones o WHERE o.id_lista = l.id AND o.nombre = v.nombre);

@@ -48,6 +48,7 @@ export class RutasPueblosModel {
         (dto.detalles ?? []).map((d) => ({
           idBalon: d.idBalon,
           lbSalida: d.lbSalida,
+          m3Salida: d.m3Salida,
           sellado: d.sellado ?? false,
           observacion: d.observacion ?? null,
         })),
@@ -97,6 +98,7 @@ export class RutasPueblosModel {
           (dto.detalles ?? []).map((d) => ({
             idBalon: d.idBalon,
             lbRetorno: d.lbRetorno,
+            m3Retorno: d.m3Retorno,
             observacion: d.observacion ?? null,
           })),
         ),

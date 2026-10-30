@@ -50,6 +50,12 @@ export class RutaPuebloDetalleSalidaDto {
   @Min(0)
   lbSalida: number;
 
+  @ApiProperty({ description: 'm³ de salida ingresados manualmente; se descuentan al iniciar la ruta' })
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
+  m3Salida: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
@@ -125,7 +131,7 @@ export class CreateRutaPuebloDto extends AuditoriaDto {
 
   @ApiPropertyOptional({
     description:
-      'Opcional. Si se omite, se calcula como capacidad_m3 / capacidad_lb del tipo de cada cilindro',
+      'Compatibilidad con rutas anteriores. Las rutas manuales no usan conversión de libras a m³',
   })
   @Type(() => Number)
   @IsOptional()
@@ -228,6 +234,13 @@ export class RutaPuebloDetalleRetornoDto {
   @IsNumber()
   @Min(0)
   lbRetorno: number;
+
+  @ApiPropertyOptional({ description: 'm³ de retorno manuales; obligatorio en rutas con control manual de gas' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
+  m3Retorno?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

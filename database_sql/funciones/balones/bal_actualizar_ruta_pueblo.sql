@@ -26,6 +26,7 @@ CREATE OR REPLACE FUNCTION public.bal_actualizar_ruta_pueblo (
 ) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_estado VARCHAR;
+    v_manual BOOLEAN;
     v_id_estado INTEGER;
     v_estado_nuevo VARCHAR;
     v_id_almacen INTEGER;
@@ -36,11 +37,12 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT er.nombre, r.id_almacen
-    INTO v_estado, v_id_almacen
+    SELECT er.nombre, r.id_almacen, r.control_gas_manual
+    INTO v_estado, v_id_almacen, v_manual
     FROM bal_ruta_pueblo r
     LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
-    WHERE r.id = p_id AND r.estado = 1;
+    WHERE r.id = p_id AND r.estado = 1
+    FOR UPDATE OF r;
 
     IF v_estado IS NULL THEN
         RETURN json_build_object('error', 'Ruta no encontrada', 'registro', NULL);
@@ -48,6 +50,15 @@ BEGIN
 
     IF v_estado IN ('CERRADA', 'CANCELADA') THEN
         RETURN json_build_object('error', 'No se puede editar una ruta cerrada o cancelada', 'registro', NULL);
+    END IF;
+
+    IF v_manual AND v_estado = 'EN_RUTA' THEN
+        IF p_id_almacen IS NOT NULL AND p_id_almacen IS DISTINCT FROM v_id_almacen THEN
+            RAISE EXCEPTION 'No se puede cambiar el almacén de una ruta iniciada';
+        END IF;
+        IF UPPER(TRIM(COALESCE(p_estado_nombre, ''))) = 'CANCELADA' THEN
+            RAISE EXCEPTION 'La ruta ya descontó stock: registra los retornos reales y ciérrala; no se puede cancelar una ruta iniciada.';
+        END IF;
     END IF;
 
     v_estado_nuevo := NULLIF(UPPER(TRIM(COALESCE(p_estado_nombre, ''))), '');
@@ -100,7 +111,7 @@ BEGIN
                         FALSE,
                         v_id_almacen,
                         format(
-                            'Cancelación ruta pueblos #%s · restaura %.4f lb de salida',
+                            'Cancelación ruta pueblos #%s · restaura %s lb de salida',
                             p_id,
                             v_det.lb_salida
                         ),

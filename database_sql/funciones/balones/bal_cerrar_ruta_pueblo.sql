@@ -14,6 +14,7 @@ CREATE OR REPLACE FUNCTION public.bal_cerrar_ruta_pueblo (
 ) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_estado VARCHAR;
+    v_manual BOOLEAN;
     v_id_estado INTEGER;
     v_m3_calc NUMERIC;
     v_m3_rep NUMERIC;
@@ -23,8 +24,8 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT er.nombre, r.m3_calculado, r.tolerancia_m3, r.m3_reportado_ventas
-    INTO v_estado, v_m3_calc, v_tolerancia, v_m3_rep
+    SELECT er.nombre, r.m3_calculado, r.tolerancia_m3, r.m3_reportado_ventas, r.control_gas_manual
+    INTO v_estado, v_m3_calc, v_tolerancia, v_m3_rep, v_manual
     FROM bal_ruta_pueblo r
     LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
     WHERE r.id = p_id AND r.estado = 1
@@ -55,11 +56,15 @@ BEGIN
         );
     END IF;
 
-    -- Truncar una sola vez el total; conservar los decimales de cada cilindro.
-    SELECT TRUNC(COALESCE(SUM(d.m3_delta), 0)) INTO v_m3_calc
+    -- Nuevas rutas: consumo manual exacto. Las anteriores conservan su cuadre histórico.
+    SELECT CASE WHEN v_manual THEN COALESCE(SUM(d.m3_delta), 0) ELSE TRUNC(COALESCE(SUM(d.m3_delta), 0)) END INTO v_m3_calc
     FROM bal_ruta_pueblo_detalle d
     WHERE d.id_ruta_pueblo = p_id AND d.estado = 1;
 
+    IF v_manual AND EXISTS (SELECT 1 FROM bal_ruta_pueblo_detalle_producto
+        WHERE id_ruta_pueblo = p_id AND estado = 1 AND cantidad_retorno IS NULL) THEN
+        RAISE EXCEPTION 'Faltan productos sin cantidad de retorno; ingresa 0 si no regresaron';
+    END IF;
     v_m3_rep := COALESCE(p_m3_reportado_ventas, v_m3_rep);
     IF v_m3_rep IS NULL THEN
         RETURN json_build_object(
@@ -68,6 +73,10 @@ BEGIN
             'registro',
             NULL
         );
+    END IF;
+
+    IF v_m3_rep < 0 OR v_m3_rep::TEXT IN ('NaN', 'Infinity', '-Infinity') THEN
+        RAISE EXCEPTION 'Los m³ reportados deben ser un número mayor o igual a cero';
     END IF;
 
     v_descuadre := ROUND(v_m3_calc - v_m3_rep, 4);

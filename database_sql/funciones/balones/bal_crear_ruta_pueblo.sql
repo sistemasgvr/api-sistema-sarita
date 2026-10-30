@@ -32,6 +32,9 @@ DECLARE
     v_codigo_balon VARCHAR;
     v_balon_label TEXT;
     v_lb_salida NUMERIC;
+    v_m3_salida NUMERIC;
+    v_id_producto_gas INTEGER;
+    v_unidad_gas VARCHAR;
     v_sellado BOOLEAN;
     v_item INTEGER := 0;
     v_balones INTEGER[] := ARRAY[]::INTEGER[];
@@ -39,11 +42,6 @@ DECLARE
     v_id_almacen_balon INTEGER;
     v_factor NUMERIC;
     v_tolerancia NUMERIC;
-    v_cap_m3 NUMERIC;
-    v_cap_lb NUMERIC;
-    v_factor_tipo NUMERIC;
-    v_factores NUMERIC[] := ARRAY[]::NUMERIC[];
-    v_nombre_tipo VARCHAR;
     v_det_producto JSON;
     v_id_producto INTEGER;
     v_cantidad_prod NUMERIC;
@@ -109,11 +107,17 @@ BEGIN
                 (v_detalle->>'lb_salida')::NUMERIC
             );
 
+            v_m3_salida := COALESCE((v_detalle->>'m3Salida')::NUMERIC, (v_detalle->>'m3_salida')::NUMERIC);
+            IF v_m3_salida IS NULL OR v_m3_salida < 0 OR v_m3_salida::TEXT IN ('NaN', 'Infinity', '-Infinity')
+               OR v_m3_salida <> ROUND(v_m3_salida, 4) THEN
+                RAISE EXCEPTION 'Ítem %: ingresa los m³ de salida (≥ 0, hasta 4 decimales)', v_item;
+            END IF;
+
             IF v_id_balon IS NULL THEN
                 RAISE EXCEPTION 'Ítem %: cilindro obligatorio', v_item;
             END IF;
 
-            IF v_lb_salida IS NULL OR v_lb_salida < 0 THEN
+            IF v_lb_salida IS NULL OR v_lb_salida < 0 OR v_lb_salida::TEXT IN ('NaN', 'Infinity', '-Infinity') THEN
                 RAISE EXCEPTION 'Ítem %: libras de salida inválidas', v_item;
             END IF;
 
@@ -123,12 +127,13 @@ BEGIN
             END IF;
             v_balones := array_append(v_balones, v_id_balon);
 
-            SELECT eb.nombre, b.id_almacen, tb.capacidad, tb.capacidad_lb, tb.nombre, b.codigo_balon
-            INTO v_estado_balon, v_id_almacen_balon, v_cap_m3, v_cap_lb, v_nombre_tipo, v_codigo_balon
+            SELECT eb.nombre, b.id_almacen, b.codigo_balon, COALESCE(b.id_producto_gas, tb.id_gas)
+            INTO v_estado_balon, v_id_almacen_balon, v_codigo_balon, v_id_producto_gas
             FROM bal_balon b
             LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
             LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon AND tb.estado = 1
-            WHERE b.id = v_id_balon AND b.estado = 1;
+            WHERE b.id = v_id_balon AND b.estado = 1
+            FOR UPDATE OF b;
 
             IF v_estado_balon IS NULL THEN
                 RAISE EXCEPTION 'Cilindro % no existe o está inactivo', v_id_balon;
@@ -144,18 +149,14 @@ BEGIN
                 RAISE EXCEPTION 'Cilindro % no está en el almacén de la ruta', v_balon_label;
             END IF;
 
-            v_factor_tipo := bal_factor_ruta_balon(v_id_balon);
-
-            IF v_lb_salida > v_cap_lb THEN
-                RAISE EXCEPTION
-                    'Cilindro %: libras de salida (%) no pueden superar la capacidad lb del tipo "%" (%)',
-                    v_balon_label,
-                    v_lb_salida,
-                    COALESCE(v_nombre_tipo, '(sin tipo)'),
-                    v_cap_lb;
+            SELECT UPPER(TRIM(um.nombre)) INTO v_unidad_gas
+            FROM pro_producto p JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
+            WHERE p.id = v_id_producto_gas AND p.estado = 1 AND p.es_gas AND p.afecta_stock;
+            IF COALESCE(v_unidad_gas, '') NOT IN ('MT3', 'M3', 'M³') THEN
+                RAISE EXCEPTION 'Cilindro %: configura un producto gas activo que afecte stock en m³.', v_balon_label;
             END IF;
 
-            v_factores := array_append(v_factores, v_factor_tipo);
+            PERFORM bal_validar_capacidad_salida_ruta(v_id_balon, v_m3_salida);
 
             IF EXISTS (
                 SELECT 1
@@ -219,20 +220,12 @@ BEGIN
         END LOOP;
     END IF;
 
-    IF NULLIF(p_factor_lb_m3, 0) IS NOT NULL THEN
-        v_factor := p_factor_lb_m3;
-    ELSE
-        SELECT ROUND(AVG(f), 6) INTO v_factor
-        FROM unnest(v_factores) AS f;
-    END IF;
-
-    IF v_factor IS NULL THEN
-        v_factor := 0;
-    END IF;
+    -- Conservamos la firma anterior; las lecturas manuales no usan un factor.
+    v_factor := 0;
 
     INSERT INTO bal_ruta_pueblo (
         fecha, id_almacen, id_usuario_responsable, id_chofer,
-        factor_lb_m3, tolerancia_m3, id_estado, observacion,
+        factor_lb_m3, tolerancia_m3, id_estado, observacion, control_gas_manual,
         id_usuario_creacion, id_usuario_modificacion
     ) VALUES (
         COALESCE(p_fecha, CURRENT_DATE),
@@ -243,6 +236,7 @@ BEGIN
         v_tolerancia,
         v_id_estado,
         NULLIF(TRIM(COALESCE(p_observacion, '')), ''),
+        TRUE,
         p_id_usuario_auditoria,
         p_id_usuario_auditoria
     )
@@ -264,14 +258,20 @@ BEGIN
                 FALSE
             );
 
+            v_m3_salida := COALESCE((v_detalle->>'m3Salida')::NUMERIC, (v_detalle->>'m3_salida')::NUMERIC);
+            SELECT COALESCE(b.id_producto_gas, tb.id_gas) INTO v_id_producto_gas
+            FROM bal_balon b LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
+            WHERE b.id = v_id_balon;
             INSERT INTO bal_ruta_pueblo_detalle (
-                id_ruta_pueblo, id_balon, sellado, lb_salida, observacion,
+                id_ruta_pueblo, id_balon, sellado, lb_salida, m3_salida, id_producto_gas, observacion,
                 id_usuario_creacion, id_usuario_modificacion
             ) VALUES (
                 v_id,
                 v_id_balon,
                 v_sellado,
                 v_lb_salida,
+                v_m3_salida,
+                v_id_producto_gas,
                 NULLIF(TRIM(COALESCE(v_detalle->>'observacion', '')), ''),
                 p_id_usuario_auditoria,
                 p_id_usuario_auditoria
@@ -304,6 +304,8 @@ BEGIN
             );
         END LOOP;
     END IF;
+
+    PERFORM bal_validar_stock_salida_ruta(v_id);
 
     RETURN bal_obtener_ruta_pueblo(v_id);
 END;

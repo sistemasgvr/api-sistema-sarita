@@ -11,6 +11,7 @@ CREATE TABLE public.bal_ruta_pueblo (
   m3_calculado numeric(12, 4),
   descuadre_m3 numeric(12, 4),
   id_estado integer,
+  control_gas_manual boolean DEFAULT FALSE NOT NULL,
   observacion character varying(500),
   estado integer DEFAULT 1 NOT NULL,
   id_usuario_creacion integer,

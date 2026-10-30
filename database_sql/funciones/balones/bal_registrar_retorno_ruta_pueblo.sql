@@ -14,6 +14,11 @@ CREATE OR REPLACE FUNCTION public.bal_registrar_retorno_ruta_pueblo (
 ) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_estado VARCHAR;
+    v_manual BOOLEAN;
+    v_m3_salida NUMERIC;
+    v_m3_retorno NUMERIC;
+    v_m3_retorno_existente NUMERIC;
+    v_balones INTEGER[] := ARRAY[]::INTEGER[];
     v_id_almacen INTEGER;
     v_factor_ruta NUMERIC;
     v_factor NUMERIC;
@@ -43,8 +48,8 @@ DECLARE
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT er.nombre, r.id_almacen, r.factor_lb_m3
-    INTO v_estado, v_id_almacen, v_factor_ruta
+    SELECT er.nombre, r.id_almacen, r.factor_lb_m3, r.control_gas_manual
+    INTO v_estado, v_id_almacen, v_factor_ruta, v_manual
     FROM bal_ruta_pueblo r
     LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
     WHERE r.id = p_id AND r.estado = 1
@@ -58,13 +63,18 @@ BEGIN
         RETURN json_build_object('error', 'Solo se registra retorno en rutas ABIERTA o EN_RUTA', 'registro', NULL);
     END IF;
 
+    IF v_manual AND COALESCE(json_array_length(p_detalles), 0) = 0
+        AND COALESCE(json_array_length(p_detalles_productos), 0) = 0 THEN
+        RAISE EXCEPTION 'Registra al menos un retorno antes de guardar';
+    END IF;
+
     IF v_estado = 'ABIERTA' THEN
         v_mov := bal_iniciar_ruta_pueblo(p_id, p_id_usuario_auditoria);
         IF v_mov->>'error' IS NOT NULL THEN
             RAISE EXCEPTION 'No se pudo iniciar la ruta: %', v_mov->>'error';
         END IF;
-        SELECT er.nombre, r.id_almacen, r.factor_lb_m3
-        INTO v_estado, v_id_almacen, v_factor_ruta
+        SELECT er.nombre, r.id_almacen, r.factor_lb_m3, r.control_gas_manual
+        INTO v_estado, v_id_almacen, v_factor_ruta, v_manual
         FROM bal_ruta_pueblo r
         LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
         WHERE r.id = p_id AND r.estado = 1;
@@ -82,12 +92,15 @@ BEGIN
                 (v_detalle->>'lb_retorno')::NUMERIC
             );
 
-            IF v_id_balon IS NULL OR v_lb_retorno IS NULL OR v_lb_retorno < 0 THEN
+            IF v_id_balon IS NULL OR v_lb_retorno IS NULL OR v_lb_retorno < 0 OR v_lb_retorno::TEXT IN ('NaN', 'Infinity', '-Infinity') THEN
                 RAISE EXCEPTION 'Cada ítem requiere idBalon y lbRetorno ≥ 0';
             END IF;
 
-            SELECT d.id, d.lb_salida, d.lb_retorno, b.codigo_balon
-            INTO v_id_det, v_lb_salida, v_lb_retorno_existente, v_codigo_balon
+            IF v_id_balon = ANY(v_balones) THEN RAISE EXCEPTION 'Cilindro % repetido en el retorno', v_id_balon; END IF;
+            v_balones := array_append(v_balones, v_id_balon);
+
+            SELECT d.id, d.lb_salida, d.lb_retorno, b.codigo_balon, d.m3_salida, d.m3_retorno
+            INTO v_id_det, v_lb_salida, v_lb_retorno_existente, v_codigo_balon, v_m3_salida, v_m3_retorno_existente
             FROM bal_ruta_pueblo_detalle d
             LEFT JOIN bal_balon b ON b.id = d.id_balon
             WHERE d.id_ruta_pueblo = p_id
@@ -100,7 +113,18 @@ BEGIN
                 RAISE EXCEPTION 'Cilindro % no pertenece a esta ruta', v_balon_label;
             END IF;
 
+            v_m3_retorno := COALESCE((v_detalle->>'m3Retorno')::NUMERIC, (v_detalle->>'m3_retorno')::NUMERIC);
+            IF v_manual AND (v_m3_retorno IS NULL OR v_m3_retorno < 0
+                OR v_m3_retorno::TEXT IN ('NaN', 'Infinity', '-Infinity') OR v_m3_retorno <> ROUND(v_m3_retorno, 4)) THEN
+                RAISE EXCEPTION 'Cilindro %: ingresa los m³ de retorno (≥ 0, hasta 4 decimales)', v_balon_label;
+            END IF;
+            IF v_manual AND v_m3_retorno > v_m3_salida THEN
+                RAISE EXCEPTION 'Cilindro %: los m³ de retorno (%) no pueden superar los m³ de salida (%)', v_balon_label, v_m3_retorno, v_m3_salida;
+            END IF;
             IF v_lb_retorno_existente IS NOT NULL THEN
+                IF v_manual AND (v_m3_retorno IS DISTINCT FROM v_m3_retorno_existente OR v_lb_retorno IS DISTINCT FROM v_lb_retorno_existente) THEN
+                    RAISE EXCEPTION 'Cilindro %: el retorno ya fue registrado con otras cantidades', v_balon_label;
+                END IF;
                 CONTINUE;
             END IF;
 
@@ -109,14 +133,20 @@ BEGIN
                     v_balon_label, v_lb_retorno, v_lb_salida;
             END IF;
 
-            v_factor := bal_factor_ruta_balon(v_id_balon);
-
-            v_m3_delta := ROUND((v_lb_salida - v_lb_retorno) * v_factor, 4);
-            v_restante_m3 := ROUND(v_lb_retorno * v_factor, 4);
+            IF v_manual THEN
+                v_m3_delta := v_m3_salida - v_m3_retorno;
+                v_restante_m3 := v_m3_retorno;
+            ELSE
+                -- Rutas anteriores: no reingresar gas cuya salida nunca se descontó.
+                v_factor := bal_factor_ruta_balon(v_id_balon);
+                v_m3_delta := ROUND((v_lb_salida - v_lb_retorno) * v_factor, 4);
+                v_restante_m3 := ROUND(v_lb_retorno * v_factor, 4);
+            END IF;
 
             UPDATE bal_ruta_pueblo_detalle
             SET
                 lb_retorno = v_lb_retorno,
+                m3_retorno = CASE WHEN v_manual THEN v_m3_retorno ELSE NULL END,
                 m3_delta = v_m3_delta,
                 capacidad_restante_m3 = v_restante_m3,
                 observacion = COALESCE(
@@ -126,6 +156,8 @@ BEGIN
                 id_usuario_modificacion = p_id_usuario_auditoria,
                 fecha_modificacion = NOW()
             WHERE id = v_id_det;
+
+            IF v_manual THEN PERFORM bal_movimiento_gas_ruta(v_id_det, TRUE, p_id_usuario_auditoria); END IF;
 
             v_mov := bal_registrar_salida_documento(
                 v_id_balon,
@@ -273,7 +305,7 @@ BEGIN
     UPDATE bal_ruta_pueblo
     SET
         m3_calculado = (
-            SELECT TRUNC(COALESCE(SUM(d.m3_delta), 0))
+            SELECT CASE WHEN v_manual THEN COALESCE(SUM(d.m3_delta), 0) ELSE TRUNC(COALESCE(SUM(d.m3_delta), 0)) END
             FROM bal_ruta_pueblo_detalle d
             WHERE d.id_ruta_pueblo = p_id AND d.estado = 1 AND d.lb_retorno IS NOT NULL
         ),

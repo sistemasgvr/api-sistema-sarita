@@ -7,16 +7,22 @@ CREATE OR REPLACE FUNCTION public.bal_eliminar_ruta_pueblo (
 ) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_estado VARCHAR;
+    v_manual BOOLEAN;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT er.nombre INTO v_estado
+    SELECT er.nombre, r.control_gas_manual INTO v_estado, v_manual
     FROM bal_ruta_pueblo r
     LEFT JOIN gen_lista_opciones er ON er.id = r.id_estado
-    WHERE r.id = p_id AND r.estado = 1;
+    WHERE r.id = p_id AND r.estado = 1
+    FOR UPDATE OF r;
 
     IF v_estado IS NULL THEN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id, 'error', 'Ruta no encontrada');
+    END IF;
+
+    IF v_manual AND v_estado NOT IN ('ABIERTA', 'CANCELADA') THEN
+        RETURN json_build_object('eliminado', FALSE, 'id', p_id, 'error', 'No se puede eliminar una ruta que ya movió stock de gas');
     END IF;
 
     IF v_estado = 'EN_RUTA' THEN

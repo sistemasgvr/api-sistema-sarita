@@ -61,6 +61,7 @@ BEGIN
             r.id_chofer,
             NULLIF(TRIM(CONCAT_WS(' ', ch.nombres, ch.apellido_paterno, ch.apellido_materno)), '') AS nombre_chofer,
             r.factor_lb_m3,
+            r.control_gas_manual,
             r.tolerancia_m3,
             r.m3_reportado_ventas,
             r.m3_calculado,
