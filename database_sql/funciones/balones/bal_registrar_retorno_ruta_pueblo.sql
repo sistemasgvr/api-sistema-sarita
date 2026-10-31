@@ -157,42 +157,44 @@ BEGIN
                 fecha_modificacion = NOW()
             WHERE id = v_id_det;
 
-            IF v_manual THEN PERFORM bal_movimiento_gas_ruta(v_id_det, TRUE, p_id_usuario_auditoria); END IF;
-
-            v_mov := bal_registrar_salida_documento(
-                v_id_balon,
-                'RETORNO_LIMA',
-                p_id,
-                'RUTA_PUEBLO',
-                NULL,
-                NULL,
-                'DISPONIBLE',
-                FALSE,
-                v_id_almacen,
-                format('Retorno ruta pueblos #%s · %s lb residual', p_id, v_lb_retorno),
-                p_id_usuario_auditoria
-            );
-
-            IF v_mov->>'error' IS NOT NULL THEN
-                RAISE EXCEPTION 'No se pudo registrar el retorno del cilindro %: %',
-                    v_balon_label, v_mov->>'error';
-            END IF;
-
-            UPDATE bal_balon
-            SET
-                id_almacen = v_id_almacen,
-                id_cliente_ubicacion = NULL,
-                id_estado_balon = (
-                    SELECT lo.id
-                    FROM gen_lista_opciones lo
-                    INNER JOIN gen_lista l ON l.id = lo.id_lista
-                    WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
-                    LIMIT 1
-                ),
-                id_usuario_modificacion = p_id_usuario_auditoria,
-                fecha_modificacion = NOW()
-            WHERE id = v_id_balon AND estado = 1;
-
+    -- INACTIVO 2026-10-31: Ruta pueblos es un registro histórico sin efecto en inventario.
+    -- Conservar este bloque para una futura reactivación coordinada y conciliada.
+    --             IF v_manual THEN PERFORM bal_movimiento_gas_ruta(v_id_det, TRUE, p_id_usuario_auditoria); END IF;
+    --
+    --             v_mov := bal_registrar_salida_documento(
+    --                 v_id_balon,
+    --                 'RETORNO_LIMA',
+    --                 p_id,
+    --                 'RUTA_PUEBLO',
+    --                 NULL,
+    --                 NULL,
+    --                 'DISPONIBLE',
+    --                 FALSE,
+    --                 v_id_almacen,
+    --                 format('Retorno ruta pueblos #%s · %s lb residual', p_id, v_lb_retorno),
+    --                 p_id_usuario_auditoria
+    --             );
+    --
+    --             IF v_mov->>'error' IS NOT NULL THEN
+    --                 RAISE EXCEPTION 'No se pudo registrar el retorno del cilindro %: %',
+    --                     v_balon_label, v_mov->>'error';
+    --             END IF;
+    --
+    --             UPDATE bal_balon
+    --             SET
+    --                 id_almacen = v_id_almacen,
+    --                 id_cliente_ubicacion = NULL,
+    --                 id_estado_balon = (
+    --                     SELECT lo.id
+    --                     FROM gen_lista_opciones lo
+    --                     INNER JOIN gen_lista l ON l.id = lo.id_lista
+    --                     WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
+    --                     LIMIT 1
+    --                 ),
+    --                 id_usuario_modificacion = p_id_usuario_auditoria,
+    --                 fecha_modificacion = NOW()
+    --             WHERE id = v_id_balon AND estado = 1;
+    --
         END LOOP;
     END IF;
 
@@ -250,55 +252,57 @@ BEGIN
                 fecha_modificacion = NOW()
             WHERE id = v_id_det_prod;
 
-            IF v_afecta_stock AND v_cantidad_retorno > 0 THEN
-                SELECT s.id, COALESCE(s.stock, 0) AS stock, pm.id_unidad_medida AS id_unidad_medida
-                INTO v_stock_record
-                FROM pro_stock s
-                INNER JOIN pro_producto pm ON pm.id = s.id_producto
-                WHERE s.id_almacen = v_id_almacen
-                  AND s.id_producto = v_id_producto
-                  AND s.estado = 1;
-
-                IF v_stock_record IS NOT NULL THEN
-                    v_stock_anterior := v_stock_record.stock;
-                    v_stock_nuevo := v_stock_anterior + v_cantidad_retorno;
-                    v_id_unidad_medida := v_stock_record.id_unidad_medida;
-
-                    UPDATE pro_stock
-                    SET stock = v_stock_nuevo,
-                        id_usuario_modificacion = p_id_usuario_auditoria,
-                        fecha_modificacion = NOW()
-                    WHERE id = v_stock_record.id;
-
-                    INSERT INTO inv_movimiento (
-                        fecha, id_tipo_movimiento, naturaleza, id_producto, cantidad,
-                        id_unidad_medida, id_almacen_origen, id_documento_origen,
-                        id_tipo_documento_origen, stock_anterior, stock_nuevo, glosa,
-                        id_usuario_creacion, id_usuario_modificacion
-                    )
-                    SELECT
-                        NOW(),
-                        lo.id,
-                        'PRODUCTO',
-                        v_id_producto,
-                        v_cantidad_retorno,
-                        v_id_unidad_medida,
-                        v_id_almacen,
-                        p_id,
-                        tdlo.id,
-                        v_stock_anterior,
-                        v_stock_nuevo,
-                        format('Retorno ruta pueblos #%s · %s ud de %s', p_id, v_cantidad_retorno, v_producto_nombre),
-                        p_id_usuario_auditoria,
-                        p_id_usuario_auditoria
-                    FROM gen_lista_opciones lo
-                    INNER JOIN gen_lista l ON l.id = lo.id_lista
-                    LEFT JOIN gen_lista_opciones tdlo ON tdlo.nombre = 'RUTA_PUEBLO'
-                        AND tdlo.id_lista = (SELECT id FROM gen_lista WHERE nombre = 'TipoDocumentoRef' LIMIT 1)
-                    WHERE l.nombre = 'TipoMovInvUnificado' AND lo.nombre = 'ENTRADA_DEVOLUCION' AND lo.estado = 1
-                    LIMIT 1;
-                END IF;
-            END IF;
+    -- INACTIVO 2026-10-31: Ruta pueblos es un registro histórico sin efecto en inventario.
+    -- Conservar este bloque para una futura reactivación coordinada y conciliada.
+    --             IF v_afecta_stock AND v_cantidad_retorno > 0 THEN
+    --                 SELECT s.id, COALESCE(s.stock, 0) AS stock, pm.id_unidad_medida AS id_unidad_medida
+    --                 INTO v_stock_record
+    --                 FROM pro_stock s
+    --                 INNER JOIN pro_producto pm ON pm.id = s.id_producto
+    --                 WHERE s.id_almacen = v_id_almacen
+    --                   AND s.id_producto = v_id_producto
+    --                   AND s.estado = 1;
+    --
+    --                 IF v_stock_record IS NOT NULL THEN
+    --                     v_stock_anterior := v_stock_record.stock;
+    --                     v_stock_nuevo := v_stock_anterior + v_cantidad_retorno;
+    --                     v_id_unidad_medida := v_stock_record.id_unidad_medida;
+    --
+    --                     UPDATE pro_stock
+    --                     SET stock = v_stock_nuevo,
+    --                         id_usuario_modificacion = p_id_usuario_auditoria,
+    --                         fecha_modificacion = NOW()
+    --                     WHERE id = v_stock_record.id;
+    --
+    --                     INSERT INTO inv_movimiento (
+    --                         fecha, id_tipo_movimiento, naturaleza, id_producto, cantidad,
+    --                         id_unidad_medida, id_almacen_origen, id_documento_origen,
+    --                         id_tipo_documento_origen, stock_anterior, stock_nuevo, glosa,
+    --                         id_usuario_creacion, id_usuario_modificacion
+    --                     )
+    --                     SELECT
+    --                         NOW(),
+    --                         lo.id,
+    --                         'PRODUCTO',
+    --                         v_id_producto,
+    --                         v_cantidad_retorno,
+    --                         v_id_unidad_medida,
+    --                         v_id_almacen,
+    --                         p_id,
+    --                         tdlo.id,
+    --                         v_stock_anterior,
+    --                         v_stock_nuevo,
+    --                         format('Retorno ruta pueblos #%s · %s ud de %s', p_id, v_cantidad_retorno, v_producto_nombre),
+    --                         p_id_usuario_auditoria,
+    --                         p_id_usuario_auditoria
+    --                     FROM gen_lista_opciones lo
+    --                     INNER JOIN gen_lista l ON l.id = lo.id_lista
+    --                     LEFT JOIN gen_lista_opciones tdlo ON tdlo.nombre = 'RUTA_PUEBLO'
+    --                         AND tdlo.id_lista = (SELECT id FROM gen_lista WHERE nombre = 'TipoDocumentoRef' LIMIT 1)
+    --                     WHERE l.nombre = 'TipoMovInvUnificado' AND lo.nombre = 'ENTRADA_DEVOLUCION' AND lo.estado = 1
+    --                     LIMIT 1;
+    --                 END IF;
+    --             END IF;
         END LOOP;
     END IF;
 

@@ -21,10 +21,12 @@ BEGIN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id, 'error', 'Ruta no encontrada');
     END IF;
 
-    IF v_manual AND v_estado NOT IN ('ABIERTA', 'CANCELADA') THEN
-        RETURN json_build_object('eliminado', FALSE, 'id', p_id, 'error', 'No se puede eliminar una ruta que ya movió stock de gas');
-    END IF;
-
+    -- INACTIVO 2026-10-31: Ruta pueblos es un registro histórico sin efecto en inventario.
+    -- Conservar este bloque para una futura reactivación coordinada y conciliada.
+    --     IF v_manual AND v_estado NOT IN ('ABIERTA', 'CANCELADA') THEN
+    --         RETURN json_build_object('eliminado', FALSE, 'id', p_id, 'error', 'No se puede eliminar una ruta que ya movió stock de gas');
+    --     END IF;
+    --
     IF v_estado = 'EN_RUTA' THEN
         RETURN json_build_object(
             'eliminado', FALSE,

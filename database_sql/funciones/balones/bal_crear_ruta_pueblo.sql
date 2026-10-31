@@ -207,16 +207,18 @@ BEGIN
                 RAISE EXCEPTION 'Producto % no existe o está inactivo', v_id_producto;
             END IF;
 
-            IF v_afecta_stock THEN
-                SELECT COALESCE(s.stock, 0) INTO v_stock_actual
-                FROM pro_stock s
-                WHERE s.id_almacen = p_id_almacen AND s.id_producto = v_id_producto AND s.estado = 1;
-
-                IF COALESCE(v_stock_actual, 0) < v_cantidad_prod THEN
-                    RAISE EXCEPTION 'Producto "%" (%): stock insuficiente (% disponible, % requerido)',
-                        v_producto_nombre, v_id_producto, COALESCE(v_stock_actual, 0), v_cantidad_prod;
-                END IF;
-            END IF;
+    -- INACTIVO 2026-10-31: Ruta pueblos es un registro histórico sin efecto en inventario.
+    -- Conservar este bloque para una futura reactivación coordinada y conciliada.
+    --             IF v_afecta_stock THEN
+    --                 SELECT COALESCE(s.stock, 0) INTO v_stock_actual
+    --                 FROM pro_stock s
+    --                 WHERE s.id_almacen = p_id_almacen AND s.id_producto = v_id_producto AND s.estado = 1;
+    --
+    --                 IF COALESCE(v_stock_actual, 0) < v_cantidad_prod THEN
+    --                     RAISE EXCEPTION 'Producto "%" (%): stock insuficiente (% disponible, % requerido)',
+    --                         v_producto_nombre, v_id_producto, COALESCE(v_stock_actual, 0), v_cantidad_prod;
+    --                 END IF;
+    --             END IF;
         END LOOP;
     END IF;
 
@@ -305,7 +307,9 @@ BEGIN
         END LOOP;
     END IF;
 
-    PERFORM bal_validar_stock_salida_ruta(v_id);
+    -- INACTIVO 2026-10-31: Ruta pueblos es un registro histórico sin efecto en inventario.
+    -- Conservar este bloque para una futura reactivación coordinada y conciliada.
+    -- PERFORM bal_validar_stock_salida_ruta(v_id);
 
     RETURN bal_obtener_ruta_pueblo(v_id);
 END;

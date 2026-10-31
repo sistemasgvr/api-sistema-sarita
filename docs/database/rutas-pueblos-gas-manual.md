@@ -1,4 +1,44 @@
-# Rutas a pueblos: libras y m³ manuales
+# Vigente desde el 31/10/2026: solo historial
+
+Ruta pueblos conserva salida, retorno, lecturas manuales, consumo y cuadre.
+Ninguna etapa modifica stock, genera movimientos ni cambia el estado o ubicación
+de cilindros. Las facturas y boletas mantienen su propio efecto en inventario.
+La lógica anterior se conserva comentada, incluyendo los auxiliares exclusivos
+de rutas, que ahora no tienen efecto aunque se llamen directamente.
+
+Aplicar `database_sql/migraciones/20261031_rutas_pueblos_solo_historial.sql`
+después de las migraciones del 30/10. Conserva firmas y permisos. No reaplicar
+las migraciones anteriores por separado, porque reactivarían inventario.
+
+La ruta #1 conserva EN_RUTA, sus 14 cilindros, 20 productos y lecturas. La corrección
+`database_sql/correcciones/20261031_ruta_1_solo_historial.sql` compensa sus 48
+movimientos sin borrarlos: +38 m³ de argón, +53 m³ de oxígeno industrial,
+el débito exacto de cada producto adicional y la ubicación/estado anterior de los
+cilindros. Las compensaciones no representan un retorno físico. El ajuste rechaza
+movimientos posteriores y no vuelve a sumar stock en un reintento completo.
+
+Pruebas y aplicación:
+
+- `node test/rutas-pueblos-historial-local.cjs`: ciclo con stock cero, cancelación,
+  reintentos y respeto de ubicaciones cambiadas por ventas; Docker y ROLLBACK.
+- `node scripts/rutas-pueblos-historial.cjs --prepare`: captura y respaldo lógico
+  de todas las tablas, datos y definiciones del esquema de la aplicación (`public`).
+- `node scripts/rutas-pueblos-historial.cjs --test-local`: ensayo con la captura real
+  en un esquema aislado; verifica los 22 saldos, 14 cilindros y reintento.
+- `node scripts/rutas-pueblos-historial.cjs --apply`: migración y restitución atómicas,
+  con respaldo y verificaciones antes de COMMIT.
+
+Para reactivar, revisar conjuntamente llamadas, auxiliares, validaciones, interfaz,
+pruebas y ventas. Distinguir las rutas históricas de las futuras rutas con inventario
+y evitar devolver stock que nunca se descontó. No basta descomentar una llamada
+ni cambiar `control_gas_manual`, que indica el formato de las lecturas.
+
+---
+
+El resto documenta el comportamiento anterior como referencia para reactivación.
+Las pruebas manuales antiguas verifican ese contrato anterior.
+
+# Rutas a pueblos: libras y m³ manuales (comportamiento anterior)
 
 Cada cilindro nuevo requiere `lbSalida` y `m3Salida`. En el retorno se registran
 `lbRetorno` y `m3Retorno`. Las libras son una lectura de control y no se convierten
