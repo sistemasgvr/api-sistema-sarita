@@ -1,21 +1,3 @@
--- Lista movimientos con filtros y paginación
--- p_id_cliente va al final de la firma para no romper llamadas posicionales existentes.
--- p_id_cliente = -1 filtra los movimientos sin cliente (id_cliente IS NULL).
-DROP FUNCTION IF EXISTS public.inv_listar_movimientos (
-  p_busqueda character varying,
-  p_limite integer,
-  p_offset integer,
-  p_naturaleza character varying,
-  p_id_producto integer,
-  p_id_balon integer,
-  p_id_almacen integer,
-  p_id_tipo_movimiento integer,
-  p_id_tipo_documento_origen integer,
-  p_id_documento_origen integer,
-  p_fecha_desde date,
-  p_fecha_hasta date
-);
-
 DROP FUNCTION IF EXISTS public.inv_listar_movimientos (
   p_busqueda character varying,
   p_limite integer,
@@ -101,8 +83,16 @@ BEGIN
           OR gen_texto_coincide(COALESCE(tm.nombre, ''), v_buscar)
       );
 
+    -- El documento origen se resuelve después del LIMIT: solo para las filas de la página.
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
     FROM (
+      SELECT
+          pagina.*,
+          doc.codigo_documento_origen,
+          doc.importe_linea,
+          doc.total_documento,
+          doc.moneda_documento
+      FROM (
         SELECT
             m.id,
             m.fecha,
@@ -113,6 +103,10 @@ BEGIN
             p.codigo AS codigo_producto,
             p.nombre AS nombre_producto,
             COALESCE(p.es_gas, FALSE) AS es_gas,
+            CASE
+                WHEN m.naturaleza = 'BALON' THEN COALESCE(tb.nombre, cat.nombre)
+                ELSE cat.nombre
+            END AS nombre_tipo_producto,
             m.id_balon,
             b.numero_serie AS numero_serie_balon,
             m.cantidad,
@@ -144,7 +138,10 @@ BEGIN
             uc.nombre AS nombre_usuario_creacion
         FROM inv_movimiento m
         LEFT JOIN pro_producto p ON p.id = m.id_producto
+        LEFT JOIN pro_sub_categoria sc ON sc.id = p.id_sub_categoria
+        LEFT JOIN pro_categoria cat ON cat.id = sc.id_categoria
         LEFT JOIN bal_balon b ON b.id = m.id_balon
+        LEFT JOIN bal_tipo_balon tb ON tb.id = b.id_tipo_balon
         LEFT JOIN gen_lista_opciones umed ON umed.id = m.id_unidad_medida
         LEFT JOIN gen_almacen ao ON ao.id = m.id_almacen_origen
         LEFT JOIN gen_almacen ad ON ad.id = m.id_almacen_destino
@@ -181,6 +178,15 @@ BEGIN
         ORDER BY m.fecha::DATE DESC, m.fecha_creacion DESC, m.id DESC
         LIMIT p_limite
         OFFSET p_offset
+      ) pagina
+      LEFT JOIN LATERAL inv_resumen_documento_origen(
+          pagina.nombre_tipo_documento_origen,
+          pagina.id_documento_origen,
+          pagina.naturaleza,
+          pagina.id_documento_detalle,
+          pagina.id_producto,
+          pagina.id_balon
+      ) doc ON TRUE
     ) t;
 
     RETURN json_build_object(

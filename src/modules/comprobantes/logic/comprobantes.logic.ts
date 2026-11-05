@@ -40,6 +40,7 @@ import { ComprobantesModel } from '../models/comprobantes.model';
 import type { SiguienteNumeroResult } from '../models/comprobantes.model';
 import { ComprobanteNotaVentaPdfGenerator } from '../services/comprobante-nota-venta-pdf.generator';
 import { ComprobanteTicketPdfGenerator } from '../services/comprobante-ticket-pdf.generator';
+import { agregarAnexoGlosa } from '../utils/comprobante-pdf-anexo.util';
 
 const CODIGO_VENTA_SIN_DOC = 'VSD';
 const CODIGO_NOTA_VENTA_LEGACY = 'NV';
@@ -1408,14 +1409,21 @@ export class ComprobantesLogic {
         }
 
         const tipoDoc = comprobante.registro.codigo_tipo_comprobante;
-        const opcionesPdf = { glosa: comprobante.registro.glosa };
         pdfBuffer =
           tipoDoc === '07' || tipoDoc === '08'
-            ? await this.facturacionClient.generarPdfNota(payload, opcionesPdf)
-            : await this.facturacionClient.generarPdfFacturaBoleta(
-                payload,
-                opcionesPdf,
-              );
+            ? await this.facturacionClient.generarPdfNota(payload)
+            : await this.facturacionClient.generarPdfFacturaBoleta(payload);
+
+        // El A4 del proveedor no imprime la glosa: se agrega como anexo local.
+        pdfBuffer = await agregarAnexoGlosa(pdfBuffer, {
+          glosa: comprobante.registro.glosa,
+          tipoDocumento: comprobante.registro.nombre_tipo_comprobante,
+          serieNumero: `${comprobante.registro.serie}-${comprobante.registro.numero}`,
+          fecha:
+            comprobante.registro.fecha_emision_cpe ??
+            comprobante.registro.fecha,
+          cliente: comprobante.registro.nombre_cliente,
+        });
       }
     }
 

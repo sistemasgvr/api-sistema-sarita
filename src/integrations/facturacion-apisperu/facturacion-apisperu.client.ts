@@ -171,9 +171,8 @@ export class FacturacionApisperuClient {
 
   async generarPdfFacturaBoleta(
     payload: FacturacionApisperuPayload,
-    opciones?: { glosa?: string | null },
   ): Promise<Buffer> {
-    const body = await this.buildPdfPayload(payload, 'a4', opciones?.glosa);
+    const body = await this.buildPdfPayload(payload, 'a4');
     const data = await this.request<ArrayBuffer>('POST', '/invoice/pdf', body, {
       responseType: 'arraybuffer',
       accept: 'application/pdf',
@@ -211,11 +210,8 @@ export class FacturacionApisperuClient {
     });
   }
 
-  async generarPdfNota(
-    payload: FacturacionApisperuPayload,
-    opciones?: { glosa?: string | null },
-  ): Promise<Buffer> {
-    const body = await this.buildPdfPayload(payload, 'a4', opciones?.glosa);
+  async generarPdfNota(payload: FacturacionApisperuPayload): Promise<Buffer> {
+    const body = await this.buildPdfPayload(payload, 'a4');
     const data = await this.request<ArrayBuffer>('POST', '/note/pdf', body, {
       responseType: 'arraybuffer',
       accept: 'application/pdf',
@@ -575,7 +571,6 @@ export class FacturacionApisperuClient {
   private async buildPdfPayload(
     payload: FacturacionApisperuPayload,
     formato: 'a4' | 'ticket',
-    glosa?: string | null,
   ): Promise<FacturacionApisperuPayload> {
     const ruc = await this.extractCompanyRuc(payload);
     const hash =
@@ -593,8 +588,6 @@ export class FacturacionApisperuClient {
       company.logo = logoBase64;
     }
 
-    const glosaPdf = typeof glosa === 'string' ? glosa.trim() : '';
-
     const parameters: Record<string, unknown> = {
       system: {
         ...(logoBase64
@@ -607,8 +600,6 @@ export class FacturacionApisperuClient {
       },
       user: {
         header: '',
-        // La plantilla A4 de Greenter pinta user.extras en "Información Adicional".
-        ...(glosaPdf ? { extras: [{ name: 'GLOSA', value: glosaPdf }] } : {}),
       },
     };
 
