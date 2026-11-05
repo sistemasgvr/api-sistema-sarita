@@ -14,11 +14,6 @@ export interface AnexoGlosaDatos {
   cliente?: string | null;
 }
 
-/**
- * El PDF A4 del proveedor (APIsPERU) no imprime la glosa del comprobante.
- * Este anexo la agrega como última página, sin tocar la representación
- * impresa original ni el XML enviado a SUNAT.
- */
 export async function agregarAnexoGlosa(
   pdf: Buffer,
   datos: AnexoGlosaDatos,
@@ -178,7 +173,6 @@ function dividirEnLineas(
         continue;
       }
 
-      // Palabra más ancha que la caja: se corta por caracteres.
       let trozo = '';
       for (const caracter of palabra) {
         if (fuente.widthOfTextAtSize(trozo + caracter, size) <= ancho) {
@@ -207,10 +201,6 @@ function formatearFecha(fecha: string): string {
     : fecha;
 }
 
-/**
- * La fuente estándar Helvetica solo codifica WinAnsi: se reemplazan las
- * comillas y guiones tipográficos y se eliminan emojis o símbolos no imprimibles.
- */
 function normalizarTexto(texto: string): string {
   return texto
     .replace(/\r\n?/g, '\n')

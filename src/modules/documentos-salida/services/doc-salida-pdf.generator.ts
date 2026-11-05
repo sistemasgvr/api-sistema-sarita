@@ -5,11 +5,6 @@ import PDFDocument from 'pdfkit';
 import sharp from 'sharp';
 import type { DocumentoSalidaCompletoResult } from '../interfaces/documento-salida.interface';
 
-/**
- * El logo vive en src/assets y nest-cli lo copia a dist al compilar, por eso se
- * busca en las dos rutas. pdfkit solo acepta PNG y JPEG, así que el .webp se
- * convierte con sharp una única vez y se guarda en memoria.
- */
 const LOGO_WEBP = 'logo-sarita.webp';
 const LOGO_ANCHO_PT = 110;
 
@@ -20,12 +15,6 @@ interface EmpresaEmisora {
   direccion?: string | null;
 }
 
-/**
- * Datos de Oxígeno Sarita para el membrete cuando el documento aún no tiene
- * una empresa emisora configurada. El logo y el rubro son fijos igual que
- * esto: sin empresa, el PDF sigue saliendo con la identidad del negocio en
- * vez de un recuadro "EMPRESA" genérico.
- */
 const EMPRESA_POR_DEFECTO: EmpresaEmisora = {
   ruc: '10175332796',
   razon_social: 'Haydee Ruiz de los Santos',
@@ -74,11 +63,6 @@ export class DocSalidaPdfGenerator {
     return this.logoCache;
   }
 
-  /**
-   * `empresa` llega en null cuando la orden interna todavía no tiene emisor
-   * configurado: el PDF sale igual, con el membrete de Oxígeno Sarita por
-   * defecto (EMPRESA_POR_DEFECTO) en vez de quedar sin membrete.
-   */
   async generarA4(
     doc: DocumentoSalidaCompletoResult,
     empresa: EmpresaEmisora | null,
