@@ -1408,10 +1408,14 @@ export class ComprobantesLogic {
         }
 
         const tipoDoc = comprobante.registro.codigo_tipo_comprobante;
+        const opcionesPdf = { glosa: comprobante.registro.glosa };
         pdfBuffer =
           tipoDoc === '07' || tipoDoc === '08'
-            ? await this.facturacionClient.generarPdfNota(payload)
-            : await this.facturacionClient.generarPdfFacturaBoleta(payload);
+            ? await this.facturacionClient.generarPdfNota(payload, opcionesPdf)
+            : await this.facturacionClient.generarPdfFacturaBoleta(
+                payload,
+                opcionesPdf,
+              );
       }
     }
 
