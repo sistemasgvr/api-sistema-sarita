@@ -59,6 +59,16 @@ export class FiltroInventarioMovimientosDto extends FiltroPaginacionDto {
   @IsInt()
   idDocumentoOrigen?: number;
 
+  @ApiPropertyOptional({
+    example: 1,
+    description:
+      'Filtrar por cliente. Use -1 para movimientos sin cliente (id_cliente IS NULL).',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idCliente?: number;
+
   @ApiPropertyOptional({ example: '2026-01-01' })
   @IsOptional()
   @IsDateString()

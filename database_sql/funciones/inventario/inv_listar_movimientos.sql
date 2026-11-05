@@ -1,4 +1,6 @@
 -- Lista movimientos con filtros y paginación
+-- p_id_cliente va al final de la firma para no romper llamadas posicionales existentes.
+-- p_id_cliente = -1 filtra los movimientos sin cliente (id_cliente IS NULL).
 DROP FUNCTION IF EXISTS public.inv_listar_movimientos (
   p_busqueda character varying,
   p_limite integer,
@@ -14,6 +16,22 @@ DROP FUNCTION IF EXISTS public.inv_listar_movimientos (
   p_fecha_hasta date
 );
 
+DROP FUNCTION IF EXISTS public.inv_listar_movimientos (
+  p_busqueda character varying,
+  p_limite integer,
+  p_offset integer,
+  p_naturaleza character varying,
+  p_id_producto integer,
+  p_id_balon integer,
+  p_id_almacen integer,
+  p_id_tipo_movimiento integer,
+  p_id_tipo_documento_origen integer,
+  p_id_documento_origen integer,
+  p_fecha_desde date,
+  p_fecha_hasta date,
+  p_id_cliente integer
+);
+
 CREATE OR REPLACE FUNCTION public.inv_listar_movimientos (
   p_busqueda character varying DEFAULT ''::character varying,
   p_limite integer DEFAULT 10,
@@ -26,14 +44,18 @@ CREATE OR REPLACE FUNCTION public.inv_listar_movimientos (
   p_id_tipo_documento_origen integer DEFAULT NULL::integer,
   p_id_documento_origen integer DEFAULT NULL::integer,
   p_fecha_desde date DEFAULT NULL::date,
-  p_fecha_hasta date DEFAULT NULL::date
+  p_fecha_hasta date DEFAULT NULL::date,
+  p_id_cliente integer DEFAULT NULL::integer
 ) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_registros JSON;
     v_total BIGINT;
     v_resumen JSON;
+    v_buscar VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
+
+    v_buscar := NULLIF(TRIM(p_busqueda), '');
 
     SELECT
         COUNT(*),
@@ -48,8 +70,10 @@ BEGIN
     FROM inv_movimiento m
     LEFT JOIN pro_producto p ON p.id = m.id_producto
     LEFT JOIN bal_balon b ON b.id = m.id_balon
-    LEFT JOIN gen_almacen a ON a.id = m.id_almacen_origen
+    LEFT JOIN gen_almacen ao ON ao.id = m.id_almacen_origen
+    LEFT JOIN gen_almacen ad ON ad.id = m.id_almacen_destino
     LEFT JOIN gen_lista_opciones tm ON tm.id = m.id_tipo_movimiento
+    LEFT JOIN cli_clientes cli ON cli.id = m.id_cliente
     WHERE m.estado = 1
       AND (p_naturaleza IS NULL OR m.naturaleza = UPPER(TRIM(p_naturaleza)))
       AND (p_id_producto IS NULL OR m.id_producto = p_id_producto)
@@ -61,13 +85,20 @@ BEGIN
       AND (p_fecha_desde IS NULL OR m.fecha >= p_fecha_desde)
       AND (p_fecha_hasta IS NULL OR m.fecha <= p_fecha_hasta)
       AND (
-          p_busqueda = ''
-          OR gen_texto_coincide(COALESCE(m.glosa, ''), p_busqueda)
-          OR gen_texto_coincide(COALESCE(p.codigo, ''), p_busqueda)
-          OR gen_texto_coincide(COALESCE(p.nombre, ''), p_busqueda)
-          OR gen_texto_coincide(COALESCE(b.numero_serie, ''), p_busqueda)
-          OR gen_texto_coincide(COALESCE(a.nombre, ''), p_busqueda)
-          OR gen_texto_coincide(COALESCE(tm.nombre, ''), p_busqueda)
+          p_id_cliente IS NULL
+          OR (p_id_cliente = -1 AND m.id_cliente IS NULL)
+          OR m.id_cliente = p_id_cliente
+      )
+      AND (
+          v_buscar IS NULL
+          OR gen_texto_coincide(cli_texto_busqueda(cli), v_buscar)
+          OR gen_texto_coincide(COALESCE(m.glosa, ''), v_buscar)
+          OR gen_texto_coincide(COALESCE(p.codigo, ''), v_buscar)
+          OR gen_texto_coincide(COALESCE(p.nombre, ''), v_buscar)
+          OR gen_texto_coincide(COALESCE(b.numero_serie, ''), v_buscar)
+          OR gen_texto_coincide(COALESCE(ao.nombre, ''), v_buscar)
+          OR gen_texto_coincide(COALESCE(ad.nombre, ''), v_buscar)
+          OR gen_texto_coincide(COALESCE(tm.nombre, ''), v_buscar)
       );
 
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::JSON) INTO v_registros
@@ -96,6 +127,7 @@ BEGIN
                 NULLIF(TRIM(CONCAT_WS(' ', cli.nombres, cli.apellido_paterno, cli.apellido_materno)), ''),
                 cli.numero_documento
             ) AS nombre_cliente,
+            cli.numero_documento AS numero_documento_cliente,
             m.stock_anterior,
             m.stock_nuevo,
             m.id_documento_origen,
@@ -116,7 +148,6 @@ BEGIN
         LEFT JOIN gen_lista_opciones umed ON umed.id = m.id_unidad_medida
         LEFT JOIN gen_almacen ao ON ao.id = m.id_almacen_origen
         LEFT JOIN gen_almacen ad ON ad.id = m.id_almacen_destino
-        LEFT JOIN gen_almacen a ON a.id = m.id_almacen_origen
         LEFT JOIN cli_clientes cli ON cli.id = m.id_cliente
         LEFT JOIN gen_lista_opciones tm ON tm.id = m.id_tipo_movimiento
         LEFT JOIN gen_lista_opciones tdo ON tdo.id = m.id_tipo_documento_origen
@@ -132,13 +163,20 @@ BEGIN
           AND (p_fecha_desde IS NULL OR m.fecha >= p_fecha_desde)
           AND (p_fecha_hasta IS NULL OR m.fecha <= p_fecha_hasta)
           AND (
-              p_busqueda = ''
-              OR gen_texto_coincide(COALESCE(m.glosa, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(p.codigo, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(p.nombre, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(b.numero_serie, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(a.nombre, ''), p_busqueda)
-              OR gen_texto_coincide(COALESCE(tm.nombre, ''), p_busqueda)
+              p_id_cliente IS NULL
+              OR (p_id_cliente = -1 AND m.id_cliente IS NULL)
+              OR m.id_cliente = p_id_cliente
+          )
+          AND (
+              v_buscar IS NULL
+              OR gen_texto_coincide(cli_texto_busqueda(cli), v_buscar)
+              OR gen_texto_coincide(COALESCE(m.glosa, ''), v_buscar)
+              OR gen_texto_coincide(COALESCE(p.codigo, ''), v_buscar)
+              OR gen_texto_coincide(COALESCE(p.nombre, ''), v_buscar)
+              OR gen_texto_coincide(COALESCE(b.numero_serie, ''), v_buscar)
+              OR gen_texto_coincide(COALESCE(ao.nombre, ''), v_buscar)
+              OR gen_texto_coincide(COALESCE(ad.nombre, ''), v_buscar)
+              OR gen_texto_coincide(COALESCE(tm.nombre, ''), v_buscar)
           )
         ORDER BY m.fecha::DATE DESC, m.fecha_creacion DESC, m.id DESC
         LIMIT p_limite

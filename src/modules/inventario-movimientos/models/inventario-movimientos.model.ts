@@ -29,6 +29,7 @@ export class InventarioMovimientosModel {
       filtros.idDocumentoOrigen ?? null,
       filtros.fechaDesde ?? null,
       filtros.fechaHasta ?? null,
+      filtros.idCliente ?? null,
     ]);
   }
 
