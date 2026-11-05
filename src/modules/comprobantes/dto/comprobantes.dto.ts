@@ -808,8 +808,14 @@ export class CreateComprobantesDto extends AuditoriaDto {
   @Type(() => ComprobantePagoDto)
   pagos?: ComprobantePagoDto[];
 
-  @ApiPropertyOptional()
-  @MaxLength(500)
+  @ApiPropertyOptional({
+    description:
+      'Glosa pública que viaja como leyenda (observación) al CPE. Máximo 200 caracteres: es el límite de SUNAT para cbc:Note.',
+  })
+  @MaxLength(200, {
+    message:
+      'La glosa no puede superar los 200 caracteres (límite SUNAT para la leyenda)',
+  })
   @IsOptional()
   @IsString()
   glosa?: string;
@@ -980,8 +986,14 @@ export class UpdateComprobantesDto extends AuditoriaDto {
   @Type(() => ComprobantePagoDto)
   pagos?: ComprobantePagoDto[];
 
-  @ApiPropertyOptional()
-  @MaxLength(500)
+  @ApiPropertyOptional({
+    description:
+      'Glosa pública que viaja como leyenda (observación) al CPE. Máximo 200 caracteres: es el límite de SUNAT para cbc:Note.',
+  })
+  @MaxLength(200, {
+    message:
+      'La glosa no puede superar los 200 caracteres (límite SUNAT para la leyenda)',
+  })
   @IsOptional()
   @IsString()
   glosa?: string;

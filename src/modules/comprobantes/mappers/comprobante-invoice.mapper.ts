@@ -6,6 +6,7 @@ import type {
   ComprobanteDetalleRegistro,
 } from '../interfaces/comprobante.interface';
 import { lineasDeVenta } from '../utils/comprobante-lineas.util';
+import { glosaParaSunat } from '../utils/comprobante-glosa.util';
 
 interface EmpresaEmisora {
   codigo_ubigeo?: string | null;
@@ -139,8 +140,10 @@ export class ComprobanteInvoiceMapper {
       );
     }
 
-    // La glosa es pública; las observaciones son exclusivamente internas.
-    const glosa = cabecera.glosa?.trim();
+    // La glosa es pública y viaja como leyenda (cbc:Note), pero SUNAT la limita
+    // a 200 caracteres sin tabs ni saltos de línea (rechazo 3006).
+    // Las observaciones son exclusivamente internas.
+    const glosa = glosaParaSunat(cabecera.glosa);
     if (glosa) {
       payload.observacion = glosa;
     }

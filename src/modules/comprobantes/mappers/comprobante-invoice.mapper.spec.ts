@@ -15,13 +15,19 @@ describe('Invoice: normalización y domicilio real', () => {
     [null, 'Nota interna confidencial', undefined],
     [' Misma nota ', 'Misma nota', 'Misma nota'],
     ['  ', 'Nota interna confidencial', undefined],
-  ])('envía solo la glosa y excluye observaciones internas: %s / %s', (glosa, observaciones, esperado) => {
+    ['G'.repeat(221), null, 'G'.repeat(200)],
+    ['Linea 1\nLinea 2\tfin   de   glosa', null, 'Linea 1 Linea 2 fin de glosa'],
+  ])('envía la glosa normalizada a 200 y excluye observaciones internas: %s / %s', (glosa, observaciones, esperado) => {
     const doc = documento();
     Object.assign(doc.registro!, { glosa, observaciones });
     const payload = mapper.mapComprobanteToInvoicePayload(doc, empresa, cliente);
+    // SUNAT limita cbc:Note a 200 caracteres (rechazo 3006).
     expect(payload.observacion).toBe(esperado);
     expect(payload).not.toHaveProperty('observaciones');
     expect(JSON.stringify(payload)).not.toContain('Nota interna confidencial');
+    if (esperado) {
+      expect(esperado.length).toBeLessThanOrEqual(200);
+    }
     expect(payload.details).toEqual(expect.arrayContaining([expect.objectContaining({ descripcion: 'Oxígeno' })]));
     expect(payload.mtoImpVenta).toBe(11.8);
   });
