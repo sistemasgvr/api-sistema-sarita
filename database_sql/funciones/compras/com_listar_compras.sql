@@ -58,7 +58,7 @@ BEGIN
           p_busqueda = ''
           OR LOWER(COALESCE(c.serie, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(c.numero, '')) LIKE LOWER('%' || p_busqueda || '%')
-          OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(COALESCE(c.glosa, ''), p_busqueda)
           OR gen_texto_coincide(cli_texto_busqueda(pr), p_busqueda)
           OR LOWER(COALESCE(pr.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
           OR LOWER(COALESCE(pr.apellido_paterno, '')) LIKE LOWER('%' || p_busqueda || '%')
@@ -79,6 +79,7 @@ BEGIN
             c.id_tipo_registro, tr.nombre AS tipo_registro,
             c.id_categoria_gasto, cat.nombre AS categoria_gasto,
             c.sub_total, c.total_importe, c.porcentaje_igv,
+            c.glosa,
             c.estado,
             (
                 COALESCE(TRIM(c.serie), '') <> '' AND COALESCE(TRIM(c.numero), '') <> ''
@@ -113,7 +114,7 @@ BEGIN
               p_busqueda = ''
               OR LOWER(COALESCE(c.serie, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(c.numero, '')) LIKE LOWER('%' || p_busqueda || '%')
-              OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(COALESCE(c.glosa, ''), p_busqueda)
               OR gen_texto_coincide(cli_texto_busqueda(pr), p_busqueda)
               OR LOWER(COALESCE(pr.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
               OR LOWER(COALESCE(pr.apellido_paterno, '')) LIKE LOWER('%' || p_busqueda || '%')

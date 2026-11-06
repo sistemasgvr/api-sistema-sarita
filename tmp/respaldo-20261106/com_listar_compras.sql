@@ -1,0 +1,105 @@
+CREATE OR REPLACE FUNCTION public.com_listar_compras(p_busqueda character varying DEFAULT ''::character varying, p_limite integer DEFAULT 10, p_offset integer DEFAULT 0, p_id_proveedor integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_fecha_desde date DEFAULT NULL::date, p_fecha_hasta date DEFAULT NULL::date, p_estado integer DEFAULT NULL::integer, p_id_tipo_registro integer DEFAULT NULL::integer, p_id_categoria_gasto integer DEFAULT NULL::integer, p_sin_comprobante boolean DEFAULT NULL::boolean)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_registros JSON;
+    v_total     BIGINT;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT COUNT(*) INTO v_total
+    FROM com_comprobante_compra c
+    LEFT JOIN cli_clientes pr ON pr.id = c.id_proveedor
+    WHERE (p_id_proveedor IS NULL OR c.id_proveedor = p_id_proveedor)
+      AND (p_id_almacen IS NULL OR c.id_almacen = p_id_almacen)
+      AND (p_fecha_desde IS NULL OR c.fecha >= p_fecha_desde)
+      AND (p_fecha_hasta IS NULL OR c.fecha <= p_fecha_hasta)
+      AND (p_estado IS NULL OR c.estado = p_estado)
+      AND (p_id_tipo_registro IS NULL OR c.id_tipo_registro = p_id_tipo_registro)
+      AND (p_id_categoria_gasto IS NULL OR c.id_categoria_gasto = p_id_categoria_gasto)
+      AND (
+          p_sin_comprobante IS NULL
+          OR (
+              p_sin_comprobante = TRUE
+              AND (COALESCE(TRIM(c.serie), '') = '' OR COALESCE(TRIM(c.numero), '') = '')
+          )
+          OR (
+              p_sin_comprobante = FALSE
+              AND COALESCE(TRIM(c.serie), '') <> ''
+              AND COALESCE(TRIM(c.numero), '') <> ''
+          )
+      )
+      AND (
+          p_busqueda = ''
+          OR LOWER(COALESCE(c.serie, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(c.numero, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR gen_texto_coincide(cli_texto_busqueda(pr), p_busqueda)
+          OR LOWER(COALESCE(pr.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(pr.apellido_paterno, '')) LIKE LOWER('%' || p_busqueda || '%')
+          OR LOWER(COALESCE(pr.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
+      );
+
+    SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json) INTO v_registros
+    FROM (
+        SELECT
+            c.id, c.serie, c.numero, c.fecha,
+            c.id_proveedor,
+            COALESCE(
+                NULLIF(TRIM(pr.razon_social), ''),
+                NULLIF(TRIM(CONCAT_WS(' ', pr.nombres, pr.apellido_paterno, pr.apellido_materno)), ''),
+                pr.numero_documento
+            ) AS nombre_proveedor,
+            c.id_almacen, alm.nombre AS almacen,
+            c.id_tipo_registro, tr.nombre AS tipo_registro,
+            c.id_categoria_gasto, cat.nombre AS categoria_gasto,
+            c.sub_total, c.total_importe, c.porcentaje_igv,
+            c.estado,
+            (
+                COALESCE(TRIM(c.serie), '') <> '' AND COALESCE(TRIM(c.numero), '') <> ''
+            ) AS tiene_comprobante,
+            com_tiene_movimientos_inventario(c.id) AS tiene_movimientos_inventario,
+            c.id_comprobante_referencia
+        FROM com_comprobante_compra c
+        LEFT JOIN cli_clientes pr ON pr.id = c.id_proveedor
+        LEFT JOIN gen_almacen alm ON alm.id = c.id_almacen
+        LEFT JOIN gen_lista_opciones tr ON tr.id = c.id_tipo_registro
+        LEFT JOIN gen_lista_opciones cat ON cat.id = c.id_categoria_gasto
+        WHERE (p_id_proveedor IS NULL OR c.id_proveedor = p_id_proveedor)
+          AND (p_id_almacen IS NULL OR c.id_almacen = p_id_almacen)
+          AND (p_fecha_desde IS NULL OR c.fecha >= p_fecha_desde)
+          AND (p_fecha_hasta IS NULL OR c.fecha <= p_fecha_hasta)
+          AND (p_estado IS NULL OR c.estado = p_estado)
+          AND (p_id_tipo_registro IS NULL OR c.id_tipo_registro = p_id_tipo_registro)
+          AND (p_id_categoria_gasto IS NULL OR c.id_categoria_gasto = p_id_categoria_gasto)
+      AND (
+          p_sin_comprobante IS NULL
+          OR (
+              p_sin_comprobante = TRUE
+              AND (COALESCE(TRIM(c.serie), '') = '' OR COALESCE(TRIM(c.numero), '') = '')
+          )
+          OR (
+              p_sin_comprobante = FALSE
+              AND COALESCE(TRIM(c.serie), '') <> ''
+              AND COALESCE(TRIM(c.numero), '') <> ''
+          )
+      )
+          AND (
+              p_busqueda = ''
+              OR LOWER(COALESCE(c.serie, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(c.numero, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(c.glosa, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR gen_texto_coincide(cli_texto_busqueda(pr), p_busqueda)
+              OR LOWER(COALESCE(pr.nombres, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(pr.apellido_paterno, '')) LIKE LOWER('%' || p_busqueda || '%')
+              OR LOWER(COALESCE(pr.numero_documento, '')) LIKE LOWER('%' || p_busqueda || '%')
+          )
+        ORDER BY c.fecha DESC, c.id DESC
+        LIMIT p_limite OFFSET p_offset
+    ) t;
+
+    RETURN json_build_object('registros', v_registros, 'total', v_total);
+END;
+$function$
+;
