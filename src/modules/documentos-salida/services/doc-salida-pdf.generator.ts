@@ -198,10 +198,15 @@ export class DocSalidaPdfGenerator {
       drawInfo('TRASLADO Y TRANSPORTE', transport, left + pageWidth / 2 + 12);
       pdf.moveTo(left + pageWidth / 2, y + 12).lineTo(left + pageWidth / 2, y + infoHeight - 12).strokeColor(border).stroke();
       y += infoHeight + 18;
-      if (cabecera.observaciones?.trim()) {
+      // En la guía va la glosa pública; las observaciones solo en la orden interna.
+      const nota = esGre
+        ? { etiqueta: 'Glosa', valor: cabecera.glosa?.trim() }
+        : { etiqueta: 'Observaciones', valor: cabecera.observaciones?.trim() };
+      if (nota.valor) {
+        const textoNota = `${nota.etiqueta}: ${nota.valor}`;
         pdf.font('Helvetica').fontSize(9);
-        ensure(pdf.heightOfString(cabecera.observaciones, { width: pageWidth }) + 25);
-        y = text(`Observaciones: ${cabecera.observaciones.trim()}`, left, y, pageWidth) + 14;
+        ensure(pdf.heightOfString(textoNota, { width: pageWidth }) + 25);
+        y = text(textoNota, left, y, pageWidth) + 14;
       }
       const tabla = (title: string, headers: string[], widths: number[], rows: string[][]) => {
         if (!rows.length) return;

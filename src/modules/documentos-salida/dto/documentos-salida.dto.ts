@@ -228,6 +228,17 @@ export class ConvertirGreDto extends AuditoriaDto {
   @MaxLength(10)
   serie!: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Glosa pública que viaja a SUNAT y se imprime en la guía. Cadena vacía para borrarla; omitir para no cambiarla.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200, {
+    message: 'La glosa no puede superar los 200 caracteres (límite SUNAT)',
+  })
+  glosa?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)

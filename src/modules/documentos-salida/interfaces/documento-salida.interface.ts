@@ -183,6 +183,8 @@ export interface DocumentoSalidaRegistro {
   periodo_contable: string | null;
   operacion: string | null;
   observaciones: string | null;
+  /** Texto público de la guía: viaja a SUNAT y se imprime. */
+  glosa: string | null;
   id_archivo_pdf: number | null;
   estado: number;
   fecha_creacion: string;

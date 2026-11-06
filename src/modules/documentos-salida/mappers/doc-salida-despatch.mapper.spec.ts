@@ -38,6 +38,37 @@ function fixture(overrides: Partial<DocumentoSalidaRegistro> = {}): DocumentoSal
   } as unknown as DocumentoSalidaCompletoResult;
 }
 
+describe('Glosa de la GRE', () => {
+  const mapper = new DocSalidaDespatchMapper();
+
+  it('envía la glosa a SUNAT en una sola línea', () => {
+    const result = mapper.mapToDespatchPayload(
+      fixture({ glosa: '  Entrega en  obra\nPiso 2 ' }),
+      EMPRESA,
+      { hoy: HOY },
+    );
+    expect(result.observacion).toBe('Entrega en obra Piso 2');
+  });
+
+  it('limita la glosa a 200 caracteres', () => {
+    const result = mapper.mapToDespatchPayload(
+      fixture({ glosa: 'x'.repeat(250) }),
+      EMPRESA,
+      { hoy: HOY },
+    );
+    expect(result.observacion).toHaveLength(200);
+  });
+
+  it('no envía las observaciones internas', () => {
+    const result = mapper.mapToDespatchPayload(
+      fixture({ glosa: null, observaciones: 'Orden de salida de la venta F002-00000153' }),
+      EMPRESA,
+      { hoy: HOY },
+    );
+    expect(result).not.toHaveProperty('observacion');
+  });
+});
+
 describe('GRE con chofer y vehículo', () => {
   const mapper = new DocSalidaDespatchMapper();
 

@@ -1,6 +1,7 @@
 import { normalizarCodigoSunat, normalizarDocumentoSunat, tipoDocumentoSunat, correlativoSunat, fechaHoraSunat } from '../../../common/helpers/sunat-datos.helper';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { FacturacionApisperuPayload } from '../../../integrations/facturacion-apisperu/interfaces/facturacion-apisperu.interface';
+import { glosaParaSunat } from '../../comprobantes/utils/comprobante-glosa.util';
 import {
   destinatarioGre,
   esFlotaPropia,
@@ -126,8 +127,11 @@ export class DocSalidaDespatchMapper {
       };
     }
 
-    if (cabecera.observaciones?.trim()) {
-      payload.observacion = cabecera.observaciones.trim();
+    // La glosa es pública y viaja como cbc:Note. Las observaciones son internas:
+    // ahí también escribe el sistema (origen de la venta, motivo de anulación).
+    const glosa = glosaParaSunat(cabecera.glosa);
+    if (glosa) {
+      payload.observacion = glosa;
     }
 
     const refs = cabecera.referencias ?? [];

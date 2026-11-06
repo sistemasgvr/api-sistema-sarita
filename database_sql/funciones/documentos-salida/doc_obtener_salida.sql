@@ -285,7 +285,7 @@ BEGIN
                   AND ddr.id_balon IS NOT NULL
                   AND m.id_balon = ddr.id_balon
             ) AS retorno_fisico,
-            d.periodo_contable, d.operacion, d.observaciones, d.id_archivo_pdf,
+            d.periodo_contable, d.operacion, d.observaciones, d.glosa, d.id_archivo_pdf,
             d.estado, d.fecha_creacion, d.fecha_modificacion,
             d.id_usuario_creacion, uc.nombre AS nombre_usuario_creacion,
             (d.id_venta IS NOT NULL) AS detalle_desde_venta,

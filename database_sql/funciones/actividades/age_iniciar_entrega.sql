@@ -1,10 +1,10 @@
 -- Pone una entrega EN_RUTA y pasa sus cilindros a tránsito
 DROP FUNCTION IF EXISTS public.age_iniciar_entrega (p_id integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION public.age_iniciar_entrega (
-  p_id integer,
-  p_id_usuario_auditoria integer DEFAULT NULL::integer
-) RETURNS json LANGUAGE plpgsql AS $function$
+CREATE OR REPLACE FUNCTION public.age_iniciar_entrega(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_act            RECORD;
     v_nombre_estado  VARCHAR;
@@ -21,13 +21,23 @@ DECLARE
     v_cilindros_esp  INTEGER := 0;
     v_cilindros_upd  INTEGER := 0;
     v_id_trabajador_sesion INTEGER;
+    v_id_disponible  INTEGER;
+    v_es_traslado    BOOLEAN;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
-    SELECT a.id, a.id_trabajador_responsable, a.id_usuario_responsable, a.id_estado_actividad
+    SELECT a.id, a.id_trabajador_responsable, a.id_usuario_responsable, a.id_estado_actividad,
+           ds.id_almacen AS id_almacen_os, ds.id_almacen_destino,
+           UPPER(TRIM(tor.nombre)) AS tipo_orden
     INTO v_act
     FROM age_actividad a
+    LEFT JOIN doc_salida ds ON ds.id = a.id_doc_salida AND ds.estado = 1
+    LEFT JOIN gen_lista_opciones tor ON tor.id = ds.id_tipo_orden
     WHERE a.id = p_id AND a.estado = 1;
+
+    -- Un traslado no reserva cilindros: doc_generar_salida ya los pasó al
+    -- almacén destino y siguen DISPONIBLE, nunca en PENDIENTE_ENVIO.
+    v_es_traslado := COALESCE(v_act.tipo_orden, '') = 'TRASLADO';
 
     IF v_act.id IS NULL THEN
         RETURN json_build_object('error', 'La actividad no existe o esta anulada', 'registro', NULL);
@@ -126,16 +136,35 @@ BEGIN
     WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'EN_TRANSITO' AND lo.estado = 1
     LIMIT 1;
 
-    IF v_id_pend_envio IS NULL OR v_id_transito IS NULL THEN
+    SELECT lo.id INTO v_id_disponible
+    FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'DISPONIBLE' AND lo.estado = 1
+    LIMIT 1;
+
+    IF v_id_pend_envio IS NULL OR v_id_transito IS NULL
+       OR (v_es_traslado AND v_id_disponible IS NULL) THEN
         RETURN json_build_object(
-            'error', 'Faltan estados PENDIENTE_ENVIO o EN_TRANSITO en catalogo EstadoBalon',
+            'error', 'Faltan estados PENDIENTE_ENVIO, EN_TRANSITO o DISPONIBLE en catalogo EstadoBalon',
             'registro', NULL
         );
     END IF;
 
+    -- En un traslado el cilindro debe seguir en uno de los dos almacenes de la
+    -- OS (origen o destino) y DISPONIBLE; PENDIENTE_ENVIO se acepta por si se
+    -- canceló un reparto anterior a este cambio.
     SELECT
-        COUNT(*) FILTER (WHERE ai.id_balon IS NOT NULL),
-        COUNT(*) FILTER (WHERE ai.id_balon IS NOT NULL AND b.id_estado_balon = v_id_pend_envio)
+        -- Un cilindro puede estar en dos ítems (gas + venta de envase): se cuenta una vez,
+        -- igual que el UPDATE de abajo, que lo actualiza una sola vez.
+        COUNT(DISTINCT ai.id_balon) FILTER (WHERE ai.id_balon IS NOT NULL),
+        COUNT(DISTINCT ai.id_balon) FILTER (
+            WHERE ai.id_balon IS NOT NULL
+              AND (
+                  (NOT v_es_traslado AND b.id_estado_balon = v_id_pend_envio)
+                  OR (v_es_traslado
+                      AND b.id_estado_balon IN (v_id_disponible, v_id_pend_envio)
+                      AND b.id_almacen IN (v_act.id_almacen_os, v_act.id_almacen_destino))
+              )
+        )
     INTO v_cilindros_tot, v_cilindros_esp
     FROM age_actividad_item ai
     LEFT JOIN bal_balon b ON b.id = ai.id_balon AND b.estado = 1
@@ -143,12 +172,17 @@ BEGIN
 
     IF v_cilindros_tot > 0 AND v_cilindros_esp < v_cilindros_tot THEN
         RETURN json_build_object(
-            'error', format(
+            'error', CASE WHEN v_es_traslado THEN format(
+                'Faltan %s cilindro(s) DISPONIBLE en los almacenes del traslado para iniciar la entrega (hay %s de %s)',
+                v_cilindros_tot - v_cilindros_esp,
+                v_cilindros_esp,
+                v_cilindros_tot
+            ) ELSE format(
                 'Faltan %s cilindro(s) en PENDIENTE_ENVIO para iniciar la entrega (hay %s de %s)',
                 v_cilindros_tot - v_cilindros_esp,
                 v_cilindros_esp,
                 v_cilindros_tot
-            ),
+            ) END,
             'registro', NULL
         );
     END IF;
@@ -163,7 +197,12 @@ BEGIN
       AND ai.estado = 1
       AND ai.id_balon = b.id
       AND b.estado = 1
-      AND b.id_estado_balon = v_id_pend_envio;
+      AND (
+          (NOT v_es_traslado AND b.id_estado_balon = v_id_pend_envio)
+          OR (v_es_traslado
+              AND b.id_estado_balon IN (v_id_disponible, v_id_pend_envio)
+              AND b.id_almacen IN (v_act.id_almacen_os, v_act.id_almacen_destino))
+      );
 
     GET DIAGNOSTICS v_cilindros_upd = ROW_COUNT;
 

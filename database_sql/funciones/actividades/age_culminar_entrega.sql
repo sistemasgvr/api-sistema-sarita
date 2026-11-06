@@ -1,10 +1,10 @@
 -- Cierra una entrega como REALIZADA verificando la custodia de los cilindros
 DROP FUNCTION IF EXISTS public.age_culminar_entrega (p_id integer, p_id_usuario_auditoria integer);
 
-CREATE OR REPLACE FUNCTION public.age_culminar_entrega (
-  p_id integer,
-  p_id_usuario_auditoria integer DEFAULT NULL::integer
-) RETURNS json LANGUAGE plpgsql AS $function$
+CREATE OR REPLACE FUNCTION public.age_culminar_entrega(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
 DECLARE
     v_act            RECORD;
     v_nombre_estado  VARCHAR;
@@ -21,15 +21,25 @@ DECLARE
     v_cilindros_esp  INTEGER := 0;
     v_cilindros_upd  INTEGER := 0;
     v_id_trabajador_sesion INTEGER;
+    v_id_disponible  INTEGER;
+    v_es_traslado    BOOLEAN;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
     SELECT a.id, a.id_cliente, a.id_trabajador_responsable, a.id_usuario_responsable,
-           UPPER(TRIM(lo.nombre)) AS nombre_estado
+           UPPER(TRIM(lo.nombre)) AS nombre_estado,
+           ds.id_almacen_destino,
+           UPPER(TRIM(tor.nombre)) AS tipo_orden
     INTO v_act
     FROM age_actividad a
     LEFT JOIN gen_lista_opciones lo ON lo.id = a.id_estado_actividad
+    LEFT JOIN doc_salida ds ON ds.id = a.id_doc_salida AND ds.estado = 1
+    LEFT JOIN gen_lista_opciones tor ON tor.id = ds.id_tipo_orden
     WHERE a.id = p_id AND a.estado = 1;
+
+    -- Un traslado no termina en un cliente: el cilindro llega DISPONIBLE al
+    -- almacén destino, que es donde el kardex ya lo dejó al generar la OS.
+    v_es_traslado := COALESCE(v_act.tipo_orden, '') = 'TRASLADO';
 
     IF v_act.id IS NULL THEN
         RETURN json_build_object('error', 'La actividad no existe o esta anulada', 'registro', NULL);
@@ -122,9 +132,23 @@ BEGIN
     WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'EN_PODER_CLIENTE' AND lo.estado = 1
     LIMIT 1;
 
-    IF v_id_en_poder IS NULL THEN
+    SELECT lo.id INTO v_id_disponible
+    FROM gen_lista_opciones lo JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'DISPONIBLE' AND lo.estado = 1
+    LIMIT 1;
+
+    IF v_id_en_poder IS NULL OR (v_es_traslado AND v_id_disponible IS NULL) THEN
         RETURN json_build_object(
-            'error', 'No se encontro el estado EN_PODER_CLIENTE en catalogo EstadoBalon',
+            'error', CASE WHEN v_es_traslado
+                THEN 'No se encontro el estado DISPONIBLE en catalogo EstadoBalon'
+                ELSE 'No se encontro el estado EN_PODER_CLIENTE en catalogo EstadoBalon' END,
+            'registro', NULL
+        );
+    END IF;
+
+    IF v_es_traslado AND v_act.id_almacen_destino IS NULL THEN
+        RETURN json_build_object(
+            'error', 'El traslado no tiene almacen de destino',
             'registro', NULL
         );
     END IF;
@@ -137,8 +161,10 @@ BEGIN
     END IF;
 
     SELECT
-        COUNT(*) FILTER (WHERE ai.id_balon IS NOT NULL),
-        COUNT(*) FILTER (
+        -- Un cilindro puede estar en dos ítems (gas + venta de envase): se cuenta una vez,
+        -- igual que el UPDATE de abajo, que lo actualiza una sola vez.
+        COUNT(DISTINCT ai.id_balon) FILTER (WHERE ai.id_balon IS NOT NULL),
+        COUNT(DISTINCT ai.id_balon) FILTER (
             WHERE ai.id_balon IS NOT NULL
               AND b.id_estado_balon IN (v_id_transito, v_id_pend_envio)
         )
@@ -160,9 +186,10 @@ BEGIN
     END IF;
 
     UPDATE bal_balon b
-    SET id_estado_balon = v_id_en_poder,
-        id_cliente_ubicacion = COALESCE(b.id_cliente_ubicacion, v_act.id_cliente),
-        id_almacen = NULL,
+    SET id_estado_balon = CASE WHEN v_es_traslado THEN v_id_disponible ELSE v_id_en_poder END,
+        id_cliente_ubicacion = CASE WHEN v_es_traslado THEN NULL
+                                    ELSE COALESCE(b.id_cliente_ubicacion, v_act.id_cliente) END,
+        id_almacen = CASE WHEN v_es_traslado THEN v_act.id_almacen_destino ELSE NULL END,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     FROM age_actividad_item ai
@@ -176,7 +203,8 @@ BEGIN
 
     IF v_cilindros_esp > 0 AND v_cilindros_upd <> v_cilindros_esp THEN
         RAISE EXCEPTION
-            'No se actualizaron todos los cilindros a EN_PODER_CLIENTE (se esperaban %, se actualizaron %)',
+            'No se actualizaron todos los cilindros a % (se esperaban %, se actualizaron %)',
+            CASE WHEN v_es_traslado THEN 'DISPONIBLE' ELSE 'EN_PODER_CLIENTE' END,
             v_cilindros_esp, v_cilindros_upd;
     END IF;
 

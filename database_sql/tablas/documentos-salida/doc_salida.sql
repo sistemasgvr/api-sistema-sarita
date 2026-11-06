@@ -55,6 +55,7 @@ CREATE TABLE public.doc_salida (
   periodo_contable character varying(10),
   operacion character varying(100),
   observaciones character varying(500),
+  glosa character varying(200),
   id_archivo_pdf integer,
   estado integer DEFAULT 1 NOT NULL,
   id_usuario_creacion integer,

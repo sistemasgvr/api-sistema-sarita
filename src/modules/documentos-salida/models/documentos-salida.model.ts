@@ -374,13 +374,15 @@ export class DocumentosSalidaModel {
       dto.idUsuarioAuditoria ?? null,
       dto.idEmpresa,
       dto.fechaEmisionGre,
+      dto.glosa ?? null,
     ];
     return this.db.query<{ result: DocumentoSalidaCompletoResult }>(
       `SELECT public.doc_convertir_a_gre(
         $1::integer, $2::integer, $3::varchar, $4::integer, $5::integer,
         $6::integer, $7::integer, $8::integer, $9::integer, $10::numeric,
         $11::integer, $12::varchar, $13::integer, $14::varchar, $15::integer,
-        $16::date, $17::integer, p_id_empresa => $18::integer, p_fecha_emision_gre => $19::date
+        $16::date, $17::integer, p_id_empresa => $18::integer, p_fecha_emision_gre => $19::date,
+        p_glosa => $20::varchar
       ) AS result`, params,
     ).then(({ rows }) => rows[0].result);
   }

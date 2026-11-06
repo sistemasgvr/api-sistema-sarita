@@ -22,6 +22,30 @@ DROP FUNCTION IF EXISTS public.doc_convertir_a_gre (
   p_fecha_emision_gre date
 );
 
+DROP FUNCTION IF EXISTS public.doc_convertir_a_gre (
+  p_id integer,
+  p_id_tipo_guia_remision integer,
+  p_serie character varying,
+  p_id_motivo_traslado integer,
+  p_id_modalidad_traslado integer,
+  p_id_transportista integer,
+  p_id_chofer integer,
+  p_id_vehiculo integer,
+  p_id_unidad_medida integer,
+  p_peso_bruto numeric,
+  p_numero_bultos integer,
+  p_direccion_origen character varying,
+  p_id_distrito_origen integer,
+  p_direccion_llegada character varying,
+  p_id_distrito_llegada integer,
+  p_fecha_traslado date,
+  p_id_usuario_auditoria integer,
+  p_id_empresa integer,
+  p_gre_extra json,
+  p_fecha_emision_gre date,
+  p_glosa character varying
+);
+
 CREATE OR REPLACE FUNCTION public.doc_convertir_a_gre (
   p_id integer,
   p_id_tipo_guia_remision integer,
@@ -42,7 +66,8 @@ CREATE OR REPLACE FUNCTION public.doc_convertir_a_gre (
   p_id_usuario_auditoria integer DEFAULT NULL::integer,
   p_id_empresa integer DEFAULT NULL::integer,
   p_gre_extra json DEFAULT NULL::json,
-  p_fecha_emision_gre date DEFAULT NULL::date
+  p_fecha_emision_gre date DEFAULT NULL::date,
+  p_glosa character varying DEFAULT NULL::character varying
 ) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_doc RECORD;
@@ -177,6 +202,10 @@ BEGIN
         fecha_emision_gre = COALESCE(p_fecha_emision_gre, fecha_emision_gre),
         fecha_traslado = COALESCE(p_fecha_traslado, fecha_traslado, fecha),
         gre_extra = COALESCE(p_gre_extra::jsonb, gre_extra),
+        glosa = CASE
+                    WHEN p_glosa IS NULL THEN glosa
+                    ELSE NULLIF(TRIM(p_glosa), '')
+                END,
         id_usuario_modificacion = p_id_usuario_auditoria,
         fecha_modificacion = NOW()
     WHERE id = p_id;
