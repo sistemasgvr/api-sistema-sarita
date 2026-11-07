@@ -42,7 +42,7 @@ BEGIN
         RETURN json_build_object('error', 'La caja ya está cerrada', 'registro', NULL);
     END IF;
 
-    IF p_monto_efectivo_contado IS NULL OR p_monto_efectivo_contado < 0 THEN
+    IF p_monto_efectivo_contado IS NULL THEN
         RETURN json_build_object('error', 'Indique el efectivo contado (arqueo)', 'registro', NULL);
     END IF;
 

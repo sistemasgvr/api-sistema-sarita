@@ -20,6 +20,7 @@ import { CajaLogic } from '../logic/caja.logic';
 import {
   AbrirCajaDto,
   ActualizarCajaGastoDto,
+  ActualizarFondoCajaDto,
   CerrarCajaDto,
   CrearCajaDepositoDto,
   CrearCajaGastoDto,
@@ -77,6 +78,18 @@ export class CajaController {
   abrir(@Body() dto: AbrirCajaDto, @Req() req: AuthRequest) {
     dto.idUsuarioAuditoria = req.user.id;
     return this.cajaLogic.abrirSesion(dto);
+  }
+
+  @Patch('sesiones/:id/fondo')
+  @Permisos(PermisoBanderas.CAJA_ABRIR)
+  @ApiOperation({ summary: 'Editar el fondo inicial de una sesión abierta' })
+  actualizarFondo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarFondoCajaDto,
+    @Req() req: AuthRequest,
+  ) {
+    dto.idUsuarioAuditoria = req.user.id;
+    return this.cajaLogic.actualizarFondo(id, dto);
   }
 
   @Patch('sesiones/:id/cerrar')

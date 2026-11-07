@@ -45,11 +45,24 @@ export class AbrirCajaDto extends AuditoriaDto {
   idSesion?: number;
 }
 
-export class CerrarCajaDto extends AuditoriaDto {
-  @ApiProperty({ example: 450.5, description: 'Efectivo físico contado en el arqueo' })
+export class ActualizarFondoCajaDto extends AuditoriaDto {
+  @ApiProperty({ example: 150, description: 'Nuevo fondo inicial de la sesión abierta' })
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
+  montoInicial!: number;
+
+  @ApiPropertyOptional({ description: 'Motivo del ajuste' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(450)
+  observacion?: string;
+}
+
+export class CerrarCajaDto extends AuditoriaDto {
+  @ApiProperty({ example: 450.5, description: 'Efectivo físico contado en el arqueo (admite negativo)' })
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
   montoEfectivoContado!: number;
 
   @ApiPropertyOptional()

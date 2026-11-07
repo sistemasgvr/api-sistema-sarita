@@ -8,6 +8,7 @@ import { CajaModel } from '../models/caja.model';
 import {
   AbrirCajaDto,
   ActualizarCajaGastoDto,
+  ActualizarFondoCajaDto,
   CerrarCajaDto,
   CrearCajaDepositoDto,
   CrearCajaGastoDto,
@@ -24,6 +25,11 @@ export class CajaLogic {
   async abrirSesion(dto: AbrirCajaDto) {
     const result = await this.cajaModel.abrirSesion(dto);
     return mapSingleResult(result, 'No se pudo abrir la caja');
+  }
+
+  async actualizarFondo(id: number, dto: ActualizarFondoCajaDto) {
+    const result = await this.cajaModel.actualizarFondo(id, dto);
+    return mapSingleResult(result, `Sesión de caja ${id} no encontrada`);
   }
 
   async cerrarSesion(id: number, dto: CerrarCajaDto) {

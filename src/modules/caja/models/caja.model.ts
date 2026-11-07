@@ -8,6 +8,7 @@ import {
 import {
   AbrirCajaDto,
   ActualizarCajaGastoDto,
+  ActualizarFondoCajaDto,
   CerrarCajaDto,
   CrearCajaDepositoDto,
   CrearCajaGastoDto,
@@ -29,6 +30,15 @@ export class CajaModel {
       dto.observacion ?? null,
       dto.idUsuarioAuditoria ?? null,
       dto.idSesion ?? null,
+    ]);
+  }
+
+  actualizarFondo(id: number, dto: ActualizarFondoCajaDto) {
+    return this.db.callFunctionJson<AuthSingleResult>('fin_actualizar_caja_fondo', [
+      id,
+      dto.montoInicial,
+      dto.observacion ?? null,
+      dto.idUsuarioAuditoria ?? null,
     ]);
   }
 
