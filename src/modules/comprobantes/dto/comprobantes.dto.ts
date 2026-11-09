@@ -872,7 +872,35 @@ export class CreateComprobantesDto extends AuditoriaDto {
   cuotas?: ComprobanteCuotaDto[];
 }
 
+/** Reemplazo de un cilindro reservado del detalle por otro libre (mismo gas, tipo y propietario). */
+export class CambioBalonLineaDto {
+  @ApiProperty({ example: 120, description: 'Balón que hoy está en el detalle (vuelve a DISPONIBLE)' })
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  idBalonActual!: number;
+
+  @ApiProperty({ example: 245, description: 'Balón libre y sin despacho que lo reemplaza' })
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  idBalonNuevo!: number;
+}
+
 export class UpdateComprobantesDto extends AuditoriaDto {
+  @ApiPropertyOptional({
+    type: [CambioBalonLineaDto],
+    description:
+      'Cilindros del detalle a reemplazar al guardar. El anterior vuelve a DISPONIBLE; el nuevo debe ' +
+      'estar libre, sin despacho pendiente y ser del mismo gas, tipo y propietario. Las líneas de ' +
+      '`detalles` deben traer ya el balón nuevo.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CambioBalonLineaDto)
+  cambiosBalon?: CambioBalonLineaDto[];
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -1041,8 +1069,9 @@ export class UpdateComprobantesDto extends AuditoriaDto {
 }
 
 export class CambioBalonVsdDto {
-  @ApiProperty({ enum: ['CAMBIO', 'CORRECCION_RESERVA'] })
-  @IsIn(['CAMBIO', 'CORRECCION_RESERVA']) tipoOperacion!: 'CAMBIO' | 'CORRECCION_RESERVA';
+  @ApiProperty({ enum: ['CAMBIO', 'CORRECCION_RESERVA', 'CORRECCION_REGISTRO'] })
+  @IsIn(['CAMBIO', 'CORRECCION_RESERVA', 'CORRECCION_REGISTRO'])
+  tipoOperacion!: 'CAMBIO' | 'CORRECCION_RESERVA' | 'CORRECCION_REGISTRO';
   @ApiProperty() @IsUUID() solicitud!: string;
   @ApiProperty() @IsString() @MaxLength(30) versionEsperada!: string;
   @ApiProperty() @Type(() => Number) @IsInt() @Min(1) idBalonActual!: number;

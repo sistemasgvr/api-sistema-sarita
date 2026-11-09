@@ -29,6 +29,39 @@ DROP FUNCTION IF EXISTS public.ven_actualizar_comprobante (
   p_version_esperada varchar
 );
 
+-- Firma vigente (con reemplazo de balones). La anterior se elimina arriba: si
+-- quedaran ambas, la llamada con 27 argumentos sería ambigua.
+DROP FUNCTION IF EXISTS public.ven_actualizar_comprobante (
+  p_id integer,
+  p_fecha date,
+  p_id_cliente integer,
+  p_detalles json,
+  p_id_tipo_operacion_sunat integer,
+  p_id_comprobante_origen integer,
+  p_id_motivo_nota integer,
+  p_id_tipo_movimiento integer,
+  p_id_tipo_venta integer,
+  p_fecha_vencimiento date,
+  p_tipo_cambio numeric,
+  p_id_sucursal integer,
+  p_id_almacen integer,
+  p_id_condicion_pago integer,
+  p_id_moneda integer,
+  p_id_medio_pago integer,
+  p_glosa character varying,
+  p_observaciones character varying,
+  p_periodo_contable character varying,
+  p_operacion character varying,
+  p_id_estado integer,
+  p_cuotas json,
+  p_id_usuario_auditoria integer,
+  p_origen_pos character varying,
+  p_pagos json,
+  p_motivo_correccion varchar,
+  p_version_esperada varchar,
+  p_cambios_balon jsonb
+);
+
 CREATE OR REPLACE FUNCTION public.ven_actualizar_comprobante (
   p_id integer,
   p_fecha date DEFAULT NULL::date,
@@ -56,14 +89,15 @@ CREATE OR REPLACE FUNCTION public.ven_actualizar_comprobante (
   p_origen_pos character varying DEFAULT NULL::character varying,
   p_pagos json DEFAULT NULL::json,
   p_motivo_correccion varchar DEFAULT NULL,
-  p_version_esperada varchar DEFAULT NULL
+  p_version_esperada varchar DEFAULT NULL,
+  -- [{ "idBalonActual": n, "idBalonNuevo": m }]: reemplazo de cilindros reservados del detalle.
+  p_cambios_balon jsonb DEFAULT NULL
 ) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_err_pagos TEXT;
     v_antes JSONB;
     v_edicion_segura BOOLEAN;
     v_dependencias BOOLEAN;
-    v_fisico BOOLEAN;
     v_version TEXT;
     v_estado_sunat VARCHAR;
     v_detalle JSON;
@@ -109,6 +143,24 @@ DECLARE
     v_cantidad_aplicar NUMERIC(12,4);
     v_nombre_unidad VARCHAR;
     v_es_gas BOOLEAN;
+    -- Líneas atadas a balones, gas, alquiler o garantía: solo admiten cambio de precio.
+    v_items_bloqueados INTEGER[] := ARRAY[]::INTEGER[];
+    v_bloqueadas_antes JSONB;
+    v_bloqueadas_nuevas JSONB;
+    -- Caja: el arqueo se calcula con las líneas de cobro de la venta.
+    v_total_anterior NUMERIC(12,4);
+    v_total_nuevo NUMERIC(12,4);
+    v_fecha_anterior DATE;
+    v_id_sucursal_anterior INTEGER;
+    v_id_sucursal_nueva INTEGER;
+    v_afecta_caja BOOLEAN;
+    v_lineas_pago INTEGER;
+    v_fecha_caja DATE;
+    v_id_sucursal_caja INTEGER;
+    -- Reemplazo de balones
+    v_cambio JSONB;
+    v_id_balon_actual INTEGER;
+    v_id_balon_nuevo INTEGER;
 BEGIN
     SET TIME ZONE 'America/Lima';
     PERFORM ven_validar_edicion_pre_emision(p_id);
@@ -179,23 +231,144 @@ BEGIN
             RAISE EXCEPTION 'No se puede cambiar el origen, tipo o estado de una venta mediante corrección';
         END IF;
     END IF;
-    v_fisico := p_detalles IS NOT NULL AND (
-        (SELECT jsonb_agg(jsonb_build_array(d.item, d.id_producto, d.cantidad, d.id_balon,
+
+    -- ---- Reemplazo de balones del detalle ----
+    -- Se aplica antes de validar el detalle: las líneas que llegan ya traen el
+    -- balón nuevo. Cada cambio es una corrección (ven_cambiar_balon_vsd) que no mueve gas:
+    -- el anterior vuelve a DISPONIBLE y el nuevo toma su lugar.
+    --   * PENDIENTE_ENVIO (reservado para despacho) → CORRECCION_RESERVA.
+    --   * Ya con el cliente (mostrador: EN_PODER_CLIENTE / PRESTADO_CLIENTE) →
+    --     CORRECCION_REGISTRO: se registró otro código; el préstamo pasa al correcto.
+    IF p_cambios_balon IS NOT NULL AND jsonb_typeof(p_cambios_balon) = 'array'
+       AND jsonb_array_length(p_cambios_balon) > 0 THEN
+        IF NOT v_edicion_segura THEN
+            RAISE EXCEPTION 'Solo se pueden reemplazar balones en ventas, facturas o boletas';
+        END IF;
+        IF (SELECT count(*) FROM jsonb_array_elements(p_cambios_balon) e) <>
+           (SELECT count(DISTINCT (e->>'idBalonActual')::integer) FROM jsonb_array_elements(p_cambios_balon) e)
+           OR (SELECT count(*) FROM jsonb_array_elements(p_cambios_balon) e) <>
+           (SELECT count(DISTINCT (e->>'idBalonNuevo')::integer) FROM jsonb_array_elements(p_cambios_balon) e) THEN
+            RAISE EXCEPTION 'Cada balón solo puede reemplazarse una vez y por un cilindro distinto en la misma corrección';
+        END IF;
+
+        FOR v_cambio IN SELECT e FROM jsonb_array_elements(p_cambios_balon) e
+        LOOP
+            v_id_balon_actual := NULLIF(v_cambio->>'idBalonActual', '')::integer;
+            v_id_balon_nuevo := NULLIF(v_cambio->>'idBalonNuevo', '')::integer;
+
+            IF v_id_balon_actual IS NULL OR v_id_balon_nuevo IS NULL OR v_id_balon_actual = v_id_balon_nuevo THEN
+                RAISE EXCEPTION 'Indique el balón a reemplazar y uno distinto como reemplazo';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM ven_comprobante_detalle
+                WHERE id_comprobante = p_id AND estado = 1 AND id_balon = v_id_balon_actual) THEN
+                RAISE EXCEPTION 'El balón % no está en el detalle de esta venta', COALESCE(
+                    (SELECT codigo_balon FROM bal_balon WHERE id = v_id_balon_actual), '#' || v_id_balon_actual);
+            END IF;
+            -- Sin despacho asignado: ni en una orden de salida en borrador o con reparto
+            -- pendiente (ven_cambiar_balon_vsd ya revisa actividades pendientes).
+            IF EXISTS (
+                SELECT 1
+                FROM doc_salida_detalle dd
+                JOIN doc_salida d ON d.id = dd.id_doc_salida AND d.estado = 1
+                JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
+                WHERE dd.id_balon = v_id_balon_nuevo AND dd.estado = 1
+                  AND ec.nombre <> 'ANULADA'
+                  AND (ec.nombre = 'BORRADOR' OR EXISTS (
+                      SELECT 1 FROM age_actividad a
+                      JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
+                      WHERE a.id_doc_salida = d.id AND a.estado = 1
+                        AND ea.nombre NOT IN ('REALIZADA', 'CANCELADA')))
+            ) THEN
+                RAISE EXCEPTION 'El balón % ya está asignado a un despacho pendiente', COALESCE(
+                    (SELECT codigo_balon FROM bal_balon WHERE id = v_id_balon_nuevo), '#' || v_id_balon_nuevo);
+            END IF;
+
+            PERFORM ven_cambiar_balon_vsd(p_id, jsonb_build_object(
+                'tipoOperacion', CASE WHEN (
+                    SELECT eb.nombre FROM bal_balon b
+                    JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+                    WHERE b.id = v_id_balon_actual
+                ) = 'PENDIENTE_ENVIO' THEN 'CORRECCION_RESERVA' ELSE 'CORRECCION_REGISTRO' END,
+                'solicitud', gen_random_uuid(),
+                'versionEsperada', (SELECT xmin::text FROM ven_comprobante WHERE id = p_id),
+                'idBalonActual', v_id_balon_actual,
+                'idBalonNuevo', v_id_balon_nuevo,
+                'idAlmacen', v_id_almacen_actual,
+                'cantidadGasDevuelta', 0,
+                'cantidadGasSalida', 0,
+                'condicionDevolucion', 'DISPONIBLE',
+                'motivo', btrim(p_motivo_correccion)
+            ), p_id_usuario_auditoria);
+        END LOOP;
+    END IF;
+    -- Ítems: una línea que trae el ítem de una línea vigente lo conserva; las nuevas
+    -- (o un ítem repetido) toman uno libre después del mayor usado en el comprobante.
+    IF p_detalles IS NOT NULL AND json_typeof(p_detalles) = 'array' THEN
+        SELECT json_agg(x.v ORDER BY x.o) INTO p_detalles
+        FROM (
+            SELECT k.o, jsonb_set(k.v, '{item}', to_jsonb(CASE WHEN k.conserva THEN k.it
+                ELSE m.max_item + row_number() OVER (PARTITION BY k.conserva ORDER BY k.o) END)) AS v
+            FROM (
+                SELECT j.o, j.v, j.it,
+                    (j.it IS NOT NULL
+                     AND EXISTS (SELECT 1 FROM ven_comprobante_detalle d
+                         WHERE d.id_comprobante = p_id AND d.estado = 1 AND d.item = j.it)
+                     AND row_number() OVER (PARTITION BY j.it ORDER BY j.o) = 1) AS conserva
+                FROM (
+                    SELECT e.value::jsonb AS v, e.ordinality AS o,
+                        NULLIF(e.value->>'item', '')::integer AS it
+                    FROM json_array_elements(p_detalles) WITH ORDINALITY e(value, ordinality)
+                ) j
+            ) k
+            CROSS JOIN (SELECT COALESCE(MAX(item), 0) AS max_item
+                FROM ven_comprobante_detalle WHERE id_comprobante = p_id) m
+        ) x;
+    END IF;
+
+    IF v_dependencias THEN
+        SELECT COALESCE(array_agg(d.item), ARRAY[]::INTEGER[]) INTO v_items_bloqueados
+        FROM ven_comprobante_detalle d
+        LEFT JOIN pro_producto p ON p.id = d.id_producto
+        WHERE d.id_comprobante = p_id AND d.estado = 1
+          AND (d.id_balon IS NOT NULL
+               OR COALESCE(d.descripcion, '') ~* 'garant[ií]a'
+               OR COALESCE(p.es_gas, FALSE)
+               OR COALESCE(p.es_alquilable, FALSE));
+    END IF;
+
+    IF v_dependencias AND p_detalles IS NOT NULL THEN
+        SELECT jsonb_agg(jsonb_build_array(d.item, d.id_producto, d.cantidad, d.id_balon,
                  d.id_unidad_medida, d.capacidad_cilindro, d.id_estado_cilindro,
                  COALESCE(d.descripcion, '')) ORDER BY d.item)
-         FROM ven_comprobante_detalle d WHERE d.id_comprobante = p_id AND d.estado = 1)
-        IS DISTINCT FROM
-        (SELECT jsonb_agg(jsonb_build_array(COALESCE(NULLIF((j.value->>'item')::integer, 0), j.ordinality::integer),
+        INTO v_bloqueadas_antes
+        FROM ven_comprobante_detalle d
+        WHERE d.id_comprobante = p_id AND d.estado = 1 AND d.item = ANY(v_items_bloqueados);
+
+        SELECT jsonb_agg(jsonb_build_array((j.value->>'item')::integer,
                  (j.value->>'id_producto')::integer, (j.value->>'cantidad')::numeric,
                  NULLIF((j.value->>'id_balon')::integer, 0), NULLIF((j.value->>'id_unidad_medida')::integer, 0),
                  NULLIF((j.value->>'capacidad_cilindro')::numeric, 0), NULLIF((j.value->>'id_estado_cilindro')::integer, 0),
-                 COALESCE(j.value->>'descripcion', '')) ORDER BY j.ordinality)
-         FROM json_array_elements(p_detalles) WITH ORDINALITY j(value, ordinality))
-    );
-    IF v_dependencias AND (v_fisico
-        OR (p_id_cliente IS NOT NULL AND p_id_cliente IS DISTINCT FROM (v_antes->'registro'->>'id_cliente')::integer)
+                 COALESCE(j.value->>'descripcion', '')) ORDER BY (j.value->>'item')::integer)
+        INTO v_bloqueadas_nuevas
+        FROM json_array_elements(p_detalles) j
+        WHERE (j.value->>'item')::integer = ANY(v_items_bloqueados);
+
+        IF v_bloqueadas_antes IS DISTINCT FROM v_bloqueadas_nuevas THEN
+            RAISE EXCEPTION 'Las líneas con balón, gas, alquiler o garantía vinculados no se pueden quitar ni cambiar de producto o cantidad. Use Cambio de balón para el movimiento físico; sí puede corregir su precio y agregar o editar los demás productos';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM json_array_elements(p_detalles) j
+            WHERE NOT ((j.value->>'item')::integer = ANY(v_items_bloqueados))
+              AND (NULLIF((j.value->>'id_balon')::integer, 0) IS NOT NULL
+                   OR COALESCE((j.value->>'no_mueve_kardex')::boolean, false))) THEN
+            RAISE EXCEPTION 'La corrección de productos no puede crear una salida de balón ni omitir el kardex';
+        END IF;
+    END IF;
+
+    IF v_dependencias AND (
+        (p_id_cliente IS NOT NULL AND p_id_cliente IS DISTINCT FROM (v_antes->'registro'->>'id_cliente')::integer)
         OR (p_id_almacen IS NOT NULL AND p_id_almacen IS DISTINCT FROM v_id_almacen_actual)) THEN
-        RAISE EXCEPTION 'La venta tiene balones, préstamos, recargas u órdenes vinculadas. Use Cambio de balón para el movimiento físico; la corrección conserva cliente, almacén y detalle físico';
+        RAISE EXCEPTION 'La venta tiene balones, préstamos, recargas u órdenes vinculadas; la corrección conserva el cliente y el almacén';
     END IF;
     IF p_detalles IS NOT NULL THEN
         IF json_typeof(p_detalles) <> 'array' OR json_array_length(p_detalles) = 0 THEN
@@ -669,14 +842,13 @@ BEGIN
     WHERE id = p_id AND estado = 1;
 
     IF p_detalles IS NOT NULL THEN
-      IF NOT v_dependencias THEN
+        -- Las líneas vinculadas se conservan (solo se actualiza su precio); el resto se reemplaza.
         UPDATE ven_comprobante_detalle
         SET estado = 0,
             id_usuario_modificacion = p_id_usuario_auditoria,
             fecha_modificacion = NOW()
-        WHERE id_comprobante = p_id AND estado = 1;
-
-      END IF;
+        WHERE id_comprobante = p_id AND estado = 1
+          AND NOT (item = ANY(v_items_bloqueados));
         v_item := 0;
         FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
         LOOP
@@ -700,7 +872,7 @@ BEGIN
                 v_impuesto_linea := 0;
             END IF;
 
-            IF v_dependencias THEN
+            IF COALESCE(NULLIF((v_detalle->>'item')::integer, 0), v_item) = ANY(v_items_bloqueados) THEN
                 UPDATE ven_comprobante_detalle SET
                     precio_unitario = v_precio_unitario, descuento = v_descuento_linea,
                     valor_venta = v_valor_linea, porcentaje_igv = v_porcentaje_igv,
@@ -778,6 +950,80 @@ BEGIN
                     p_id_usuario_auditoria
                 );
             END LOOP;
+        END IF;
+    END IF;
+
+    -- ---- Caja ----
+    -- La caja del día no guarda copia de la venta: suma en vivo sus líneas de cobro
+    -- (ven_comprobante_pago) o, si no tiene, el total de la cabecera. Si cambia el
+    -- importe, la fecha o la sucursal, el arqueo de la(s) caja(s) afectada(s) cambia:
+    -- no se permite si alguna ya está cerrada, y las líneas de cobro se ajustan al total.
+    v_total_anterior := ROUND(COALESCE((v_antes->'registro'->>'total_importe')::NUMERIC, 0), 4);
+    v_fecha_anterior := (v_antes->'registro'->>'fecha')::DATE;
+    v_id_sucursal_anterior := NULLIF(v_antes->'registro'->>'id_sucursal', '')::INTEGER;
+    SELECT ROUND(COALESCE(c.total_importe, 0), 4), c.fecha, c.id_sucursal
+    INTO v_total_nuevo, v_fecha, v_id_sucursal_nueva
+    FROM ven_comprobante c WHERE c.id = p_id;
+
+    IF v_total_nuevo IS DISTINCT FROM v_total_anterior
+       OR v_fecha IS DISTINCT FROM v_fecha_anterior
+       OR v_id_sucursal_nueva IS DISTINCT FROM v_id_sucursal_anterior
+       OR p_pagos IS NOT NULL THEN
+
+        SELECT EXISTS (
+            SELECT 1 FROM ven_pagos_de_comprobante(p_id) pg
+            WHERE NOT fin_medio_pago_flag(pg.id_medio_pago, 'ES_CREDITO')
+        ) OR (p_pagos IS NOT NULL AND json_typeof(p_pagos) = 'array' AND EXISTS (
+            SELECT 1 FROM json_array_elements(p_pagos) j
+            WHERE NOT fin_medio_pago_flag(NULLIF(j.value->>'idMedioPago', '')::INTEGER, 'ES_CREDITO')
+        ))
+        INTO v_afecta_caja;
+
+        IF v_afecta_caja THEN
+            FOR v_fecha_caja, v_id_sucursal_caja IN
+                SELECT DISTINCT f.fecha, f.id_sucursal
+                FROM (VALUES (v_fecha_anterior, v_id_sucursal_anterior), (v_fecha, v_id_sucursal_nueva)) f(fecha, id_sucursal)
+                WHERE f.fecha IS NOT NULL
+            LOOP
+                IF EXISTS (
+                    SELECT 1
+                    FROM fin_caja_sesion s
+                    INNER JOIN gen_lista_opciones est ON est.id = s.id_estado
+                    WHERE s.estado = 1
+                      AND s.fecha = v_fecha_caja
+                      AND COALESCE(s.id_sucursal, 0) = COALESCE(v_id_sucursal_caja, 0)
+                      AND UPPER(est.nombre) = 'CERRADA'
+                ) THEN
+                    RAISE EXCEPTION 'La caja del % ya está cerrada y esta corrección cambia su arqueo (total % → %). Reabra la caja de esa fecha para corregir la venta',
+                        to_char(v_fecha_caja, 'DD/MM/YYYY'),
+                        gen_formato_cantidad(v_total_anterior),
+                        gen_formato_cantidad(v_total_nuevo);
+                END IF;
+            END LOOP;
+        END IF;
+
+        -- Sin pagos explícitos: un cobro de un solo medio sigue al nuevo total;
+        -- con varios medios hay que indicar cómo se reparte.
+        IF p_pagos IS NULL AND v_total_nuevo IS DISTINCT FROM v_total_anterior THEN
+            SELECT COUNT(*) INTO v_lineas_pago
+            FROM ven_comprobante_pago WHERE id_comprobante = p_id AND estado = 1;
+
+            IF v_lineas_pago = 1 THEN
+                IF v_total_nuevo > 0 THEN
+                    UPDATE ven_comprobante_pago
+                    SET monto = v_total_nuevo,
+                        id_usuario_modificacion = p_id_usuario_auditoria,
+                        fecha_modificacion = NOW()
+                    WHERE id_comprobante = p_id AND estado = 1;
+                ELSE
+                    DELETE FROM ven_comprobante_pago WHERE id_comprobante = p_id;
+                END IF;
+            ELSIF v_lineas_pago > 1 THEN
+                RAISE EXCEPTION 'La venta se cobró con varios medios de pago y el total cambia de % a %. Indique cómo se reparte el nuevo total entre los medios de pago',
+                    gen_formato_cantidad(v_total_anterior),
+                    gen_formato_cantidad(v_total_nuevo)
+                    USING ERRCODE = '22023';
+            END IF;
         END IF;
     END IF;
 

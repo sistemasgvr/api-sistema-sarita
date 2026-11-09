@@ -474,6 +474,7 @@ export class ComprobantesModel {
       dto.pagos ? JSON.stringify(dto.pagos) : null,
       dto.motivoCorreccion ?? null,
       dto.versionEsperada ?? null,
+      dto.cambiosBalon?.length ? JSON.stringify(dto.cambiosBalon) : null,
     ]);
   }
 
@@ -496,7 +497,7 @@ export class ComprobantesModel {
         SELECT DISTINCT COALESCE((o.datos->>'idBalonNuevo')::integer, origen.id) AS id
         FROM raices origen LEFT JOIN LATERAL (SELECT datos FROM ven_vsd_operacion
           WHERE id_comprobante=$1 AND tipo='CAMBIO_BALON' AND (datos->>'idBalonOriginal')::integer=origen.id ORDER BY id DESC LIMIT 1) o ON true
-      ) SELECT b.id,b.codigo_balon,b.id_tipo_balon,b.id_producto_gas,eb.nombre AS estado,
+      ) SELECT b.id,b.codigo_balon,b.id_tipo_balon,b.id_producto_gas,b.id_propietario,b.id_cliente_propietario,eb.nombre AS estado,
         ven_cantidad_gas_balon_vsd($1,b.id) AS cantidad_salida
       FROM actuales a JOIN bal_balon b ON b.id=a.id LEFT JOIN gen_lista_opciones eb ON eb.id=b.id_estado_balon ORDER BY b.codigo_balon`, [id]);
     return { historial: history.rows, balones: balones.rows };
