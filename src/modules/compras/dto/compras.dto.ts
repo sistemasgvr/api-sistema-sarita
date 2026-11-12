@@ -31,7 +31,7 @@ function toOptionalBoolean(value: unknown) {
 export class FiltroComprasDto extends FiltroPaginacionDto {
   @ApiPropertyOptional({
     description:
-      'true = solo compras sin comprobante del proveedor (sin serie o sin número); false = solo las que sí lo tienen',
+      'true = solo compras pendientes de comprobante (sin serie, número o fecha de emisión); false = solo las que lo tienen completo',
   })
   @Transform(({ value }) => toOptionalBoolean(value))
   @IsOptional()
@@ -184,19 +184,32 @@ export class CreateCompraDto extends AuditoriaDto {
   @MaxLength(15)
   numero?: string;
 
-  @ApiProperty({ example: '2026-07-22' })
+  @ApiProperty({
+    example: '2026-07-22',
+    description:
+      'Fecha de gasto: día en que salió el dinero; el pago se registra en la caja de ese día',
+  })
   @IsDateString()
   @IsNotEmpty()
   fecha!: string;
 
   @ApiPropertyOptional({
+    example: '2026-07-20',
+    description:
+      'Fecha de emisión del comprobante del proveedor; vacía = pendiente de comprobante',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaEmision?: string;
+
+  @ApiProperty({
     example: 1,
     description: 'ID del proveedor (cli_clientes)',
   })
-  @IsOptional()
+  @IsNotEmpty({ message: 'El proveedor es obligatorio' })
   @Type(() => Number)
   @IsInt()
-  idProveedor?: number;
+  idProveedor!: number;
 
   @ApiPropertyOptional({ example: 1, description: 'Almacén por defecto' })
   @IsOptional()
@@ -337,7 +350,10 @@ export class CreateCompraDto extends AuditoriaDto {
   @Type(() => CompraCuotaDto)
   cuotas?: CompraCuotaDto[];
 
-  @ApiPropertyOptional({ example: 1, description: 'Medio de pago (compra al contado)' })
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Medio de pago (compra al contado)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -362,7 +378,8 @@ export class CreateCompraDto extends AuditoriaDto {
     example: 18,
     minimum: 0,
     maximum: 100,
-    description: 'Porcentaje de IGV de la compra (0 a 100, 2 decimales). Por defecto 18.',
+    description:
+      'Porcentaje de IGV de la compra (0 a 100, 2 decimales). Por defecto 18.',
   })
   @IsOptional()
   @Type(() => Number)
@@ -419,7 +436,10 @@ export class ActualizarCompraCabeceraDto extends AuditoriaDto {
   @Type(() => CompraCuotaDto)
   cuotas?: CompraCuotaDto[];
 
-  @ApiPropertyOptional({ example: 1, description: 'Medio de pago (compra al contado)' })
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Medio de pago (compra al contado)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -453,6 +473,53 @@ export class ActualizarCompraCabeceraDto extends AuditoriaDto {
   @Min(0)
   @Max(100)
   porcentajeIgv?: number;
+
+  @ApiPropertyOptional({
+    example: '2026-11-11',
+    description:
+      'Nueva fecha de gasto. Mueve el pago a la caja de esa fecha (debe estar abierta); si la caja original está cerrada se recalcula su arqueo.',
+  })
+  @IsOptional()
+  @IsDateString()
+  fecha?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-11-10',
+    description:
+      'Fecha de emisión del comprobante; null vacía la fecha (vuelve a pendiente de comprobante)',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaEmision?: string | null;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'null vacía el tipo de comprobante',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idTipoComprobante?: number | null;
+
+  @ApiPropertyOptional({
+    example: 'F001',
+    maxLength: 10,
+    description: "'' vacía la serie",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  serie?: string;
+
+  @ApiPropertyOptional({
+    example: '00001234',
+    maxLength: 15,
+    description: "'' vacía el número",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(15)
+  numero?: string;
 }
 
 export class ActualizarCompraDetalleDto extends AuditoriaDto {

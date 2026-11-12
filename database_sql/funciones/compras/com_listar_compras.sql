@@ -46,12 +46,13 @@ BEGIN
           p_sin_comprobante IS NULL
           OR (
               p_sin_comprobante = TRUE
-              AND (COALESCE(TRIM(c.serie), '') = '' OR COALESCE(TRIM(c.numero), '') = '')
+              AND (COALESCE(TRIM(c.serie), '') = '' OR COALESCE(TRIM(c.numero), '') = '' OR c.fecha_emision IS NULL)
           )
           OR (
               p_sin_comprobante = FALSE
               AND COALESCE(TRIM(c.serie), '') <> ''
               AND COALESCE(TRIM(c.numero), '') <> ''
+              AND c.fecha_emision IS NOT NULL
           )
       )
       AND (
@@ -68,7 +69,7 @@ BEGIN
     SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json) INTO v_registros
     FROM (
         SELECT
-            c.id, c.serie, c.numero, c.fecha,
+            c.id, c.serie, c.numero, c.fecha, c.fecha_emision,
             c.id_proveedor,
             COALESCE(
                 NULLIF(TRIM(pr.razon_social), ''),
@@ -82,7 +83,7 @@ BEGIN
             c.glosa,
             c.estado,
             (
-                COALESCE(TRIM(c.serie), '') <> '' AND COALESCE(TRIM(c.numero), '') <> ''
+                COALESCE(TRIM(c.serie), '') <> '' AND COALESCE(TRIM(c.numero), '') <> '' AND c.fecha_emision IS NOT NULL
             ) AS tiene_comprobante,
             com_tiene_movimientos_inventario(c.id) AS tiene_movimientos_inventario,
             c.id_comprobante_referencia
@@ -102,12 +103,13 @@ BEGIN
           p_sin_comprobante IS NULL
           OR (
               p_sin_comprobante = TRUE
-              AND (COALESCE(TRIM(c.serie), '') = '' OR COALESCE(TRIM(c.numero), '') = '')
+              AND (COALESCE(TRIM(c.serie), '') = '' OR COALESCE(TRIM(c.numero), '') = '' OR c.fecha_emision IS NULL)
           )
           OR (
               p_sin_comprobante = FALSE
               AND COALESCE(TRIM(c.serie), '') <> ''
               AND COALESCE(TRIM(c.numero), '') <> ''
+              AND c.fecha_emision IS NOT NULL
           )
       )
           AND (

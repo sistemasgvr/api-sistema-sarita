@@ -79,7 +79,10 @@ export class ComprasModel {
   }
 
   async obtenerPorId(id: number) {
-    const result = await this.db.callFunctionJson<AuthSingleResult>('com_obtener_compra', [id]);
+    const result = await this.db.callFunctionJson<AuthSingleResult>(
+      'com_obtener_compra',
+      [id],
+    );
     return adjuntarTributos(this.db, 'retencion', id, result);
   }
 
@@ -122,6 +125,7 @@ export class ComprasModel {
       dto.idCuentaBancaria ?? null,
       dto.numeroOperacion ?? null,
       dto.porcentajeIgv ?? null,
+      dto.fechaEmision ?? null,
     ]);
   }
 
@@ -148,6 +152,14 @@ export class ComprasModel {
         dto.idCuentaBancaria ?? null,
         dto.numeroOperacion ?? null,
         dto.porcentajeIgv ?? null,
+        dto.fecha ?? null,
+        dto.fechaEmision || null,
+        // null = vaciar el tipo (la función lo recibe como 0); undefined = conservar.
+        dto.idTipoComprobante === null ? 0 : (dto.idTipoComprobante ?? null),
+        dto.serie ?? null,
+        dto.numero ?? null,
+        // fechaEmision null o '' = vaciarla (la compra vuelve a "pendiente de comprobante").
+        dto.fechaEmision === null || dto.fechaEmision === '',
       ],
     );
   }

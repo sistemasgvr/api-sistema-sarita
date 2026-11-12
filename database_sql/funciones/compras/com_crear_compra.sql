@@ -94,7 +94,8 @@ CREATE OR REPLACE FUNCTION public.com_crear_compra (
   p_id_medio_pago integer DEFAULT NULL::integer,
   p_id_cuenta_bancaria integer DEFAULT NULL::integer,
   p_numero_operacion character varying DEFAULT NULL::character varying,
-  p_porcentaje_igv numeric DEFAULT 18
+  p_porcentaje_igv numeric DEFAULT 18,
+  p_fecha_emision date DEFAULT NULL::date
 ) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id_compra           INTEGER;
@@ -136,7 +137,15 @@ BEGIN
     SET TIME ZONE 'America/Lima';
 
     IF p_fecha IS NULL THEN
-        RETURN json_build_object('error', 'La fecha de la compra es obligatoria', 'registro', NULL);
+        RETURN json_build_object('error', 'La fecha de gasto es obligatoria', 'registro', NULL);
+    END IF;
+
+    IF p_id_proveedor IS NULL THEN
+        RETURN json_build_object('error', 'El proveedor es obligatorio', 'registro', NULL);
+    END IF;
+
+    IF p_fecha_emision IS NOT NULL AND p_fecha_emision > CURRENT_DATE THEN
+        RETURN json_build_object('error', 'La fecha de emisión no puede ser posterior a hoy', 'registro', NULL);
     END IF;
 
     v_porcentaje_igv := ROUND(COALESCE(p_porcentaje_igv, 18), 2);
@@ -274,14 +283,14 @@ BEGIN
         id_moneda, id_condicion_pago, sub_total, igv, total_importe,
         declarar_sunat, glosa, id_comprobante_referencia, id_doc_salida,
         id_medio_pago, id_cuenta_bancaria, numero_operacion, porcentaje_igv,
-        id_usuario_creacion, id_usuario_modificacion
+        fecha_emision, id_usuario_creacion, id_usuario_modificacion
     ) VALUES (
-        p_id_tipo_comprobante, p_serie, p_numero, p_fecha, p_id_proveedor,
+        p_id_tipo_comprobante, NULLIF(TRIM(p_serie), ''), NULLIF(TRIM(p_numero), ''), p_fecha, p_id_proveedor,
         p_id_tipo_registro, p_id_categoria_gasto, p_id_sucursal, p_id_almacen,
         p_id_moneda, p_id_condicion_pago, 0, 0, 0,
         p_declarar_sunat, v_glosa_final, p_id_comprobante_referencia, p_id_doc_salida,
         p_id_medio_pago, p_id_cuenta_bancaria, NULLIF(TRIM(p_numero_operacion), ''), v_porcentaje_igv,
-        p_id_usuario_auditoria, p_id_usuario_auditoria
+        p_fecha_emision, p_id_usuario_auditoria, p_id_usuario_auditoria
     )
     RETURNING id INTO v_id_compra;
 
@@ -361,7 +370,7 @@ BEGIN
                 p_codigo_tipo_documento_origen => 'COMPRA',
                 p_id_documento_origen       => v_id_compra,
                 p_id_documento_detalle      => v_id_detalle,
-                p_glosa                     => 'Ingreso por compra ' || p_serie || '-' || p_numero,
+                p_glosa                     => 'Ingreso por compra ' || COALESCE(NULLIF(TRIM(p_serie), '') || '-' || NULLIF(TRIM(p_numero), ''), '#' || v_id_compra),
                 p_id_usuario_auditoria      => p_id_usuario_auditoria
             );
 

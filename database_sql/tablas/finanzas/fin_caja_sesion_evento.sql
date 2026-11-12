@@ -16,7 +16,8 @@ CREATE TABLE public.fin_caja_sesion_evento (
             'ABRIR'::character varying,
             'CERRAR'::character varying,
             'REABRIR'::character varying,
-            'AJUSTE_FONDO'::character varying
+            'AJUSTE_FONDO'::character varying,
+            'AJUSTE_COMPRA'::character varying
           ]
         )::TEXT[]
       )

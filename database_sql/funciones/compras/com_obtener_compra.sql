@@ -14,6 +14,7 @@ BEGIN
         'serie',                     c.serie,
         'numero',                    c.numero,
         'fecha',                     c.fecha,
+        'fecha_emision',             c.fecha_emision,
         'id_proveedor',              c.id_proveedor,
         'proveedor',                 COALESCE(
                                           NULLIF(TRIM(pr.razon_social), ''),
