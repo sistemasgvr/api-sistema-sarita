@@ -29,7 +29,9 @@ CREATE TABLE public.com_comprobante_compra (
   id_medio_pago integer,
   id_cuenta_bancaria integer,
   numero_operacion character varying(80),
-  porcentaje_igv numeric(5, 2) DEFAULT 18 NOT NULL
+  porcentaje_igv numeric(5, 2) DEFAULT 18 NOT NULL,
+  -- fecha: fecha de gasto (mueve la caja). fecha_emision: fecha del comprobante del proveedor; NULL = pendiente.
+  fecha_emision date
 );
 
 CREATE SEQUENCE public.com_comprobante_compra_id_seq AS integer START
