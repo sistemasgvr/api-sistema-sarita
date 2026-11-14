@@ -53,6 +53,30 @@ BEGIN
         'id_recarga_planta',         c.id_doc_salida,
         'numero_recarga_planta',     rp.numero,
         'tiene_movimientos_inventario', com_tiene_movimientos_inventario(c.id),
+        -- Compra de recarga en planta: el gas no ingresa por la compra sino con el
+        -- retorno de los balones (ENTRADA_PLANTA_EXTERNA). NULL si no aplica.
+        'gas_retorno_planta',        CASE
+                                          WHEN c.id_doc_salida IS NULL OR NOT EXISTS (
+                                              SELECT 1
+                                              FROM com_comprobante_compra_detalle gd
+                                              JOIN pro_producto gp ON gp.id = gd.id_producto
+                                              WHERE gd.id_comprobante = c.id
+                                                AND gd.estado = 1
+                                                AND COALESCE(gp.es_gas, FALSE)
+                                          ) THEN NULL
+                                          WHEN EXISTS (
+                                              SELECT 1
+                                              FROM inv_movimiento gm
+                                              JOIN gen_lista_opciones gtd ON gtd.id = gm.id_tipo_documento_origen
+                                              JOIN gen_lista_opciones gtm ON gtm.id = gm.id_tipo_movimiento
+                                              WHERE gm.estado = 1
+                                                AND gm.naturaleza = 'PRODUCTO'
+                                                AND gm.id_documento_origen = c.id
+                                                AND gtd.nombre = 'COMPRA'
+                                                AND gtm.nombre = 'ENTRADA_PLANTA_EXTERNA'
+                                          ) THEN 'INGRESADO'
+                                          ELSE 'PENDIENTE'
+                                      END,
         'puede_modificarse_parcial', (c.estado = 1),
         'fecha_creacion',            c.fecha_creacion,
         'fecha_modificacion',        c.fecha_modificacion
