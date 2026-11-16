@@ -7,7 +7,8 @@ CREATE OR REPLACE FUNCTION public.com_pago_caja_compra (p_id_comprobante integer
         'monto',       cc.total_importe,
         'fecha',       cc.fecha,
         'idSucursal',  cc.id_sucursal,
-        'afectaCaja',  fin_medio_pago_flag(cc.id_medio_pago, 'AFECTA_CAJA')
+        'afectaCaja',  fin_medio_pago_flag(cc.id_medio_pago, 'AFECTA_CAJA'),
+        'esEfectivo',  fin_medio_pago_flag(cc.id_medio_pago, 'ES_EFECTIVO')
     )
     FROM com_comprobante_compra cc
     WHERE cc.id = p_id_comprobante

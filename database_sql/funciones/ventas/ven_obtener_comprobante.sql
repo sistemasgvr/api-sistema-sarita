@@ -46,6 +46,8 @@ BEGIN
             c.id_tipo_venta,
             tv.nombre AS nombre_tipo_venta,
             c.fecha,
+            c.fecha_venta,
+            COALESCE(c.fecha_venta, c.fecha) AS fecha_caja,
             c.fecha_vencimiento,
             c.tipo_cambio,
             c.id_cliente,

@@ -43,7 +43,8 @@ CREATE TABLE public.ven_comprobante (
   origen_pos character varying(30),
   fecha_emision_cpe date,
   validez_sunat jsonb,
-  cpe_verificacion jsonb
+  cpe_verificacion jsonb,
+  fecha_venta date
 );
 
 CREATE SEQUENCE public.ven_comprobante_id_seq AS integer START
@@ -65,6 +66,8 @@ ADD CONSTRAINT ven_comprobante_serie_numero_key UNIQUE (serie, numero);
 CREATE INDEX idx_ven_comprobante_cliente ON public.ven_comprobante USING btree (id_cliente);
 
 CREATE INDEX idx_ven_comprobante_fecha ON public.ven_comprobante USING btree (fecha);
+
+CREATE INDEX idx_ven_comprobante_fecha_caja ON public.ven_comprobante USING btree (COALESCE(fecha_venta, fecha));
 
 CREATE INDEX idx_ven_comprobante_serie ON public.ven_comprobante USING btree (serie, numero);
 

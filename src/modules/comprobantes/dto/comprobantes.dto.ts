@@ -707,10 +707,18 @@ export class CreateComprobantesDto extends AuditoriaDto {
   @IsString()
   numero?: string;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Fecha de emisión (SUNAT, correlativo, reportes tributarios)' })
   @IsDateString()
   @IsNotEmpty()
   fecha!: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Día en que se hizo la venta, si es anterior a la emisión. Manda en la caja y el libro diario; si se omite es la misma fecha de emisión.',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaVenta?: string;
 
   @ApiProperty()
   @Type(() => Number)

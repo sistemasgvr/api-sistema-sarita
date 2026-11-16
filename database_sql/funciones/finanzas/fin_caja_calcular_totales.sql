@@ -47,7 +47,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones tip ON tip.id = c.id_tipo_comprobante
         CROSS JOIN LATERAL ven_pagos_de_comprobante(c.id) pg
         WHERE c.estado = 1
-          AND c.fecha = p_fecha
+          AND COALESCE(c.fecha_venta, c.fecha) = p_fecha
           AND (p_id_sucursal IS NULL OR c.id_sucursal = p_id_sucursal)
           AND COALESCE(UPPER(est.nombre), '') <> 'ANULADO'
           AND COALESCE(UPPER(es.nombre), '') <> 'BAJA'

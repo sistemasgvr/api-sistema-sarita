@@ -21,6 +21,16 @@ export class CrearGarantiaDto extends AuditoriaDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'fecha debe tener formato YYYY-MM-DD' })
   fecha: string;
 
+  @ApiPropertyOptional({
+    example: 1,
+    description:
+      'Sucursal de la caja donde entra el cobro. Obligatoria para garantías manuales (sin comprobante, préstamo ni alquiler).',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idSucursal?: number;
+
   @ApiProperty({ example: 3, description: 'ID del cliente (cli_clientes.id)' })
   @Type(() => Number)
   @IsInt()

@@ -44,5 +44,11 @@ BEGIN
     IF v_err IS NOT NULL THEN
         RAISE EXCEPTION '%', v_err;
     END IF;
+
+    PERFORM com_refrescar_caja_compra(
+        v_pago_antes, com_pago_caja_compra(p_id_comprobante),
+        'Compra #' || p_id_comprobante || ' sin efectivo corregida con la caja cerrada',
+        p_id_usuario_auditoria
+    );
 END;
 $function$;

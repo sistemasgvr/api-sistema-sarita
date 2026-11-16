@@ -23,6 +23,7 @@ DECLARE
     v_error TEXT;
     v_actualizados INTEGER := 0;
     v_medio_principal INTEGER;
+    v_hubo_cambio_medio BOOLEAN := FALSE;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -30,7 +31,8 @@ BEGIN
         RETURN json_build_object('error', 'Los cobros deben enviarse como una lista', 'registro', NULL);
     END IF;
 
-    SELECT UPPER(COALESCE(est.nombre, '')), c.fecha, c.id_sucursal
+    -- La caja del cobro es la del día de la venta (fecha_venta), no la de emisión.
+    SELECT UPPER(COALESCE(est.nombre, '')), COALESCE(c.fecha_venta, c.fecha), c.id_sucursal
     INTO v_estado, v_fecha, v_id_sucursal
     FROM ven_comprobante c
     LEFT JOIN gen_lista_opciones est ON est.id = c.id_estado
@@ -72,9 +74,13 @@ BEGIN
                 RAISE EXCEPTION '%', 'No se puede cambiar el cobro a crédito: la venta ya se registró como contado.';
             END IF;
 
-            -- Pasar de un medio a otro mueve el arqueo si alguno de los dos afecta caja.
-            IF fin_medio_pago_flag(v_linea.id_medio_pago, 'AFECTA_CAJA')
-               OR fin_medio_pago_flag(v_id_medio, 'AFECTA_CAJA') THEN
+            v_hubo_cambio_medio := TRUE;
+
+            -- Solo exige la caja abierta si entra o sale efectivo; entre medios sin efectivo
+            -- (Yape, Plin, transferencia...) basta recalcular el arqueo si la caja está cerrada.
+            IF v_linea.id_medio_pago IS NULL
+               OR fin_medio_pago_flag(v_linea.id_medio_pago, 'ES_EFECTIVO')
+               OR fin_medio_pago_flag(v_id_medio, 'ES_EFECTIVO') THEN
                 v_error := fin_caja_assert_abierta(v_fecha, v_id_sucursal);
                 IF v_error IS NOT NULL THEN
                     RAISE EXCEPTION '%', 'El cambio de medio de pago afecta la caja del '
@@ -121,6 +127,14 @@ BEGIN
 
         v_actualizados := v_actualizados + 1;
     END LOOP;
+
+    IF v_hubo_cambio_medio THEN
+        PERFORM fin_caja_refrescar_cerrada(
+            v_fecha, v_id_sucursal, NULL,
+            'Cambio de medio de pago sin efectivo en el comprobante #' || p_id_comprobante,
+            p_id_usuario
+        );
+    END IF;
 
     -- El medio de la cabecera es el de la línea de mayor monto (igual que al emitir).
     SELECT id_medio_pago INTO v_medio_principal

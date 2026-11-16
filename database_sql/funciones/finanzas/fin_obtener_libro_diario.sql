@@ -50,7 +50,9 @@ BEGIN
     FROM (
         SELECT
             c.id,
-            c.fecha,
+            -- La venta cuenta el día en que se hizo (fecha_venta); la emisión va aparte.
+            COALESCE(c.fecha_venta, c.fecha) AS fecha,
+            c.fecha AS "fechaEmision",
             tip.nombre AS "tipoComprobante",
             c.serie,
             c.numero,
@@ -90,7 +92,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones es ON es.id = c.id_estado_sunat
         LEFT JOIN cli_clientes cli ON cli.id = c.id_cliente
         WHERE c.estado = 1
-          AND c.fecha BETWEEN p_fecha_desde AND v_hasta
+          AND COALESCE(c.fecha_venta, c.fecha) BETWEEN p_fecha_desde AND v_hasta
           AND (p_id_cliente IS NULL OR c.id_cliente = p_id_cliente)
           AND (p_id_sucursal IS NULL OR c.id_sucursal = p_id_sucursal)
           AND COALESCE(UPPER(est.nombre), '') <> 'ANULADO'
@@ -105,7 +107,8 @@ BEGIN
             c.id AS "idComprobante",
             pg.id_pago AS "idPago",
             pg.item,
-            c.fecha,
+            COALESCE(c.fecha_venta, c.fecha) AS fecha,
+            c.fecha AS "fechaEmision",
             tip.nombre AS "tipoComprobante",
             (c.serie || '-' || c.numero) AS "serieNumero",
             c.id_cliente AS "idCliente",
@@ -137,7 +140,7 @@ BEGIN
         LEFT JOIN gen_lista_opciones mpe ON mpe.id = v_efectivo_id
         LEFT JOIN gen_cuenta_bancaria cb ON cb.id = pg.id_cuenta_bancaria
         WHERE c.estado = 1
-          AND c.fecha BETWEEN p_fecha_desde AND v_hasta
+          AND COALESCE(c.fecha_venta, c.fecha) BETWEEN p_fecha_desde AND v_hasta
           AND (p_id_cliente IS NULL OR c.id_cliente = p_id_cliente)
           AND (p_id_sucursal IS NULL OR c.id_sucursal = p_id_sucursal)
           AND COALESCE(UPPER(est.nombre), '') <> 'ANULADO'

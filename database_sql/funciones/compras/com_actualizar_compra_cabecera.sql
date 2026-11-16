@@ -185,7 +185,15 @@ BEGIN
         RAISE EXCEPTION '%', v_err;
     END IF;
 
-    IF v_mueve_fecha AND COALESCE((v_pago_antes->>'afectaCaja')::BOOLEAN, FALSE) THEN
+    PERFORM com_refrescar_caja_compra(
+        CASE WHEN v_mueve_fecha THEN NULL ELSE v_pago_antes END,
+        v_pago_despues,
+        'Compra #' || p_id_comprobante || ' sin efectivo corregida con la caja cerrada',
+        p_id_usuario_auditoria
+    );
+
+    -- Cualquier pago al contado (con o sin efectivo) figura en los totales de la caja de origen.
+    IF v_mueve_fecha AND v_pago_antes IS NOT NULL THEN
         SELECT s.id INTO v_id_sesion_origen
         FROM fin_caja_sesion s
         WHERE s.estado = 1

@@ -75,6 +75,7 @@ BEGIN
             c.serie,
             c.numero,
             c.fecha,
+            c.fecha_venta,
             c.id_cliente,
             COALESCE(
                 cl.razon_social,

@@ -959,9 +959,14 @@ BEGIN
     -- importe, la fecha o la sucursal, el arqueo de la(s) caja(s) afectada(s) cambia:
     -- no se permite si alguna ya está cerrada, y las líneas de cobro se ajustan al total.
     v_total_anterior := ROUND(COALESCE((v_antes->'registro'->>'total_importe')::NUMERIC, 0), 4);
-    v_fecha_anterior := (v_antes->'registro'->>'fecha')::DATE;
+    -- La caja de una venta es la de su fecha de venta (fecha_venta), o la de emisión si no tiene.
+    v_fecha_anterior := COALESCE(
+        (v_antes->'registro'->>'fecha_caja')::DATE,
+        (v_antes->'registro'->>'fecha_venta')::DATE,
+        (v_antes->'registro'->>'fecha')::DATE
+    );
     v_id_sucursal_anterior := NULLIF(v_antes->'registro'->>'id_sucursal', '')::INTEGER;
-    SELECT ROUND(COALESCE(c.total_importe, 0), 4), c.fecha, c.id_sucursal
+    SELECT ROUND(COALESCE(c.total_importe, 0), 4), COALESCE(c.fecha_venta, c.fecha), c.id_sucursal
     INTO v_total_nuevo, v_fecha, v_id_sucursal_nueva
     FROM ven_comprobante c WHERE c.id = p_id;
 
@@ -970,12 +975,15 @@ BEGIN
        OR v_id_sucursal_nueva IS DISTINCT FROM v_id_sucursal_anterior
        OR p_pagos IS NOT NULL THEN
 
+        -- Solo el efectivo (antes o después de la corrección) exige que las cajas no estén cerradas;
+        -- sin efectivo se corrige igual y se recalcula el arqueo de las cajas cerradas al final.
         SELECT EXISTS (
             SELECT 1 FROM ven_pagos_de_comprobante(p_id) pg
-            WHERE NOT fin_medio_pago_flag(pg.id_medio_pago, 'ES_CREDITO')
+            WHERE pg.id_medio_pago IS NULL OR fin_medio_pago_flag(pg.id_medio_pago, 'ES_EFECTIVO')
         ) OR (p_pagos IS NOT NULL AND json_typeof(p_pagos) = 'array' AND EXISTS (
             SELECT 1 FROM json_array_elements(p_pagos) j
-            WHERE NOT fin_medio_pago_flag(NULLIF(j.value->>'idMedioPago', '')::INTEGER, 'ES_CREDITO')
+            WHERE NULLIF(j.value->>'idMedioPago', '') IS NULL
+               OR fin_medio_pago_flag((j.value->>'idMedioPago')::INTEGER, 'ES_EFECTIVO')
         ))
         INTO v_afecta_caja;
 
@@ -1034,6 +1042,20 @@ BEGIN
     v_err_pagos := ven_sincronizar_pagos_comprobante(p_id, p_pagos, p_id_usuario_auditoria);
     IF v_err_pagos IS NOT NULL THEN
         RAISE EXCEPTION '%', v_err_pagos USING ERRCODE = '22023';
+    END IF;
+
+    IF v_afecta_caja IS NOT NULL AND NOT v_afecta_caja THEN
+        FOR v_fecha_caja, v_id_sucursal_caja IN
+            SELECT DISTINCT f.fecha, f.id_sucursal
+            FROM (VALUES (v_fecha_anterior, v_id_sucursal_anterior), (v_fecha, v_id_sucursal_nueva)) f(fecha, id_sucursal)
+            WHERE f.fecha IS NOT NULL
+        LOOP
+            PERFORM fin_caja_refrescar_cerrada(
+                v_fecha_caja, v_id_sucursal_caja, v_total_nuevo,
+                'Corrección sin efectivo del comprobante #' || p_id,
+                p_id_usuario_auditoria
+            );
+        END LOOP;
     END IF;
 
     IF v_edicion_segura THEN

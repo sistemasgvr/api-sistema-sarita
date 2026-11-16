@@ -442,6 +442,7 @@ export class ComprobantesModel {
       dto.origenPos ?? null,
       mapEfectosPosToJson(dto.efectosPos),
       dto.pagos ? JSON.stringify(dto.pagos) : null,
+      dto.fechaVenta ?? null,
     ]);
   }
 

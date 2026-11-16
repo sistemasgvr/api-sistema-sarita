@@ -1,4 +1,4 @@
--- Valida que el cambio de pago de una compra caiga en una caja abierta
+-- Valida que el cambio de pago en efectivo de una compra caiga en una caja abierta
 DROP FUNCTION IF EXISTS public.com_assert_caja_compra (p_antes jsonb, p_despues jsonb);
 
 CREATE OR REPLACE FUNCTION public.com_assert_caja_compra (p_antes jsonb, p_despues jsonb) RETURNS text LANGUAGE plpgsql STABLE AS $function$
@@ -12,10 +12,11 @@ BEGIN
 
     FOREACH v_pago IN ARRAY ARRAY[p_antes, p_despues]
     LOOP
-        CONTINUE WHEN v_pago IS NULL OR NOT COALESCE((v_pago->>'afectaCaja')::BOOLEAN, FALSE);
+        -- Solo el efectivo exige la caja abierta (Yape, Plin, transferencia... no mueven efectivo).
+        CONTINUE WHEN v_pago IS NULL OR NOT COALESCE((v_pago->>'esEfectivo')::BOOLEAN, FALSE);
 
         IF v_pago->>'idSucursal' IS NULL THEN
-            RETURN 'Una compra al contado pagada con un medio que afecta caja necesita sucursal: el pago sale de la caja de esa sucursal.';
+            RETURN 'Una compra al contado pagada en efectivo necesita sucursal: el pago sale de la caja de esa sucursal.';
         END IF;
 
         v_err := fin_caja_assert_abierta((v_pago->>'fecha')::DATE, (v_pago->>'idSucursal')::INTEGER);

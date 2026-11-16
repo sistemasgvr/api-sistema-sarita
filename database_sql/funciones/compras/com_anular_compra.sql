@@ -26,6 +26,7 @@ DECLARE
     v_ids_balones_compra  INTEGER[];
     v_balon_ocupado       RECORD;
     v_err_caja            TEXT;
+    v_pago_caja           JSONB;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -39,7 +40,8 @@ BEGIN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id_comprobante);
     END IF;
 
-    v_err_caja := com_assert_caja_compra(com_pago_caja_compra(p_id_comprobante), NULL);
+    v_pago_caja := com_pago_caja_compra(p_id_comprobante);
+    v_err_caja := com_assert_caja_compra(v_pago_caja, NULL);
     IF v_err_caja IS NOT NULL THEN
         RETURN json_build_object('eliminado', FALSE, 'id', p_id_comprobante, 'error', v_err_caja);
     END IF;
@@ -265,6 +267,12 @@ BEGIN
         WHERE id = v_id_cuenta_padre
            OR id_cuenta_padre = v_id_cuenta_padre;
     END LOOP;
+
+    PERFORM com_refrescar_caja_compra(
+        v_pago_caja, NULL,
+        'Compra #' || p_id_comprobante || ' sin efectivo anulada con la caja cerrada',
+        p_id_usuario_auditoria
+    );
 
     RETURN json_build_object('eliminado', TRUE, 'id', p_id_comprobante);
 END;

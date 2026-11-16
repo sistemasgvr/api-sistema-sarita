@@ -500,6 +500,12 @@ BEGIN
         RAISE EXCEPTION '%', v_err_pago;
     END IF;
 
+    PERFORM com_refrescar_caja_compra(
+        NULL, com_pago_caja_compra(v_id_compra),
+        'Compra #' || v_id_compra || ' sin efectivo registrada con la caja cerrada',
+        p_id_usuario_auditoria
+    );
+
     RETURN com_obtener_compra(v_id_compra);
 END;
 $function$;

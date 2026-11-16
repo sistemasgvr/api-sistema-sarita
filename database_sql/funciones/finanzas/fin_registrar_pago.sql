@@ -55,9 +55,12 @@ BEGIN
     END IF;
     v_id_sucursal := COALESCE(v_id_sucursal_cuenta, p_id_sucursal);
 
-    v_err_caja := fin_caja_assert_abierta(COALESCE(p_fecha_pago, CURRENT_DATE), v_id_sucursal);
-    IF v_err_caja IS NOT NULL THEN
-        RETURN json_build_object('registro', NULL, 'error', v_err_caja);
+    -- Solo el efectivo exige la caja abierta; con otros medios se recalcula el arqueo si estaba cerrada.
+    IF fin_medio_pago_flag(p_id_medio_pago, 'ES_EFECTIVO') THEN
+        v_err_caja := fin_caja_assert_abierta(COALESCE(p_fecha_pago, CURRENT_DATE), v_id_sucursal);
+        IF v_err_caja IS NOT NULL THEN
+            RETURN json_build_object('registro', NULL, 'error', v_err_caja);
+        END IF;
     END IF;
 
     v_err_caja := fin_validar_cuenta_medio_pago(p_id_medio_pago, p_id_cuenta_bancaria);
@@ -153,6 +156,14 @@ BEGIN
 
     IF v_cuenta.id_cuenta_padre IS NOT NULL THEN
         PERFORM fin_refrescar_cabecera_plan(v_cuenta.id_cuenta_padre);
+    END IF;
+
+    IF NOT fin_medio_pago_flag(p_id_medio_pago, 'ES_EFECTIVO') THEN
+        PERFORM fin_caja_refrescar_cerrada(
+            COALESCE(p_fecha_pago, CURRENT_DATE), v_id_sucursal, v_monto,
+            'Pago #' || v_id_pago || ' sin efectivo registrado con la caja cerrada',
+            p_id_usuario
+        );
     END IF;
 
     RETURN json_build_object(

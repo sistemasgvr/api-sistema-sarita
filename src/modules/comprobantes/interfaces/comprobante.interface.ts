@@ -21,6 +21,8 @@ export interface ComprobanteRegistro {
   codigo_motivo_nota?: string | null;
   nombre_motivo_nota?: string | null;
   fecha: string;
+  /** Día de la venta si es anterior a la emisión (caja y libro diario); NULL = misma fecha. */
+  fecha_venta?: string | null;
   fecha_emision_cpe?: string | null;
   fecha_vencimiento?: string | null;
   tipo_cambio?: number | null;

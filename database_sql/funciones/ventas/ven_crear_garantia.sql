@@ -15,7 +15,8 @@ DROP FUNCTION IF EXISTS public.ven_crear_garantia (
   p_id_medio_pago integer,
   p_id_cuenta_bancaria integer,
   p_numero_operacion character varying,
-  p_id_prestamo_detalle integer
+  p_id_prestamo_detalle integer,
+  p_id_sucursal integer
 );
 
 CREATE OR REPLACE FUNCTION public.ven_crear_garantia (
@@ -34,7 +35,8 @@ CREATE OR REPLACE FUNCTION public.ven_crear_garantia (
   p_id_medio_pago integer DEFAULT NULL::integer,
   p_id_cuenta_bancaria integer DEFAULT NULL::integer,
   p_numero_operacion character varying DEFAULT NULL::character varying,
-  p_id_prestamo_detalle integer DEFAULT NULL::integer
+  p_id_prestamo_detalle integer DEFAULT NULL::integer,
+  p_id_sucursal integer DEFAULT NULL::integer
 ) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_id INTEGER;
@@ -116,8 +118,9 @@ BEGIN
     END IF;
 
     v_fecha := COALESCE(p_fecha_registro, CURRENT_DATE);
+    v_id_sucursal := p_id_sucursal;
 
-    IF p_id_comprobante IS NOT NULL THEN
+    IF v_id_sucursal IS NULL AND p_id_comprobante IS NOT NULL THEN
         SELECT c.id_sucursal INTO v_id_sucursal
         FROM ven_comprobante c
         WHERE c.id = p_id_comprobante AND c.estado = 1;

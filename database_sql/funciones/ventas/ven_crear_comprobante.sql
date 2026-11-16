@@ -1,4 +1,4 @@
--- Emite un comprobante de venta con detalles, cuotas y pagos, y aplica sus efectos
+-- Emite un comprobante de venta con detalles, cuotas y pagos, y aplica sus efectos (fecha de venta opcional para la caja)
 DROP FUNCTION IF EXISTS public.ven_crear_comprobante (
   p_id_tipo_comprobante integer,
   p_serie character varying,
@@ -30,6 +30,38 @@ DROP FUNCTION IF EXISTS public.ven_crear_comprobante (
   p_pagos json
 );
 
+DROP FUNCTION IF EXISTS public.ven_crear_comprobante (
+  p_id_tipo_comprobante integer,
+  p_serie character varying,
+  p_numero character varying,
+  p_fecha date,
+  p_id_cliente integer,
+  p_detalles json,
+  p_id_tipo_operacion_sunat integer,
+  p_id_comprobante_origen integer,
+  p_id_motivo_nota integer,
+  p_id_tipo_movimiento integer,
+  p_id_tipo_venta integer,
+  p_fecha_vencimiento date,
+  p_tipo_cambio numeric,
+  p_id_sucursal integer,
+  p_id_almacen integer,
+  p_id_condicion_pago integer,
+  p_id_moneda integer,
+  p_id_medio_pago integer,
+  p_glosa character varying,
+  p_observaciones character varying,
+  p_periodo_contable character varying,
+  p_operacion character varying,
+  p_id_estado integer,
+  p_cuotas json,
+  p_id_usuario_auditoria integer,
+  p_origen_pos character varying,
+  p_efectos_pos json,
+  p_pagos json,
+  p_fecha_venta date
+);
+
 CREATE OR REPLACE FUNCTION public.ven_crear_comprobante (
   p_id_tipo_comprobante integer,
   p_serie character varying,
@@ -58,10 +90,17 @@ CREATE OR REPLACE FUNCTION public.ven_crear_comprobante (
   p_id_usuario_auditoria integer DEFAULT NULL::integer,
   p_origen_pos character varying DEFAULT NULL::character varying,
   p_efectos_pos json DEFAULT NULL::json,
-  p_pagos json DEFAULT NULL::json
+  p_pagos json DEFAULT NULL::json,
+  p_fecha_venta date DEFAULT NULL::date
 ) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_err_pagos TEXT;
+    -- Fecha en que se hizo la venta: manda en la caja y el libro diario. p_fecha es la emisión (SUNAT, correlativo).
+    v_fecha_venta DATE;
+    v_mueve_efectivo BOOLEAN;
+    -- Factura/boleta emitida desde una venta sin documento (NV/VSD): esa venta ya pasó por su caja.
+    v_desde_vsd BOOLEAN := FALSE;
+    v_fecha_venta_origen DATE;
     v_id INTEGER;
     v_id_detalle INTEGER;
     v_serie VARCHAR;
@@ -163,9 +202,51 @@ BEGIN
         LIMIT 1;
     END IF;
 
-    v_err_caja := fin_caja_assert_abierta(p_fecha, p_id_sucursal);
-    IF v_err_caja IS NOT NULL THEN
-        RETURN json_build_object('error', v_err_caja, 'registro', NULL);
+    IF p_id_comprobante_origen IS NOT NULL THEN
+        SELECT
+            UPPER(COALESCE(tori.descripcion, '')) IN ('NV', 'VSD')
+                AND COALESCE(tnue.descripcion, '') IN ('01', '03'),
+            COALESCE(ori.fecha_venta, ori.fecha)
+        INTO v_desde_vsd, v_fecha_venta_origen
+        FROM ven_comprobante ori
+        JOIN gen_lista_opciones tori ON tori.id = ori.id_tipo_comprobante
+        LEFT JOIN gen_lista_opciones tnue ON tnue.id = p_id_tipo_comprobante
+        WHERE ori.id = p_id_comprobante_origen;
+        v_desde_vsd := COALESCE(v_desde_vsd, FALSE);
+    END IF;
+
+    -- Desde una venta sin documento la fecha de venta es la de esa venta (se emite con la fecha de hoy).
+    v_fecha_venta := COALESCE(
+        p_fecha_venta,
+        CASE WHEN v_desde_vsd THEN LEAST(v_fecha_venta_origen, p_fecha) END,
+        p_fecha
+    );
+
+    IF v_fecha_venta > p_fecha THEN
+        RETURN json_build_object(
+            'error', format(
+                'La fecha de venta (%s) no puede ser posterior a la fecha de emisión (%s)',
+                to_char(v_fecha_venta, 'DD/MM/YYYY'), to_char(p_fecha, 'DD/MM/YYYY')
+            ),
+            'registro', NULL
+        );
+    END IF;
+
+    -- Solo el efectivo exige la caja abierta del día de la venta; transferencia, Yape, Plin, tarjeta
+    -- o crédito se pueden registrar en un día con la caja cerrada (su arqueo se recalcula al final).
+    -- Desde una venta sin documento no se pide caja: el cobro ya entró con esa venta y la caja
+    -- no vuelve a contar el documento derivado (fin_caja_calcular_totales).
+    v_mueve_efectivo := NOT v_desde_vsd
+        AND ven_pagos_mueven_efectivo(p_pagos, p_id_medio_pago, p_id_condicion_pago);
+    IF v_mueve_efectivo THEN
+        v_err_caja := fin_caja_assert_abierta(v_fecha_venta, p_id_sucursal);
+        IF v_err_caja IS NOT NULL THEN
+            IF v_fecha_venta <> p_fecha THEN
+                v_err_caja := 'La venta del ' || to_char(v_fecha_venta, 'DD/MM/YYYY')
+                    || ' se cobra en efectivo. ' || v_err_caja;
+            END IF;
+            RETURN json_build_object('error', v_err_caja, 'registro', NULL);
+        END IF;
     END IF;
 
     IF p_id_cliente IS NULL THEN
@@ -681,7 +762,8 @@ BEGIN
         sub_total, descuento, valor_venta, igv, total_importe,
         exonerado, glosa, observaciones,
         periodo_contable, operacion, origen_pos, id_estado,
-        id_usuario_creacion, id_usuario_modificacion
+        id_usuario_creacion, id_usuario_modificacion,
+        fecha_venta
     )
     VALUES (
         p_id_tipo_comprobante, v_serie, v_numero,
@@ -694,7 +776,9 @@ BEGIN
         v_sub_total, v_descuento_total, v_valor_venta_total, v_igv_total, v_total_importe,
         v_exonerado_total, p_glosa, p_observaciones,
         p_periodo_contable, p_operacion, NULLIF(TRIM(p_origen_pos), ''), v_id_estado_doc,
-        p_id_usuario_auditoria, p_id_usuario_auditoria
+        p_id_usuario_auditoria, p_id_usuario_auditoria,
+        -- NULL = la venta es del mismo día de la emisión
+        NULLIF(v_fecha_venta, p_fecha)
     )
     RETURNING id INTO v_id;
 
@@ -1219,6 +1303,16 @@ BEGIN
     v_err_pagos := ven_sincronizar_pagos_comprobante(v_id, p_pagos, p_id_usuario_auditoria);
     IF v_err_pagos IS NOT NULL THEN
         RAISE EXCEPTION '%', v_err_pagos USING ERRCODE = '22023';
+    END IF;
+
+    IF NOT v_mueve_efectivo AND NOT v_desde_vsd THEN
+        PERFORM fin_caja_refrescar_cerrada(
+            v_fecha_venta,
+            p_id_sucursal,
+            v_total_importe,
+            format('Venta %s-%s sin efectivo registrada con la caja cerrada', v_serie, v_numero),
+            p_id_usuario_auditoria
+        );
     END IF;
 
     RETURN ven_obtener_comprobante(v_id);

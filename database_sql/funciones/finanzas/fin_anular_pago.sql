@@ -16,6 +16,7 @@ DECLARE
     v_cuenta  fin_cuenta%ROWTYPE;
     v_err_caja TEXT;
     v_id_sucursal INT;
+    v_es_efectivo BOOLEAN;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -25,9 +26,13 @@ BEGIN
     END IF;
 
     v_id_sucursal := COALESCE(v_pago.id_sucursal, fin_sucursal_de_cuenta(v_pago.id_cuenta));
-    v_err_caja := fin_caja_assert_abierta(v_pago.fecha_pago, v_id_sucursal);
-    IF v_err_caja IS NOT NULL THEN
-        RETURN json_build_object('eliminado', false, 'id', p_id_pago, 'error', v_err_caja);
+    -- Sin medio, la caja lo cuenta como efectivo.
+    v_es_efectivo := v_pago.id_medio_pago IS NULL OR fin_medio_pago_flag(v_pago.id_medio_pago, 'ES_EFECTIVO');
+    IF v_es_efectivo THEN
+        v_err_caja := fin_caja_assert_abierta(v_pago.fecha_pago, v_id_sucursal);
+        IF v_err_caja IS NOT NULL THEN
+            RETURN json_build_object('eliminado', false, 'id', p_id_pago, 'error', v_err_caja);
+        END IF;
     END IF;
 
     SELECT * INTO v_cuenta FROM fin_cuenta WHERE id = v_pago.id_cuenta;
@@ -62,6 +67,14 @@ BEGIN
 
     IF v_cuenta.id_cuenta_padre IS NOT NULL THEN
         PERFORM fin_refrescar_cabecera_plan(v_cuenta.id_cuenta_padre);
+    END IF;
+
+    IF NOT v_es_efectivo THEN
+        PERFORM fin_caja_refrescar_cerrada(
+            v_pago.fecha_pago, v_id_sucursal, v_pago.monto,
+            'Pago #' || p_id_pago || ' sin efectivo anulado con la caja cerrada',
+            p_id_usuario
+        );
     END IF;
 
     RETURN json_build_object('eliminado', true, 'id', p_id_pago);

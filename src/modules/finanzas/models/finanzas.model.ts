@@ -180,6 +180,8 @@ export class FinanzasModel {
       dto.idMedioPago ?? null,
       dto.idCuentaBancaria ?? null,
       dto.numeroOperacion ?? null,
+      null,
+      dto.idSucursal ?? null,
     ]);
   }
 
