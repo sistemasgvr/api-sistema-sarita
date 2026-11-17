@@ -109,7 +109,7 @@ export class ComprobanteInvoiceMapper {
       serie: normalizarCodigoSunat(cabecera.serie),
       correlativo,
       fechaEmision,
-      ...(pago.formaPago ? { formaPago: pago.formaPago } : {}),
+      formaPago: pago.formaPago,
       ...(pago.cuotas?.length ? { cuotas: pago.cuotas } : {}),
       tipoMoneda,
       client: this.mapCliente(cliente, ubigeoCliente),
