@@ -92,15 +92,22 @@ export class ComprobanteInvoiceMapper {
     const codMotivoNota = esNota
       ? normalizarCodigoSunat(cabecera.codigo_motivo_nota ?? '01')
       : null;
+    const modificaCredito = tipoDoc === '07' && codMotivoNota === '13';
     const pago =
-      esNota && !(tipoDoc === '07' && codMotivoNota === '13')
-        ? { formaPago: undefined, cuotas: undefined }
+      esNota && !modificaCredito
+        ? undefined
         : this.mapFormaPago(
             cabecera,
             comprobante.cuotas ?? [],
             tipoMoneda,
             totales.mtoImpVenta,
           );
+
+    if (modificaCredito && pago?.formaPago.tipo !== 'Credito') {
+      throw new BadRequestException(
+        'La nota de crédito de motivo 13 requiere condiciones de pago al crédito y sus cuotas.',
+      );
+    }
 
     const payload: FacturacionApisperuPayload = {
       ublVersion: '2.1',
@@ -109,8 +116,8 @@ export class ComprobanteInvoiceMapper {
       serie: normalizarCodigoSunat(cabecera.serie),
       correlativo,
       fechaEmision,
-      formaPago: pago.formaPago,
-      ...(pago.cuotas?.length ? { cuotas: pago.cuotas } : {}),
+      ...(pago ? { formaPago: pago.formaPago } : {}),
+      ...(pago?.cuotas?.length ? { cuotas: pago.cuotas } : {}),
       tipoMoneda,
       client: this.mapCliente(cliente, ubigeoCliente),
       company: this.mapEmpresa(empresa),
