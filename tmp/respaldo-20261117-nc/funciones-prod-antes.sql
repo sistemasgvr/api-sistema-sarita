@@ -1,0 +1,1940 @@
+BEGIN;
+DROP FUNCTION IF EXISTS public.ven_aplicar_nc_aceptada(integer, integer);
+CREATE OR REPLACE FUNCTION public.doc_anular_salida(p_id integer, p_motivo character varying DEFAULT NULL::character varying, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_doc RECORD;
+    v_compra RECORD;
+    v_id_anulada INTEGER;
+    v_rev JSON;
+    v_id_disponible INTEGER;
+    v_id_pend_envio INTEGER;
+    v_id_transito INTEGER;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT d.*, ec.nombre AS estado_ciclo
+    INTO v_doc
+    FROM doc_salida d
+    JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
+    WHERE d.id = p_id AND d.estado = 1;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('error', 'El documento de salida no existe o ya fue eliminado', 'registro', NULL);
+    END IF;
+
+    IF v_doc.estado_ciclo = 'ANULADA' THEN
+        RETURN doc_obtener_salida(p_id);
+    END IF;
+
+    IF COALESCE(v_doc.emitido_sunat, FALSE) THEN
+        RETURN json_build_object(
+            'error',
+            'El documento fue aceptado por SUNAT; requiere comunicación de baja, no anulación directa',
+            'registro', NULL
+        );
+    END IF;
+
+    -- Ticket PSE pendiente: anular rompería el correlativo/ticket en SUNAT
+    -- sin poder reconciliar (consultarEstado rechaza ANULADA).
+    IF NULLIF(TRIM(COALESCE(v_doc.ticket_sunat, '')), '') IS NOT NULL THEN
+        RETURN json_build_object(
+            'error',
+            'La guía tiene un ticket SUNAT pendiente; consulta el CDR o espera la aceptación antes de anular',
+            'registro', NULL
+        );
+    END IF;
+
+    -- Orden de planta con factura vinculada: la compra tiene su gas del retorno
+    -- etiquetado COMPRA, que la reversa por ORDEN_SALIDA no alcanza. Anular la
+    -- compra primero (que desvincula y ajusta el gas) deja todo consistente.
+    IF v_doc.id_comprobante_compra IS NOT NULL AND EXISTS (
+        SELECT 1 FROM com_comprobante_compra c
+        WHERE c.id = v_doc.id_comprobante_compra AND c.estado = 1
+    ) THEN
+        SELECT c.serie, c.numero INTO v_compra
+        FROM com_comprobante_compra c
+        WHERE c.id = v_doc.id_comprobante_compra;
+
+        RETURN json_build_object(
+            'error', format(
+                'La orden tiene la compra %s vinculada; anúlala primero en Compras',
+                COALESCE(NULLIF(TRIM(CONCAT_WS('-', v_compra.serie, v_compra.numero)), ''), '#' || v_doc.id_comprobante_compra)
+            ),
+            'registro', NULL
+        );
+    END IF;
+
+    -- Entrega ya realizada: los cilindros pasaron a EN_PODER_CLIENTE y el
+    -- cliente se quedó con ellos. Anular repondría stock inexistente, así que
+    -- se bloquea aquí y también en la cascada desde ven_eliminar_comprobante.
+    IF EXISTS (
+        SELECT 1
+        FROM age_actividad a
+        JOIN gen_lista_opciones ta ON ta.id = a.id_tipo_actividad
+        LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
+        WHERE a.id_doc_salida = p_id
+          AND a.estado = 1
+          AND UPPER(TRIM(ta.nombre)) = 'REPARTO'
+          AND UPPER(TRIM(COALESCE(ea.nombre, ''))) = 'REALIZADA'
+    ) THEN
+        RETURN json_build_object(
+            'error',
+            'El reparto de esta orden ya fue entregado al cliente; no se puede anular. '
+            || 'Registra la devolución de los cilindros o emite una nota de crédito.',
+            'registro', NULL
+        );
+    END IF;
+
+    -- No anular si hay reparto / actividad operativa todavía vigente.
+    IF EXISTS (
+        SELECT 1
+        FROM age_actividad a
+        LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
+        WHERE a.id_doc_salida = p_id
+          AND a.estado = 1
+          AND COALESCE(UPPER(TRIM(ea.nombre)), '') NOT IN (
+              'CANCELADA', 'CANCELADO', 'REALIZADA'
+          )
+    ) THEN
+        RETURN json_build_object(
+            'error', 'Hay actividad de reparto vigente; cancélala antes de anular la OS',
+            'registro', NULL
+        );
+    END IF;
+
+    SELECT lo.id INTO v_id_disponible
+    FROM gen_lista_opciones lo
+    JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'DISPONIBLE' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_pend_envio
+    FROM gen_lista_opciones lo
+    JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'PENDIENTE_ENVIO' AND lo.estado = 1
+    LIMIT 1;
+
+    SELECT lo.id INTO v_id_transito
+    FROM gen_lista_opciones lo
+    JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'EN_TRANSITO' AND lo.estado = 1
+    LIMIT 1;
+
+    IF v_id_disponible IS NULL OR v_id_pend_envio IS NULL OR v_id_transito IS NULL THEN
+        RETURN json_build_object(
+            'error', 'Faltan estados DISPONIBLE, PENDIENTE_ENVIO o EN_TRANSITO en catalogo EstadoBalon',
+            'registro', NULL
+        );
+    END IF;
+
+    -- El estado ANULADA se resuelve antes de revertir inventario: si faltara en
+    -- el catálogo, el error soft se devolvía con los movimientos ya revertidos y
+    -- la orden seguía activa.
+    SELECT lo.id INTO v_id_anulada
+    FROM gen_lista_opciones lo
+    JOIN gen_lista l ON l.id = lo.id_lista
+    WHERE l.nombre = 'EstadoCicloSalida' AND lo.nombre = 'ANULADA' AND lo.estado = 1;
+
+    IF v_id_anulada IS NULL THEN
+        RETURN json_build_object(
+            'error', 'No se encontro el estado ANULADA en catalogo EstadoCicloSalida',
+            'registro', NULL
+        );
+    END IF;
+
+    -- Solo se revierte lo que este documento movió por su cuenta.
+    IF v_doc.id_venta IS NULL THEN
+        v_rev := inv_revertir_por_documento('ORDEN_SALIDA', p_id, p_id_usuario_auditoria);
+
+        IF v_rev->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_rev->>'error';
+        END IF;
+
+        UPDATE doc_salida_detalle
+        SET id_movimiento = NULL,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id_doc_salida = p_id;
+    END IF;
+
+    -- ------------------------------------------------------------
+    -- Custodia logística: PENDIENTE_ENVIO / EN_TRANSITO → DISPONIBLE
+    --
+    -- Con id_venta el inventario lo movió la venta (no hay movimiento OS),
+    -- pero los cilindros sí quedaron comprometidos al crear la OS
+    -- (doc_crear_desde_venta). Sin esto quedan atrapados al anular.
+    -- Sin id_venta, cubre residuales que no hayan pasado por kardex BALON.
+    -- ------------------------------------------------------------
+    UPDATE bal_balon b
+    SET id_estado_balon = v_id_disponible,
+        id_almacen = COALESCE(v_doc.id_almacen, b.id_almacen),
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE b.estado = 1
+      AND b.id_estado_balon IN (v_id_pend_envio, v_id_transito)
+      AND b.id IN (
+          SELECT dd.id_balon
+          FROM doc_salida_detalle dd
+          WHERE dd.id_doc_salida = p_id
+            AND dd.id_balon IS NOT NULL
+            AND dd.estado = 1
+          UNION
+          SELECT vd.id_balon
+          FROM ven_comprobante_detalle vd
+          WHERE v_doc.id_venta IS NOT NULL
+            AND vd.id_comprobante = v_doc.id_venta
+            AND vd.id_balon IS NOT NULL
+            AND COALESCE(vd.descripcion, '') !~* 'garant[ií]a'
+          UNION
+          -- Misma cobertura que doc_crear_desde_venta / doc_obtener_salida
+          SELECT pd.id_balon
+          FROM bal_prestamo pr
+          INNER JOIN bal_prestamo_detalle pd
+              ON pd.id_prestamo = pr.id AND pd.estado = 1
+          WHERE v_doc.id_venta IS NOT NULL
+            AND pr.id_comprobante_venta = v_doc.id_venta
+            AND pr.estado = 1
+            AND pd.rol = 'ENTREGADO'
+            AND pd.id_balon IS NOT NULL
+      );
+
+    UPDATE doc_salida
+    SET id_estado_ciclo = v_id_anulada,
+        observaciones = TRIM(BOTH ' ' FROM CONCAT_WS(' | ',
+            NULLIF(observaciones, ''),
+            'Anulada: ' || COALESCE(NULLIF(TRIM(p_motivo), ''), 'sin motivo indicado'))),
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id;
+
+    RETURN doc_obtener_salida(p_id);
+END;
+$function$
+;
+CREATE OR REPLACE FUNCTION public.ven_cerrar_custodia_comprobante(p_id_comprobante integer, p_id_usuario integer DEFAULT NULL::integer)
+ RETURNS void
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_prestamo RECORD;
+    v_detalle RECORD;
+    v_recarga RECORD;
+    v_alquiler RECORD;
+    v_guia RECORD;
+    v_mant RECORD;
+    v_result JSON;
+    v_id_en_almacen INTEGER;
+    v_id_estado_final INTEGER;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    IF p_id_comprobante IS NULL THEN
+        RETURN;
+    END IF;
+
+    -- Préstamos: devolver cilindros pendientes y cerrar cabecera
+    FOR v_prestamo IN
+        SELECT id FROM bal_prestamo
+        WHERE estado = 1 AND id_comprobante_venta = p_id_comprobante
+    LOOP
+        FOR v_detalle IN
+            SELECT id FROM bal_prestamo_detalle
+            WHERE estado = 1 AND id_prestamo = v_prestamo.id AND fecha_devolucion IS NULL
+        LOOP
+            v_result := bal_devolver_prestamo_detalle(
+                v_detalle.id,
+                CURRENT_DATE,
+                NULL,
+                p_id_usuario,
+                'VACIO',
+                'Devolución automática por anulación/NC del comprobante'
+            );
+            PERFORM ven_raise_si_error(v_result);
+        END LOOP;
+    END LOOP;
+
+    -- Recargas mostrador: devolver el gas a pro_stock y soltar el balón (inv_movimiento)
+    FOR v_recarga IN
+        SELECT id, id_balon
+        FROM bal_movimiento_recarga
+        WHERE estado = 1 AND id_comprobante = p_id_comprobante
+    LOOP
+        v_result := inv_revertir_por_documento('RECARGA', v_recarga.id, p_id_usuario);
+        PERFORM ven_raise_si_error(v_result);
+
+        UPDATE bal_movimiento_recarga
+        SET estado = 0, id_usuario_modificacion = p_id_usuario, fecha_modificacion = NOW()
+        WHERE id = v_recarga.id AND estado = 1;
+    END LOOP;
+
+    -- Alquileres: reingreso del regulador/accesorio (el alquiler no lleva
+    -- cilindros; esos van por préstamo). bal_devolver_regulador_alquiler ya
+    -- finaliza el contrato; el UPDATE de abajo cubre un alquiler sin accesorio.
+    FOR v_alquiler IN
+        SELECT id FROM bal_alquiler
+        WHERE estado = 1 AND id_comprobante_venta = p_id_comprobante
+    LOOP
+        v_result := bal_devolver_regulador_alquiler(
+            v_alquiler.id,
+            CURRENT_DATE,
+            'BUENO',
+            'Devolución automática por anulación/NC del comprobante',
+            p_id_usuario
+        );
+        IF v_result->>'error' IS NOT NULL
+           AND v_result->>'error' NOT ILIKE '%no tiene regulador%'
+        THEN
+            PERFORM ven_raise_si_error(v_result);
+        END IF;
+
+        SELECT lo.id INTO v_id_estado_final
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON l.id = lo.id_lista
+        WHERE l.nombre = 'EstadoAlquiler' AND lo.nombre = 'FINALIZADO' AND lo.estado = 1
+        LIMIT 1;
+
+        UPDATE bal_alquiler
+        SET
+            fecha_fin_real = COALESCE(fecha_fin_real, CURRENT_DATE),
+            id_estado = COALESCE(v_id_estado_final, id_estado),
+            id_usuario_modificacion = p_id_usuario,
+            fecha_modificacion = NOW()
+        WHERE id = v_alquiler.id AND estado = 1;
+    END LOOP;
+
+    -- GRE (doc_salida) no aceptada por SUNAT que referencia este CPE.
+    -- Las guías viven en doc_salida desde F2; se anulan con doc_anular_salida,
+    -- que revierte la salida de inventario y libera la custodia de los
+    -- cilindros (PENDIENTE_ENVIO / EN_TRANSITO → DISPONIBLE). Es idempotente
+    -- sobre una ya ANULADA (p. ej. la OS de la venta que ven_eliminar_comprobante
+    -- anuló antes por id_venta) y falla en claro si la guía tiene ticket SUNAT
+    -- pendiente o un reparto vigente: ese error sí debe frenar la anulación.
+    FOR v_guia IN
+        SELECT DISTINCT g.id, c.serie, c.numero
+        FROM doc_salida g
+        INNER JOIN doc_salida_referencia r ON r.id_doc_salida = g.id AND r.estado = 1
+        INNER JOIN ven_comprobante c ON c.id = p_id_comprobante
+        INNER JOIN gen_lista_opciones ec ON ec.id = g.id_estado_ciclo
+        LEFT JOIN gen_lista_opciones es ON es.id = g.id_estado_sunat
+        WHERE g.estado = 1
+          AND ec.nombre <> 'ANULADA'
+          AND (
+              r.id_comprobante = c.id
+              OR (
+                  UPPER(COALESCE(r.serie, '')) = UPPER(COALESCE(c.serie, ''))
+                  AND COALESCE(r.numero, '') = COALESCE(c.numero, '')
+              )
+          )
+          AND COALESCE(UPPER(es.nombre), 'PENDIENTE') <> 'ACEPTADO'
+          AND NOT COALESCE(g.emitido_sunat, FALSE)
+    LOOP
+        v_result := doc_anular_salida(
+            v_guia.id,
+            format(
+                'Comprobante %s-%s anulado / con nota de crédito',
+                COALESCE(v_guia.serie, ''),
+                COALESCE(v_guia.numero, p_id_comprobante::TEXT)
+            ),
+            p_id_usuario
+        );
+        PERFORM ven_raise_si_error(v_result);
+    END LOOP;
+
+    -- Mantenimiento no finalizado ligado al CPE
+    FOR v_mant IN
+        SELECT m.id, m.id_balon, em.nombre AS nombre_estado
+        FROM bal_mantenimiento m
+        LEFT JOIN gen_lista_opciones em ON em.id = m.id_estado
+        WHERE m.estado = 1 AND m.id_comprobante_venta = p_id_comprobante
+    LOOP
+        IF UPPER(COALESCE(v_mant.nombre_estado, '')) = 'FINALIZADO' THEN
+            CONTINUE;
+        END IF;
+
+        UPDATE bal_mantenimiento
+        SET
+            estado = 0,
+            id_comprobante_venta = NULL,
+            id_usuario_modificacion = p_id_usuario,
+            fecha_modificacion = NOW()
+        WHERE id = v_mant.id AND estado = 1;
+
+        SELECT lo.id INTO v_id_en_almacen
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON lo.id_lista = l.id
+        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
+        LIMIT 1;
+
+        UPDATE bal_balon b
+        SET
+            id_estado_balon = COALESCE(v_id_en_almacen, b.id_estado_balon),
+            id_usuario_modificacion = p_id_usuario,
+            fecha_modificacion = NOW()
+        WHERE b.id = v_mant.id_balon
+          AND b.estado = 1
+          AND EXISTS (
+              SELECT 1 FROM gen_lista_opciones eb
+              WHERE eb.id = b.id_estado_balon
+                AND UPPER(COALESCE(eb.nombre, '')) = 'EN_MANTENIMIENTO'
+          );
+    END LOOP;
+
+    -- Garantía sin reembolsos: se da de baja el cobro documental (el efectivo iba en el CPE)
+    UPDATE ven_garantia_movimiento gm
+    SET estado = 0, id_usuario_modificacion = p_id_usuario, fecha_modificacion = NOW()
+    WHERE gm.estado = 1
+      AND gm.id_comprobante = p_id_comprobante
+      AND NOT EXISTS (
+          SELECT 1
+          FROM ven_garantia_movimiento d
+          INNER JOIN gen_lista_opciones td ON td.id = d.id_tipo_movimiento
+          WHERE d.id_garantia = gm.id_garantia
+            AND d.estado = 1
+            AND UPPER(td.nombre) = 'DEVOLUCION'
+      );
+
+    UPDATE ven_garantia g
+    SET estado = 0, id_usuario_modificacion = p_id_usuario, fecha_modificacion = NOW()
+    WHERE g.estado = 1
+      AND COALESCE(g.monto_devuelto, 0) = 0
+      AND NOT EXISTS (
+          SELECT 1 FROM ven_garantia_movimiento gm
+          WHERE gm.id_garantia = g.id AND gm.estado = 1
+      )
+      AND EXISTS (
+          SELECT 1 FROM ven_garantia_movimiento gm0
+          WHERE gm0.id_garantia = g.id AND gm0.id_comprobante = p_id_comprobante
+      );
+END;
+$function$
+;
+CREATE OR REPLACE FUNCTION public.ven_crear_comprobante(p_id_tipo_comprobante integer, p_serie character varying, p_numero character varying DEFAULT NULL::character varying, p_fecha date DEFAULT NULL::date, p_id_cliente integer DEFAULT NULL::integer, p_detalles json DEFAULT '[]'::json, p_id_tipo_operacion_sunat integer DEFAULT NULL::integer, p_id_comprobante_origen integer DEFAULT NULL::integer, p_id_motivo_nota integer DEFAULT NULL::integer, p_id_tipo_movimiento integer DEFAULT NULL::integer, p_id_tipo_venta integer DEFAULT NULL::integer, p_fecha_vencimiento date DEFAULT NULL::date, p_tipo_cambio numeric DEFAULT 3.5, p_id_sucursal integer DEFAULT NULL::integer, p_id_almacen integer DEFAULT NULL::integer, p_id_condicion_pago integer DEFAULT NULL::integer, p_id_moneda integer DEFAULT NULL::integer, p_id_medio_pago integer DEFAULT NULL::integer, p_glosa character varying DEFAULT NULL::character varying, p_observaciones character varying DEFAULT NULL::character varying, p_periodo_contable character varying DEFAULT NULL::character varying, p_operacion character varying DEFAULT NULL::character varying, p_id_estado integer DEFAULT NULL::integer, p_cuotas json DEFAULT NULL::json, p_id_usuario_auditoria integer DEFAULT NULL::integer, p_origen_pos character varying DEFAULT NULL::character varying, p_efectos_pos json DEFAULT NULL::json, p_pagos json DEFAULT NULL::json, p_fecha_venta date DEFAULT NULL::date)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_err_pagos TEXT;
+    -- Fecha en que se hizo la venta: manda en la caja y el libro diario. p_fecha es la emisión (SUNAT, correlativo).
+    v_fecha_venta DATE;
+    v_mueve_efectivo BOOLEAN;
+    -- Factura/boleta emitida desde una venta sin documento (NV/VSD): esa venta ya pasó por su caja.
+    v_desde_vsd BOOLEAN := FALSE;
+    v_fecha_venta_origen DATE;
+    v_id INTEGER;
+    v_id_detalle INTEGER;
+    v_serie VARCHAR;
+    v_numero VARCHAR;
+    v_detalle JSON;
+    v_cuota JSON;
+    v_item INTEGER;
+    v_items_sin_kardex INTEGER[];
+    v_id_producto INTEGER;
+    v_cantidad NUMERIC(12,4);
+    v_precio_unitario NUMERIC(12,6);
+    v_descuento_linea NUMERIC(12,4);
+    v_porcentaje_igv NUMERIC(6,4);
+    v_valor_linea NUMERIC(12,4);
+    v_impuesto_linea NUMERIC(12,4);
+    v_importe_linea NUMERIC(12,4);
+    v_codigo_afectacion VARCHAR;
+    v_sub_total NUMERIC(12,4) := 0;
+    v_descuento_total NUMERIC(12,4) := 0;
+    v_valor_venta_total NUMERIC(12,4) := 0;
+    v_igv_total NUMERIC(12,4) := 0;
+    v_total_importe NUMERIC(12,4) := 0;
+    v_exonerado_total NUMERIC(12,4) := 0;
+    v_id_estado_sunat INTEGER;
+    v_id_estado_doc INTEGER;
+    v_codigo_tipo VARCHAR;
+    v_numero_cuota INTEGER;
+    v_id_estado_cuota INTEGER;
+    v_serie_origen VARCHAR;
+    v_familia_origen CHAR(1);
+    v_afecta_stock BOOLEAN;
+    v_requiere_stock BOOLEAN := FALSE;
+    v_es_conversion_vsd BOOLEAN := FALSE;
+    v_es_nota_credito BOOLEAN := FALSE;
+    v_codigo_tipo_origen VARCHAR;
+    v_id_almacen_origen INTEGER;
+    v_id_tipo_mov_inv INTEGER;
+    v_id_tipo_mov_ingreso INTEGER;
+    v_nombre_tipo_venta VARCHAR;
+    v_stock_disponible NUMERIC(12,4);
+    v_mov_result JSON;
+    v_glosa_mov VARCHAR;
+    v_qty_origen NUMERIC(12,4);
+    v_qty_nc_previas NUMERIC(12,4);
+    v_qty_nueva NUMERIC(12,4);
+    v_delta_stock NUMERIC(12,4);
+    v_estado_sunat_origen VARCHAR;
+    v_id_afectacion_igv INTEGER;
+    v_nombre_unidad VARCHAR;
+    v_es_gas BOOLEAN;
+    v_es_servicio BOOLEAN;
+    v_err_caja TEXT;
+    v_dias_credito INTEGER := 0;
+    v_numero_cuotas INTEGER := 0;
+    v_dia_mes_pago INTEGER;
+    v_fecha_venc_cxc DATE;
+    v_fecha_primera_cuota DATE;
+    v_id_tipo_cobrar INTEGER;
+    v_cxc_result JSON;
+    v_mes_base DATE;
+    v_ultimo_dia_mes DATE;
+    v_total_origen NUMERIC(12,4);
+    v_id_balon INTEGER;
+    v_nombre_estado_balon VARCHAR;
+    v_id_estado_pendiente_envio INTEGER;
+    v_id_estado_disponible INTEGER;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    IF p_id_comprobante_origen IS NOT NULL THEN
+        PERFORM 1 FROM ven_comprobante WHERE id=p_id_comprobante_origen FOR UPDATE;
+    END IF;
+
+    IF p_id_comprobante_origen IS NOT NULL AND EXISTS (
+        SELECT 1 FROM ven_vsd_operacion WHERE id_comprobante=p_id_comprobante_origen AND tipo='CAMBIO_BALON' AND datos->>'tipoOperacion'='CAMBIO'
+    ) THEN
+        RAISE EXCEPTION 'La venta tiene cambios físicos registrados. Debe conciliarse antes de generar un documento derivado';
+    END IF;
+
+    v_serie := UPPER(TRIM(p_serie));
+
+    IF p_id_tipo_comprobante IS NULL THEN
+        RETURN json_build_object('error', 'El tipo de comprobante es obligatorio', 'registro', NULL);
+    END IF;
+
+    IF v_serie IS NULL OR v_serie = '' THEN
+        RETURN json_build_object('error', 'La serie es obligatoria', 'registro', NULL);
+    END IF;
+
+    IF p_fecha IS NULL THEN
+        RETURN json_build_object('error', 'La fecha del comprobante es obligatoria', 'registro', NULL);
+    END IF;
+
+    IF p_id_sucursal IS NULL AND p_id_almacen IS NOT NULL THEN
+        SELECT a.id_sucursal INTO p_id_sucursal
+        FROM gen_almacen a
+        WHERE a.id = p_id_almacen
+          AND a.estado = 1
+        LIMIT 1;
+    END IF;
+
+    IF p_id_comprobante_origen IS NOT NULL THEN
+        SELECT
+            UPPER(COALESCE(tori.descripcion, '')) IN ('NV', 'VSD')
+                AND COALESCE(tnue.descripcion, '') IN ('01', '03'),
+            COALESCE(ori.fecha_venta, ori.fecha)
+        INTO v_desde_vsd, v_fecha_venta_origen
+        FROM ven_comprobante ori
+        JOIN gen_lista_opciones tori ON tori.id = ori.id_tipo_comprobante
+        LEFT JOIN gen_lista_opciones tnue ON tnue.id = p_id_tipo_comprobante
+        WHERE ori.id = p_id_comprobante_origen;
+        v_desde_vsd := COALESCE(v_desde_vsd, FALSE);
+    END IF;
+
+    -- Desde una venta sin documento la fecha de venta es la de esa venta (se emite con la fecha de hoy).
+    v_fecha_venta := COALESCE(
+        p_fecha_venta,
+        CASE WHEN v_desde_vsd THEN LEAST(v_fecha_venta_origen, p_fecha) END,
+        p_fecha
+    );
+
+    IF v_fecha_venta > p_fecha THEN
+        RETURN json_build_object(
+            'error', format(
+                'La fecha de venta (%s) no puede ser posterior a la fecha de emisión (%s)',
+                to_char(v_fecha_venta, 'DD/MM/YYYY'), to_char(p_fecha, 'DD/MM/YYYY')
+            ),
+            'registro', NULL
+        );
+    END IF;
+
+    -- Solo el efectivo exige la caja abierta del día de la venta; transferencia, Yape, Plin, tarjeta
+    -- o crédito se pueden registrar en un día con la caja cerrada (su arqueo se recalcula al final).
+    -- Desde una venta sin documento no se pide caja: el cobro ya entró con esa venta y la caja
+    -- no vuelve a contar el documento derivado (fin_caja_calcular_totales).
+    v_mueve_efectivo := NOT v_desde_vsd
+        AND ven_pagos_mueven_efectivo(p_pagos, p_id_medio_pago, p_id_condicion_pago);
+    IF v_mueve_efectivo THEN
+        v_err_caja := fin_caja_assert_abierta(v_fecha_venta, p_id_sucursal);
+        IF v_err_caja IS NOT NULL THEN
+            IF v_fecha_venta <> p_fecha THEN
+                v_err_caja := 'La venta del ' || to_char(v_fecha_venta, 'DD/MM/YYYY')
+                    || ' se cobra en efectivo. ' || v_err_caja;
+            END IF;
+            RETURN json_build_object('error', v_err_caja, 'registro', NULL);
+        END IF;
+    END IF;
+
+    IF p_id_cliente IS NULL THEN
+        RETURN json_build_object('error', 'El cliente es obligatorio', 'registro', NULL);
+    END IF;
+
+    IF p_detalles IS NULL OR json_typeof(p_detalles) <> 'array' OR json_array_length(p_detalles) = 0 THEN
+        RETURN json_build_object('error', 'Debe registrar al menos un detalle', 'registro', NULL);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM gen_lista_opciones WHERE id = p_id_tipo_comprobante AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El tipo de comprobante indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM cli_clientes WHERE id = p_id_cliente AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El cliente indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    SELECT lo.descripcion INTO v_codigo_tipo
+    FROM gen_lista_opciones lo
+    WHERE lo.id = p_id_tipo_comprobante;
+
+    IF v_codigo_tipo IN ('NV', 'VSD') THEN
+        IF NOT (
+            (char_length(v_serie) = 5 AND left(v_serie, 3) = 'VSD')
+            OR (char_length(v_serie) = 4 AND left(v_serie, 2) = 'NV')
+        ) THEN
+            RETURN json_build_object(
+                'error',
+                'La venta sin documento debe usar serie VSD## (ej. VSD01)',
+                'registro',
+                NULL
+            );
+        END IF;
+    ELSIF char_length(v_serie) <> 4 THEN
+        RETURN json_build_object(
+            'error',
+            'La serie electrónica debe tener 4 caracteres (ej. F001, B001, FC01)',
+            'registro',
+            NULL
+        );
+    END IF;
+
+    IF v_codigo_tipo = '01' AND left(v_serie, 1) <> 'F' THEN
+        RETURN json_build_object('error', 'La factura debe usar serie que inicie con F (ej. F001)', 'registro', NULL);
+    END IF;
+
+    IF v_codigo_tipo = '03' AND left(v_serie, 1) <> 'B' THEN
+        RETURN json_build_object('error', 'La boleta debe usar serie que inicie con B (ej. B001)', 'registro', NULL);
+    END IF;
+
+    IF v_codigo_tipo IN ('07', '08') AND left(v_serie, 1) NOT IN ('F', 'B') THEN
+        RETURN json_build_object(
+            'error',
+            'La nota de crédito/débito debe usar serie que inicie con F o B según el comprobante origen (ej. FC01 / BC01)',
+            'registro',
+            NULL
+        );
+    END IF;
+
+    IF v_codigo_tipo IN ('07', '08') AND p_id_comprobante_origen IS NULL THEN
+        RETURN json_build_object('error', 'La nota de crédito/débito requiere el comprobante de origen', 'registro', NULL);
+    END IF;
+
+    IF p_id_comprobante_origen IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM ven_comprobante WHERE id = p_id_comprobante_origen AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El comprobante de origen no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    IF v_codigo_tipo IN ('07', '08') AND p_id_comprobante_origen IS NOT NULL THEN
+        SELECT es.nombre
+        INTO v_estado_sunat_origen
+        FROM ven_comprobante c
+        LEFT JOIN gen_lista_opciones es ON es.id = c.id_estado_sunat
+        WHERE c.id = p_id_comprobante_origen
+          AND c.estado = 1;
+
+        IF COALESCE(v_estado_sunat_origen, '') <> 'ACEPTADO' THEN
+            RETURN json_build_object(
+                'error',
+                'Solo se puede crear nota de crédito/débito sobre un comprobante ACEPTADO por SUNAT',
+                'registro',
+                NULL
+            );
+        END IF;
+    END IF;
+
+    v_es_nota_credito := (v_codigo_tipo = '07');
+
+    IF p_id_comprobante_origen IS NOT NULL AND v_codigo_tipo IN ('01', '03') THEN
+        SELECT lo.descripcion, c.id_almacen
+        INTO v_codigo_tipo_origen, v_id_almacen_origen
+        FROM ven_comprobante c
+        INNER JOIN gen_lista_opciones lo ON c.id_tipo_comprobante = lo.id
+        WHERE c.id = p_id_comprobante_origen AND c.estado = 1;
+
+        IF v_codigo_tipo_origen IN ('NV', 'VSD') THEN
+            v_es_conversion_vsd := TRUE;
+
+            IF EXISTS (
+                SELECT 1
+                FROM ven_comprobante
+                WHERE id_comprobante_origen = p_id_comprobante_origen
+                  AND estado = 1
+            ) THEN
+                RETURN json_build_object(
+                    'error',
+                    'Esta venta sin documento ya fue convertida a boleta/factura',
+                    'registro',
+                    NULL
+                );
+            END IF;
+
+            IF p_id_condicion_pago IS NULL OR p_fecha_vencimiento IS NULL THEN
+                SELECT
+                    COALESCE(p_id_condicion_pago, c.id_condicion_pago),
+                    COALESCE(p_fecha_vencimiento, c.fecha_vencimiento)
+                INTO p_id_condicion_pago, p_fecha_vencimiento
+                FROM ven_comprobante c
+                WHERE c.id = p_id_comprobante_origen
+                  AND c.estado = 1;
+            END IF;
+
+            IF p_id_almacen IS NULL THEN
+                p_id_almacen := v_id_almacen_origen;
+            ELSIF v_id_almacen_origen IS NOT NULL AND p_id_almacen <> v_id_almacen_origen THEN
+                RETURN json_build_object(
+                    'error',
+                    'Al convertir, el almacén debe ser el mismo de la venta sin documento',
+                    'registro',
+                    NULL
+                );
+            END IF;
+        END IF;
+    END IF;
+
+    IF v_codigo_tipo IN ('07', '08') AND p_id_comprobante_origen IS NOT NULL THEN
+        SELECT UPPER(TRIM(serie)) INTO v_serie_origen
+        FROM ven_comprobante
+        WHERE id = p_id_comprobante_origen AND estado = 1;
+
+        v_familia_origen := left(COALESCE(v_serie_origen, ''), 1);
+        IF v_familia_origen IN ('F', 'B') AND left(v_serie, 1) <> v_familia_origen THEN
+            RETURN json_build_object(
+                'error',
+                format(
+                    'La serie de la nota debe iniciar con %s igual que el comprobante origen (%s)',
+                    v_familia_origen,
+                    v_serie_origen
+                ),
+                'registro',
+                NULL
+            );
+        END IF;
+    END IF;
+
+    SELECT (ven_obtener_siguiente_numero(p_id_tipo_comprobante, v_serie)->>'numero')
+    INTO v_numero;
+
+    IF v_numero IS NULL OR TRIM(v_numero) = '' THEN
+        RETURN json_build_object('error', 'No se pudo asignar el correlativo del comprobante', 'registro', NULL);
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM ven_comprobante
+        WHERE UPPER(TRIM(serie)) = v_serie AND numero = v_numero
+    ) THEN
+        RETURN json_build_object(
+            'error', 'Ya existe un comprobante con la serie ' || v_serie || ' y número ' || v_numero,
+            'registro', NULL
+        );
+    END IF;
+
+    SELECT lo.id INTO v_id_estado_sunat
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'EstadoSunat'
+      AND lo.nombre = CASE
+        WHEN v_codigo_tipo IN ('NV', 'VSD') THEN 'NO_APLICA'
+        ELSE 'PENDIENTE'
+      END
+      AND lo.estado = 1
+    LIMIT 1;
+
+    IF p_id_estado IS NOT NULL THEN
+        v_id_estado_doc := p_id_estado;
+    ELSE
+        SELECT lo.id INTO v_id_estado_doc
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON lo.id_lista = l.id
+        WHERE l.nombre = 'EstadoDocumento' AND lo.nombre = 'PENDIENTE' AND lo.estado = 1
+        LIMIT 1;
+    END IF;
+
+    SELECT lo.id INTO v_id_estado_cuota
+    FROM gen_lista_opciones lo
+    INNER JOIN gen_lista l ON lo.id_lista = l.id
+    WHERE l.nombre = 'EstadoCuota' AND lo.nombre = 'PENDIENTE' AND lo.estado = 1
+    LIMIT 1;
+
+    FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
+    LOOP
+        v_id_producto := NULLIF((v_detalle->>'id_producto')::INTEGER, 0);
+        v_cantidad := COALESCE((v_detalle->>'cantidad')::NUMERIC, 0);
+        v_precio_unitario := COALESCE((v_detalle->>'precio_unitario')::NUMERIC, 0);
+        v_descuento_linea := COALESCE((v_detalle->>'descuento')::NUMERIC, 0);
+        v_porcentaje_igv := COALESCE((v_detalle->>'porcentaje_igv')::NUMERIC, 18);
+
+        IF v_id_producto IS NULL THEN
+            RETURN json_build_object('error', 'Cada detalle debe indicar id_producto', 'registro', NULL);
+        END IF;
+
+        IF v_cantidad <= 0 THEN
+            RETURN json_build_object('error', 'La cantidad de cada detalle debe ser mayor a cero', 'registro', NULL);
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM pro_producto WHERE id = v_id_producto AND estado = 1
+        ) THEN
+            RETURN json_build_object(
+                'error',
+                'El producto ' || COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto)
+                    || ' no existe o está inactivo',
+                'registro',
+                NULL
+            );
+        END IF;
+
+        v_id_balon := NULLIF((v_detalle->>'id_balon')::INTEGER, 0);
+        IF v_id_balon IS NOT NULL AND NOT v_es_nota_credito
+           AND NOT (
+               v_es_conversion_vsd
+               AND EXISTS (
+                   SELECT 1
+                   FROM ven_comprobante_detalle od
+                   WHERE od.id_comprobante = p_id_comprobante_origen
+                     AND od.estado = 1
+                     AND od.id_balon = v_id_balon
+               )
+           )
+        THEN
+            SELECT UPPER(TRIM(COALESCE(eb.nombre, '')))
+            INTO v_nombre_estado_balon
+            FROM bal_balon b
+            LEFT JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+            WHERE b.id = v_id_balon AND b.estado = 1
+            FOR UPDATE OF b;
+
+            IF NOT FOUND THEN
+                RETURN json_build_object(
+                    'error',
+                    format('El cilindro #%s no existe o está inactivo', v_id_balon),
+                    'registro', NULL
+                );
+            END IF;
+
+            IF v_nombre_estado_balon IN (
+                'PENDIENTE_ENVIO', 'EN_TRANSITO', 'EN_MANTENIMIENTO',
+                'DADO_DE_BAJA', 'ROBO', 'PRESTADO_CLIENTE', 'EN_PODER_CLIENTE',
+                'ALQUILADO', 'EN_RECARGA_EXTERNA', 'POR_RECOGER'
+            ) THEN
+                RETURN json_build_object(
+                    'error',
+                    format(
+                        'El cilindro no está disponible para venta (estado %s)',
+                        LOWER(REPLACE(v_nombre_estado_balon, '_', ' '))
+                    ),
+                    'registro', NULL
+                );
+            END IF;
+        END IF;
+
+        SELECT
+            REGEXP_REPLACE(UPPER(TRIM(COALESCE(um.nombre, ''))), '\.+$', ''),
+            COALESCE(p.es_gas, FALSE),
+            COALESCE(p.es_servicio, FALSE),
+            COALESCE(p.afecta_stock, FALSE)
+        INTO v_nombre_unidad, v_es_gas, v_es_servicio, v_afecta_stock
+        FROM pro_producto p
+        LEFT JOIN gen_lista_opciones um ON um.id = p.id_unidad_medida
+        WHERE p.id = v_id_producto;
+
+        IF NOT COALESCE(v_es_gas, FALSE)
+           AND v_nombre_unidad IN ('UNID', 'NIU', 'UND', 'UNI', 'UNIDAD', 'UNIDADES', 'PZ', 'PZA', 'PIEZA', 'PIEZAS')
+           AND v_cantidad <> TRUNC(v_cantidad)
+        THEN
+            RETURN json_build_object(
+                'error',
+                'La cantidad de ' || COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto)
+                    || ' debe ser entera (unidad de medida UNID)',
+                'registro',
+                NULL
+            );
+        END IF;
+
+        IF NOT ven_producto_mueve_kardex_venta(v_id_producto, v_detalle->>'descripcion') THEN
+            v_afecta_stock := FALSE;
+        END IF;
+
+        IF v_afecta_stock AND NOT v_es_conversion_vsd AND v_codigo_tipo <> '08' THEN
+            v_requiere_stock := TRUE;
+        END IF;
+
+        v_importe_linea := ROUND((v_cantidad * v_precio_unitario) - v_descuento_linea, 4);
+
+        v_id_afectacion_igv := NULLIF((v_detalle->>'id_afectacion_igv')::INTEGER, 0);
+        v_codigo_afectacion := NULL;
+
+        IF v_id_afectacion_igv IS NOT NULL THEN
+            SELECT lo.descripcion INTO v_codigo_afectacion
+            FROM gen_lista_opciones lo
+            WHERE lo.id = v_id_afectacion_igv
+              AND lo.estado = 1;
+        END IF;
+
+        IF v_codigo_afectacion IS NULL OR TRIM(v_codigo_afectacion) = '' THEN
+            SELECT lo.id, lo.descripcion
+            INTO v_id_afectacion_igv, v_codigo_afectacion
+            FROM gen_lista_opciones lo
+            INNER JOIN gen_lista l ON lo.id_lista = l.id
+            WHERE l.nombre = 'AfectacionIgv'
+              AND lo.descripcion = '10'
+              AND lo.estado = 1
+            LIMIT 1;
+
+            IF v_id_afectacion_igv IS NULL THEN
+                RETURN json_build_object(
+                    'error',
+                    'Cada detalle debe indicar id_afectacion_igv (no se encontró Gravado 10 en catálogo)',
+                    'registro',
+                    NULL
+                );
+            END IF;
+        END IF;
+
+        IF v_codigo_afectacion = '10' THEN
+            v_valor_linea := ROUND(v_importe_linea / (1 + v_porcentaje_igv / 100), 4);
+            v_impuesto_linea := ROUND(v_importe_linea - v_valor_linea, 4);
+        ELSE
+            v_valor_linea := v_importe_linea;
+            v_impuesto_linea := 0;
+            IF v_codigo_afectacion = '20' THEN
+                v_exonerado_total := v_exonerado_total + v_valor_linea;
+            END IF;
+        END IF;
+
+        v_descuento_total := v_descuento_total + v_descuento_linea;
+        v_valor_venta_total := v_valor_venta_total + v_valor_linea;
+        v_igv_total := v_igv_total + v_impuesto_linea;
+        v_sub_total := v_sub_total + v_importe_linea;
+        v_total_importe := v_total_importe + v_importe_linea;
+    END LOOP;
+
+    IF v_es_nota_credito THEN
+        FOR v_id_producto, v_cantidad IN
+            SELECT
+                (value->>'id_producto')::INTEGER,
+                SUM(COALESCE((value->>'cantidad')::NUMERIC, 0))
+            FROM json_array_elements(p_detalles)
+            GROUP BY 1
+        LOOP
+            SELECT COALESCE(SUM(d.cantidad), 0)
+            INTO v_qty_origen
+            FROM ven_comprobante_detalle d
+            WHERE d.id_comprobante = p_id_comprobante_origen
+              AND d.id_producto = v_id_producto
+              AND d.estado = 1;
+
+            SELECT COALESCE(SUM(d.cantidad), 0)
+            INTO v_qty_nc_previas
+            FROM ven_comprobante nc
+            INNER JOIN gen_lista_opciones tc
+                ON tc.id = nc.id_tipo_comprobante
+               AND tc.descripcion = '07'
+            INNER JOIN ven_comprobante_detalle d
+                ON d.id_comprobante = nc.id
+               AND d.estado = 1
+               AND d.id_producto = v_id_producto
+            LEFT JOIN gen_lista_opciones es ON es.id = nc.id_estado_sunat
+            WHERE nc.id_comprobante_origen = p_id_comprobante_origen
+              AND nc.estado = 1
+              AND COALESCE(es.nombre, '') NOT IN ('BAJA');
+
+            IF v_cantidad > (v_qty_origen - v_qty_nc_previas) THEN
+                RETURN json_build_object(
+                    'error',
+                    format(
+                        'La cantidad a acreditar de %s (%s) supera lo disponible para devolver (%s). Vendida: %s, ya acreditada: %s',
+                        COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
+                        v_cantidad,
+                        GREATEST(v_qty_origen - v_qty_nc_previas, 0),
+                        v_qty_origen,
+                        v_qty_nc_previas
+                    ),
+                    'registro',
+                    NULL
+                );
+            END IF;
+        END LOOP;
+    END IF;
+
+    IF v_requiere_stock THEN
+        IF p_id_almacen IS NULL THEN
+            RETURN json_build_object(
+                'error',
+                'Debe indicar el almacén para descontar stock de los productos',
+                'registro',
+                NULL
+            );
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM gen_almacen WHERE id = p_id_almacen AND estado = 1
+        ) THEN
+            RETURN json_build_object('error', 'El almacén indicado no existe o está inactivo', 'registro', NULL);
+        END IF;
+
+        IF v_es_nota_credito THEN
+            SELECT lo.id INTO v_id_tipo_mov_inv
+            FROM gen_lista_opciones lo
+            INNER JOIN gen_lista l ON lo.id_lista = l.id
+            WHERE l.nombre = 'TipoMovInv' AND lo.nombre = 'INGRESO' AND lo.estado = 1
+            LIMIT 1;
+
+            IF v_id_tipo_mov_inv IS NULL THEN
+                RETURN json_build_object(
+                    'error',
+                    'No se encontró el tipo de movimiento de inventario INGRESO',
+                    'registro',
+                    NULL
+                );
+            END IF;
+        ELSE
+            SELECT lo.id INTO v_id_tipo_mov_inv
+            FROM gen_lista_opciones lo
+            INNER JOIN gen_lista l ON lo.id_lista = l.id
+            WHERE l.nombre = 'TipoMovInv' AND lo.nombre = 'SALIDA' AND lo.estado = 1
+            LIMIT 1;
+
+            IF v_id_tipo_mov_inv IS NULL THEN
+                RETURN json_build_object(
+                    'error',
+                    'No se encontró el tipo de movimiento de inventario SALIDA',
+                    'registro',
+                    NULL
+                );
+            END IF;
+        END IF;
+
+        SELECT lo.nombre INTO v_nombre_tipo_venta
+        FROM gen_lista_opciones lo
+        WHERE lo.id = p_id_tipo_venta;
+
+        IF NOT v_es_nota_credito THEN
+            FOR v_id_producto, v_cantidad IN
+                SELECT
+                    (value->>'id_producto')::INTEGER,
+                    SUM(COALESCE((value->>'cantidad')::NUMERIC, 0))
+                FROM json_array_elements(p_detalles)
+                GROUP BY 1
+            LOOP
+                IF NOT ven_producto_mueve_kardex_venta(v_id_producto, NULL) THEN
+                    CONTINUE;
+                END IF;
+
+                SELECT COALESCE(s.stock, 0)
+                INTO v_stock_disponible
+                FROM pro_stock s
+                WHERE s.id_almacen = p_id_almacen
+                  AND s.id_producto = v_id_producto
+                  AND s.estado = 1;
+
+                IF COALESCE(v_stock_disponible, 0) < v_cantidad THEN
+                    RETURN json_build_object(
+                        'error',
+                        format(
+                            'Stock insuficiente del producto %s en el almacén (disponible: %s, solicitado: %s)',
+                            COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
+                            COALESCE(v_stock_disponible, 0),
+                            v_cantidad
+                        ),
+                        'registro',
+                        NULL
+                    );
+                END IF;
+            END LOOP;
+        END IF;
+    END IF;
+
+    IF p_id_medio_pago IS NULL AND p_id_condicion_pago IS NOT NULL THEN
+        SELECT o.id INTO p_id_medio_pago
+        FROM gen_condicion_pago cp
+        JOIN gen_lista_opciones o ON UPPER(o.nombre) = 'CREDITO' AND o.estado = 1
+        JOIN gen_lista l ON l.id = o.id_lista AND l.nombre = 'MedioPago'
+        WHERE cp.id = p_id_condicion_pago
+          AND (COALESCE(cp.dias_credito, 0) > 0 OR COALESCE(cp.numero_cuotas, 0) > 1)
+        LIMIT 1;
+    END IF;
+
+    INSERT INTO ven_comprobante (
+        id_tipo_comprobante, serie, numero,
+        id_estado_sunat, id_tipo_operacion_sunat,
+        id_comprobante_origen, id_motivo_nota,
+        id_tipo_movimiento, id_tipo_venta,
+        fecha, fecha_vencimiento, tipo_cambio,
+        id_cliente, id_sucursal, id_almacen,
+        id_condicion_pago, id_moneda, id_medio_pago,
+        sub_total, descuento, valor_venta, igv, total_importe,
+        exonerado, glosa, observaciones,
+        periodo_contable, operacion, origen_pos, id_estado,
+        id_usuario_creacion, id_usuario_modificacion,
+        fecha_venta
+    )
+    VALUES (
+        p_id_tipo_comprobante, v_serie, v_numero,
+        v_id_estado_sunat, p_id_tipo_operacion_sunat,
+        p_id_comprobante_origen, p_id_motivo_nota,
+        p_id_tipo_movimiento, p_id_tipo_venta,
+        p_fecha, p_fecha_vencimiento, COALESCE(p_tipo_cambio, 3.5),
+        p_id_cliente, p_id_sucursal, p_id_almacen,
+        p_id_condicion_pago, p_id_moneda, p_id_medio_pago,
+        v_sub_total, v_descuento_total, v_valor_venta_total, v_igv_total, v_total_importe,
+        v_exonerado_total, p_glosa, p_observaciones,
+        p_periodo_contable, p_operacion, NULLIF(TRIM(p_origen_pos), ''), v_id_estado_doc,
+        p_id_usuario_auditoria, p_id_usuario_auditoria,
+        -- NULL = la venta es del mismo día de la emisión
+        NULLIF(v_fecha_venta, p_fecha)
+    )
+    RETURNING id INTO v_id;
+
+    v_item := 0;
+    v_items_sin_kardex := ARRAY[]::INTEGER[];
+    FOR v_detalle IN SELECT value FROM json_array_elements(p_detalles)
+    LOOP
+        v_item := v_item + 1;
+
+        IF COALESCE((v_detalle->>'no_mueve_kardex')::BOOLEAN, FALSE) THEN
+            v_items_sin_kardex := v_items_sin_kardex
+                || COALESCE(NULLIF((v_detalle->>'item')::INTEGER, 0), v_item);
+        END IF;
+
+        v_id_producto := (v_detalle->>'id_producto')::INTEGER;
+        v_cantidad := COALESCE((v_detalle->>'cantidad')::NUMERIC, 0);
+        v_precio_unitario := COALESCE((v_detalle->>'precio_unitario')::NUMERIC, 0);
+        v_descuento_linea := COALESCE((v_detalle->>'descuento')::NUMERIC, 0);
+        v_porcentaje_igv := COALESCE((v_detalle->>'porcentaje_igv')::NUMERIC, 18);
+        v_importe_linea := ROUND((v_cantidad * v_precio_unitario) - v_descuento_linea, 4);
+
+        v_id_afectacion_igv := NULLIF((v_detalle->>'id_afectacion_igv')::INTEGER, 0);
+        v_codigo_afectacion := NULL;
+
+        IF v_id_afectacion_igv IS NOT NULL THEN
+            SELECT lo.descripcion INTO v_codigo_afectacion
+            FROM gen_lista_opciones lo
+            WHERE lo.id = v_id_afectacion_igv
+              AND lo.estado = 1;
+        END IF;
+
+        IF v_codigo_afectacion IS NULL OR TRIM(v_codigo_afectacion) = '' THEN
+            SELECT lo.id, lo.descripcion
+            INTO v_id_afectacion_igv, v_codigo_afectacion
+            FROM gen_lista_opciones lo
+            INNER JOIN gen_lista l ON lo.id_lista = l.id
+            WHERE l.nombre = 'AfectacionIgv'
+              AND lo.descripcion = '10'
+              AND lo.estado = 1
+            LIMIT 1;
+        END IF;
+
+        IF v_codigo_afectacion = '10' THEN
+            v_valor_linea := ROUND(v_importe_linea / (1 + v_porcentaje_igv / 100), 4);
+            v_impuesto_linea := ROUND(v_importe_linea - v_valor_linea, 4);
+        ELSE
+            v_valor_linea := v_importe_linea;
+            v_impuesto_linea := 0;
+        END IF;
+
+        INSERT INTO ven_comprobante_detalle (
+            id_comprobante, item, id_producto, descripcion, id_unidad_medida,
+            cantidad, precio_unitario, descuento, valor_venta, porcentaje_igv,
+            id_afectacion_igv, impuesto, importe,
+            id_balon, capacidad_cilindro, id_estado_cilindro,
+            id_usuario_creacion, id_usuario_modificacion
+        )
+        VALUES (
+            v_id,
+            COALESCE(NULLIF((v_detalle->>'item')::INTEGER, 0), v_item),
+            v_id_producto,
+            NULLIF(v_detalle->>'descripcion', ''),
+            NULLIF((v_detalle->>'id_unidad_medida')::INTEGER, 0),
+            v_cantidad,
+            v_precio_unitario,
+            v_descuento_linea,
+            v_valor_linea,
+            v_porcentaje_igv,
+            v_id_afectacion_igv,
+            v_impuesto_linea,
+            v_importe_linea,
+            NULLIF((v_detalle->>'id_balon')::INTEGER, 0),
+            NULLIF((v_detalle->>'capacidad_cilindro')::NUMERIC, 0),
+            NULLIF((v_detalle->>'id_estado_cilindro')::INTEGER, 0),
+            p_id_usuario_auditoria,
+            p_id_usuario_auditoria
+        );
+    END LOOP;
+
+    IF v_es_conversion_vsd THEN
+        SELECT lo.nombre INTO v_nombre_tipo_venta
+        FROM gen_lista_opciones lo
+        WHERE lo.id = p_id_tipo_venta;
+
+        v_mov_result := inv_repuntar_documento(
+            p_codigo_tipo_documento_origen_actual => ven_resolver_tipo_documento_ref(v_codigo_tipo_origen, v_nombre_tipo_venta),
+            p_id_documento_origen_actual          => p_id_comprobante_origen,
+            p_codigo_tipo_documento_origen_nuevo  => ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
+            p_id_documento_origen_nuevo           => v_id,
+            p_glosa                               => COALESCE(
+                NULLIF(TRIM(p_glosa), ''),
+                format('Salida por comprobante %s-%s (desde venta sin documento)', v_serie, v_numero)
+            ),
+            p_id_usuario_auditoria                => p_id_usuario_auditoria
+        );
+
+        IF v_mov_result->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_mov_result->>'error';
+        END IF;
+
+        FOR v_id_producto, v_qty_origen, v_qty_nueva IN
+            SELECT
+                COALESCE(o.id_producto, n.id_producto) AS id_producto,
+                COALESCE(o.cantidad, 0) AS qty_origen,
+                COALESCE(n.cantidad, 0) AS qty_nueva
+            FROM (
+                SELECT d.id_producto, SUM(d.cantidad) AS cantidad
+                FROM ven_comprobante_detalle d
+                INNER JOIN pro_producto p ON p.id = d.id_producto
+                WHERE d.id_comprobante = p_id_comprobante_origen
+                  AND d.estado = 1
+                  AND ven_producto_mueve_kardex_venta(p.id, d.descripcion)
+                GROUP BY d.id_producto
+            ) o
+            FULL OUTER JOIN (
+                SELECT
+                    (value->>'id_producto')::INTEGER AS id_producto,
+                    SUM(COALESCE((value->>'cantidad')::NUMERIC, 0)) AS cantidad
+                FROM json_array_elements(p_detalles)
+                GROUP BY (value->>'id_producto')::INTEGER
+            ) n ON n.id_producto = o.id_producto
+            INNER JOIN pro_producto p ON p.id = COALESCE(o.id_producto, n.id_producto)
+            WHERE ven_producto_mueve_kardex_venta(p.id, NULL)
+        LOOP
+            v_delta_stock := v_qty_nueva - v_qty_origen;
+            IF v_delta_stock = 0 THEN
+                CONTINUE;
+            END IF;
+
+            IF v_delta_stock > 0 THEN
+                SELECT COALESCE(s.stock, 0)
+                INTO v_stock_disponible
+                FROM pro_stock s
+                WHERE s.id_almacen = p_id_almacen
+                  AND s.id_producto = v_id_producto
+                  AND s.estado = 1;
+
+                IF COALESCE(v_stock_disponible, 0) < v_delta_stock THEN
+                    RAISE EXCEPTION
+                        'Stock insuficiente del producto % en el almacén (disponible: %, solicitado: %)',
+                        COALESCE(pro_etiqueta_producto(v_id_producto), '#' || v_id_producto),
+                        COALESCE(v_stock_disponible, 0),
+                        v_delta_stock;
+                END IF;
+
+                v_mov_result := inv_registrar_movimiento(
+                    p_naturaleza => 'PRODUCTO',
+                    p_codigo_tipo_movimiento => 'SALIDA',
+                    p_fecha => p_fecha,
+                    p_id_producto => v_id_producto,
+                    p_cantidad => v_delta_stock,
+                    p_id_almacen_origen => p_id_almacen,
+                    p_codigo_tipo_documento_origen => ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
+                    p_id_documento_origen => v_id,
+                    p_glosa => format('Ajuste conversión %s-%s (+)', v_serie, v_numero),
+                    p_id_usuario_auditoria => p_id_usuario_auditoria,
+                    p_forzar => TRUE
+                );
+            ELSE
+                v_mov_result := inv_registrar_movimiento(
+                    p_naturaleza => 'PRODUCTO',
+                    p_codigo_tipo_movimiento => 'INGRESO',
+                    p_fecha => p_fecha,
+                    p_id_producto => v_id_producto,
+                    p_cantidad => ABS(v_delta_stock),
+                    p_id_almacen_origen => p_id_almacen,
+                    p_codigo_tipo_documento_origen => ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
+                    p_id_documento_origen => v_id,
+                    p_glosa => format('Ajuste conversión %s-%s (-)', v_serie, v_numero),
+                    p_id_usuario_auditoria => p_id_usuario_auditoria,
+                    p_forzar => TRUE
+                );
+            END IF;
+
+            IF v_mov_result->>'error' IS NOT NULL THEN
+                RAISE EXCEPTION '%', v_mov_result->>'error';
+            END IF;
+        END LOOP;
+    ELSIF v_requiere_stock THEN
+        v_glosa_mov := COALESCE(
+            NULLIF(TRIM(p_glosa), ''),
+            CASE
+                WHEN v_es_nota_credito THEN
+                    format('Ingreso por nota de crédito %s-%s', v_serie, v_numero)
+                ELSE
+                    format('Salida por comprobante %s-%s', v_serie, v_numero)
+            END
+        );
+
+        FOR v_id_detalle, v_id_producto, v_cantidad, v_detalle IN
+            SELECT d.id, d.id_producto, d.cantidad, to_json(d.*)
+            FROM ven_comprobante_detalle d
+            WHERE d.id_comprobante = v_id AND d.estado = 1
+            ORDER BY d.id
+        LOOP
+            SELECT ven_producto_mueve_kardex_venta(v_id_producto, v_detalle->>'descripcion')
+            INTO v_afecta_stock;
+
+            IF (v_detalle->>'item')::INTEGER = ANY(v_items_sin_kardex) THEN
+                CONTINUE;
+            END IF;
+
+            IF v_es_nota_credito
+               AND p_id_comprobante_origen IS NOT NULL
+               AND EXISTS (
+                    SELECT 1
+                    FROM ven_comprobante_detalle od
+                    WHERE od.id_comprobante = p_id_comprobante_origen
+                      AND od.estado = 1
+                      AND od.id_producto = v_id_producto
+                      AND od.id_balon IS NOT NULL
+               ) THEN
+                CONTINUE;
+            END IF;
+
+            IF NOT v_afecta_stock THEN
+                CONTINUE;
+            END IF;
+
+            IF v_es_nota_credito
+               AND p_id_comprobante_origen IS NOT NULL
+               AND EXISTS (
+                   SELECT 1
+                   FROM ven_comprobante_detalle od
+                   WHERE od.id_comprobante = p_id_comprobante_origen
+                     AND od.id_producto = v_id_producto
+                     AND od.id_balon IS NOT NULL
+                     AND od.estado = 1
+               )
+            THEN
+                CONTINUE;
+            END IF;
+
+            v_mov_result := inv_registrar_movimiento(
+                p_naturaleza => 'PRODUCTO',
+                p_codigo_tipo_movimiento => CASE WHEN v_es_nota_credito THEN 'INGRESO' ELSE 'SALIDA' END,
+                p_fecha => p_fecha,
+                p_id_producto => v_id_producto,
+                p_cantidad => v_cantidad,
+                p_id_almacen_origen => p_id_almacen,
+                p_codigo_tipo_documento_origen => ven_resolver_tipo_documento_ref(v_codigo_tipo, v_nombre_tipo_venta),
+                p_id_documento_origen => v_id,
+                p_glosa => v_glosa_mov,
+                p_id_usuario_auditoria => p_id_usuario_auditoria,
+                p_id_documento_detalle => v_id_detalle
+            );
+
+            IF v_mov_result->>'error' IS NOT NULL THEN
+                RAISE EXCEPTION '%', v_mov_result->>'error';
+            END IF;
+            IF COALESCE((v_mov_result->>'creado')::boolean, TRUE) IS NOT TRUE THEN
+                RAISE EXCEPTION 'No se registró el movimiento de stock (duplicado) para el producto %', v_id_producto;
+            END IF;
+        END LOOP;
+    END IF;
+
+    IF p_cuotas IS NOT NULL AND json_typeof(p_cuotas) = 'array' THEN
+        FOR v_cuota IN SELECT value FROM json_array_elements(p_cuotas)
+        LOOP
+            v_numero_cuota := COALESCE((v_cuota->>'numero_cuota')::INTEGER, 0);
+            IF v_numero_cuota <= 0 THEN
+                CONTINUE;
+            END IF;
+
+            INSERT INTO ven_cuotas (
+                id_comprobante, numero_cuota, fecha_vencimiento, monto,
+                monto_pagado, id_estado,
+                id_usuario_creacion, id_usuario_modificacion
+            )
+            VALUES (
+                v_id,
+                v_numero_cuota,
+                (v_cuota->>'fecha_vencimiento')::DATE,
+                COALESCE((v_cuota->>'monto')::NUMERIC, 0),
+                COALESCE((v_cuota->>'monto_pagado')::NUMERIC, 0),
+                COALESCE(NULLIF((v_cuota->>'id_estado')::INTEGER, 0), v_id_estado_cuota),
+                p_id_usuario_auditoria,
+                p_id_usuario_auditoria
+            );
+        END LOOP;
+    END IF;
+
+    IF v_es_conversion_vsd AND p_id_comprobante_origen IS NOT NULL THEN
+        UPDATE fin_cuenta
+        SET
+            id_comprobante_venta = v_id,
+            numero_comprobante = v_serie || '-' || v_numero,
+            id_usuario_modificacion = p_id_usuario_auditoria,
+            fecha_modificacion = NOW()
+        WHERE id_comprobante_venta = p_id_comprobante_origen
+          AND estado = 1;
+    END IF;
+
+    IF NOT v_es_nota_credito
+       AND p_id_condicion_pago IS NOT NULL
+       AND COALESCE(v_total_importe, 0) > 0
+    THEN
+        SELECT
+            COALESCE(cp.dias_credito, 0),
+            COALESCE(cp.numero_cuotas, 0),
+            cp.dia_mes_pago
+        INTO v_dias_credito, v_numero_cuotas, v_dia_mes_pago
+        FROM gen_condicion_pago cp
+        WHERE cp.id = p_id_condicion_pago
+          AND cp.estado = 1;
+
+        IF v_dias_credito > 0 OR v_numero_cuotas > 1 THEN
+            IF EXISTS (
+                SELECT 1
+                FROM cli_clientes c
+                WHERE c.id = p_id_cliente
+                  AND UPPER(COALESCE(c.codigo_interno, '')) = 'CVARIOS'
+            ) THEN
+                RAISE EXCEPTION
+                    'No se puede vender a crédito a Clientes Varios. Selecciona un cliente identificado.';
+            END IF;
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM fin_cuenta fc
+                WHERE fc.id_comprobante_venta = v_id
+                  AND fc.estado = 1
+            ) THEN
+                IF v_numero_cuotas > 1 THEN
+                    IF v_dia_mes_pago IS NULL OR v_dia_mes_pago < 1 OR v_dia_mes_pago > 31 THEN
+                        RAISE EXCEPTION
+                            'La condición de pago en cuotas requiere día del mes a cobrar (1 a 31).';
+                    END IF;
+
+                    IF p_fecha_vencimiento IS NOT NULL THEN
+                        v_fecha_primera_cuota := p_fecha_vencimiento;
+                    ELSIF v_dias_credito > 0 THEN
+                        v_fecha_primera_cuota := COALESCE(p_fecha, CURRENT_DATE) + v_dias_credito;
+                    ELSE
+                        v_mes_base := date_trunc('month', COALESCE(p_fecha, CURRENT_DATE))::date;
+                        v_ultimo_dia_mes := (v_mes_base + INTERVAL '1 month - 1 day')::date;
+                        v_fecha_primera_cuota := LEAST(
+                            (v_mes_base + ((v_dia_mes_pago - 1) * INTERVAL '1 day'))::date,
+                            v_ultimo_dia_mes
+                        );
+                        IF v_fecha_primera_cuota < COALESCE(p_fecha, CURRENT_DATE) THEN
+                            v_mes_base := (v_mes_base + INTERVAL '1 month')::date;
+                            v_ultimo_dia_mes := (v_mes_base + INTERVAL '1 month - 1 day')::date;
+                            v_fecha_primera_cuota := LEAST(
+                                (v_mes_base + ((v_dia_mes_pago - 1) * INTERVAL '1 day'))::date,
+                                v_ultimo_dia_mes
+                            );
+                        END IF;
+                    END IF;
+
+                    UPDATE ven_comprobante
+                    SET fecha_vencimiento = v_fecha_primera_cuota
+                    WHERE id = v_id
+                      AND fecha_vencimiento IS NULL;
+
+                    v_cxc_result := fin_crear_cuenta_cuotas(
+                        'COBRAR',
+                        p_id_cliente,
+                        NULL,
+                        COALESCE(p_fecha, CURRENT_DATE),
+                        v_total_importe,
+                        v_numero_cuotas,
+                        v_fecha_primera_cuota,
+                        v_dia_mes_pago,
+                        format(
+                            'CxC en %s cuotas (día %s) %s-%s',
+                            v_numero_cuotas,
+                            v_dia_mes_pago,
+                            v_serie,
+                            v_numero
+                        ),
+                        NULL,
+                        NULL,
+                        NULL,
+                        v_serie || '-' || v_numero,
+                        p_id_usuario_auditoria,
+                        v_id
+                    );
+
+                    IF v_cxc_result->>'error' IS NOT NULL THEN
+                        RAISE EXCEPTION '%', v_cxc_result->>'error';
+                    END IF;
+                ELSE
+                    v_fecha_venc_cxc := COALESCE(
+                        p_fecha_vencimiento,
+                        (COALESCE(p_fecha, CURRENT_DATE) + v_dias_credito)
+                    );
+
+                    IF p_fecha_vencimiento IS NULL THEN
+                        UPDATE ven_comprobante
+                        SET fecha_vencimiento = v_fecha_venc_cxc
+                        WHERE id = v_id;
+                    END IF;
+
+                    SELECT glo.id
+                    INTO v_id_tipo_cobrar
+                    FROM gen_lista_opciones glo
+                    JOIN gen_lista gl ON gl.id = glo.id_lista
+                    WHERE gl.nombre = 'TipoCuentaFinanciera'
+                      AND glo.nombre = 'COBRAR'
+                      AND glo.estado = 1
+                    LIMIT 1;
+
+                    IF v_id_tipo_cobrar IS NULL THEN
+                        RAISE EXCEPTION
+                            'No está configurado el tipo de cuenta COBRAR (TipoCuentaFinanciera).';
+                    END IF;
+
+                    INSERT INTO fin_cuenta (
+                        id_tipo_cuenta,
+                        id_tercero,
+                        id_comprobante_venta,
+                        numero_comprobante,
+                        fecha_emision,
+                        fecha_vencimiento,
+                        monto_pendiente,
+                        monto_abonado,
+                        monto_saldo,
+                        descripcion,
+                        id_usuario_creacion,
+                        id_usuario_modificacion
+                    ) VALUES (
+                        v_id_tipo_cobrar,
+                        p_id_cliente,
+                        v_id,
+                        v_serie || '-' || v_numero,
+                        COALESCE(p_fecha, CURRENT_DATE),
+                        v_fecha_venc_cxc,
+                        v_total_importe,
+                        0,
+                        v_total_importe,
+                        format(
+                            'CxC por venta a crédito (%s días) %s-%s',
+                            v_dias_credito,
+                            v_serie,
+                            v_numero
+                        ),
+                        p_id_usuario_auditoria,
+                        p_id_usuario_auditoria
+                    );
+                END IF;
+            END IF;
+        END IF;
+    END IF;
+
+    IF v_es_nota_credito
+       AND p_id_comprobante_origen IS NOT NULL
+       AND COALESCE(v_total_importe, 0) > 0
+    THEN
+        PERFORM fin_abonar_por_nota_credito(
+            p_id_comprobante_origen,
+            v_id,
+            v_total_importe,
+            p_id_usuario_auditoria
+        );
+
+        SELECT total_importe INTO v_total_origen
+        FROM ven_comprobante
+        WHERE id = p_id_comprobante_origen AND estado = 1;
+
+        IF COALESCE(v_total_importe, 0) >= COALESCE(v_total_origen, 0) - 0.05
+           OR EXISTS (
+               SELECT 1
+               FROM ven_comprobante_detalle d
+               WHERE d.id_comprobante = v_id
+                 AND d.estado = 1
+                 AND d.id_balon IS NOT NULL
+           )
+        THEN
+            PERFORM ven_cerrar_custodia_comprobante(
+                p_id_comprobante_origen,
+                p_id_usuario_auditoria
+            );
+        END IF;
+    END IF;
+
+    IF p_efectos_pos IS NOT NULL AND p_efectos_pos::TEXT NOT IN ('null', '{}', '[]') THEN
+        PERFORM ven_aplicar_efectos_pos(v_id, p_efectos_pos, p_id_usuario_auditoria);
+    END IF;
+
+    IF NOT v_es_nota_credito
+       AND EXISTS (
+           SELECT 1
+           FROM ven_comprobante_detalle d
+           WHERE d.id_comprobante = v_id
+             AND d.estado = 1
+             AND d.id_balon IS NOT NULL
+             AND COALESCE(d.descripcion, '') !~* 'garant[ií]a'
+       )
+    THEN
+        SELECT lo.id INTO v_id_estado_pendiente_envio
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON l.id = lo.id_lista
+        WHERE l.nombre = 'EstadoBalon' AND UPPER(lo.nombre) = 'PENDIENTE_ENVIO' AND lo.estado = 1
+        LIMIT 1;
+
+        IF v_id_estado_pendiente_envio IS NULL THEN
+            RAISE EXCEPTION 'Falta el estado PENDIENTE_ENVIO en el catálogo EstadoBalon';
+        END IF;
+
+        SELECT lo.id INTO v_id_estado_disponible
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON l.id = lo.id_lista
+        WHERE l.nombre = 'EstadoBalon' AND UPPER(lo.nombre) = 'DISPONIBLE' AND lo.estado = 1
+        LIMIT 1;
+
+        IF v_id_estado_disponible IS NOT NULL THEN
+            UPDATE bal_balon b
+            SET id_estado_balon = v_id_estado_pendiente_envio,
+                id_usuario_modificacion = p_id_usuario_auditoria,
+                fecha_modificacion = NOW()
+            FROM ven_comprobante_detalle d
+            WHERE d.id_comprobante = v_id
+              AND d.estado = 1
+              AND d.id_balon = b.id
+              AND b.estado = 1
+              AND COALESCE(d.descripcion, '') !~* 'garant[ií]a'
+              AND b.id_estado_balon = v_id_estado_disponible;
+        END IF;
+    END IF;
+
+    v_err_pagos := ven_sincronizar_pagos_comprobante(v_id, p_pagos, p_id_usuario_auditoria);
+    IF v_err_pagos IS NOT NULL THEN
+        RAISE EXCEPTION '%', v_err_pagos USING ERRCODE = '22023';
+    END IF;
+
+    IF NOT v_mueve_efectivo AND NOT v_desde_vsd THEN
+        PERFORM fin_caja_refrescar_cerrada(
+            v_fecha_venta,
+            p_id_sucursal,
+            v_total_importe,
+            format('Venta %s-%s sin efectivo registrada con la caja cerrada', v_serie, v_numero),
+            p_id_usuario_auditoria
+        );
+    END IF;
+
+    RETURN ven_obtener_comprobante(v_id);
+END;
+$function$
+;
+CREATE OR REPLACE FUNCTION public.ven_eliminar_comprobante(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_estado_sunat VARCHAR;
+    v_rev JSON;
+    v_anul JSON;
+    v_serie VARCHAR;
+    v_numero VARCHAR;
+    v_os_id INTEGER;
+    v_id_almacen_venta INTEGER;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    PERFORM 1 FROM ven_comprobante WHERE id = p_id AND estado = 1 FOR UPDATE;
+    IF NOT FOUND THEN
+        RETURN json_build_object('eliminado', FALSE, 'id', p_id);
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM ven_vsd_operacion WHERE id_comprobante=p_id AND tipo='CAMBIO_BALON' AND datos->>'tipoOperacion'='CAMBIO') THEN
+        RAISE EXCEPTION 'La venta tiene cambios físicos registrados. No se puede eliminar ni restaurar automáticamente su inventario original';
+    END IF;
+
+    SELECT es.nombre, c.serie, c.numero, c.id_almacen
+    INTO v_estado_sunat, v_serie, v_numero, v_id_almacen_venta
+    FROM ven_comprobante c
+    LEFT JOIN gen_lista_opciones es ON c.id_estado_sunat = es.id
+    WHERE c.id = p_id AND c.estado = 1;
+
+    IF v_estado_sunat IN ('ACEPTADO', 'BAJA') THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede eliminar un comprobante ya aceptado por SUNAT. Use nota de crédito o comunicación de baja.'
+        );
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM ven_comprobante
+        WHERE id_comprobante_origen = p_id
+          AND estado = 1
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error', 'No se puede eliminar el comprobante porque tiene documentos derivados (boleta/factura/nota)'
+        );
+    END IF;
+
+    -- Reparto entregado: doc_anular_salida también lo bloquea, pero el mensaje
+    -- se resuelve aquí para que la venta explique el motivo en sus términos.
+    IF EXISTS (
+        SELECT 1
+        FROM doc_salida d
+        JOIN age_actividad a ON a.id_doc_salida = d.id AND a.estado = 1
+        JOIN gen_lista_opciones ta ON ta.id = a.id_tipo_actividad
+        LEFT JOIN gen_lista_opciones ea ON ea.id = a.id_estado_actividad
+        WHERE d.id_venta = p_id
+          AND d.estado = 1
+          AND UPPER(TRIM(ta.nombre)) = 'REPARTO'
+          AND UPPER(TRIM(COALESCE(ea.nombre, ''))) = 'REALIZADA'
+    ) THEN
+        RETURN json_build_object(
+            'eliminado', FALSE,
+            'id', p_id,
+            'error',
+            'La entrega de esta venta ya fue realizada y los cilindros están en poder del cliente; '
+            || 'no se puede anular. Emite una nota de crédito y registra la devolución.'
+        );
+    END IF;
+
+    -- Cascada OS ANTES del soft-delete: doc_anular_salida localiza balones
+    -- por ven_comprobante_detalle (aún estado=1), libera PENDIENTE_ENVIO /
+    -- EN_TRANSITO → DISPONIBLE, y falla con error si hay reparto vigente.
+    -- PERFORM descartaba ese error; aquí se propaga.
+    FOR v_os_id IN
+        SELECT d.id
+        FROM doc_salida d
+        JOIN gen_lista_opciones ec ON ec.id = d.id_estado_ciclo
+        WHERE d.id_venta = p_id
+          AND d.estado = 1
+          AND ec.nombre <> 'ANULADA'
+    LOOP
+        v_anul := doc_anular_salida(
+            v_os_id,
+            format('Venta %s-%s anulada', COALESCE(v_serie, ''), COALESCE(v_numero, p_id::text)),
+            p_id_usuario_auditoria
+        );
+        IF v_anul->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_anul->>'error';
+        END IF;
+    END LOOP;
+
+    -- Reserva de venta sin OS: ven_crear_comprobante dejó PENDIENTE_ENVIO en
+    -- cilindros DISPONIBLE vendidos. Si no hubo OS (o quedó residual), liberar.
+    -- Con OS vigente doc_anular_salida ya lo hizo; este UPDATE es no-op.
+    --
+    -- EN_PODER_CLIENTE también entra: es donde deja los cilindros la venta de
+    -- mostrador sin orden de salida. El único otro camino a ese estado es el
+    -- reparto culminado, y ese ya abortó la anulación más arriba.
+    UPDATE bal_balon b
+    SET id_estado_balon = lo_disp.id,
+        id_almacen = COALESCE(b.id_almacen, v_id_almacen_venta),
+        id_cliente_ubicacion = NULL,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    FROM ven_comprobante_detalle d
+    CROSS JOIN LATERAL (
+        SELECT lo.id
+        FROM gen_lista_opciones lo
+        JOIN gen_lista l ON l.id = lo.id_lista
+        WHERE l.nombre = 'EstadoBalon' AND UPPER(TRIM(lo.nombre)) = 'DISPONIBLE' AND lo.estado = 1
+        LIMIT 1
+    ) lo_disp
+    CROSS JOIN gen_lista_opciones eb
+    WHERE d.id_comprobante = p_id
+      AND d.estado = 1
+      AND d.id_balon = b.id
+      AND eb.id = b.id_estado_balon
+      AND b.estado = 1
+      AND COALESCE(d.descripcion, '') !~* 'garant[ií]a'
+      AND lo_disp.id IS NOT NULL
+      AND UPPER(TRIM(eb.nombre)) IN ('PENDIENTE_ENVIO', 'EN_PODER_CLIENTE');
+
+    -- Revertir stock, CxC impaga y custodia (préstamo/recarga/alquiler/GRE)
+    v_rev := ven_revertir_efectos_comprobante(p_id, p_id_usuario_auditoria, TRUE);
+    IF COALESCE(v_rev->>'ok', 'false') <> 'true' THEN
+        RAISE EXCEPTION '%', COALESCE(v_rev->>'error', 'No se pudieron revertir los efectos del comprobante');
+    END IF;
+
+    UPDATE ven_comprobante_detalle
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_comprobante = p_id AND estado = 1;
+
+    UPDATE ven_cuotas
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_comprobante = p_id AND estado = 1;
+
+    -- Fase 3: las líneas de cobro siguen la suerte del comprobante. Los totales
+    -- de caja ya excluyen las ventas anuladas por su cabecera, pero dejarlas
+    -- activas haría que un listado de cobros por cuenta bancaria contara dinero
+    -- de una venta que ya no existe.
+    UPDATE ven_comprobante_pago
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_comprobante = p_id AND estado = 1;
+
+    UPDATE ven_comprobante
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id AND estado = 1;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('eliminado', FALSE, 'id', p_id);
+    END IF;
+
+    RETURN json_build_object('eliminado', TRUE, 'id', p_id);
+EXCEPTION WHEN OTHERS THEN
+    -- El bloque revierte todos sus cambios antes de devolver el error.
+    RETURN json_build_object('eliminado', FALSE, 'id', p_id, 'error', SQLERRM);
+END;
+$function$
+;
+CREATE OR REPLACE FUNCTION public.ven_registrar_respuesta_sunat(p_id integer, p_id_estado_sunat integer DEFAULT NULL::integer, p_ticket_sunat character varying DEFAULT NULL::character varying, p_hash_documento character varying DEFAULT NULL::character varying, p_xml_firmado text DEFAULT NULL::text, p_cdr_respuesta text DEFAULT NULL::text, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_estado_sunat_nombre VARCHAR;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    IF NOT EXISTS (
+        SELECT 1 FROM ven_comprobante WHERE id = p_id AND estado = 1
+    ) THEN
+        RETURN json_build_object('registro', NULL);
+    END IF;
+
+    IF p_id_estado_sunat IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM gen_lista_opciones WHERE id = p_id_estado_sunat AND estado = 1
+    ) THEN
+        RETURN json_build_object('error', 'El estado SUNAT indicado no existe o está inactivo', 'registro', NULL);
+    END IF;
+
+    SELECT nombre INTO v_estado_sunat_nombre
+    FROM gen_lista_opciones
+    WHERE id = p_id_estado_sunat;
+
+    PERFORM 1 FROM ven_comprobante WHERE id=p_id FOR UPDATE;
+    IF v_estado_sunat_nombre IN ('PENDIENTE', 'RECHAZADO') AND EXISTS (
+        SELECT 1 FROM ven_comprobante c WHERE c.id=p_id AND ven_cpe_validez_aceptada(c)
+    ) THEN RETURN ven_obtener_comprobante(p_id); END IF;
+    UPDATE ven_comprobante
+    SET
+        id_estado_sunat = COALESCE(p_id_estado_sunat, id_estado_sunat),
+        ticket_sunat = COALESCE(NULLIF(TRIM(p_ticket_sunat), ''), ticket_sunat),
+        hash_documento = COALESCE(NULLIF(TRIM(p_hash_documento), ''), hash_documento),
+        xml_firmado = COALESCE(p_xml_firmado, xml_firmado),
+        cdr_respuesta = COALESCE(p_cdr_respuesta, cdr_respuesta),
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id AND estado = 1;
+
+    IF v_estado_sunat_nombre = 'ACEPTADO' THEN
+        UPDATE ven_comprobante c
+        SET id_estado = lo.id
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON lo.id_lista = l.id
+        WHERE c.id = p_id
+          AND l.nombre = 'EstadoDocumento'
+          AND lo.nombre = 'PAGADO'
+          AND lo.estado = 1
+          AND c.id_estado IS DISTINCT FROM lo.id;
+    END IF;
+
+    RETURN ven_obtener_comprobante(p_id);
+END;
+$function$
+;
+CREATE OR REPLACE FUNCTION public.ven_revertir_nc_sunat_rechazada(p_id integer, p_id_usuario_auditoria integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_codigo_tipo VARCHAR;
+    v_estado_sunat VARCHAR;
+    v_rev JSON;
+BEGIN
+    SET TIME ZONE 'America/Lima';
+
+    SELECT tc.descripcion, es.nombre
+    INTO v_codigo_tipo, v_estado_sunat
+    FROM ven_comprobante c
+    INNER JOIN gen_lista_opciones tc ON tc.id = c.id_tipo_comprobante
+    LEFT JOIN gen_lista_opciones es ON es.id = c.id_estado_sunat
+    WHERE c.id = p_id AND c.estado = 1;
+
+    IF v_codigo_tipo IS NULL THEN
+        RETURN json_build_object('ok', FALSE, 'error', 'La nota de crédito no existe o ya fue eliminada');
+    END IF;
+
+    IF v_codigo_tipo <> '07' THEN
+        RETURN json_build_object('ok', FALSE, 'error', 'Solo aplica a notas de crédito');
+    END IF;
+
+    IF COALESCE(v_estado_sunat, '') <> 'RECHAZADO' THEN
+        RETURN json_build_object(
+            'ok', FALSE,
+            'error', format('La NC no está RECHAZADA (estado SUNAT: %s)', COALESCE(v_estado_sunat, 'NULL'))
+        );
+    END IF;
+
+    v_rev := ven_revertir_efectos_comprobante(p_id, p_id_usuario_auditoria, FALSE);
+    IF COALESCE(v_rev->>'ok', 'false') <> 'true' THEN
+        RETURN json_build_object(
+            'ok', FALSE,
+            'error', COALESCE(v_rev->>'error', 'No se pudieron revertir los efectos de la NC')
+        );
+    END IF;
+
+    UPDATE ven_comprobante_detalle
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_comprobante = p_id AND estado = 1;
+
+    UPDATE ven_cuotas
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_comprobante = p_id AND estado = 1;
+
+    UPDATE ven_comprobante_pago
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id_comprobante = p_id AND estado = 1;
+
+    UPDATE ven_comprobante
+    SET estado = 0,
+        id_usuario_modificacion = p_id_usuario_auditoria,
+        fecha_modificacion = NOW()
+    WHERE id = p_id AND estado = 1;
+
+    RETURN json_build_object('ok', TRUE, 'error', NULL, 'id', p_id);
+END;
+$function$
+;
+COMMIT;

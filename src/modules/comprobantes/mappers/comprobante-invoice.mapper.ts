@@ -84,12 +84,23 @@ export class ComprobanteInvoiceMapper {
       detallesVenta.length === detalles.length,
     );
 
-    const pago = this.mapFormaPago(
-      cabecera,
-      comprobante.cuotas ?? [],
-      tipoMoneda,
-      totales.mtoImpVenta,
-    );
+    // En notas, SUNAT solo admite cac:PaymentTerms "FormaPago" cuando la NC es
+    // motivo 13 (ajuste de montos/fechas de pago), y entonces siempre al
+    // crédito. Enviar "Contado" (o el crédito heredado de la factura) en
+    // cualquier otra nota produce el rechazo 3246.
+    const esNota = tipoDoc === '07' || tipoDoc === '08';
+    const codMotivoNota = esNota
+      ? normalizarCodigoSunat(cabecera.codigo_motivo_nota ?? '01')
+      : null;
+    const pago =
+      esNota && !(tipoDoc === '07' && codMotivoNota === '13')
+        ? { formaPago: undefined, cuotas: undefined }
+        : this.mapFormaPago(
+            cabecera,
+            comprobante.cuotas ?? [],
+            tipoMoneda,
+            totales.mtoImpVenta,
+          );
 
     const payload: FacturacionApisperuPayload = {
       ublVersion: '2.1',
@@ -98,7 +109,7 @@ export class ComprobanteInvoiceMapper {
       serie: normalizarCodigoSunat(cabecera.serie),
       correlativo,
       fechaEmision,
-      formaPago: pago.formaPago,
+      ...(pago.formaPago ? { formaPago: pago.formaPago } : {}),
       ...(pago.cuotas?.length ? { cuotas: pago.cuotas } : {}),
       tipoMoneda,
       client: this.mapCliente(cliente, ubigeoCliente),
@@ -129,7 +140,7 @@ export class ComprobanteInvoiceMapper {
           ? '01'
           : '03');
       const numDocfectado = `${normalizarCodigoSunat(cabecera.serie_comprobante_origen)}-${this.parseCorrelativo(cabecera.numero_comprobante_origen)}`;
-      const codMotivo = cabecera.codigo_motivo_nota ?? '01';
+      const codMotivo = codMotivoNota ?? '01';
 
       payload.tipDocAfectado = tipDocAfectado;
       payload.numDocfectado = numDocfectado;

@@ -88,6 +88,17 @@ BEGIN
         IF v_anul->>'error' IS NOT NULL THEN
             RAISE EXCEPTION '%', v_anul->>'error';
         END IF;
+
+        -- doc_anular_salida registra ENTRADA_DEVOLUCION para los cilindros que
+        -- ya tenían su salida con la venta. Al ELIMINAR la venta esa salida se
+        -- revierte abajo (ven_revertir_efectos_comprobante), así que la entrada
+        -- también se deshace para no dejarla huérfana en el historial.
+        v_anul := inv_revertir_por_documento(
+            'ORDEN_SALIDA', v_os_id, p_id_usuario_auditoria, NULL, 'ENTRADA_DEVOLUCION', 'BALON'
+        );
+        IF v_anul->>'error' IS NOT NULL THEN
+            RAISE EXCEPTION '%', v_anul->>'error';
+        END IF;
     END LOOP;
 
     UPDATE bal_balon b

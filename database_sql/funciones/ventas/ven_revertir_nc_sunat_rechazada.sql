@@ -9,6 +9,8 @@ DECLARE
     v_codigo_tipo VARCHAR;
     v_estado_sunat VARCHAR;
     v_rev JSON;
+    v_id_pago INTEGER;
+    v_anul JSON;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -41,6 +43,25 @@ BEGIN
             'error', COALESCE(v_rev->>'error', 'No se pudieron revertir los efectos de la NC')
         );
     END IF;
+
+    -- fin_abonar_por_nota_credito abonó la NC a la cuenta por cobrar del
+    -- origen al crearla. Rechazada, ese abono no existe: se anula y la
+    -- factura vuelve a tener su saldo real.
+    FOR v_id_pago IN
+        SELECT p.id
+        FROM fin_pago p
+        INNER JOIN gen_lista_opciones mp ON mp.id = p.id_medio_pago AND UPPER(mp.nombre) = 'AJUSTE_NC'
+        WHERE p.estado = 1
+          AND p.observacion = format('Abono automático por nota de crédito #%s', p_id)
+        ORDER BY p.id DESC
+    LOOP
+        v_anul := fin_anular_pago(v_id_pago, NULL, p_id_usuario_auditoria);
+        IF v_anul->>'error' IS NOT NULL THEN
+            -- Excepción (no RETURN) para deshacer también la reversión de
+            -- inventario hecha arriba y no dejar la NC a medio revertir.
+            RAISE EXCEPTION 'No se pudo anular el abono de la NC (pago #%): %', v_id_pago, v_anul->>'error';
+        END IF;
+    END LOOP;
 
     UPDATE ven_comprobante_detalle
     SET estado = 0,

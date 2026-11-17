@@ -1235,24 +1235,12 @@ BEGIN
             p_id_usuario_auditoria
         );
 
-        SELECT total_importe INTO v_total_origen
-        FROM ven_comprobante
-        WHERE id = p_id_comprobante_origen AND estado = 1;
-
-        IF COALESCE(v_total_importe, 0) >= COALESCE(v_total_origen, 0) - 0.05
-           OR EXISTS (
-               SELECT 1
-               FROM ven_comprobante_detalle d
-               WHERE d.id_comprobante = v_id
-                 AND d.estado = 1
-                 AND d.id_balon IS NOT NULL
-           )
-        THEN
-            PERFORM ven_cerrar_custodia_comprobante(
-                p_id_comprobante_origen,
-                p_id_usuario_auditoria
-            );
-        END IF;
+        -- La custodia del origen (préstamos, alquileres, órdenes de salida,
+        -- cilindros) NO se cierra aquí: una NC solo tiene efecto cuando SUNAT
+        -- la acepta. ven_registrar_respuesta_sunat llama a
+        -- ven_aplicar_nc_aceptada en ese momento. Antes se cerraba al crear y,
+        -- si SUNAT rechazaba, el cilindro quedaba DISPONIBLE y el préstamo
+        -- devuelto aunque la factura seguía vigente.
     END IF;
 
     IF p_efectos_pos IS NOT NULL AND p_efectos_pos::TEXT NOT IN ('null', '{}', '[]') THEN

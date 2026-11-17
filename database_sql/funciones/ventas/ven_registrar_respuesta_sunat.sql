@@ -20,6 +20,8 @@ CREATE OR REPLACE FUNCTION public.ven_registrar_respuesta_sunat (
 ) RETURNS json LANGUAGE plpgsql AS $function$
 DECLARE
     v_estado_sunat_nombre VARCHAR;
+    v_estado_previo VARCHAR;
+    v_codigo_tipo VARCHAR;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -40,6 +42,12 @@ BEGIN
     WHERE id = p_id_estado_sunat;
 
     PERFORM 1 FROM ven_comprobante WHERE id=p_id FOR UPDATE;
+    SELECT es.nombre, tc.descripcion
+    INTO v_estado_previo, v_codigo_tipo
+    FROM ven_comprobante c
+    INNER JOIN gen_lista_opciones tc ON tc.id = c.id_tipo_comprobante
+    LEFT JOIN gen_lista_opciones es ON es.id = c.id_estado_sunat
+    WHERE c.id = p_id;
     IF v_estado_sunat_nombre IN ('PENDIENTE', 'RECHAZADO') AND EXISTS (
         SELECT 1 FROM ven_comprobante c WHERE c.id=p_id AND ven_cpe_validez_aceptada(c)
     ) THEN RETURN ven_obtener_comprobante(p_id); END IF;
@@ -64,6 +72,24 @@ BEGIN
           AND lo.nombre = 'PAGADO'
           AND lo.estado = 1
           AND c.id_estado IS DISTINCT FROM lo.id;
+
+        -- La NC recién aceptada cierra la custodia del comprobante origen
+        -- (devuelve préstamos/cilindros con su movimiento de entrada). Solo en
+        -- la transición a ACEPTADO, para no repetirlo en reconsultas del CDR.
+        -- Si falla, no se pierde la aceptación SUNAT: queda anotado en
+        -- observaciones para regularizarlo.
+        IF v_codigo_tipo = '07' AND COALESCE(v_estado_previo, '') <> 'ACEPTADO' THEN
+            BEGIN
+                PERFORM ven_aplicar_nc_aceptada(p_id, p_id_usuario_auditoria);
+            EXCEPTION WHEN OTHERS THEN
+                RAISE WARNING 'NC #% aceptada pero no se pudo cerrar la custodia del origen: %', p_id, SQLERRM;
+                UPDATE ven_comprobante
+                SET observaciones = LEFT(CONCAT_WS(' | ',
+                        NULLIF(observaciones, ''),
+                        'PENDIENTE: no se cerró la custodia del comprobante origen (' || SQLERRM || ')'), 500)
+                WHERE id = p_id;
+            END;
+        END IF;
     END IF;
 
     RETURN ven_obtener_comprobante(p_id);
