@@ -42,12 +42,20 @@ export class SunatValidezClient {
       );
       const code = String(result.data?.data?.estadoCp ?? '');
       if (result.status !== 200 || result.data?.success !== true || !['0','1','2','3','4'].includes(code)) {
-        throw new BadGatewayException('SUNAT no pudo confirmar la validez. El resultado de esta consulta no cambia el estado del comprobante.');
+        const errorCode = String(result.data?.errorCode ?? '');
+        const codigoSunat = /^\d{1,8}$/.test(errorCode) ? `, código SUNAT ${errorCode}` : '';
+        const detalle = result.status === 401 || result.status === 403
+          ? 'SUNAT denegó el acceso al servicio de validez. Revisa los permisos de la aplicación en SOL.'
+          : result.status === 200 && result.data?.success === true
+            ? 'SUNAT respondió sin un estado de comprobante reconocido.'
+            : 'SUNAT no pudo confirmar la validez.';
+        throw new BadGatewayException(`${detalle} (HTTP ${result.status}${codigoSunat})`);
       }
       const estados: Record<string, string> = { '0': 'NO INFORMADO', '1': 'ACEPTADO', '2': 'ANULADO', '3': 'AUTORIZADO', '4': 'NO AUTORIZADO' };
+      const observaciones = result.data.data.observaciones ?? result.data.data.Observaciones;
       return { fuente: 'SUNAT — consulta integrada', soloLectura: true, consultadoEn: new Date().toISOString(),
         consulta, codigo: code, estado: estados[code], estadoRuc: result.data.data.estadoRuc ?? null,
-        condicionRuc: result.data.data.condDomiRuc ?? null, observaciones: result.data.data.Observaciones ?? [] };
+        condicionRuc: result.data.data.condDomiRuc ?? null, observaciones: Array.isArray(observaciones) ? observaciones : [] };
     } catch (error) {
       if (error instanceof BadGatewayException) throw error;
       throw new BadGatewayException('No se pudo comunicar con SUNAT para consultar la validez. Intenta la consulta nuevamente; no se ha emitido ni modificado el comprobante.');

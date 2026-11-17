@@ -38,6 +38,18 @@ describe('Consulta integrada SUNAT independiente de GRE', () => {
     await expect(client.consultar(1, doc)).rejects.toThrow('no autorizó');
     http.post.mockResolvedValueOnce({ status: 200, data: { access_token: 'token' } });
     http.post.mockResolvedValueOnce({ status: 200, data: { success: true, data: {} } });
-    await expect(client.consultar(1, doc)).rejects.toThrow('no pudo confirmar');
+    await expect(client.consultar(1, doc)).rejects.toThrow('sin un estado de comprobante reconocido');
+    http.post.mockResolvedValueOnce({ status: 200, data: { access_token: 'token' } });
+    http.post.mockResolvedValueOnce({ status: 422, data: { success: false, errorCode: '99', message: 'Detalle interno' } });
+    await expect(client.consultar(1, doc)).rejects.toThrow('SUNAT no pudo confirmar la validez. (HTTP 422, código SUNAT 99)');
+  });
+
+  it('conserva las observaciones de una consulta aceptada según el ejemplo de SUNAT', async () => {
+    const db = { query: jest.fn().mockResolvedValue({ rows: [cfg] }) };
+    const observaciones = ['Fecha de emisión ingresada no coincide con la registrada en la SUNAT.'];
+    http.post.mockResolvedValueOnce({ status: 200, data: { access_token: 'token' } });
+    http.post.mockResolvedValueOnce({ status: 200, data: { success: true, data: { estadoCp: '1', observaciones } } });
+    await expect(new SunatValidezClient(db as unknown as DatabaseService).consultar(1, doc))
+      .resolves.toMatchObject({ estado: 'ACEPTADO', observaciones });
   });
 });
