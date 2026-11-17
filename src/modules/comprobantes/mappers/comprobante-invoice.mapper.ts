@@ -84,12 +84,16 @@ export class ComprobanteInvoiceMapper {
       detallesVenta.length === detalles.length,
     );
 
-    const pago = this.mapFormaPago(
-      cabecera,
-      comprobante.cuotas ?? [],
-      tipoMoneda,
-      totales.mtoImpVenta,
-    );
+    // Las NC comunes no llevan condiciones de pago. El motivo 13 modifica
+    // las condiciones del crédito y requiere ese bloque en el XML.
+    const modificaCredito = tipoDoc === '07' && cabecera.codigo_motivo_nota === '13';
+    const pago = tipoDoc !== '07' || modificaCredito
+      ? this.mapFormaPago(cabecera, comprobante.cuotas ?? [], tipoMoneda, totales.mtoImpVenta)
+      : undefined;
+
+    if (modificaCredito && pago?.formaPago.tipo !== 'Credito') {
+      throw new BadRequestException('La nota de crédito de motivo 13 requiere condiciones de pago al crédito y sus cuotas.');
+    }
 
     const payload: FacturacionApisperuPayload = {
       ublVersion: '2.1',
@@ -98,8 +102,8 @@ export class ComprobanteInvoiceMapper {
       serie: normalizarCodigoSunat(cabecera.serie),
       correlativo,
       fechaEmision,
-      formaPago: pago.formaPago,
-      ...(pago.cuotas?.length ? { cuotas: pago.cuotas } : {}),
+      ...(pago ? { formaPago: pago.formaPago } : {}),
+      ...(pago?.cuotas?.length ? { cuotas: pago.cuotas } : {}),
       tipoMoneda,
       client: this.mapCliente(cliente, ubigeoCliente),
       company: this.mapEmpresa(empresa),
