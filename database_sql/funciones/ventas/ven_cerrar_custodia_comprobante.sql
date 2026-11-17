@@ -20,6 +20,8 @@ DECLARE
     v_ref_nc VARCHAR;
     v_glosa VARCHAR(300);
     v_balon RECORD;
+    v_balones_no_entregados INTEGER[];
+    v_gas RECORD;
 BEGIN
     SET TIME ZONE 'America/Lima';
 
@@ -48,6 +50,29 @@ BEGIN
         ELSE
             format('Retorno por anulación del comprobante %s', COALESCE(v_ref_origen, '#' || p_id_comprobante))
     END, 300);
+
+    -- Cilindros del comprobante que todavía no se entregaron al cliente
+    -- (orden de salida pendiente o en camino). Vuelven al almacén con el gas
+    -- que se vendió dentro: se usa abajo para reingresar ese gas con la NC.
+    SELECT COALESCE(array_agg(DISTINCT b.id), '{}')
+    INTO v_balones_no_entregados
+    FROM bal_balon b
+    INNER JOIN gen_lista_opciones eb ON eb.id = b.id_estado_balon
+    WHERE b.estado = 1
+      AND eb.nombre IN ('PENDIENTE_ENVIO', 'EN_TRANSITO')
+      AND b.id IN (
+          SELECT pd.id_balon
+          FROM bal_prestamo pr
+          INNER JOIN bal_prestamo_detalle pd ON pd.id_prestamo = pr.id AND pd.estado = 1
+          WHERE pr.estado = 1 AND pr.id_comprobante_venta = p_id_comprobante
+            AND pd.id_balon IS NOT NULL
+          UNION
+          SELECT vd.id_balon
+          FROM ven_comprobante_detalle vd
+          WHERE vd.id_comprobante = p_id_comprobante
+            AND vd.estado = 1
+            AND vd.id_balon IS NOT NULL
+      );
 
     FOR v_prestamo IN
         SELECT id FROM bal_prestamo
@@ -224,6 +249,43 @@ BEGIN
         );
         PERFORM ven_raise_si_error(v_result);
     END LOOP;
+
+    -- Gas vendido dentro de un cilindro que nunca llegó al cliente: la NC lo
+    -- salta al crearse (la línea lleva cilindro), así que vuelve aquí al
+    -- stock, por la cantidad acreditada en la NC. Si el cilindro ya se había
+    -- entregado, el gas se consumió o vuelve vacío y no se reingresa.
+    -- Sin NC (baja/eliminación) no aplica: esos flujos revierten la salida
+    -- original completa con inv_revertir_por_documento.
+    IF v_id_nc IS NOT NULL AND cardinality(v_balones_no_entregados) > 0 THEN
+        FOR v_gas IN
+            SELECT d.id, d.id_producto, d.cantidad,
+                   COALESCE(nc.id_almacen, o.id_almacen) AS id_almacen
+            FROM ven_comprobante_detalle d
+            INNER JOIN ven_comprobante nc ON nc.id = d.id_comprobante
+            INNER JOIN ven_comprobante o ON o.id = p_id_comprobante
+            WHERE d.id_comprobante = v_id_nc
+              AND d.estado = 1
+              AND d.id_balon = ANY (v_balones_no_entregados)
+              AND COALESCE(d.cantidad, 0) > 0
+              AND ven_producto_mueve_kardex_venta(d.id_producto, d.descripcion)
+        LOOP
+            v_result := inv_registrar_movimiento(
+                p_naturaleza                   => 'PRODUCTO',
+                p_codigo_tipo_movimiento       => 'INGRESO',
+                p_fecha                        => LOCALTIMESTAMP,
+                p_id_producto                  => v_gas.id_producto,
+                p_cantidad                     => v_gas.cantidad,
+                p_id_almacen_origen            => v_gas.id_almacen,
+                p_codigo_tipo_documento_origen => 'NOTA_CREDITO',
+                p_id_documento_origen          => v_id_nc,
+                p_id_documento_detalle         => v_gas.id,
+                p_glosa                        => LEFT(format('Retorno de gas en cilindro no entregado: nota de crédito %s (anula %s)',
+                    v_ref_nc, COALESCE(v_ref_origen, '#' || p_id_comprobante)), 300),
+                p_id_usuario_auditoria         => p_id_usuario
+            );
+            PERFORM ven_raise_si_error(v_result);
+        END LOOP;
+    END IF;
 
     UPDATE ven_garantia_movimiento gm
     SET estado = 0, id_usuario_modificacion = p_id_usuario, fecha_modificacion = NOW()

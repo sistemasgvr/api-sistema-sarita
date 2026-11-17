@@ -92,7 +92,7 @@ export class ComprobanteInvoiceMapper {
     const codMotivoNota = esNota
       ? normalizarCodigoSunat(cabecera.codigo_motivo_nota ?? '01')
       : null;
-    const modificaCredito = tipoDoc === '07' && codMotivoNota === '13';
+      const modificaCredito = tipoDoc === '07' && codMotivoNota === '13';
     const pago =
       esNota && !modificaCredito
         ? undefined
