@@ -1,4 +1,4 @@
-import { estadoDesdeCdr, cdrCorrespondeAlDocumento, esErrorEnvioCpe } from '../../../common/helpers/cpe-estado.helper';
+import { estadoDesdeCdr, cdrCorrespondeAlDocumento, esErrorEnvioCpe, mensajeErrorCpe } from '../../../common/helpers/cpe-estado.helper';
 import { SunatValidezClient } from '../../../integrations/facturacion-electronica/sunat-validez.client';
 import {
   BadRequestException,
@@ -119,7 +119,7 @@ export class ComprobantesLogic {
 
   async listar(filtros: FiltroComprobantesDto) {
     const result = await this.model.listar(filtros);
-    const rows = (result.registros ?? []) as Array<{ id: number; serie?: string; numero?: string; nombre_estado_sunat?: string; estado_cdr_registrado?: string; advertencia_cdr?: string; reintento_permitido?: boolean; fecha_emision_cpe?: string | null; estado_envio?: 'EN_CURSO' | 'POR_CONFIRMAR' | 'ERROR_ENVIO' }>;
+    const rows = (result.registros ?? []) as Array<{ id: number; serie?: string; numero?: string; codigo_tipo_comprobante?: string; nombre_estado_sunat?: string; estado_cdr_registrado?: string; advertencia_cdr?: string; motivo_rechazo_sunat?: string; reintento_permitido?: boolean; fecha_emision_cpe?: string | null; estado_envio?: 'EN_CURSO' | 'POR_CONFIRMAR' | 'ERROR_ENVIO' }>;
     const evidencias = await this.model.evidenciasCdr(rows.map(row => row.id));
     for (const row of rows) {
       const evidencia = evidencias.find(item => item.id === row.id);
@@ -142,7 +142,16 @@ export class ComprobantesLogic {
             Date.now()-Date.parse(v.verificadoEn)<300000;
         }
         if (!evidencia?.emision_en_curso && row.estado_envio!=='ERROR_ENVIO' && payload.tipo === 'emision_por_confirmar') row.estado_envio = 'POR_CONFIRMAR';
-        const cdr = (payload.sunatResponse ?? payload).cdrResponse;
+        const respuesta = payload.sunatResponse ?? payload;
+        const cdr = respuesta.cdrResponse;
+        if (row.codigo_tipo_comprobante === '07' && row.nombre_estado_sunat === 'RECHAZADO' && estadoDesdeCdr(payload) === 'RECHAZADO') {
+          const codigo = cdr?.code ?? respuesta.error?.code;
+          const detalle = cdr?.description ?? respuesta.error?.message;
+          const partes: string[] = [];
+          if (/^\d+$/.test(String(codigo))) partes.push(`Código ${codigo}`);
+          if (typeof detalle === 'string' && detalle.trim()) partes.push(mensajeErrorCpe(detalle.trim()));
+          row.motivo_rechazo_sunat = partes.join(' · ') || undefined;
+        }
         if (!evidencia?.emision_en_curso && row.nombre_estado_sunat === 'PENDIENTE' && estadoDesdeCdr(payload) === 'ACEPTADO') {
           row.estado_envio = 'POR_CONFIRMAR';
         }
