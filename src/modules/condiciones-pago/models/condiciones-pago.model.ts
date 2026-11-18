@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { FiltroPaginacionDto } from '../../../common/dto/filtro-paginacion.dto';
 import {
   AuthDeleteResult,
@@ -33,17 +33,14 @@ export class CondicionesPagoModel {
     diaMesPago: number | null,
     idUsuarioAuditoria?: number,
   ) {
-    return this.db.callFunctionJson<AuthSingleResult>(
-      'gen_crear_condicion_pago',
-      [
-        codigo,
-        nombre,
-        diasCredito,
-        numeroCuotas,
-        diaMesPago,
-        idUsuarioAuditoria ?? null,
-      ],
-    );
+    return this.guardar('gen_crear_condicion_pago', [
+      codigo,
+      nombre,
+      diasCredito,
+      numeroCuotas,
+      diaMesPago,
+      idUsuarioAuditoria ?? null,
+    ]);
   }
 
   actualizar(
@@ -55,18 +52,15 @@ export class CondicionesPagoModel {
     diaMesPago: number | null,
     idUsuarioAuditoria?: number,
   ) {
-    return this.db.callFunctionJson<AuthSingleResult>(
-      'gen_actualizar_condicion_pago',
-      [
-        id,
-        codigo,
-        nombre,
-        diasCredito,
-        numeroCuotas,
-        diaMesPago,
-        idUsuarioAuditoria ?? null,
-      ],
-    );
+    return this.guardar('gen_actualizar_condicion_pago', [
+      id,
+      codigo,
+      nombre,
+      diasCredito,
+      numeroCuotas,
+      diaMesPago,
+      idUsuarioAuditoria ?? null,
+    ]);
   }
 
   eliminar(id: number, idUsuarioAuditoria?: number) {
@@ -74,5 +68,27 @@ export class CondicionesPagoModel {
       'gen_eliminar_condicion_pago',
       [id, idUsuarioAuditoria ?? null],
     );
+  }
+
+  private async guardar(functionName: string, params: unknown[]) {
+    try {
+      return await this.db.callFunctionJson<AuthSingleResult>(
+        functionName,
+        params,
+      );
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        error.code === '23505' &&
+        'constraint' in error &&
+        error.constraint === 'gen_condicion_pago_codigo_key'
+      ) {
+        throw new ConflictException(
+          'Ya existe una condición de pago con ese código. Usa un código diferente, por ejemplo CRED21 para crédito de 21 días.',
+        );
+      }
+      throw error;
+    }
   }
 }
