@@ -15,27 +15,70 @@ export class AlquileresVencidosJob {
     const resultados: Record<string, unknown> = {};
 
     for (const [clave, fn] of [
-      ['alquileresVencidos', () => this.notificacionesLogic.detectarYNotificarAlquileresVencidos()],
-      ['alquileresPorVencer', () => this.notificacionesLogic.detectarYNotificarAlquileresPorVencer()],
-      ['prestamosVencidos', () => this.notificacionesLogic.detectarYNotificarPrestamosVencidos()],
-      ['prestamosPorVencer', () => this.notificacionesLogic.detectarYNotificarPrestamosPorVencer()],
-      ['stockBajo', () => this.notificacionesLogic.detectarYNotificarStockBajo()],
-      ['documentosPorVencer', () => this.notificacionesLogic.detectarYNotificarDocumentosPorVencer()],
-      ['documentosVencidos', () => this.notificacionesLogic.detectarYNotificarDocumentosVencidos()],
-      ['licenciasPorVencer', () => this.notificacionesLogic.detectarYNotificarLicenciasPorVencer()],
-      ['licenciasVencidas', () => this.notificacionesLogic.detectarYNotificarLicenciasVencidas()],
+      [
+        'alquileresVencidos',
+        () => this.notificacionesLogic.detectarYNotificarAlquileresVencidos(),
+      ],
+      [
+        'alquileresPorVencer',
+        () => this.notificacionesLogic.detectarYNotificarAlquileresPorVencer(),
+      ],
+      [
+        'prestamosVencidos',
+        () => this.notificacionesLogic.detectarYNotificarPrestamosVencidos(),
+      ],
+      [
+        'prestamosPorVencer',
+        () => this.notificacionesLogic.detectarYNotificarPrestamosPorVencer(),
+      ],
+      [
+        'stockBajo',
+        () => this.notificacionesLogic.detectarYNotificarStockBajo(),
+      ],
+      [
+        'documentosPorVencer',
+        () => this.notificacionesLogic.detectarYNotificarDocumentosPorVencer(),
+      ],
+      [
+        'documentosVencidos',
+        () => this.notificacionesLogic.detectarYNotificarDocumentosVencidos(),
+      ],
+      [
+        'licenciasPorVencer',
+        () => this.notificacionesLogic.detectarYNotificarLicenciasPorVencer(),
+      ],
+      [
+        'licenciasVencidas',
+        () => this.notificacionesLogic.detectarYNotificarLicenciasVencidas(),
+      ],
       [
         'comprobantesPendientesSunat',
-        () => this.notificacionesLogic.detectarYNotificarComprobantesPendientesSunat(),
+        () =>
+          this.notificacionesLogic.detectarYNotificarComprobantesPendientesSunat(),
       ],
       [
         'guiasPendientesSunat',
         () => this.notificacionesLogic.detectarYNotificarGuiasPendientesSunat(),
       ],
-      ['cajaSinCerrar', () => this.notificacionesLogic.detectarYNotificarCajaSinCerrar()],
+      [
+        'cajaSinCerrar',
+        () => this.notificacionesLogic.detectarYNotificarCajaSinCerrar(),
+      ],
       [
         'phCilindroPorVencer',
         () => this.notificacionesLogic.detectarYNotificarPhCilindroPorVencer(),
+      ],
+      [
+        'cxcVencidas',
+        () => this.notificacionesLogic.detectarYNotificarCxcVencidas(),
+      ],
+      [
+        'cxpPorVencer',
+        () => this.notificacionesLogic.detectarYNotificarCxpPorVencer(),
+      ],
+      [
+        'garantiasPorDevolver',
+        () => this.notificacionesLogic.detectarYNotificarGarantiasPorDevolver(),
       ],
     ] as const) {
       try {

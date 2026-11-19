@@ -12,6 +12,7 @@ import {
   CreateCompraDto,
   FiltroComprasDto,
   RegistrarBalonesCompraDto,
+  AgregarAdjuntoCompraDto,
 } from '../dto/compras.dto';
 import { ComprasModel } from '../models/compras.model';
 
@@ -84,5 +85,33 @@ export class ComprasLogic {
   async anular(id: number, idUsuarioAuditoria?: number) {
     const result = await this.comprasModel.anular(id, idUsuarioAuditoria);
     return mapDeleteResult(result, `Comprobante de compra ${id} no encontrado`);
+  }
+
+  async listarAdjuntos(idCompra: number) {
+    const result = await this.comprasModel.listarAdjuntos(idCompra);
+    return result.registros ?? [];
+  }
+
+  async agregarAdjunto(idCompra: number, dto: AgregarAdjuntoCompraDto) {
+    const result = await this.comprasModel.agregarAdjunto(
+      idCompra,
+      dto.idArchivo,
+      dto.descripcion?.trim() || null,
+      dto.idUsuarioAuditoria,
+    );
+    return mapSingleResult(result, 'No se pudo adjuntar el archivo');
+  }
+
+  async eliminarAdjunto(
+    idCompra: number,
+    idAdjunto: number,
+    idUsuarioAuditoria?: number,
+  ) {
+    const result = await this.comprasModel.eliminarAdjunto(
+      idCompra,
+      idAdjunto,
+      idUsuarioAuditoria,
+    );
+    return mapDeleteResult(result, 'El adjunto no existe o ya fue quitado');
   }
 }

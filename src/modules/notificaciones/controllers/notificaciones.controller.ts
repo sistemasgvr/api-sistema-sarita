@@ -160,8 +160,7 @@ export class NotificacionesController {
   @Post('jobs/comprobantes-pendientes-sunat')
   @NotificacionesJobsAuth()
   @ApiOperation({
-    summary:
-      'Detectar comprobantes con ticket SUNAT aún en PENDIENTE (≥1 día)',
+    summary: 'Detectar comprobantes con ticket SUNAT aún en PENDIENTE (≥1 día)',
   })
   ejecutarComprobantesPendientesSunat() {
     return this.logic.detectarYNotificarComprobantesPendientesSunat();
@@ -170,7 +169,8 @@ export class NotificacionesController {
   @Post('jobs/guias-pendientes-sunat')
   @NotificacionesJobsAuth()
   @ApiOperation({
-    summary: 'Detectar guías de remisión con ticket SUNAT aún en PENDIENTE (≥1 día)',
+    summary:
+      'Detectar guías de remisión con ticket SUNAT aún en PENDIENTE (≥1 día)',
   })
   ejecutarGuiasPendientesSunat() {
     return this.logic.detectarYNotificarGuiasPendientesSunat();
@@ -179,7 +179,8 @@ export class NotificacionesController {
   @Post('jobs/caja-sin-cerrar')
   @NotificacionesJobsAuth()
   @ApiOperation({
-    summary: 'Detectar sesiones de caja ABIERTA de días anteriores (sin arqueo diario)',
+    summary:
+      'Detectar sesiones de caja ABIERTA de días anteriores (sin arqueo diario)',
   })
   ejecutarCajaSinCerrar() {
     return this.logic.detectarYNotificarCajaSinCerrar();
@@ -192,5 +193,31 @@ export class NotificacionesController {
   })
   ejecutarPhCilindroPorVencer() {
     return this.logic.detectarYNotificarPhCilindroPorVencer();
+  }
+
+  @Post('jobs/cxc-vencidas')
+  @NotificacionesJobsAuth()
+  @ApiOperation({ summary: 'Resumen diario de cuentas por cobrar vencidas' })
+  ejecutarCxcVencidas() {
+    return this.logic.detectarYNotificarCxcVencidas();
+  }
+
+  @Post('jobs/cxp-por-vencer')
+  @NotificacionesJobsAuth()
+  @ApiOperation({
+    summary:
+      'Resumen diario de cuentas por pagar vencidas o que vencen en 7 días',
+  })
+  ejecutarCxpPorVencer() {
+    return this.logic.detectarYNotificarCxpPorVencer();
+  }
+
+  @Post('jobs/garantias-por-devolver')
+  @NotificacionesJobsAuth()
+  @ApiOperation({
+    summary: 'Resumen diario de garantías con saldo cuyo envase ya volvió',
+  })
+  ejecutarGarantiasPorDevolver() {
+    return this.logic.detectarYNotificarGarantiasPorDevolver();
   }
 }

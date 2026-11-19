@@ -34,7 +34,9 @@ export class StorageLogic {
     idUsuarioAuditoria?: number,
   ) {
     if (!file?.buffer?.length) {
-      throw new BadRequestException('Debes enviar un archivo en el campo "file"');
+      throw new BadRequestException(
+        'Debes enviar un archivo en el campo "file"',
+      );
     }
     if (!path?.trim()) {
       throw new BadRequestException('Debes indicar la ruta destino en "path"');
@@ -90,13 +92,18 @@ export class StorageLogic {
   }
 
   async firmarUrlPorId(idArchivo: number, expiresInSeconds?: number) {
+    return this.supabaseStorage.createSignedUrl(
+      await this.obtenerRutaArchivo(idArchivo),
+      expiresInSeconds,
+    );
+  }
+
+  /** Ruta real de un archivo registrado, para autorizar por carpeta antes de firmar. */
+  async obtenerRutaArchivo(idArchivo: number): Promise<string> {
     const archivo = (await this.archivosLogic.obtenerPorId(idArchivo)) as {
       ruta: string;
     };
-    return this.supabaseStorage.createSignedUrl(
-      archivo.ruta,
-      expiresInSeconds,
-    );
+    return archivo.ruta;
   }
 
   async eliminar(paths: string[], idUsuarioAuditoria?: number) {
@@ -155,6 +162,9 @@ export class StorageLogic {
   private extraerExtension(nombre: string): string | null {
     const idx = nombre.lastIndexOf('.');
     if (idx <= 0 || idx === nombre.length - 1) return null;
-    return nombre.slice(idx + 1).toLowerCase().slice(0, 20);
+    return nombre
+      .slice(idx + 1)
+      .toLowerCase()
+      .slice(0, 20);
   }
 }

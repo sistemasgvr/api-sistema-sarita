@@ -206,4 +206,34 @@ export class ComprasModel {
       idUsuarioAuditoria ?? null,
     ]);
   }
+
+  listarAdjuntos(idCompra: number) {
+    return this.db.callFunctionJson<{ registros?: unknown[] }>(
+      'com_listar_adjuntos_compra',
+      [idCompra],
+    );
+  }
+
+  agregarAdjunto(
+    idCompra: number,
+    idArchivo: number,
+    descripcion: string | null,
+    idUsuarioAuditoria?: number,
+  ) {
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'com_agregar_adjunto_compra',
+      [idCompra, idArchivo, descripcion, idUsuarioAuditoria ?? null],
+    );
+  }
+
+  eliminarAdjunto(
+    idCompra: number,
+    idAdjunto: number,
+    idUsuarioAuditoria?: number,
+  ) {
+    return this.db.callFunctionJson<AuthDeleteResult>(
+      'com_eliminar_adjunto_compra',
+      [idCompra, idAdjunto, idUsuarioAuditoria ?? null],
+    );
+  }
 }

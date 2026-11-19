@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ApiErrorResponse } from '../interfaces/api-response.interface';
+import { esPgError, traducirPgError } from './pg-error.helper';
 
 interface ErrorCause {
   message: string;
@@ -16,15 +17,6 @@ interface ErrorCause {
   table?: string;
   constraint?: string;
 }
-
-/**
- * SQLSTATE de `RAISE EXCEPTION` sin ERRCODE explícito. Las funciones de
- * negocio lo usan para abortar una operación a mitad de una mutación (p. ej.
- * "No se puede anular: el stock ya fue consumido"): la transacción se
- * deshace y el mensaje está pensado para el usuario, así que se responde 400
- * con ese texto en vez de un 500 genérico que lo esconde.
- */
-const PG_RAISE_EXCEPTION = 'P0001';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -40,9 +32,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let errors: string[] | null = null;
     let detalle: Record<string, unknown> | undefined;
 
-    if (this.isPgRaiseException(exception)) {
-      status = HttpStatus.BAD_REQUEST;
-      message = exception.message;
+    const pgTraducido = esPgError(exception)
+      ? traducirPgError(exception)
+      : null;
+
+    if (pgTraducido) {
+      status = pgTraducido.status;
+      message = pgTraducido.message;
+      // Ya no es un 500, pero el detalle técnico (constraint, tabla) sigue
+      // haciendo falta para diagnosticar: queda en el log como advertencia.
+      this.logPgTraducido(this.getErrorCause(exception), request, status);
     } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
@@ -87,14 +86,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
     response.status(status).json(body);
   }
 
-  private isPgRaiseException(
-    exception: unknown,
-  ): exception is Error & { code: string } {
-    return (
-      exception instanceof Error &&
-      (exception as Error & { code?: string }).code === PG_RAISE_EXCEPTION &&
-      typeof exception.message === 'string' &&
-      exception.message.trim() !== ''
+  private logPgTraducido(cause: ErrorCause, request: Request, status: number) {
+    this.logger.warn(
+      `${request.method} ${request.originalUrl} -> ${status}: ${cause.message}` +
+        `${cause.code ? ` | code=${cause.code}` : ''}` +
+        `${cause.constraint ? ` | constraint=${cause.constraint}` : ''}` +
+        `${cause.table ? ` | table=${cause.table}` : ''}`,
     );
   }
 

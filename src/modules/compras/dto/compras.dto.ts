@@ -666,3 +666,20 @@ export class RegistrarBalonesCompraDto extends AuditoriaDto {
   @Type(() => CompraBalonDto)
   balones!: CompraBalonDto[];
 }
+
+/** Vincula a la compra un archivo ya subido a storage (carpeta compras/). */
+export class AgregarAdjuntoCompraDto extends AuditoriaDto {
+  @ApiProperty({
+    description: 'ID en gen_archivo devuelto por POST /storage/upload',
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idArchivo: number;
+
+  @ApiPropertyOptional({ example: 'Factura del proveedor' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  descripcion?: string;
+}

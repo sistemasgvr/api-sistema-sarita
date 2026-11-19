@@ -14,6 +14,25 @@ import {
 } from '../dto/notificaciones.dto';
 import { NotificacionesGateway } from '../gateways/notificaciones.gateway';
 import { NotificacionesModel } from '../models/notificaciones.model';
+import {
+  resumenCxcVencidas,
+  resumenCxpPorVencer,
+  resumenGarantiasPorDevolver,
+  resumenPh,
+  type CuentaAlertaRow,
+  type GarantiaAlertaRow,
+  type ResumenAlerta,
+} from '../helpers/resumen-alertas.helper';
+
+/** Fecha de hoy en Lima (YYYY-MM-DD), para las claves de deduplicación diarias. */
+function fechaLima(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
 
 export interface NotificacionRegistro {
   id: number;
@@ -233,7 +252,9 @@ export class NotificacionesLogic {
       : await this.model.listarIdsPorPermiso(params.permiso);
     let destinatarios = this.normalizeIds(byPermiso.ids);
     if (params.excluirUsuarioId) {
-      destinatarios = destinatarios.filter((id) => id !== params.excluirUsuarioId);
+      destinatarios = destinatarios.filter(
+        (id) => id !== params.excluirUsuarioId,
+      );
     }
 
     if (destinatarios.length === 0) {
@@ -358,8 +379,9 @@ export class NotificacionesLogic {
         : TipoNotificacion.STOCK_BAJO;
       const titulo = esCero ? 'Stock en cero' : 'Stock bajo';
       const producto =
-        [item.codigo_producto, item.nombre_producto].filter(Boolean).join(' — ') ||
-        `Producto #${item.id_producto}`;
+        [item.codigo_producto, item.nombre_producto]
+          .filter(Boolean)
+          .join(' — ') || `Producto #${item.id_producto}`;
       const mensaje = esCero
         ? `${producto} sin stock en ${item.nombre_almacen ?? 'almacén'} (mín. ${item.stock_minimo ?? 0}).`
         : `${producto} bajo mínimo en ${item.nombre_almacen ?? 'almacén'}: ${item.stock} / mín. ${item.stock_minimo}.`;
@@ -478,8 +500,11 @@ export class NotificacionesLogic {
     const raw = await this.model.listarComprobantesPendientesSunat(1);
     const items = (raw.registros ?? []) as ComprobantePendienteRow[];
     const destinatarios = this.normalizeIds(
-      (await this.model.listarIdsPorPermiso(PermisoBanderas.COMPROBANTES_EMITIR))
-        .ids,
+      (
+        await this.model.listarIdsPorPermiso(
+          PermisoBanderas.COMPROBANTES_EMITIR,
+        )
+      ).ids,
     );
 
     if (destinatarios.length === 0) {
@@ -534,7 +559,9 @@ export class NotificacionesLogic {
     const items = (raw.registros ?? []) as GuiaPendienteRow[];
     const destinatarios = this.normalizeIds(
       (
-        await this.model.listarIdsPorPermiso(PermisoBanderas.DOCUMENTOS_SALIDA_EMITIR)
+        await this.model.listarIdsPorPermiso(
+          PermisoBanderas.DOCUMENTOS_SALIDA_EMITIR,
+        )
       ).ids,
     );
 
@@ -651,54 +678,114 @@ export class NotificacionesLogic {
   ) {
     const raw = await this.model.listarPhPorVencer(dias);
     const cilindros = (raw.registros ?? []) as PhCilindroRow[];
+    // Un solo aviso por día con el total (antes: uno por cilindro, a diario).
+    return this.notificarResumenDiario({
+      codigoTipo: TipoNotificacion.PH_CILINDRO_POR_VENCER,
+      permiso: PermisoBanderas.BALONES_LISTAR,
+      tipoReferencia: TipoReferenciaNotificacion.BALON,
+      resumen: resumenPh(cilindros, dias),
+      cantidad: cilindros.length,
+      payload: {
+        dias,
+        cilindros: cilindros.slice(0, 50).map((c) => ({
+          idBalon: c.id,
+          codigoBalon: c.codigo_balon,
+          fechaProxima: c.fecha_proxima,
+          diasRestantes: c.dias_restantes,
+        })),
+      },
+      idUsuarioAuditoria,
+    });
+  }
+
+  /** CxC con vencimiento anterior a hoy y saldo pendiente (pedido del cliente, 15/6). */
+  async detectarYNotificarCxcVencidas(idUsuarioAuditoria?: number) {
+    const raw = await this.model.listarCuentasAlerta('COBRAR');
+    const cuentas = (raw.registros ?? []) as CuentaAlertaRow[];
+    return this.notificarResumenDiario({
+      codigoTipo: TipoNotificacion.CXC_VENCIDAS,
+      permiso: PermisoBanderas.FINANZAS_CXC_VER,
+      tipoReferencia: TipoReferenciaNotificacion.CUENTA_FIN,
+      resumen: resumenCxcVencidas(cuentas),
+      cantidad: cuentas.length,
+      payload: { cuentas: cuentas.slice(0, 50) },
+      idUsuarioAuditoria,
+    });
+  }
+
+  /** CxP vencidas o que vencen en los próximos `dias` días. */
+  async detectarYNotificarCxpPorVencer(idUsuarioAuditoria?: number, dias = 7) {
+    const raw = await this.model.listarCuentasAlerta('PAGAR', dias);
+    const cuentas = (raw.registros ?? []) as CuentaAlertaRow[];
+    return this.notificarResumenDiario({
+      codigoTipo: TipoNotificacion.CXP_POR_VENCER,
+      permiso: PermisoBanderas.FINANZAS_CXP_VER,
+      tipoReferencia: TipoReferenciaNotificacion.CUENTA_FIN,
+      resumen: resumenCxpPorVencer(cuentas, dias),
+      cantidad: cuentas.length,
+      payload: { dias, cuentas: cuentas.slice(0, 50) },
+      idUsuarioAuditoria,
+    });
+  }
+
+  /** Garantías con saldo cuyo envase volvió hace `dias` días o más. */
+  async detectarYNotificarGarantiasPorDevolver(
+    idUsuarioAuditoria?: number,
+    dias = 3,
+  ) {
+    const raw = await this.model.listarGarantiasPorDevolver(dias);
+    const garantias = (raw.registros ?? []) as GarantiaAlertaRow[];
+    return this.notificarResumenDiario({
+      codigoTipo: TipoNotificacion.GARANTIAS_POR_DEVOLVER,
+      permiso: PermisoBanderas.FINANZAS_GARANTIAS_REEMBOLSAR,
+      tipoReferencia: TipoReferenciaNotificacion.GARANTIA,
+      resumen: resumenGarantiasPorDevolver(garantias),
+      cantidad: garantias.length,
+      payload: { dias, garantias: garantias.slice(0, 50) },
+      idUsuarioAuditoria,
+    });
+  }
+
+  /**
+   * Una notificación por destinatario y por día con el resumen de la alerta.
+   * `claveDedupe` incluye la fecha: si el job corre dos veces el mismo día no
+   * se duplica.
+   */
+  private async notificarResumenDiario(params: {
+    codigoTipo: string;
+    permiso: string;
+    tipoReferencia: string;
+    resumen: ResumenAlerta | null;
+    cantidad: number;
+    payload: Record<string, unknown>;
+    idUsuarioAuditoria?: number;
+  }) {
+    if (!params.resumen) {
+      return { items: 0, destinatarios: 0, notificaciones: 0 };
+    }
     const destinatarios = this.normalizeIds(
-      (await this.model.listarIdsPorPermiso(PermisoBanderas.BALONES_LISTAR)).ids,
+      (await this.model.listarIdsPorPermiso(params.permiso)).ids,
     );
-
-    if (destinatarios.length === 0) {
-      return {
-        cilindros: cilindros.length,
-        destinatarios: 0,
-        notificaciones: 0,
-      };
-    }
-
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = fechaLima();
     let notificaciones = 0;
-
-    for (const cilindro of cilindros) {
-      const codigo = cilindro.codigo_balon?.trim() || `Cilindro #${cilindro.id}`;
-      const diasRestantes = Number(cilindro.dias_restantes ?? 0);
-      const fecha = cilindro.fecha_proxima ?? '';
-      const mensaje = `${codigo} tiene PH por vencer en ${diasRestantes} día(s) (${fecha}).`;
-
-      for (const idUsuario of destinatarios) {
-        const creado = await this.crearYEmitir({
-          idUsuario,
-          codigoTipo: TipoNotificacion.PH_CILINDRO_POR_VENCER,
-          titulo: 'PH de cilindro por vencer',
-          mensaje,
-          payload: {
-            idBalon: cilindro.id,
-            codigoBalon: cilindro.codigo_balon,
-            fechaProxima: cilindro.fecha_proxima,
-            diasRestantes: cilindro.dias_restantes,
-          },
-          idReferencia: cilindro.id,
-          tipoReferencia: TipoReferenciaNotificacion.BALON,
-          claveDedupe: `PH_CILINDRO_POR_VENCER:${cilindro.id}:${hoy}`,
-          idUsuarioAuditoria,
-        });
-        if (creado) notificaciones += 1;
-      }
+    for (const idUsuario of destinatarios) {
+      const creado = await this.crearYEmitir({
+        idUsuario,
+        codigoTipo: params.codigoTipo,
+        titulo: params.resumen.titulo,
+        mensaje: params.resumen.mensaje,
+        payload: { cantidad: params.cantidad, ...params.payload },
+        tipoReferencia: params.tipoReferencia,
+        claveDedupe: `${params.codigoTipo}:${hoy}`,
+        idUsuarioAuditoria: params.idUsuarioAuditoria,
+      });
+      if (creado) notificaciones += 1;
     }
-
     this.logger.log(
-      `PH_CILINDRO_POR_VENCER: ${cilindros.length} | dest: ${destinatarios.length} | notifs: ${notificaciones}`,
+      `${params.codigoTipo}: ${params.cantidad} | dest: ${destinatarios.length} | notifs: ${notificaciones}`,
     );
-
     return {
-      cilindros: cilindros.length,
+      items: params.cantidad,
       destinatarios: destinatarios.length,
       notificaciones,
     };
@@ -838,7 +925,9 @@ export class NotificacionesLogic {
   }) {
     const destinatarios = this.normalizeIds(
       (
-        await this.model.listarIdsPorPermiso(PermisoBanderas.ALQUILERES_BALON_LISTAR)
+        await this.model.listarIdsPorPermiso(
+          PermisoBanderas.ALQUILERES_BALON_LISTAR,
+        )
       ).ids,
     );
 
@@ -900,7 +989,9 @@ export class NotificacionesLogic {
   }) {
     const destinatarios = this.normalizeIds(
       (
-        await this.model.listarIdsPorPermiso(PermisoBanderas.PRESTAMOS_BALON_LISTAR)
+        await this.model.listarIdsPorPermiso(
+          PermisoBanderas.PRESTAMOS_BALON_LISTAR,
+        )
       ).ids,
     );
 
@@ -953,7 +1044,9 @@ export class NotificacionesLogic {
     };
   }
 
-  private async resolverDestinatarios(dto: CrearNotificacionDto): Promise<number[]> {
+  private async resolverDestinatarios(
+    dto: CrearNotificacionDto,
+  ): Promise<number[]> {
     const ids = new Set<number>();
 
     if (dto.idUsuario) ids.add(dto.idUsuario);
@@ -967,7 +1060,9 @@ export class NotificacionesLogic {
     }
 
     if (dto.permiso?.trim()) {
-      const byPermiso = await this.model.listarIdsPorPermiso(dto.permiso.trim());
+      const byPermiso = await this.model.listarIdsPorPermiso(
+        dto.permiso.trim(),
+      );
       for (const id of this.normalizeIds(byPermiso.ids)) ids.add(id);
     }
 

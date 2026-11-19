@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
@@ -28,6 +29,7 @@ import {
   CreateCompraDto,
   FiltroComprasDto,
   RegistrarBalonesCompraDto,
+  AgregarAdjuntoCompraDto,
 } from '../dto/compras.dto';
 import { ComprasLogic } from '../logic/compras.logic';
 
@@ -162,4 +164,52 @@ export class ComprasController {
     dto.idUsuarioAuditoria = req.user.id;
     return this.comprasLogic.anular(id, dto.idUsuarioAuditoria);
   }
+
+  // ── Adjuntos (factura del proveedor, guía, foto) ──
+  // El archivo se sube antes con POST /storage/upload en la carpeta compras/.
+
+  @Get(':id/adjuntos')
+  @Permisos(PermisoBanderas.COMPRAS_VER)
+  @ApiOperation({ summary: 'Listar archivos adjuntos de la compra' })
+  listarAdjuntos(@Param('id', ParseIntPipe) id: number) {
+    return this.comprasLogic.listarAdjuntos(id);
+  }
+
+  @Post(':id/adjuntos')
+  @Permisos(PermisoBanderas.COMPRAS_VER)
+  @ApiOperation({ summary: 'Adjuntar a la compra un archivo ya subido' })
+  agregarAdjunto(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AgregarAdjuntoCompraDto,
+    @Req() req: AuthRequest,
+  ) {
+    exigirCrearOEditarCompra(req.user);
+    dto.idUsuarioAuditoria = req.user.id;
+    return this.comprasLogic.agregarAdjunto(id, dto);
+  }
+
+  @Delete(':id/adjuntos/:idAdjunto')
+  @Permisos(PermisoBanderas.COMPRAS_VER)
+  @ApiOperation({ summary: 'Quitar un adjunto de la compra' })
+  eliminarAdjunto(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('idAdjunto', ParseIntPipe) idAdjunto: number,
+    @Req() req: AuthRequest,
+  ) {
+    exigirCrearOEditarCompra(req.user);
+    return this.comprasLogic.eliminarAdjunto(id, idAdjunto, req.user.id);
+  }
+}
+
+/** Adjuntar es parte de registrar la compra: basta con crear O editar. */
+function exigirCrearOEditarCompra(user: AuthenticatedUser) {
+  const permisos = user.permisos ?? [];
+  if (
+    permisos.includes(PermisoBanderas.AUTH_TODO) ||
+    permisos.includes(PermisoBanderas.COMPRAS_CREAR) ||
+    permisos.includes(PermisoBanderas.COMPRAS_EDITAR)
+  ) {
+    return;
+  }
+  throw new ForbiddenException('Necesitas permiso para crear o editar compras');
 }

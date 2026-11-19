@@ -11,20 +11,23 @@ export class NotificacionesModel {
   constructor(private readonly db: DatabaseService) {}
 
   listar(idUsuario: number, filtros: FiltroNotificacionesDto) {
-    return this.db.callFunctionJson<AuthListResult>('gen_listar_notificaciones', [
-      idUsuario,
-      filtros.soloNoLeidas ?? 0,
-      filtros.buscar ?? '',
-      filtros.limite ?? 20,
-      filtros.offset,
-    ]);
+    return this.db.callFunctionJson<AuthListResult>(
+      'gen_listar_notificaciones',
+      [
+        idUsuario,
+        filtros.soloNoLeidas ?? 0,
+        filtros.buscar ?? '',
+        filtros.limite ?? 20,
+        filtros.offset,
+      ],
+    );
   }
 
   obtenerPorId(id: number, idUsuario: number) {
-    return this.db.callFunctionJson<AuthSingleResult>('gen_obtener_notificacion', [
-      id,
-      idUsuario,
-    ]);
+    return this.db.callFunctionJson<AuthSingleResult>(
+      'gen_obtener_notificacion',
+      [id, idUsuario],
+    );
   }
 
   crear(params: {
@@ -103,11 +106,7 @@ export class NotificacionesModel {
     );
   }
 
-  listarAlquileresPorVencer(
-    diasMin = 3,
-    diasMax = 7,
-    fecha?: string | null,
-  ) {
+  listarAlquileresPorVencer(diasMin = 3, diasMax = 7, fecha?: string | null) {
     return this.db.callFunctionJson<{ registros: unknown[] }>(
       'bal_listar_alquileres_por_vencer_notificar',
       [diasMin, diasMax, fecha ?? null],
@@ -121,11 +120,7 @@ export class NotificacionesModel {
     );
   }
 
-  listarPrestamosPorVencer(
-    diasMin = 3,
-    diasMax = 7,
-    fecha?: string | null,
-  ) {
+  listarPrestamosPorVencer(diasMin = 3, diasMax = 7, fecha?: string | null) {
     return this.db.callFunctionJson<{ registros: unknown[] }>(
       'bal_listar_prestamos_por_vencer_notificar',
       [diasMin, diasMax, fecha ?? null],
@@ -139,11 +134,7 @@ export class NotificacionesModel {
     );
   }
 
-  listarDocumentosPorVencer(
-    diasMin = 3,
-    diasMax = 7,
-    fecha?: string | null,
-  ) {
+  listarDocumentosPorVencer(diasMin = 3, diasMax = 7, fecha?: string | null) {
     return this.db.callFunctionJson<{ registros: unknown[] }>(
       'gen_listar_documentos_por_vencer_notificar',
       [diasMin, diasMax, fecha ?? null],
@@ -157,11 +148,7 @@ export class NotificacionesModel {
     );
   }
 
-  listarLicenciasPorVencer(
-    diasMin = 3,
-    diasMax = 7,
-    fecha?: string | null,
-  ) {
+  listarLicenciasPorVencer(diasMin = 3, diasMax = 7, fecha?: string | null) {
     return this.db.callFunctionJson<{ registros: unknown[] }>(
       'gen_listar_licencias_por_vencer_notificar',
       [diasMin, diasMax, fecha ?? null],
@@ -175,10 +162,7 @@ export class NotificacionesModel {
     );
   }
 
-  listarComprobantesPendientesSunat(
-    diasMin = 1,
-    fecha?: string | null,
-  ) {
+  listarComprobantesPendientesSunat(diasMin = 1, fecha?: string | null) {
     return this.db.callFunctionJson<{ registros: unknown[] }>(
       'ven_listar_comprobantes_pendientes_notificar',
       [diasMin, fecha ?? null],
@@ -196,6 +180,20 @@ export class NotificacionesModel {
     return this.db.callFunctionJson<{ registros: unknown[] }>(
       'fin_listar_caja_pendiente_cierre',
       [null],
+    );
+  }
+
+  listarCuentasAlerta(tipo: 'COBRAR' | 'PAGAR', dias = 7) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'fin_listar_cuentas_alerta_notificar',
+      [tipo, dias],
+    );
+  }
+
+  listarGarantiasPorDevolver(dias = 3) {
+    return this.db.callFunctionJson<{ registros: unknown[] }>(
+      'ven_listar_garantias_por_devolver_notificar',
+      [dias],
     );
   }
 

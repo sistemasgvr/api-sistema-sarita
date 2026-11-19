@@ -27,6 +27,22 @@ CREATE OR REPLACE FUNCTION public.gen_actualizar_empresa (
   p_id_distrito integer DEFAULT NULL::integer
 ) RETURNS json LANGUAGE plpgsql AS $function$
 BEGIN
+    -- Validación previa de duplicado: la UNIQUE gen_empresa_ruc_key también cuenta los
+    -- registros dados de baja. Sin esto el INSERT/UPDATE falla con 23505 y el
+    -- usuario ve un error genérico (reporte del 18/11, condición de pago CRED21).
+    IF p_ruc IS NOT NULL AND EXISTS (SELECT 1 FROM gen_empresa WHERE ruc = p_ruc AND id <> p_id) THEN
+        RETURN json_build_object(
+            'error',
+            format(
+                'Ya existe una empresa con el RUC %s%s. Usa otro.',
+                p_ruc,
+                CASE WHEN EXISTS (SELECT 1 FROM gen_empresa WHERE ruc = p_ruc AND estado = 1 AND id <> p_id)
+                     THEN '' ELSE ' (el registro existente está dado de baja)' END
+            ),
+            'registro', NULL
+        );
+    END IF;
+
     SET TIME ZONE 'America/Lima';
 
     IF p_tolerancia_m3_ruta_pueblo IS NOT NULL AND p_tolerancia_m3_ruta_pueblo < 0 THEN
