@@ -30,6 +30,7 @@ DECLARE
     v_id_detalle_entregado_nuevo INTEGER;
     v_detalle_garantia RECORD;
     v_id_estado_detalle_transferido INTEGER;
+    v_id_estado_detalle_activo INTEGER;
     v_garantia RECORD;
 BEGIN
     SET TIME ZONE 'America/Lima';
@@ -111,34 +112,13 @@ BEGIN
             );
         END IF;
         v_id_balon_swap := p_id_balon_nuevo;
-    ELSE
-        SELECT lo.id INTO v_id_estado_en_almacen
-        FROM gen_lista_opciones lo
-        INNER JOIN gen_lista l ON lo.id_lista = l.id
-        WHERE l.nombre = 'EstadoBalon' AND lo.nombre = 'DISPONIBLE' AND lo.estado = 1
-        LIMIT 1;
-
-        SELECT b.id INTO v_id_balon_swap
-        FROM bal_balon b
-        INNER JOIN bal_balon origen ON origen.id = v_detalle_entregado.id_balon
-        WHERE b.estado = 1
-          AND b.id_estado_balon = v_id_estado_en_almacen
-          AND b.id <> origen.id
-          AND b.id_tipo_balon = origen.id_tipo_balon
-          AND COALESCE(b.id_producto_gas, -1) = COALESCE(origen.id_producto_gas, -1)
-          AND (v_prestamo.id_almacen IS NULL OR b.id_almacen = v_prestamo.id_almacen)
-          AND NOT EXISTS (
-              SELECT 1
-              FROM bal_prestamo_detalle pd_ocupado
-              INNER JOIN bal_prestamo p_ocupado
-                  ON p_ocupado.id = pd_ocupado.id_prestamo AND p_ocupado.estado = 1
-              WHERE pd_ocupado.id_balon = b.id
-                AND pd_ocupado.estado = 1
-                AND pd_ocupado.fecha_devolucion IS NULL
-          )
-        ORDER BY b.fecha_registro ASC NULLS LAST, b.id ASC
-        LIMIT 1;
     END IF;
+    -- Sin p_id_balon_nuevo la renovación es con el MISMO cilindro: el cliente se
+    -- queda con el que tiene. Antes la función buscaba sola otro cilindro
+    -- disponible del mismo tipo y lo cambiaba, y el préstamo nuevo quedaba
+    -- apuntando a un cilindro que seguía en el almacén (caso PRE-2026-300,
+    -- 19/11: el cliente seguía con el 9762 y el sistema le asignó el 2601001020).
+    -- Cambiar de cilindro solo ocurre si el cajero lo elige.
 
     IF v_id_balon_swap IS NOT NULL THEN
         v_result := bal_devolver_prestamo_detalle(
@@ -198,22 +178,45 @@ BEGIN
     SET id_prestamo_origen = p_id_prestamo
     WHERE id = v_id_prestamo_nuevo;
 
-    v_result := bal_crear_prestamo_detalle(
-        p_id_prestamo            => v_id_prestamo_nuevo,
-        p_id_balon               => COALESCE(v_id_balon_swap, v_detalle_entregado.id_balon),
-        p_id_producto            => v_detalle_entregado.id_producto,
-        p_fecha_entregado        => CURRENT_DATE,
-        p_fecha_prestamo         => CURRENT_DATE,
-        p_fecha_vencimiento      => v_fecha_retorno,
-        p_observacion            => CASE
-            WHEN v_id_balon_swap IS NOT NULL THEN 'Cilindro de reemplazo por renovación'
-            ELSE 'Mismo cilindro, préstamo renovado'
-        END,
-        p_id_usuario_auditoria   => p_id_usuario,
-        p_rol                    => 'ENTREGADO'
-    );
-    PERFORM ven_raise_si_error(v_result);
-    v_id_detalle_entregado_nuevo := (v_result->'registro'->>'id')::INTEGER;
+    IF v_id_balon_swap IS NOT NULL THEN
+        -- Cambio de cilindro elegido por el cajero: sale el nuevo del almacén.
+        v_result := bal_crear_prestamo_detalle(
+            p_id_prestamo            => v_id_prestamo_nuevo,
+            p_id_balon               => v_id_balon_swap,
+            p_id_producto            => v_detalle_entregado.id_producto,
+            p_fecha_entregado        => CURRENT_DATE,
+            p_fecha_prestamo         => CURRENT_DATE,
+            p_fecha_vencimiento      => v_fecha_retorno,
+            p_observacion            => 'Cilindro de reemplazo por renovación',
+            p_id_usuario_auditoria   => p_id_usuario,
+            p_rol                    => 'ENTREGADO'
+        );
+        PERFORM ven_raise_si_error(v_result);
+        v_id_detalle_entregado_nuevo := (v_result->'registro'->>'id')::INTEGER;
+    ELSE
+        -- Mismo cilindro: nunca volvió al almacén, así que no se registra una
+        -- nueva SALIDA_PRESTAMO (bal_crear_prestamo_detalle la registraría y el
+        -- kardex mostraría dos salidas sin entrada). Solo se abre el detalle en
+        -- el préstamo nuevo; el cilindro sigue PRESTADO_CLIENTE con el cliente.
+        SELECT lo.id INTO v_id_estado_detalle_activo
+        FROM gen_lista_opciones lo
+        INNER JOIN gen_lista l ON lo.id_lista = l.id
+        WHERE l.nombre = 'EstadoPrestamoDetalle' AND lo.nombre = 'ACTIVO' AND lo.estado = 1
+        LIMIT 1;
+
+        INSERT INTO bal_prestamo_detalle (
+            id_prestamo, id_balon, id_producto,
+            fecha_entregado, fecha_prestamo, dias_prestamo, fecha_vencimiento,
+            id_estado, observacion, rol,
+            id_usuario_creacion, id_usuario_modificacion
+        ) VALUES (
+            v_id_prestamo_nuevo, v_detalle_entregado.id_balon, v_detalle_entregado.id_producto,
+            CURRENT_DATE, CURRENT_DATE, COALESCE(v_detalle_entregado.dias_prestamo, 30), v_fecha_retorno,
+            v_id_estado_detalle_activo, 'Mismo cilindro, préstamo renovado', 'ENTREGADO',
+            p_id_usuario, p_id_usuario
+        )
+        RETURNING id INTO v_id_detalle_entregado_nuevo;
+    END IF;
 
     IF p_mantener_garantia THEN
         IF v_id_detalle_garantia IS NOT NULL THEN
